@@ -512,8 +512,8 @@ SOFTWARE.
 ## 📞 联系方式
 
 - **开发团队**：阿东与守一团队（Ahdong&Shouey Team）
-- **GitHub**：[插入仓库链接]
-- **邮箱**：[插入联系邮箱]
+- **GitHub**：[(https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)]
+- **邮箱**：[1240543656@qq.com]
 - **最后更新**：2026-04-27
 
 ---
