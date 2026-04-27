@@ -1,6 +1,6 @@
 # BNOS - 仿生神经网络可视化编排平台
 
-🌍 Language | 语言选择：**中文** | [English](README_EN.md)（待翻译）
+🌍 Language | 语言选择：**中文** | [English](README_EN.md)
 
 ## 📖 项目简介
 
