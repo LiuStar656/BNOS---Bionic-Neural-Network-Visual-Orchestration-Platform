@@ -512,8 +512,8 @@ Contributions, bug reports, and suggestions are welcome!
 ## 📞 Contact
 
 - **Development Team**: Ahdong&Shouey Team
-- **GitHub**: [Insert Repository Link]
-- **Email**: [Insert Contact Email]
+- **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform]
+- **Email**: [1240543656@qq.com]
 - **Last Updated**: 2026-04-27
 
 ---
