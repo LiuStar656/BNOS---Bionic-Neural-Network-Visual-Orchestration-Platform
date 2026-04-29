@@ -1224,7 +1224,7 @@ class NodeCanvas(QGraphicsView):
             print(f"✅ 画布节点已重命名: {old_name} -> {new_name}")
 
     def save_layout(self, project_path):
-        """保存画布布局到JSON文件 - 完整持久化"""
+        """保存画布布局到JSON文件 - 完整持久化（包含节点颜色）"""
         if not project_path:
             return
         
@@ -1238,14 +1238,30 @@ class NodeCanvas(QGraphicsView):
             }
         }
         
-        # 保存节点位置和大小
+        # 保存节点位置、大小和颜色信息
         for node_name, node in self.nodes.items():
             pos = node.pos()
+            
+            # 获取节点的自定义颜色（如果有）
+            custom_colors = {}
+            if self.parent_window and node_name in self.parent_window.nodes_data:
+                node_info = self.parent_window.nodes_data[node_name]
+                config = node_info.get('config', {})
+                
+                # 提取自定义颜色字段
+                if 'custom_bg_color' in config:
+                    custom_colors['bg'] = config['custom_bg_color']
+                if 'custom_border_color' in config:
+                    custom_colors['border'] = config['custom_border_color']
+                if 'custom_text_color' in config:
+                    custom_colors['text'] = config['custom_text_color']
+            
             layout_data["nodes"][node_name] = {
                 "x": pos.x(),
                 "y": pos.y(),
                 "width": node.rect().width(),
-                "height": node.rect().height()
+                "height": node.rect().height(),
+                "custom_colors": custom_colors if custom_colors else None
             }
         
         # 保存连线关系
@@ -1298,11 +1314,50 @@ class NodeCanvas(QGraphicsView):
             nodes_loaded = 0
             edges_loaded = 0
             
-            # 第一步：恢复节点位置（对于已存在的节点）
+            # 第一步：恢复节点位置和颜色（对于已存在的节点）
             for node_name, pos_data in layout_data.get("nodes", {}).items():
                 if node_name in self.nodes:
                     node = self.nodes[node_name]
+                    
+                    # 恢复位置
                     node.setPos(pos_data["x"], pos_data["y"])
+                    
+                    # 恢复自定义颜色（如果有保存）
+                    custom_colors = pos_data.get("custom_colors")
+                    if custom_colors and self.parent_window and node_name in self.parent_window.nodes_data:
+                        node_info = self.parent_window.nodes_data[node_name]
+                        config = node_info.get('config', {})
+                        
+                        # 应用背景色
+                        if 'bg' in custom_colors:
+                            try:
+                                color = QColor(custom_colors['bg'])
+                                if color.isValid():
+                                    node.setBrush(QBrush(color))
+                                    config['custom_bg_color'] = custom_colors['bg']
+                            except:
+                                pass
+                        
+                        # 应用边框色
+                        if 'border' in custom_colors:
+                            try:
+                                color = QColor(custom_colors['border'])
+                                if color.isValid():
+                                    node.setPen(QPen(color, 2))
+                                    config['custom_border_color'] = custom_colors['border']
+                            except:
+                                pass
+                        
+                        # 应用文字色
+                        if 'text' in custom_colors:
+                            try:
+                                color = QColor(custom_colors['text'])
+                                if color.isValid():
+                                    node.name_text.setDefaultTextColor(color)
+                                    config['custom_text_color'] = custom_colors['text']
+                            except:
+                                pass
+                    
                     nodes_loaded += 1
             
             # 第二步：自动添加布局文件中记录但当前不在画布上的节点
@@ -1326,6 +1381,42 @@ class NodeCanvas(QGraphicsView):
                         # 创建节点（位置参数会被构造函数忽略，需要后续setPos）
                         node = NodeItem(node_name, language, status, 0, 0, w, h, self)
                         node.setPos(x, y)  # 显式设置位置
+                        
+                        # 恢复自定义颜色（如果有保存）
+                        custom_colors = pos_data.get("custom_colors")
+                        if custom_colors:
+                            config = node_info.get('config', {})
+                            
+                            # 应用背景色
+                            if 'bg' in custom_colors:
+                                try:
+                                    color = QColor(custom_colors['bg'])
+                                    if color.isValid():
+                                        node.setBrush(QBrush(color))
+                                        config['custom_bg_color'] = custom_colors['bg']
+                                except:
+                                    pass
+                            
+                            # 应用边框色
+                            if 'border' in custom_colors:
+                                try:
+                                    color = QColor(custom_colors['border'])
+                                    if color.isValid():
+                                        node.setPen(QPen(color, 2))
+                                        config['custom_border_color'] = custom_colors['border']
+                                except:
+                                    pass
+                            
+                            # 应用文字色
+                            if 'text' in custom_colors:
+                                try:
+                                    color = QColor(custom_colors['text'])
+                                    if color.isValid():
+                                        node.name_text.setDefaultTextColor(color)
+                                        config['custom_text_color'] = custom_colors['text']
+                                except:
+                                    pass
+                        
                         self.scene.addItem(node)
                         self.nodes[node_name] = node
                         

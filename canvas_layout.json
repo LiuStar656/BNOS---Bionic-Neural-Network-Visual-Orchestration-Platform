@@ -4,13 +4,17 @@
       "x": 69.73574054097324,
       "y": -166.26851237938996,
       "width": 140.0,
-      "height": 80.0
+      "height": 80.0,
+      "custom_colors": {
+        "bg": "#ffff7f"
+      }
     },
     "node_2": {
       "x": 347.553,
       "y": -184.7532499999999,
       "width": 140.0,
-      "height": 80.0
+      "height": 80.0,
+      "custom_colors": null
     }
   },
   "edges": [

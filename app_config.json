@@ -10,17 +10,17 @@
     362,
     751
   ],
-  "last_project": "D:/bnos_new/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform",
+  "last_project": "D:/bnos_new",
   "canvas_view_state": {
-    "scale": 0.6575162324319884,
+    "scale": 0.43232759591155656,
     "scroll_x": 0,
     "scroll_y": 0
   },
   "node_list_panel": {
-    "visible": false,
-    "x": 50,
-    "y": 157,
-    "width": 280,
-    "height": 600
+    "visible": true,
+    "x": 1192,
+    "y": 100,
+    "width": 250,
+    "height": 400
   }
 }

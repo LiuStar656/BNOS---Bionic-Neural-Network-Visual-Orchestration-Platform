@@ -1,8 +1,8 @@
 """
-节点列表面板 - 可浮动窗口，显示项目中的所有节点
+节点列表面板 - 常驻半透明悬浮窗，显示项目中的所有节点
 """
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QMenu, QMessageBox, QFileDialog, QInputDialog, QDialog
 )
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -13,10 +13,10 @@ import os
 
 
 class NodeListPanel(QDialog):
-    """节点列表面板（独立浮动窗口）"""
+    """节点列表面板（常驻半透明悬浮窗）"""
     
     # 信号
-    node_double_clicked = pyqtSignal(str)  # 节点双击信号
+    node_double_clicked = pyqtSignal(str)  # 节点双击信号（添加到画布）
     node_right_clicked = pyqtSignal(str, object)  # 节点右键信号
     
     def __init__(self, parent=None):
@@ -24,27 +24,69 @@ class NodeListPanel(QDialog):
         self.parent_window = parent
         self.nodes_data = {}
         
-        # 设置窗口标志
+        # 设置窗口标志：工具窗口、置顶、无边框（可选）
         self.setWindowFlags(
             Qt.WindowType.Tool |
-            Qt.WindowType.WindowStaysOnTopHint
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.FramelessWindowHint  # 无边框，更简洁
         )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)  # 支持半透明
         
         self.init_ui()
         
     def init_ui(self):
         """初始化UI"""
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(5, 5, 5, 5)
+        # 主布局
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         
-        # 标题
-        title_label = QLabel("当前项目节点列表")
-        title_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
-        layout.addWidget(title_label)
+        # 创建容器widget用于半透明背景
+        container = QWidget(self)
+        container.setObjectName("container")
+        container.setStyleSheet("""
+            QWidget#container {
+                background-color: rgba(30, 30, 30, 200);
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 30);
+            }
+        """)
+        
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
+        
+        # 标题栏（可拖动）
+        title_layout = QHBoxLayout()
+        title_label = QLabel("📋 节点列表")
+        title_label.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+        title_label.setStyleSheet("color: white;")
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+        
+        # 最小化按钮
+        minimize_btn = QLabel("─")
+        minimize_btn.setStyleSheet("""
+            QLabel {
+                color: rgba(255, 255, 255, 150);
+                font-size: 16px;
+                padding: 0px 5px;
+            }
+            QLabel:hover {
+                color: white;
+                background-color: rgba(255, 255, 255, 30);
+                border-radius: 3px;
+            }
+        """)
+        minimize_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        minimize_btn.mousePressEvent = lambda e: self.showMinimized()
+        title_layout.addWidget(minimize_btn)
+        
+        layout.addLayout(title_layout)
         
         # 路径显示
         self.path_label = QLabel("未打开项目")
-        self.path_label.setStyleSheet("color: gray; font-size: 9px;")
+        self.path_label.setStyleSheet("color: rgba(255, 255, 255, 120); font-size: 9px; padding: 2px 0;")
         layout.addWidget(self.path_label)
         
         # 节点列表
@@ -52,7 +94,31 @@ class NodeListPanel(QDialog):
         self.node_list.itemDoubleClicked.connect(self.on_node_double_clicked)
         self.node_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.node_list.customContextMenuRequested.connect(self.show_context_menu)
+        self.node_list.setStyleSheet("""
+            QListWidget {
+                background-color: transparent;
+                border: none;
+                color: rgba(255, 255, 255, 200);
+                font-size: 12px;
+                outline: none;
+            }
+            QListWidget::item {
+                padding: 5px;
+                border-radius: 4px;
+            }
+            QListWidget::item:hover {
+                background-color: rgba(255, 255, 255, 30);
+            }
+            QListWidget::item:selected {
+                background-color: rgba(0, 102, 255, 100);
+            }
+        """)
         layout.addWidget(self.node_list)
+        
+        main_layout.addWidget(container)
+        
+        # 设置初始大小
+        self.resize(250, 400)
         
     def update_node_list(self, nodes_data):
         """更新节点列表"""
@@ -108,20 +174,17 @@ class NodeListPanel(QDialog):
         return text
         
     def on_node_double_clicked(self, item):
-        """节点双击事件 - 打开配置对话框"""
+        """节点双击事件 - 添加到画布"""
         node_name = self.get_selected_node()
         if node_name and self.parent_window:
-            # 获取节点信息
-            if node_name in self.parent_window.nodes_data:
-                node_info = self.parent_window.nodes_data[node_name]
-                config = node_info['config']
-                node_path = node_info['path']
-                
-                # 打开配置对话框
-                from ui.property_panel import NodeConfigDialog
-                dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
-                dialog.exec()
-
+            # 检查节点是否已在画布上
+            if node_name in self.parent_window.canvas.nodes:
+                self.parent_window.show_toast(f"节点 {node_name} 已在画布上", "warning")
+                return
+            
+            # 添加到画布
+            self.add_node_to_canvas(node_name)
+    
     def show_context_menu(self, position):
         """显示右键菜单"""
         item = self.node_list.itemAt(position)
@@ -398,6 +461,20 @@ class NodeListPanel(QDialog):
             QMessageBox.critical(self, "错误", f"重命名失败: {str(e)}")
             import traceback
             traceback.print_exc()
+    
+    # ==================== 鼠标拖动支持 ====================
+    
+    def mousePressEvent(self, event):
+        """鼠标按下事件 - 开始拖动"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """鼠标移动事件 - 拖动窗口"""
+        if event.buttons() == Qt.MouseButton.LeftButton and hasattr(self, 'drag_position'):
+            self.move(event.globalPosition().toPoint() - self.drag_position)
+            event.accept()
 
 
 # 需要导入os
