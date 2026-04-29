@@ -26,10 +26,14 @@ class ToastNotification(QLabel):
     """右下角自动消失的通知弹窗（Toast）- 优化版
     
     使用高精度定时器实现流畅的60fps淡入淡出动画
+    支持堆叠显示和自动位置调整
     """
     
-    def __init__(self, message, parent=None, duration=3000, toast_type="info"):
+    def __init__(self, message, parent=None, duration=3000, toast_type="info", stack_index=0):
         super().__init__(message, parent)
+        
+        # 保存堆叠索引
+        self.stack_index = stack_index
         
         # 设置基础样式
         base_style = """
@@ -85,17 +89,20 @@ class ToastNotification(QLabel):
     
     def show_toast(self):
         """显示通知并启动淡入动画"""
-        # 计算位置：右下角（距离边缘20px）
+        # 计算位置：右下角（距离边缘20px），支持堆叠偏移
         if self.parent():
             parent_rect = self.parent().geometry()
             x = parent_rect.right() - self.width() - 20
-            y = parent_rect.bottom() - self.height() - 20
+            # 根据堆叠索引计算Y坐标，每个Toast间隔10px
+            base_y = parent_rect.bottom() - self.height() - 20
+            y = base_y - (self.stack_index * (self.height() + 10))
         else:
             # 如果没有父窗口，使用屏幕右下角
             from PyQt6.QtWidgets import QApplication
             screen = QApplication.primaryScreen().geometry()
             x = screen.right() - self.width() - 20
-            y = screen.bottom() - self.height() - 20
+            base_y = screen.bottom() - self.height() - 20
+            y = base_y - (self.stack_index * (self.height() + 10))
         
         self.move(x, y)
         self.show()
@@ -132,6 +139,23 @@ class ToastNotification(QLabel):
                 self.close()
             else:
                 self.opacity_effect.setOpacity(self.current_opacity)
+    
+    def update_position(self):
+        """更新位置（用于堆叠时的位置调整）"""
+        if self.parent():
+            parent_rect = self.parent().geometry()
+            x = parent_rect.right() - self.width() - 20
+            base_y = parent_rect.bottom() - self.height() - 20
+            y = base_y - (self.stack_index * (self.height() + 10))
+        else:
+            from PyQt6.QtWidgets import QApplication
+            screen = QApplication.primaryScreen().geometry()
+            x = screen.right() - self.width() - 20
+            base_y = screen.bottom() - self.height() - 20
+            y = base_y - (self.stack_index * (self.height() + 10))
+        
+        # 使用动画平滑移动位置
+        self.move(x, y)
     
     def start_fade_out(self):
         """开始淡出动画"""
@@ -251,6 +275,10 @@ class BNOSMainWindow(QMainWindow):
         self.nodes_data = {}  # {node_name: {config, path, process, status}}
         self.connections = []  # [(source_node, target_node)]
         
+        # Toast通知队列管理
+        self.active_toasts = []  # 当前显示的Toast列表
+        self.max_toast_count = 3  # 最多同时显示3个Toast
+        
         # 初始化UI
         self.init_ui()
         self.init_toolbar()
@@ -294,20 +322,55 @@ class BNOSMainWindow(QMainWindow):
         self.node_list_panel.setGeometry(panel_x, panel_y, panel_width, panel_height)
     
     def show_toast(self, message, toast_type="info", duration=3000):
-        """便捷方法：显示Toast通知
+        """便捷方法：显示Toast通知（支持堆叠显示）
         
         Args:
             message: 通知文本内容
             toast_type: 类型 (info/success/warning/error)
             duration: 显示时长（毫秒），默认3000
+            
+        功能特性：
+        - 新Toast出现时，旧的自动上移
+        - 最多显示3个，超过的旧Toast自动淡出
         """
+        # 如果已有3个Toast，移除最旧的
+        if len(self.active_toasts) >= self.max_toast_count:
+            oldest_toast = self.active_toasts.pop(0)
+            oldest_toast.start_fade_out()
+        
+        # 创建新的Toast，设置堆叠索引
+        stack_index = len(self.active_toasts)
         toast = ToastNotification(
             message=message,
             parent=self,
             duration=duration,
-            toast_type=toast_type
+            toast_type=toast_type,
+            stack_index=stack_index
         )
+        
+        # 添加到活动列表
+        self.active_toasts.append(toast)
+        
+        # 显示Toast
         toast.show_toast()
+        
+        # 更新所有现有Toast的位置（向上移动）
+        for i, existing_toast in enumerate(self.active_toasts[:-1]):
+            existing_toast.stack_index = i + 1
+            existing_toast.update_position()
+        
+        # 当Toast关闭时，从列表中移除并更新其他Toast位置
+        original_close = toast.close
+        def custom_close():
+            if toast in self.active_toasts:
+                self.active_toasts.remove(toast)
+                # 更新剩余Toast的位置
+                for i, remaining_toast in enumerate(self.active_toasts):
+                    remaining_toast.stack_index = i
+                    remaining_toast.update_position()
+            original_close()
+        
+        toast.close = custom_close
     
     def init_toolbar(self):
         """初始化工具栏"""
@@ -822,18 +885,25 @@ python3 listener.py
             QMessageBox.critical(self, "错误", f"创建节点失败: {str(e)}")
 
     def start_selected_node(self):
-        """启动选中的节点"""
-        selected_node = self.node_list_panel.get_selected_node()
+        """启动选中的节点（优先从画布获取，回退到节点列表）"""
+        # 优先从画布获取选中节点
+        selected_node = self.canvas.get_selected_node()
+        
+        # 如果画布未选中，回退到节点列表
         if not selected_node:
-            self.show_toast("请先选择一个节点", "warning")
+            selected_node = self.node_list_panel.get_selected_node()
+        
+        if not selected_node:
+            self.show_toast("请先在画布或节点列表中选择一个节点", "warning")
             return
         
         if selected_node not in self.nodes_data:
+            self.show_toast(f"节点 {selected_node} 不存在", "error")
             return
         
         node_info = self.nodes_data[selected_node]
         if node_info['status'] == 'running':
-            self.show_toast("节点已在运行中", "info")
+            self.show_toast(f"节点 {selected_node} 已在运行中", "info")
             return
         
         # 启动节点进程 - 直接执行Python命令而非批处理脚本
@@ -949,18 +1019,25 @@ python3 listener.py
             QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
     
     def stop_selected_node(self):
-        """停止选中的节点"""
-        selected_node = self.node_list_panel.get_selected_node()
+        """停止选中的节点（优先从画布获取，回退到节点列表）"""
+        # 优先从画布获取选中节点
+        selected_node = self.canvas.get_selected_node()
+        
+        # 如果画布未选中，回退到节点列表
         if not selected_node:
-            self.show_toast("请先选择一个节点", "warning")
+            selected_node = self.node_list_panel.get_selected_node()
+        
+        if not selected_node:
+            self.show_toast("请先在画布或节点列表中选择一个节点", "warning")
             return
         
         if selected_node not in self.nodes_data:
+            self.show_toast(f"节点 {selected_node} 不存在", "error")
             return
         
         node_info = self.nodes_data[selected_node]
         if node_info['status'] == 'stopped':
-            self.show_toast("节点未在运行", "info")
+            self.show_toast(f"节点 {selected_node} 未在运行", "info")
             return
         
         # 停止进程

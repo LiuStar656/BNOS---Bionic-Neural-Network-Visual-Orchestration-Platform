@@ -17,10 +17,10 @@
     "scroll_y": 0
   },
   "node_list_panel": {
-    "visible": true,
+    "visible": false,
     "x": 50,
     "y": 157,
-    "width": 362,
+    "width": 280,
     "height": 600
   }
 }
