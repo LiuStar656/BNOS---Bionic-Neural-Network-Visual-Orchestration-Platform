@@ -1,0 +1,8 @@
+{
+  "node_name": "node_1",
+  "listen_upper_file": "..\\node_2\\output.json",
+  "output_file": "./output.json",
+  "filter": {},
+  "output_type": "",
+  "custom_bg_color": "#ffff7f"
+}

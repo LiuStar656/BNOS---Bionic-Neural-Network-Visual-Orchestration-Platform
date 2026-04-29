@@ -13,13 +13,131 @@ from PyQt6.QtWidgets import (
     QFormLayout, QLineEdit, QPushButton, QLabel, QGroupBox,
     QComboBox, QTabWidget, QDialog, QDialogButtonBox, QHeaderView,
     QTableWidget, QTableWidgetItem, QMenu, QGraphicsView, QGraphicsScene,
-    QInputDialog
+    QInputDialog, QGraphicsOpacityEffect
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRectF, QTimer
 from PyQt6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction
 
 from ui.canvas_widget import NodeCanvas
 from ui.node_list_panel import NodeListPanel
+
+
+class ToastNotification(QLabel):
+    """右下角自动消失的通知弹窗（Toast）- 优化版
+    
+    使用高精度定时器实现流畅的60fps淡入淡出动画
+    """
+    
+    def __init__(self, message, parent=None, duration=3000, toast_type="info"):
+        super().__init__(message, parent)
+        
+        # 设置基础样式
+        base_style = """
+            QLabel {
+                background-color: rgba(50, 50, 50, 230);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+        """
+        
+        # 根据类型调整颜色
+        if toast_type == "success":
+            base_style = base_style.replace("rgba(50, 50, 50, 230)", "rgba(76, 175, 80, 230)")
+        elif toast_type == "warning":
+            base_style = base_style.replace("rgba(50, 50, 50, 230)", "rgba(255, 152, 0, 230)")
+        elif toast_type == "error":
+            base_style = base_style.replace("rgba(50, 50, 50, 230)", "rgba(244, 67, 54, 230)")
+        
+        self.setStyleSheet(base_style)
+        
+        # 设置窗口属性
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # 调整大小以适应文本
+        self.adjustSize()
+        
+        # 初始化透明度效果
+        self.opacity_effect = QGraphicsOpacityEffect(self)
+        self.opacity_effect.setOpacity(0)
+        self.setGraphicsEffect(self.opacity_effect)
+        
+        # 动画参数
+        self.duration = duration
+        self.fade_duration = 300  # 淡入淡出时间（毫秒）
+        self.current_opacity = 0.0
+        self.is_fading_in = False
+        self.is_fading_out = False
+        
+        # 使用高精度定时器实现平滑动画（60fps）
+        self.animation_timer = QTimer(self)
+        self.animation_timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self.animation_timer.timeout.connect(self.update_animation)
+        
+        # 停留计时器
+        self.stay_timer = QTimer(self)
+        self.stay_timer.setSingleShot(True)
+        self.stay_timer.timeout.connect(self.start_fade_out)
+    
+    def show_toast(self):
+        """显示通知并启动淡入动画"""
+        # 计算位置：右下角（距离边缘20px）
+        if self.parent():
+            parent_rect = self.parent().geometry()
+            x = parent_rect.right() - self.width() - 20
+            y = parent_rect.bottom() - self.height() - 20
+        else:
+            # 如果没有父窗口，使用屏幕右下角
+            from PyQt6.QtWidgets import QApplication
+            screen = QApplication.primaryScreen().geometry()
+            x = screen.right() - self.width() - 20
+            y = screen.bottom() - self.height() - 20
+        
+        self.move(x, y)
+        self.show()
+        
+        # 启动淡入动画
+        self.current_opacity = 0.0
+        self.is_fading_in = True
+        self.is_fading_out = False
+        self.animation_timer.start(16)  # 16ms ≈ 60fps
+    
+    def update_animation(self):
+        """更新动画帧 - 手动控制透明度实现流畅动画"""
+        if self.is_fading_in:
+            # 淡入动画：线性增加透明度
+            self.current_opacity += 16.0 / self.fade_duration
+            if self.current_opacity >= 1.0:
+                self.current_opacity = 1.0
+                self.is_fading_in = False
+                self.opacity_effect.setOpacity(1.0)
+                self.animation_timer.stop()
+                
+                # 开始停留计时
+                self.stay_timer.start(self.duration)
+            else:
+                self.opacity_effect.setOpacity(self.current_opacity)
+        
+        elif self.is_fading_out:
+            # 淡出动画：线性减少透明度
+            self.current_opacity -= 16.0 / self.fade_duration
+            if self.current_opacity <= 0.0:
+                self.current_opacity = 0.0
+                self.opacity_effect.setOpacity(0.0)
+                self.animation_timer.stop()
+                self.close()
+            else:
+                self.opacity_effect.setOpacity(self.current_opacity)
+    
+    def start_fade_out(self):
+        """开始淡出动画"""
+        if not self.is_fading_out:
+            self.is_fading_out = True
+            self.animation_timer.start(16)  # 16ms ≈ 60fps
 
 
 class AppConfig:
@@ -153,28 +271,44 @@ class BNOSMainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # 主布局
+        # 主布局 - 只包含画布
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # 创建分割器（左中两栏）
-        self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # 左侧面板 - 节点列表
-        self.node_list_panel = NodeListPanel(self)
-        self.main_splitter.addWidget(self.node_list_panel)
-        
-        # 中间画布 - 节点编排
+        # 中间画布 - 节点编排（直接添加到主布局）
         self.canvas = NodeCanvas(self)
-        self.main_splitter.addWidget(self.canvas)
+        main_layout.addWidget(self.canvas)
         
-        # 设置分割器比例
-        self.main_splitter.setStretchFactor(0, 1)  # 左侧
-        self.main_splitter.setStretchFactor(1, 4)  # 中间（最大）
+        # 创建节点列表面板（作为独立窗口，不添加到主布局）
+        self.node_list_panel = NodeListPanel(self)
+        self.node_list_panel.setWindowTitle("节点列表")
+        self.node_list_panel.hide()  # 默认隐藏
         
-        main_layout.addWidget(self.main_splitter)
-
+        # 设置节点列表面板的初始位置和大小
+        screen_geometry = self.screen().geometry()
+        panel_width = 280
+        panel_height = 600
+        panel_x = 50
+        panel_y = (screen_geometry.height() - panel_height) // 2
+        self.node_list_panel.setGeometry(panel_x, panel_y, panel_width, panel_height)
+    
+    def show_toast(self, message, toast_type="info", duration=3000):
+        """便捷方法：显示Toast通知
+        
+        Args:
+            message: 通知文本内容
+            toast_type: 类型 (info/success/warning/error)
+            duration: 显示时长（毫秒），默认3000
+        """
+        toast = ToastNotification(
+            message=message,
+            parent=self,
+            duration=duration,
+            toast_type=toast_type
+        )
+        toast.show_toast()
+    
     def init_toolbar(self):
         """初始化工具栏"""
         toolbar = QToolBar("主工具栏")
@@ -189,6 +323,24 @@ class BNOSMainWindow(QMainWindow):
         open_project_action = QAction("打开项目", self)
         open_project_action.triggered.connect(self.open_project)
         toolbar.addAction(open_project_action)
+        
+        toolbar.addSeparator()
+        
+        # 视图控制 - 节点列表开关
+        toggle_nodes_action = QAction("📋 节点列表", self)
+        toggle_nodes_action.setCheckable(True)
+        toggle_nodes_action.setToolTip("显示/隐藏节点列表面板")
+        toggle_nodes_action.triggered.connect(self.toggle_node_list_panel)
+        toolbar.addAction(toggle_nodes_action)
+        self.toggle_nodes_action = toggle_nodes_action
+        
+        toolbar.addSeparator()
+        
+        # 颜色设置
+        color_settings_action = QAction("🎨 颜色设置", self)
+        color_settings_action.setToolTip("自定义画布和节点颜色")
+        color_settings_action.triggered.connect(self.open_color_settings)
+        toolbar.addAction(color_settings_action)
         
         toolbar.addSeparator()
         
@@ -257,7 +409,23 @@ class BNOSMainWindow(QMainWindow):
         
         about_action = help_menu.addAction("关于")
         about_action.triggered.connect(self.show_about)
+    
+    def toggle_node_list_panel(self, checked):
+        """切换节点列表面板的显示/隐藏"""
+        if checked:
+            self.node_list_panel.show()
+            self.node_list_panel.raise_()
+            self.node_list_panel.activateWindow()
+        else:
+            self.node_list_panel.hide()
+    
+    def open_color_settings(self):
+        """打开颜色设置对话框"""
+        from ui.property_panel import ColorSettingsDialog
         
+        dialog = ColorSettingsDialog(self.canvas, self)
+        dialog.exec()
+    
     def new_project(self):
         """新建项目"""
         # 保存当前项目布局（如果有）
@@ -294,7 +462,7 @@ class BNOSMainWindow(QMainWindow):
         # 刷新节点列表
         self.refresh_nodes()
         
-        QMessageBox.information(self, "成功", f"已创建项目: {project_dir}")
+        self.show_toast(f"已创建项目: {os.path.basename(project_dir)}", "success")
         
     def open_project(self):
         """打开项目"""
@@ -334,7 +502,7 @@ class BNOSMainWindow(QMainWindow):
         # 加载画布布局
         self.canvas.load_layout(project_dir)
         
-        QMessageBox.information(self, "成功", f"已打开项目: {project_dir}")
+        self.show_toast(f"已打开项目: {os.path.basename(project_dir)}", "success")
         
     def update_node_status(self, node_name, status):
         """更新节点状态并同步UI"""
@@ -350,12 +518,12 @@ class BNOSMainWindow(QMainWindow):
     def refresh_nodes(self):
         """刷新节点列表"""
         if not self.current_project_path:
-            QMessageBox.warning(self, "警告", "请先打开或新建项目")
+            self.show_toast("请先打开或新建项目", "warning")
             return
         
         nodes_dir = os.path.join(self.current_project_path, "nodes")
         if not os.path.exists(nodes_dir):
-            QMessageBox.warning(self, "警告", "nodes/ 目录不存在")
+            self.show_toast("nodes/ 目录不存在", "warning")
             return
         
         # 扫描节点
@@ -392,7 +560,7 @@ class BNOSMainWindow(QMainWindow):
     def create_new_node(self):
         """创建新节点"""
         if not self.current_project_path:
-            QMessageBox.warning(self, "警告", "请先打开或新建项目")
+            self.show_toast("请先打开或新建项目", "warning")
             return
         
         language = self.language_combo.currentText()
@@ -425,7 +593,7 @@ class BNOSMainWindow(QMainWindow):
             node_dir = os.path.join(base_dir, f"node_{node_name}")
             
             if os.path.exists(node_dir):
-                QMessageBox.warning(self, "警告", f"节点 {node_dir} 已存在")
+                self.show_toast(f"节点 {node_name} 已存在", "warning")
                 return
             
             os.makedirs(node_dir)
@@ -648,7 +816,7 @@ python3 listener.py
             
             # 成功后刷新节点列表
             self.refresh_nodes()
-            QMessageBox.information(self, "成功", f"节点 {node_name} 创建成功")
+            self.show_toast(f"节点 {node_name} 创建成功", "success")
             
         except Exception as e:
             QMessageBox.critical(self, "错误", f"创建节点失败: {str(e)}")
@@ -657,7 +825,7 @@ python3 listener.py
         """启动选中的节点"""
         selected_node = self.node_list_panel.get_selected_node()
         if not selected_node:
-            QMessageBox.warning(self, "警告", "请先选择一个节点")
+            self.show_toast("请先选择一个节点", "warning")
             return
         
         if selected_node not in self.nodes_data:
@@ -665,7 +833,7 @@ python3 listener.py
         
         node_info = self.nodes_data[selected_node]
         if node_info['status'] == 'running':
-            QMessageBox.information(self, "提示", "节点已在运行中")
+            self.show_toast("节点已在运行中", "info")
             return
         
         # 启动节点进程 - 直接执行Python命令而非批处理脚本
@@ -715,7 +883,7 @@ python3 listener.py
             self.node_list_panel.update_node_status(selected_node, 'running')
             self.canvas.update_node_status(selected_node, 'running')
             
-            QMessageBox.information(self, "成功", f"节点 {selected_node} 已启动")
+            self.show_toast(f"节点 {selected_node} 已启动", "success")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
     
@@ -726,7 +894,7 @@ python3 listener.py
         
         node_info = self.nodes_data[node_name]
         if node_info['status'] == 'running':
-            QMessageBox.information(self, "提示", "节点已在运行中")
+            self.show_toast("节点已在运行中", "info")
             return
         
         # 启动节点进程 - 直接执行Python命令而非批处理脚本
@@ -776,7 +944,7 @@ python3 listener.py
             self.node_list_panel.update_node_status(node_name, 'running')
             self.canvas.update_node_status(node_name, 'running')
             
-            QMessageBox.information(self, "成功", f"节点 {node_name} 已启动")
+            self.show_toast(f"节点 {node_name} 已启动", "success")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
     
@@ -784,7 +952,7 @@ python3 listener.py
         """停止选中的节点"""
         selected_node = self.node_list_panel.get_selected_node()
         if not selected_node:
-            QMessageBox.warning(self, "警告", "请先选择一个节点")
+            self.show_toast("请先选择一个节点", "warning")
             return
         
         if selected_node not in self.nodes_data:
@@ -792,7 +960,7 @@ python3 listener.py
         
         node_info = self.nodes_data[selected_node]
         if node_info['status'] == 'stopped':
-            QMessageBox.information(self, "提示", "节点未在运行")
+            self.show_toast("节点未在运行", "info")
             return
         
         # 停止进程
@@ -837,7 +1005,7 @@ python3 listener.py
         self.node_list_panel.update_node_status(selected_node, 'stopped')
         self.canvas.update_node_status(selected_node, 'stopped')
         
-        QMessageBox.information(self, "成功", f"节点 {selected_node} 已停止")
+        self.show_toast(f"节点 {selected_node} 已停止", "success")
     
     def stop_selected_node_by_name(self, node_name):
         """按名称停止节点（供对话框调用）"""
@@ -846,7 +1014,7 @@ python3 listener.py
         
         node_info = self.nodes_data[node_name]
         if node_info['status'] == 'stopped':
-            QMessageBox.information(self, "提示", "节点未在运行")
+            self.show_toast("节点未在运行", "info")
             return
         
         # 停止进程
@@ -891,7 +1059,7 @@ python3 listener.py
         self.node_list_panel.update_node_status(node_name, 'stopped')
         self.canvas.update_node_status(node_name, 'stopped')
         
-        QMessageBox.information(self, "成功", f"节点 {node_name} 已停止")
+        self.show_toast(f"节点 {node_name} 已停止", "success")
 
     def clear_connections(self):
         """清空所有连线"""
@@ -916,7 +1084,7 @@ python3 listener.py
         # 清空画布连线
         self.canvas.clear_edges()
         
-        QMessageBox.information(self, "成功", "已清空所有连线")
+        self.show_toast("已清空所有连线", "success")
 
     def closeEvent(self, event):
         """窗口关闭事件，保存所有状态"""
@@ -953,12 +1121,7 @@ python3 listener.py
             }
             self.app_config.set("window_geometry", geometry)
             
-            # 2. 保存Splitter比例（节点列表 + 画布）
-            if hasattr(self, 'main_splitter'):
-                sizes = self.main_splitter.sizes()
-                self.app_config.set("splitter_sizes", sizes)
-            
-            # 3. 保存当前项目路径
+            # 2. 保存当前项目路径
             if self.current_project_path:
                 self.app_config.set("last_project", self.current_project_path)
                 
@@ -970,10 +1133,20 @@ python3 listener.py
                 }
                 self.app_config.set("canvas_view_state", view_state)
                 
-                # 5. 保存画布布局（节点位置、连线）
+                # 5. 保存节点列表面板状态
+                panel_state = {
+                    "visible": self.node_list_panel.isVisible(),
+                    "x": self.node_list_panel.geometry().x(),
+                    "y": self.node_list_panel.geometry().y(),
+                    "width": self.node_list_panel.geometry().width(),
+                    "height": self.node_list_panel.geometry().height()
+                }
+                self.app_config.set("node_list_panel", panel_state)
+                
+                # 6. 保存画布布局（节点位置、连线）
                 self.canvas.save_layout(self.current_project_path)
             
-            # 6. 保存到文件
+            # 7. 保存到文件
             self.app_config.save()
             
             print("✅ 窗口状态已保存")
@@ -997,12 +1170,25 @@ python3 listener.py
                         geom.get("height", 900)
                     )
             
-            # 2. 恢复Splitter比例
-            splitter_sizes = self.app_config.get("splitter_sizes")
-            if splitter_sizes and hasattr(self, 'main_splitter'):
-                # 验证数据有效性
-                if isinstance(splitter_sizes, list) and len(splitter_sizes) == 2:
-                    self.main_splitter.setSizes(splitter_sizes)
+            # 2. 恢复节点列表面板状态
+            panel_state = self.app_config.get("node_list_panel")
+            if panel_state and hasattr(self, 'node_list_panel'):
+                if isinstance(panel_state, dict):
+                    # 恢复面板位置和大小
+                    x = panel_state.get("x", 50)
+                    y = panel_state.get("y", 100)
+                    width = panel_state.get("width", 280)
+                    height = panel_state.get("height", 600)
+                    self.node_list_panel.setGeometry(x, y, width, height)
+                    
+                    # 恢复可见状态
+                    visible = panel_state.get("visible", False)
+                    if visible:
+                        self.node_list_panel.show()
+                        self.toggle_nodes_action.setChecked(True)
+                    else:
+                        self.node_list_panel.hide()
+                        self.toggle_nodes_action.setChecked(False)
             
             print("✅ 窗口状态已恢复")
             
@@ -1024,19 +1210,6 @@ python3 listener.py
                 
                 # 2. 加载画布布局（包含节点位置、连线关系、视图状态的完整恢复）
                 self.canvas.load_layout(last_project)
-                
-                # 3. 恢复Splitter比例
-                splitter_sizes = self.app_config.get("splitter_sizes")
-                if splitter_sizes and hasattr(self, 'main_splitter'):
-                    if isinstance(splitter_sizes, list) and len(splitter_sizes) == 2:
-                        self.main_splitter.setSizes(splitter_sizes)
-
+    
     def show_about(self):
         """显示关于对话框"""
-        QMessageBox.about(
-            self, "关于 BNOS",
-            "BNOS 桌面可视化节点编排平台\n\n"
-            "版本: 1.0.0\n"
-            "基于 PyQt6 开发\n"
-            "纯本地文件操作，无后端服务"
-        )

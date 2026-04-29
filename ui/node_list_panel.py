@@ -1,9 +1,9 @@
 """
-节点列表面板 - 左侧面板，显示项目中的所有节点
+节点列表面板 - 可浮动窗口，显示项目中的所有节点
 """
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem,
-    QMenu, QMessageBox, QFileDialog, QInputDialog
+    QMenu, QMessageBox, QFileDialog, QInputDialog, QDialog
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont
@@ -12,8 +12,8 @@ import json
 import os
 
 
-class NodeListPanel(QWidget):
-    """节点列表面板"""
+class NodeListPanel(QDialog):
+    """节点列表面板（独立浮动窗口）"""
     
     # 信号
     node_double_clicked = pyqtSignal(str)  # 节点双击信号
@@ -23,6 +23,12 @@ class NodeListPanel(QWidget):
         super().__init__(parent)
         self.parent_window = parent
         self.nodes_data = {}
+        
+        # 设置窗口标志
+        self.setWindowFlags(
+            Qt.WindowType.Tool |
+            Qt.WindowType.WindowStaysOnTopHint
+        )
         
         self.init_ui()
         

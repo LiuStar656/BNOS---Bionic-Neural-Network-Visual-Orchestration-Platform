@@ -24,18 +24,38 @@ class AnchorItem(QGraphicsEllipseItem):
         super().__init__(x, y, 16, 16, parent)  # 增大到16x16
         self.anchor_type = anchor_type  # "input" 或 "output"
         
-        # 设置颜色
-        color = QColor("#4CAF50" if anchor_type == "input" else "#2196F3")
-        self.setBrush(color)
+        # 设置颜色（从父节点获取画布配置）
+        self.update_anchor_color()
+        
         self.setPen(QPen(QColor("#333"), 2))  # 加粗边框
         self.setZValue(10)  # 确保在最上层
         
         # 悬停效果
         self.setAcceptHoverEvents(True)
+    
+    def update_anchor_color(self):
+        """更新锚点颜色（从画布配置读取）"""
+        if self.parentItem() and hasattr(self.parentItem(), 'canvas') and self.parentItem().canvas:
+            canvas = self.parentItem().canvas
+            color_hex = canvas.input_anchor_color if self.anchor_type == "input" else canvas.output_anchor_color
+            color = QColor(color_hex)
+        else:
+            # 默认颜色
+            color = QColor("#4CAF50" if self.anchor_type == "input" else "#2196F3")
+        
+        self.setBrush(color)
         
     def hoverEnterEvent(self, event):
         """鼠标进入时高亮"""
-        highlight_color = QColor("#66BB6A" if self.anchor_type == "input" else "#42A5F5")
+        if self.parentItem() and hasattr(self.parentItem(), 'canvas') and self.parentItem().canvas:
+            canvas = self.parentItem().canvas
+            base_color = canvas.input_anchor_color if self.anchor_type == "input" else canvas.output_anchor_color
+            # 高亮色（稍微亮一点）
+            highlight_color = QColor(base_color)
+            highlight_color.setAlpha(200)
+        else:
+            highlight_color = QColor("#66BB6A" if self.anchor_type == "input" else "#42A5F5")
+        
         self.setBrush(highlight_color)
         self.setPen(QPen(QColor("#000"), 2.5))  # 更粗的边框
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -43,8 +63,7 @@ class AnchorItem(QGraphicsEllipseItem):
         
     def hoverLeaveEvent(self, event):
         """鼠标离开时恢复"""
-        normal_color = QColor("#4CAF50" if self.anchor_type == "input" else "#2196F3")
-        self.setBrush(normal_color)
+        self.update_anchor_color()
         self.setPen(QPen(QColor("#333"), 2))
         super().hoverLeaveEvent(event)
 
@@ -66,10 +85,17 @@ class NodeItem(QGraphicsRectItem):
             QGraphicsRectItem.GraphicsItemFlag.ItemSendsGeometryChanges
         )
         
-        # 样式
-        self.setBrush(QBrush(QColor("#f8f9fa")))
-        self.setPen(QPen(QColor("#dee2e6"), 2))
+        # 样式（使用画布的颜色配置）
+        if canvas:
+            self.setBrush(QBrush(QColor(canvas.node_bg_color)))
+            self.setPen(QPen(QColor(canvas.node_border_color), 2))
+        else:
+            self.setBrush(QBrush(QColor("#f8f9fa")))
+            self.setPen(QPen(QColor("#dee2e6"), 2))
         self.setZValue(1)
+        
+        # 加载节点的自定义颜色（如果有）
+        self._load_node_custom_colors()
         
         # 设置节点矩形（位置为0,0，实际位置由setPos控制）
         self.setRect(QRectF(0, 0, w, h))
@@ -95,7 +121,8 @@ class NodeItem(QGraphicsRectItem):
         
         # 节点名称文本（居中显示）
         self.name_text = QGraphicsTextItem(node_name, self)
-        self.name_text.setDefaultTextColor(QColor("#333"))
+        text_color = QColor(canvas.node_text_color) if canvas else QColor("#333")
+        self.name_text.setDefaultTextColor(text_color)
         font = QFont("Arial", 10, QFont.Weight.Bold)
         self.name_text.setFont(font)
         name_rect = self.name_text.boundingRect()
@@ -116,8 +143,52 @@ class NodeItem(QGraphicsRectItem):
     def update_status(self, status):
         """更新节点状态"""
         self.status = status
-        color = QColor("#4CAF50") if status == "running" else QColor("#9E9E9E")
+        # 启动时为红色，关闭时为绿色
+        color = QColor("#FF0000") if status == "running" else QColor("#00FF00")
         self.status_indicator.setBrush(QBrush(color))
+        
+        # 添加边框以增强可见性
+        border_color = QColor("#CC0000") if status == "running" else QColor("#00CC00")
+        self.status_indicator.setPen(QPen(border_color, 1.5))
+    
+    def _load_node_custom_colors(self):
+        """加载节点的自定义颜色配置"""
+        if not self.canvas or not self.canvas.parent_window:
+            return
+        
+        node_name = self.node_name
+        if node_name not in self.canvas.parent_window.nodes_data:
+            return
+        
+        node_info = self.canvas.parent_window.nodes_data[node_name]
+        config = node_info.get('config', {})
+        
+        # 应用自定义背景色
+        if 'custom_bg_color' in config:
+            try:
+                custom_color = QColor(config['custom_bg_color'])
+                if custom_color.isValid():
+                    self.setBrush(QBrush(custom_color))
+            except:
+                pass
+        
+        # 应用自定义边框色
+        if 'custom_border_color' in config:
+            try:
+                custom_color = QColor(config['custom_border_color'])
+                if custom_color.isValid():
+                    self.setPen(QPen(custom_color, 2))
+            except:
+                pass
+        
+        # 应用自定义文字色
+        if 'custom_text_color' in config:
+            try:
+                custom_color = QColor(config['custom_text_color'])
+                if custom_color.isValid():
+                    self.name_text.setDefaultTextColor(custom_color)
+            except:
+                pass
         
     def update_display(self, node_name=None, language=None, status=None):
         """更新节点显示信息（与数据同步）"""
@@ -204,16 +275,14 @@ class NodeItem(QGraphicsRectItem):
 class EdgeItem(QGraphicsPathItem):
     """连线条（贝塞尔曲线，对应VueFlow连线）"""
     
-    def __init__(self, start_node, end_node):
+    def __init__(self, start_node, end_node, canvas=None):
         super().__init__()
         self.start_node = start_node
         self.end_node = end_node
+        self.canvas = canvas  # 引用画布对象
         
-        # 样式
-        pen = QPen(QColor("#4A90E2"), 2.5)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        self.setPen(pen)
-        self.setZValue(0)  # 在节点下方
+        # 样式（使用画布配置）
+        self.update_edge_style()
         
         # 启用鼠标事件
         self.setAcceptHoverEvents(True)
@@ -224,12 +293,34 @@ class EdgeItem(QGraphicsPathItem):
         # 注意：不在这里调用update_path()，因为此时还没有添加到场景
         # update_path() 会在 addToScene() 或 itemChange() 中被调用
     
+    def update_edge_style(self):
+        """更新连线样式（使用画布的颜色配置）"""
+        if self.canvas:
+            color = QColor(self.canvas.edge_color)
+            width = self.canvas.edge_width
+        else:
+            color = QColor("#4A90E2")
+            width = 2.5
+        
+        pen = QPen(color, width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        self.setPen(pen)
+    
     def mousePressEvent(self, event):
         """鼠标按下事件"""
         if event.button() == Qt.MouseButton.RightButton:
             # 显示右键菜单
             menu = QMenu()
-            delete_action = menu.addAction("删除连线")
+            
+            # 删除连线
+            delete_action = menu.addAction("🗑️ 删除连线")
+            
+            menu.addSeparator()
+            
+            # 连线颜色设置
+            color_action = menu.addAction("🎨 修改连线颜色")
+            color_action.triggered.connect(lambda: self.change_edge_color())
+            
             action = menu.exec(event.screenPos())
             
             if action == delete_action:
@@ -244,6 +335,28 @@ class EdgeItem(QGraphicsPathItem):
             return
         
         super().mousePressEvent(event)
+    
+    def change_edge_color(self):
+        """修改单条连线的颜色"""
+        from PyQt6.QtWidgets import QColorDialog
+        
+        current_color = QColor("#4A90E2")
+        if self.canvas:
+            current_color = QColor(self.canvas.edge_color)
+        
+        color = QColorDialog.getColor(current_color, None, "选择连线颜色")
+        
+        if color.isValid():
+            # 创建自定义颜色的画笔
+            pen = QPen(color, self.canvas.edge_width if self.canvas else 2.5)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            self.setPen(pen)
+            
+            # 更新箭头颜色
+            if hasattr(self, 'arrow_item') and self.arrow_item:
+                self.arrow_item.setBrush(color)
+            
+            print(f"✅ 连线颜色已更改为: {color.name()}")
 
     def update_path(self):
         """更新贝塞尔曲线路径"""
@@ -333,8 +446,21 @@ class NodeCanvas(QGraphicsView):
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
         
-        # 背景色
-        self.setBackgroundBrush(QColor("#fafafa"))
+        # ===== 颜色配置（支持自定义）=====
+        self.canvas_bg_color = '#ffffff'          # 画布背景色
+        self.grid_color = '#e0e0e0'               # 网格线颜色
+        self.grid_opacity = 0.5                   # 网格线透明度 (0-1)
+        self.node_bg_color = '#f8f9fa'            # 节点背景色
+        self.node_border_color = '#dee2e6'        # 节点边框色
+        self.node_text_color = '#333333'          # 节点文字色
+        self.node_selected_color = '#2196F3'      # 选中节点边框色
+        self.input_anchor_color = '#4CAF50'       # 输入锚点颜色
+        self.output_anchor_color = '#2196F3'      # 输出锚点颜色
+        self.edge_color = '#666666'               # 连线颜色
+        self.edge_width = 2                       # 连线宽度
+        
+        # 应用背景色
+        self.setBackgroundBrush(QColor(self.canvas_bg_color))
         
         # 网格背景（可选）
         self.draw_grid = True
@@ -347,6 +473,9 @@ class NodeCanvas(QGraphicsView):
         self.is_connecting = False
         self.connect_source = None
         self.temp_edge = None
+        
+        # 选中的节点
+        self.selected_node = None  # 当前选中的节点名称
         
         # 启用鼠标追踪
         self.setMouseTracking(True)
@@ -364,12 +493,16 @@ class NodeCanvas(QGraphicsView):
         if not self.draw_grid:
             return
         
-        # 绘制淡灰色网格
+        # 绘制网格（使用自定义颜色和透明度）
         grid_size = 20
         left = int(rect.left()) - (int(rect.left()) % grid_size)
         top = int(rect.top()) - (int(rect.top()) % grid_size)
         
-        painter.setPen(QPen(QColor("#e0e0e0"), 0.5))
+        # 计算带透明度的网格线颜色
+        grid_color = QColor(self.grid_color)
+        grid_color.setAlphaF(self.grid_opacity)
+        
+        painter.setPen(QPen(grid_color, 0.5))
         
         # 垂直线
         x = left
@@ -432,6 +565,18 @@ class NodeCanvas(QGraphicsView):
                 self._save_timer.start(500)
         
         event.accept()
+    
+    def mousePressEvent(self, event):
+        """鼠标按下事件 - 处理空白区域点击"""
+        # 获取点击位置的项
+        item = self.itemAt(event.position().toPoint())
+        
+        # 如果点击的是空白区域（不是节点、连线等），清除选择
+        if item is None or (not isinstance(item, NodeItem) and not isinstance(item, EdgeItem)):
+            self.clear_selection()
+        
+        # 调用父类方法处理其他事件（如拖拽）
+        super().mousePressEvent(event)
 
     def add_node_to_canvas(self, node_name):
         """添加节点到画布"""
@@ -506,6 +651,20 @@ class NodeCanvas(QGraphicsView):
             config_action = menu.addAction("⚙️ 打开配置")
             config_action.triggered.connect(lambda: self.open_node_config(item.node_name))
             
+            menu.addSeparator()
+            
+            # 节点颜色设置子菜单
+            color_menu = menu.addMenu("🎨 节点颜色")
+            
+            bg_color_action = color_menu.addAction("背景颜色")
+            bg_color_action.triggered.connect(lambda: self.change_node_background_color(item))
+            
+            border_color_action = color_menu.addAction("边框颜色")
+            border_color_action.triggered.connect(lambda: self.change_node_border_color(item))
+            
+            text_color_action = color_menu.addAction("文字颜色")
+            text_color_action.triggered.connect(lambda: self.change_node_text_color(item))
+            
             menu.exec(event.globalPos())
         else:
             # 点击空白区域，显示画布菜单
@@ -520,6 +679,20 @@ class NodeCanvas(QGraphicsView):
             # 重置视图
             reset_view_action = menu.addAction("🔍 重置视图")
             reset_view_action.triggered.connect(self.reset_view)
+            
+            menu.addSeparator()
+            
+            # 画布颜色设置子菜单
+            color_menu = menu.addMenu("🎨 画布颜色")
+            
+            canvas_bg_action = color_menu.addAction("画布背景色")
+            canvas_bg_action.triggered.connect(self.change_canvas_background_color)
+            
+            grid_color_action = color_menu.addAction("网格线颜色")
+            grid_color_action.triggered.connect(self.change_grid_color)
+            
+            edge_color_action = color_menu.addAction("连线颜色")
+            edge_color_action.triggered.connect(self.change_edge_color)
             
             menu.exec(event.globalPos())
     
@@ -628,6 +801,179 @@ class NodeCanvas(QGraphicsView):
         self.resetTransform()
         self.centerOn(0, 0)
         print("✅ 视图已重置")
+    
+    # ===== 颜色设置方法 =====
+    
+    def change_canvas_background_color(self):
+        """修改画布背景颜色"""
+        from PyQt6.QtWidgets import QColorDialog
+        
+        current_color = QColor(self.canvas_bg_color)
+        color = QColorDialog.getColor(current_color, self, "选择画布背景颜色")
+        
+        if color.isValid():
+            self.canvas_bg_color = color.name()
+            self.setBackgroundBrush(QColor(self.canvas_bg_color))
+            self.viewport().update()
+            
+            # 自动保存配置
+            self._save_color_settings()
+            print(f"✅ 画布背景色已更改为: {self.canvas_bg_color}")
+    
+    def change_grid_color(self):
+        """修改网格线颜色"""
+        from PyQt6.QtWidgets import QColorDialog
+        
+        current_color = QColor(self.grid_color)
+        color = QColorDialog.getColor(current_color, self, "选择网格线颜色")
+        
+        if color.isValid():
+            self.grid_color = color.name()
+            self.viewport().update()  # 触发重绘
+            
+            # 自动保存配置
+            self._save_color_settings()
+            print(f"✅ 网格线颜色已更改为: {self.grid_color}")
+    
+    def change_edge_color(self):
+        """修改连线颜色"""
+        from PyQt6.QtWidgets import QColorDialog
+        
+        current_color = QColor(self.edge_color)
+        color = QColorDialog.getColor(current_color, self, "选择连线颜色")
+        
+        if color.isValid():
+            self.edge_color = color.name()
+            
+            # 更新所有连线的颜色
+            for edge in self.edges:
+                edge.update_edge_style()
+            
+            # 自动保存配置
+            self._save_color_settings()
+            print(f"✅ 连线颜色已更改为: {self.edge_color}")
+    
+    def change_node_background_color(self, node_item):
+        """修改节点背景颜色"""
+        from PyQt6.QtWidgets import QColorDialog
+        
+        current_color = QColor(self.node_bg_color)
+        color = QColorDialog.getColor(current_color, self, f"修改节点 '{node_item.node_name}' 的背景颜色")
+        
+        if color.isValid():
+            node_item.setBrush(QBrush(color))
+            
+            # 保存该节点的自定义颜色到节点数据
+            if self.parent_window and node_item.node_name in self.parent_window.nodes_data:
+                node_info = self.parent_window.nodes_data[node_item.node_name]
+                config = node_info['config']
+                config['custom_bg_color'] = color.name()
+                
+                # 保存到配置文件
+                config_path = os.path.join(node_info['path'], "config.json")
+                try:
+                    with open(config_path, 'w', encoding='utf-8') as f:
+                        json.dump(config, f, indent=2, ensure_ascii=False)
+                    print(f"✅ 节点 {node_item.node_name} 背景色已保存")
+                except Exception as e:
+                    print(f"❌ 保存节点颜色失败: {e}")
+            
+            print(f"✅ 节点背景色已更改为: {color.name()}")
+    
+    def change_node_border_color(self, node_item):
+        """修改节点边框颜色"""
+        from PyQt6.QtWidgets import QColorDialog
+        
+        current_color = QColor(self.node_border_color)
+        color = QColorDialog.getColor(current_color, self, f"修改节点 '{node_item.node_name}' 的边框颜色")
+        
+        if color.isValid():
+            node_item.setPen(QPen(color, 2))
+            
+            # 保存该节点的自定义颜色到节点数据
+            if self.parent_window and node_item.node_name in self.parent_window.nodes_data:
+                node_info = self.parent_window.nodes_data[node_item.node_name]
+                config = node_info['config']
+                config['custom_border_color'] = color.name()
+                
+                # 保存到配置文件
+                config_path = os.path.join(node_info['path'], "config.json")
+                try:
+                    with open(config_path, 'w', encoding='utf-8') as f:
+                        json.dump(config, f, indent=2, ensure_ascii=False)
+                    print(f"✅ 节点 {node_item.node_name} 边框色已保存")
+                except Exception as e:
+                    print(f"❌ 保存节点颜色失败: {e}")
+            
+            print(f"✅ 节点边框色已更改为: {color.name()}")
+    
+    def change_node_text_color(self, node_item):
+        """修改节点文字颜色"""
+        from PyQt6.QtWidgets import QColorDialog
+        
+        current_color = QColor(self.node_text_color)
+        color = QColorDialog.getColor(current_color, self, f"修改节点 '{node_item.node_name}' 的文字颜色")
+        
+        if color.isValid():
+            node_item.name_text.setDefaultTextColor(color)
+            
+            # 保存该节点的自定义颜色到节点数据
+            if self.parent_window and node_item.node_name in self.parent_window.nodes_data:
+                node_info = self.parent_window.nodes_data[node_item.node_name]
+                config = node_info['config']
+                config['custom_text_color'] = color.name()
+                
+                # 保存到配置文件
+                config_path = os.path.join(node_info['path'], "config.json")
+                try:
+                    with open(config_path, 'w', encoding='utf-8') as f:
+                        json.dump(config, f, indent=2, ensure_ascii=False)
+                    print(f"✅ 节点 {node_item.node_name} 文字色已保存")
+                except Exception as e:
+                    print(f"❌ 保存节点颜色失败: {e}")
+            
+            print(f"✅ 节点文字色已更改为: {color.name()}")
+    
+    def _save_color_settings(self):
+        """保存画布颜色设置到项目配置"""
+        if not self.parent_window or not self.parent_window.current_project_path:
+            return
+        
+        color_settings = {
+            'canvas_bg_color': self.canvas_bg_color,
+            'grid_color': self.grid_color,
+            'edge_color': self.edge_color,
+            'node_bg_color': self.node_bg_color,
+            'node_border_color': self.node_border_color,
+            'node_text_color': self.node_text_color
+        }
+        
+        settings_file = os.path.join(self.parent_window.current_project_path, "color_settings.json")
+        try:
+            with open(settings_file, 'w', encoding='utf-8') as f:
+                json.dump(color_settings, f, indent=2, ensure_ascii=False)
+            print(f"✅ 颜色设置已保存到: {settings_file}")
+        except Exception as e:
+            print(f"❌ 保存颜色设置失败: {e}")
+    
+    def _load_color_settings(self, project_path):
+        """从项目配置加载颜色设置"""
+        if not project_path:
+            return
+        
+        settings_file = os.path.join(project_path, "color_settings.json")
+        if not os.path.exists(settings_file):
+            return
+        
+        try:
+            with open(settings_file, 'r', encoding='utf-8') as f:
+                color_settings = json.load(f)
+            
+            # 应用颜色设置
+            self.apply_color_settings(color_settings)
+            print(f"✅ 颜色设置已从 {settings_file} 加载")
+        except Exception as e:
+            print(f"⚠️ 加载颜色设置失败: {e}")
 
     def update_node_status(self, node_name, status):
         """更新节点状态"""
@@ -683,9 +1029,34 @@ class NodeCanvas(QGraphicsView):
             self.sync_node_display(node_name)
             
     def on_node_selected(self, node):
-        """节点被选中（已废弃，改用双击打开配置对话框）"""
-        # 不再需要更新右侧面板，因为已经删除
-        pass
+        """节点被选中时调用"""
+        # 清除之前选中节点的边框高亮
+        if self.selected_node and self.selected_node in self.nodes:
+            prev_node = self.nodes[self.selected_node]
+            border_color = QColor(self.node_border_color)
+            prev_node.setPen(QPen(border_color, 2))
+        
+        # 更新选中的节点
+        self.selected_node = node.node_name
+        
+        # 高亮当前选中节点的边框
+        selected_color = QColor(self.node_selected_color)
+        node.setPen(QPen(selected_color, 3))
+        
+        print(f"✅ 选中节点: {self.selected_node}")
+    
+    def get_selected_node(self):
+        """获取当前选中的节点名称"""
+        return self.selected_node
+    
+    def clear_selection(self):
+        """清除节点选择"""
+        if self.selected_node and self.selected_node in self.nodes:
+            node = self.nodes[self.selected_node]
+            border_color = QColor(self.node_border_color)
+            node.setPen(QPen(border_color, 2))
+        
+        self.selected_node = None
                     
     def start_connection_from_output(self, source_node):
         """从输出锚点开始连线"""
@@ -757,7 +1128,7 @@ class NodeCanvas(QGraphicsView):
                 print(f"❌ 保存配置失败: {e}")
         
         # 创建连线条（此时不会自动更新路径）
-        edge = EdgeItem(source_node, target_node)
+        edge = EdgeItem(source_node, target_node, self)
         
         # 先添加到场景
         self.scene.addItem(edge)
@@ -901,6 +1272,9 @@ class NodeCanvas(QGraphicsView):
             print(f"✅ 画布布局已保存到: {layout_file}")
         except Exception as e:
             print(f"❌ 保存布局失败: {e}")
+        
+        # 同时保存颜色设置
+        self._save_color_settings()
             
     def load_layout(self, project_path):
         """从JSON文件加载画布布局 - 完整还原（智能合并）"""
@@ -910,9 +1284,14 @@ class NodeCanvas(QGraphicsView):
         layout_file = os.path.join(project_path, "canvas_layout.json")
         if not os.path.exists(layout_file):
             print(f"ℹ️  未找到布局文件: {layout_file}")
+            # 即使没有布局文件，也尝试加载颜色设置
+            self._load_color_settings(project_path)
             return
         
         try:
+            # 先加载颜色设置（在加载布局之前）
+            self._load_color_settings(project_path)
+            
             with open(layout_file, 'r', encoding='utf-8') as f:
                 layout_data = json.load(f)
             
@@ -1040,3 +1419,47 @@ class NodeCanvas(QGraphicsView):
         """自动保存布局（防抖）"""
         if self.parent_window and self.parent_window.current_project_path:
             self.save_layout(self.parent_window.current_project_path)
+    
+    def apply_color_settings(self, settings):
+        """应用颜色设置"""
+        # 更新画布配置
+        self.canvas_bg_color = settings.get('canvas_bg_color', self.canvas_bg_color)
+        self.grid_color = settings.get('grid_color', self.grid_color)
+        self.grid_opacity = settings.get('grid_opacity', self.grid_opacity)
+        self.node_bg_color = settings.get('node_bg_color', self.node_bg_color)
+        self.node_border_color = settings.get('node_border_color', self.node_border_color)
+        self.node_text_color = settings.get('node_text_color', self.node_text_color)
+        self.node_selected_color = settings.get('node_selected_color', self.node_selected_color)
+        self.input_anchor_color = settings.get('input_anchor_color', self.input_anchor_color)
+        self.output_anchor_color = settings.get('output_anchor_color', self.output_anchor_color)
+        self.edge_color = settings.get('edge_color', self.edge_color)
+        self.edge_width = settings.get('edge_width', self.edge_width)
+        
+        # 应用背景色
+        self.setBackgroundBrush(QColor(self.canvas_bg_color))
+        
+        # 刷新背景（重绘网格）
+        self.scene.update()
+        self.viewport().update()
+        
+        # 更新所有节点样式
+        for node in self.nodes.values():
+            # 更新节点背景和边框
+            bg_color = QColor(self.node_bg_color)
+            border_color = QColor(self.node_border_color)
+            node.setBrush(QBrush(bg_color))
+            node.setPen(QPen(border_color, 2))
+            
+            # 更新文字颜色
+            text_color = QColor(self.node_text_color)
+            node.name_text.setDefaultTextColor(text_color)
+            
+            # 更新锚点颜色
+            node.input_anchor.update_anchor_color()
+            node.output_anchor.update_anchor_color()
+        
+        # 更新所有连线样式
+        for edge in self.edges:
+            edge.update_edge_style()
+        
+        print("✅ 颜色设置已应用")

@@ -1,19 +1,26 @@
 {
   "window_geometry": {
-    "x": 100,
-    "y": 101,
-    "width": 1400,
-    "height": 899,
+    "x": 193,
+    "y": 71,
+    "width": 1118,
+    "height": 689,
     "maximized": false
   },
   "splitter_sizes": [
-    272,
-    1123
+    362,
+    751
   ],
-  "last_project": "F:/Bionic Neural Network Program Operating System",
+  "last_project": "D:/bnos_new/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform",
   "canvas_view_state": {
-    "scale": 0.7561436672967865,
+    "scale": 0.6575162324319884,
     "scroll_x": 0,
     "scroll_y": 0
+  },
+  "node_list_panel": {
+    "visible": true,
+    "x": 50,
+    "y": 157,
+    "width": 362,
+    "height": 600
   }
 }

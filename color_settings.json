@@ -1,0 +1,8 @@
+{
+  "canvas_bg_color": "#282935",
+  "grid_color": "#e0e0e0",
+  "edge_color": "#666666",
+  "node_bg_color": "#f8f9fa",
+  "node_border_color": "#dee2e6",
+  "node_text_color": "#333333"
+}

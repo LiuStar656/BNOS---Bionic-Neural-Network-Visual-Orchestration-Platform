@@ -1,0 +1,7 @@
+{
+  "node_name": "node_2",
+  "listen_upper_file": "..\\node_1\\output.json",
+  "output_file": "./output.json",
+  "filter": {},
+  "output_type": ""
+}
