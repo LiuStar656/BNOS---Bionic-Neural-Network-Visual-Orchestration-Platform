@@ -442,7 +442,7 @@ class NodeCanvas(QGraphicsView):
         
         # 设置视图属性
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)  # 右键拖拽平移
+        self.setDragMode(QGraphicsView.DragMode.NoDrag)  # 禁用默认拖拽，使用自定义逻辑
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
         
@@ -485,6 +485,13 @@ class NodeCanvas(QGraphicsView):
         self._save_timer = QTimer()
         self._save_timer.setSingleShot(True)
         self._save_timer.timeout.connect(self._auto_save_layout)
+        
+        # ===== 新增：框选相关状态 =====
+        self.is_pan_mode = False  # 是否处于平移模式（Ctrl+左键）
+        self.is_box_selecting = False  # 是否处于框选模式（左键长按）
+        self.box_select_rect = None  # 框选矩形项
+        self.box_select_start_pos = None  # 框选起始位置
+        self.pan_start_pos = None  # 平移起始位置
 
     def drawBackground(self, painter, rect):
         """绘制背景网格"""
@@ -517,8 +524,57 @@ class NodeCanvas(QGraphicsView):
             y += grid_size
     
     def mouseMoveEvent(self, event):
-        """鼠标移动事件 - 修复连线拖拽跟随鼠标"""
-        # 如果正在连线中，更新临时连线的终点
+        """鼠标移动事件 - 处理平移、框选和连线拖拽"""
+        # 如果正在平移（Ctrl+左键拖拽）
+        if self.is_pan_mode and self.pan_start_pos:
+            # 计算偏移量（使用 widget 坐标）
+            delta = event.pos() - self.pan_start_pos
+            
+            # 直接移动滚动条
+            h_scroll = self.horizontalScrollBar()
+            v_scroll = self.verticalScrollBar()
+            h_scroll.setValue(h_scroll.value() - delta.x())
+            v_scroll.setValue(v_scroll.value() - delta.y())
+            
+            # 更新起始位置
+            self.pan_start_pos = event.pos()
+            
+            event.accept()
+            return
+        
+        # 如果正在框选（左键长按拖拽）
+        if self.is_box_selecting and self.box_select_rect and self.box_select_start_pos:
+            # 使用 widget 坐标计算矩形
+            current_pos = event.pos()
+            
+            # 创建 QRect（widget坐标）并规范化
+            from PyQt6.QtCore import QRect
+            widget_rect = QRect(self.box_select_start_pos, current_pos).normalized()
+            
+            # 将 widget 坐标转换为 scene 坐标
+            top_left = self.mapToScene(widget_rect.topLeft())
+            bottom_right = self.mapToScene(widget_rect.bottomRight())
+            scene_rect = QRectF(top_left, bottom_right)
+            
+            self.box_select_rect.setRect(scene_rect)
+            
+            # 检查哪些节点在框选区域内
+            for node_name, node in self.nodes.items():
+                node_rect = node.sceneBoundingRect()
+                if scene_rect.intersects(node_rect):
+                    # 高亮选中的节点
+                    selected_color = QColor(self.node_selected_color)
+                    node.setPen(QPen(selected_color, 3))
+                    self.selected_node = node_name
+                else:
+                    # 恢复未选中节点的边框
+                    border_color = QColor(self.node_border_color)
+                    node.setPen(QPen(border_color, 2))
+            
+            event.accept()
+            return
+        
+        # 如果正在连线中，更新临时连线的终点跟随鼠标
         if self.is_connecting and self.temp_edge and self.connect_source:
             # 获取鼠标在场景中的位置
             scene_pos = self.mapToScene(event.position().toPoint())
@@ -548,35 +604,115 @@ class NodeCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
     
     def wheelEvent(self, event):
-        """滚轮缩放事件"""
-        # 计算缩放因子
-        factor = 1.15 if event.angleDelta().y() > 0 else 1/1.15
-        
-        # 限制缩放范围
-        current_scale = self.transform().m11()
-        new_scale = current_scale * factor
-        
-        if 0.1 <= new_scale <= 5.0:
-            self.scale(factor, factor)
+        """滚轮事件 - Ctrl+滚轮缩放，单滚轮上下移动"""
+        # 检查是否按下Ctrl键
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            # Ctrl+滚轮：放大缩小
+            factor = 1.15 if event.angleDelta().y() > 0 else 1/1.15
             
-            # 自动保存布局（包含视图状态）
-            if self.parent_window and self.parent_window.current_project_path:
-                self._save_timer.stop()
-                self._save_timer.start(500)
-        
-        event.accept()
-    
+            # 限制缩放范围
+            current_scale = self.transform().m11()
+            new_scale = current_scale * factor
+            
+            if 0.1 <= new_scale <= 5.0:
+                self.scale(factor, factor)
+                
+                # 自动保存布局（包含视图状态）
+                if self.parent_window and self.parent_window.current_project_path:
+                    self._save_timer.stop()
+                    self._save_timer.start(500)
+            
+            event.accept()
+        else:
+            # 单滚轮：上下移动（垂直滚动）
+            scroll_value = event.angleDelta().y()
+            self.verticalScrollBar().setValue(
+                self.verticalScrollBar().value() - scroll_value
+            )
+            event.accept()
+
     def mousePressEvent(self, event):
-        """鼠标按下事件 - 处理空白区域点击"""
+        """鼠标按下事件 - 处理Ctrl+左键平移、左键长按框选"""
         # 获取点击位置的项
         item = self.itemAt(event.position().toPoint())
         
-        # 如果点击的是空白区域（不是节点、连线等），清除选择
-        if item is None or (not isinstance(item, NodeItem) and not isinstance(item, EdgeItem)):
-            self.clear_selection()
+        # Ctrl+左键：进入平移模式（优先级最高）
+        # 使用位运算 & 检测修饰键，以兼容组合键情况
+        if event.button() == Qt.MouseButton.LeftButton and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            self.is_pan_mode = True
+            # 使用 widget 坐标而不是 scene 坐标
+            self.pan_start_pos = event.position().toPoint()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            
+            # 临时禁用所有节点的移动标志，防止节点被拖动
+            for node in self.nodes.values():
+                node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+            
+            print(f"🖐️ 进入平移模式")
+            event.accept()
+            return
         
-        # 调用父类方法处理其他事件（如拖拽）
+        # 左键：检查是否点击空白区域（准备框选）- 仅在未按Ctrl时
+        if event.button() == Qt.MouseButton.LeftButton and not (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            # 如果点击的是空白区域（不是节点、连线、锚点等），准备框选
+            if item is None or (not isinstance(item, NodeItem) and not isinstance(item, EdgeItem) and not isinstance(item, AnchorItem)):
+                self.is_box_selecting = True
+                # 使用 widget 坐标存储起始位置
+                self.box_select_start_pos = event.position().toPoint()
+                
+                # 创建框选矩形（初始大小为0）
+                self.box_select_rect = QGraphicsRectItem()
+                self.box_select_rect.setPen(QPen(QColor("#2196F3"), 1.5, Qt.PenStyle.DashLine))
+                self.box_select_rect.setBrush(QColor(33, 150, 243, 30))  # 半透明蓝色
+                self.box_select_rect.setZValue(0)  # 在最底层
+                self.scene.addItem(self.box_select_rect)
+                
+                # 清除当前选择
+                self.clear_selection()
+                
+                print(f"📦 开始框选")
+                event.accept()
+                return
+            
+            # 如果点击的是节点或锚点，正常处理（选中、连线等）
+            # 不调用 clear_selection()，让 NodeItem 自己处理
+            super().mousePressEvent(event)
+            return
+        
+        # 其他情况调用父类方法
         super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """鼠标释放事件 - 结束平移或框选"""
+        # 结束平移模式
+        if self.is_pan_mode and event.button() == Qt.MouseButton.LeftButton:
+            self.is_pan_mode = False
+            self.pan_start_pos = None
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            
+            # 恢复所有节点的移动标志
+            for node in self.nodes.values():
+                node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+            
+            print("✋ 退出平移模式")
+            event.accept()
+            return
+        
+        # 结束框选模式
+        if self.is_box_selecting and event.button() == Qt.MouseButton.LeftButton:
+            self.is_box_selecting = False
+            
+            # 移除框选矩形
+            if self.box_select_rect:
+                self.scene.removeItem(self.box_select_rect)
+                self.box_select_rect = None
+            
+            self.box_select_start_pos = None
+            print("✅ 结束框选")
+            event.accept()
+            return
+        
+        super().mouseReleaseEvent(event)
 
     def add_node_to_canvas(self, node_name):
         """添加节点到画布"""
