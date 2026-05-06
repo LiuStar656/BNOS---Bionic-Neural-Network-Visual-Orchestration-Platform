@@ -492,6 +492,7 @@ class NodeCanvas(QGraphicsView):
         self.box_select_rect = None  # 框选矩形项
         self.box_select_start_pos = None  # 框选起始位置
         self.pan_start_pos = None  # 平移起始位置
+        self.box_selected_nodes = []  # 框选中的节点名称列表
 
     def drawBackground(self, painter, rect):
         """绘制背景网格"""
@@ -558,6 +559,9 @@ class NodeCanvas(QGraphicsView):
             
             self.box_select_rect.setRect(scene_rect)
             
+            # 清空之前的选中列表，每次移动时重新计算
+            self.box_selected_nodes = []
+            
             # 检查哪些节点在框选区域内
             for node_name, node in self.nodes.items():
                 node_rect = node.sceneBoundingRect()
@@ -565,6 +569,8 @@ class NodeCanvas(QGraphicsView):
                     # 高亮选中的节点
                     selected_color = QColor(self.node_selected_color)
                     node.setPen(QPen(selected_color, 3))
+                    self.box_selected_nodes.append(node_name)
+                    # 更新最后选中的节点（可选，保持兼容性）
                     self.selected_node = node_name
                 else:
                     # 恢复未选中节点的边框
@@ -656,6 +662,9 @@ class NodeCanvas(QGraphicsView):
         if event.button() == Qt.MouseButton.LeftButton and not (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
             # 如果点击的是空白区域（不是节点、连线、锚点等），准备框选
             if item is None or (not isinstance(item, NodeItem) and not isinstance(item, EdgeItem) and not isinstance(item, AnchorItem)):
+                # 先清除之前的框选状态
+                self.clear_box_selection()
+                
                 self.is_box_selecting = True
                 # 使用 widget 坐标存储起始位置
                 self.box_select_start_pos = event.position().toPoint()
@@ -667,17 +676,17 @@ class NodeCanvas(QGraphicsView):
                 self.box_select_rect.setZValue(0)  # 在最底层
                 self.scene.addItem(self.box_select_rect)
                 
-                # 清除当前选择
+                # 清除当前单选
                 self.clear_selection()
                 
                 print(f"📦 开始框选")
                 event.accept()
                 return
-            
-            # 如果点击的是节点或锚点，正常处理（选中、连线等）
-            # 不调用 clear_selection()，让 NodeItem 自己处理
-            super().mousePressEvent(event)
-            return
+
+        # 如果点击的是节点或锚点，正常处理（选中、连线等）
+        # 不调用 clear_selection()，让 NodeItem 自己处理
+        super().mousePressEvent(event)
+        return
         
         # 其他情况调用父类方法
         super().mousePressEvent(event)
@@ -708,10 +717,15 @@ class NodeCanvas(QGraphicsView):
                 self.box_select_rect = None
             
             self.box_select_start_pos = None
-            print("✅ 结束框选")
+            
+            if self.box_selected_nodes:
+                print(f"✅ 结束框选，选中 {len(self.box_selected_nodes)} 个节点: {self.box_selected_nodes}")
+            else:
+                print("✅ 结束框选，未选中节点")
+            
             event.accept()
             return
-        
+
         super().mouseReleaseEvent(event)
 
     def add_node_to_canvas(self, node_name):
@@ -772,6 +786,44 @@ class NodeCanvas(QGraphicsView):
         """画布右键菜单"""
         # 获取点击位置的项
         item = self.itemAt(event.pos())
+        
+        # 如果有框选节点，显示批量操作菜单（优先级最高）
+        if self.box_selected_nodes:
+            menu = QMenu(self)
+            
+            # 显示选中数量
+            count = len(self.box_selected_nodes)
+            menu.addAction(f"📦 已选中 {count} 个节点").setEnabled(False)
+            menu.addSeparator()
+            
+            # 批量启动节点
+            start_action = menu.addAction(f"▶️ 启动已选节点 ({count})")
+            start_action.triggered.connect(self.batch_start_nodes)
+            
+            # 批量停止节点
+            stop_action = menu.addAction(f"⏹️ 停止已选节点 ({count})")
+            stop_action.triggered.connect(self.batch_stop_nodes)
+            
+            menu.addSeparator()
+            
+            # 批量删除节点
+            delete_action = menu.addAction(f"🗑️ 删除已选节点 ({count})")
+            delete_action.triggered.connect(self.batch_delete_nodes)
+            
+            menu.addSeparator()
+            
+            # 清除已选节点的连线配置
+            clear_edges_action = menu.addAction(f"🔗 清除已选节点连线配置")
+            clear_edges_action.triggered.connect(self.batch_clear_node_connections)
+            
+            menu.addSeparator()
+            
+            # 清除选择
+            clear_selection_action = menu.addAction("❌ 清除选择")
+            clear_selection_action.triggered.connect(self.clear_box_selection)
+            
+            menu.exec(event.globalPos())
+            return
         
         # 如果点击的是节点，显示节点菜单
         if isinstance(item, NodeItem):
@@ -1690,3 +1742,158 @@ class NodeCanvas(QGraphicsView):
             edge.update_edge_style()
         
         print("✅ 颜色设置已应用")
+    
+    # ===== 框选节点批量操作方法 =====
+    
+    def clear_box_selection(self):
+        """清除框选状态"""
+        # 恢复所有节点的边框颜色
+        for node_name in self.box_selected_nodes:
+            if node_name in self.nodes:
+                node = self.nodes[node_name]
+                border_color = QColor(self.node_border_color)
+                node.setPen(QPen(border_color, 2))
+        
+        # 清空选中列表
+        self.box_selected_nodes = []
+        print("✅ 已清除选择")
+    
+    def batch_start_nodes(self):
+        """批量启动已选节点"""
+        if not self.box_selected_nodes or not self.parent_window:
+            return
+        
+        success_count = 0
+        fail_count = 0
+        
+        for node_name in self.box_selected_nodes:
+            if node_name in self.nodes:
+                try:
+                    # 调用主窗口的启动节点方法
+                    if hasattr(self.parent_window, 'start_selected_node_by_name'):
+                        self.parent_window.start_selected_node_by_name(node_name)
+                        success_count += 1
+                    else:
+                        fail_count += 1
+                except Exception as e:
+                    print(f"❌ 启动节点 {node_name} 失败: {e}")
+                    fail_count += 1
+        
+        print(f"✅ 批量启动完成: 成功 {success_count} 个，失败 {fail_count} 个")
+        
+        # 清除选择
+        self.clear_box_selection()
+    
+    def batch_stop_nodes(self):
+        """批量停止已选节点"""
+        if not self.box_selected_nodes or not self.parent_window:
+            return
+        
+        success_count = 0
+        fail_count = 0
+        not_running_count = 0
+        
+        for node_name in self.box_selected_nodes:
+            if node_name in self.nodes:
+                try:
+                    # 检查节点是否在运行
+                    node_data = self.parent_window.nodes_data.get(node_name)
+                    if node_data and node_data.get('process'):
+                        # 调用主窗口的停止节点方法
+                        if hasattr(self.parent_window, 'stop_selected_node_by_name'):
+                            self.parent_window.stop_selected_node_by_name(node_name)
+                            success_count += 1
+                        else:
+                            fail_count += 1
+                    else:
+                        not_running_count += 1
+                        print(f"ℹ️ 节点 {node_name} 未在运行，跳过")
+                except Exception as e:
+                    print(f"❌ 停止节点 {node_name} 失败: {e}")
+                    fail_count += 1
+        
+        print(f"✅ 批量停止完成: 成功 {success_count} 个，未运行 {not_running_count} 个，失败 {fail_count} 个")
+        
+        # 清除选择
+        self.clear_box_selection()
+
+    def batch_delete_nodes(self):
+        """批量删除已选节点（仅从画布移除，不删除文件）"""
+        if not self.box_selected_nodes:
+            return
+        
+        reply = QMessageBox.question(
+            self, "确认批量删除",
+            f"确定要从画布中移除以下 {len(self.box_selected_nodes)} 个节点吗？\n\n" +
+            "\n".join(self.box_selected_nodes[:10]) + 
+            (f"\n...等 {len(self.box_selected_nodes)} 个节点" if len(self.box_selected_nodes) > 10 else "") +
+            "\n\n注意：这只会从画布移除节点，不会删除节点文件。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
+        deleted_count = 0
+        for node_name in self.box_selected_nodes[:]:  # 使用副本遍历
+            if node_name in self.nodes:
+                try:
+                    self.remove_node_from_canvas(node_name)
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"❌ 从画布移除节点 {node_name} 失败: {e}")
+        
+        # 清空选中列表
+        self.box_selected_nodes = []
+        print(f"✅ 已从画布移除 {deleted_count} 个节点")
+        
+        # 自动保存布局
+        if self.parent_window and self.parent_window.current_project_path:
+            self._save_timer.stop()
+            self._save_timer.start(500)
+
+    def batch_clear_node_connections(self):
+        """批量清除已选节点的连线配置"""
+        if not self.box_selected_nodes or not self.parent_window:
+            return
+        
+        cleared_count = 0
+        for node_name in self.box_selected_nodes:
+            if node_name in self.parent_window.nodes_data:
+                try:
+                    node_info = self.parent_window.nodes_data[node_name]
+                    config = node_info['config']
+                    
+                    # 清除 listen_upper_file 配置
+                    if config.get('listen_upper_file'):
+                        config['listen_upper_file'] = ""
+                        
+                        # 保存到文件
+                        config_path = os.path.join(node_info['path'], "config.json")
+                        with open(config_path, 'w', encoding='utf-8') as f:
+                            json.dump(config, f, indent=2, ensure_ascii=False)
+                        
+                        cleared_count += 1
+                        print(f"✅ 已清除节点 {node_name} 的连线配置")
+                except Exception as e:
+                    print(f"❌ 清除节点 {node_name} 配置失败: {e}")
+        
+        # 同时删除画布上相关的连线
+        edges_to_remove = []
+        for edge in self.edges:
+            source_name = None
+            target_name = None
+            for name, node in self.nodes.items():
+                if node == edge.start_node:
+                    source_name = name
+                if node == edge.end_node:
+                    target_name = name
+            
+            # 如果连线的任一端在选中节点中，则删除该连线
+            if source_name in self.box_selected_nodes or target_name in self.box_selected_nodes:
+                edges_to_remove.append(edge)
+        
+        for edge in edges_to_remove:
+            self.remove_edge(edge)
+        
+        print(f"✅ 已清除 {cleared_count} 个节点的连线配置，删除 {len(edges_to_remove)} 条连线")
