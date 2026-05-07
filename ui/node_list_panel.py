@@ -35,10 +35,9 @@ class NodeListPanel(QDialog):
         from ui.node_group_manager import NodeGroupManager
         self.group_manager = NodeGroupManager()
         
-        # 设置窗口标志：工具窗口、置顶、无边框
+        # 设置窗口标志：工具窗口、无边框（移除 WindowStaysOnTopHint 避免覆盖其他软件窗口）
         self.setWindowFlags(
             Qt.WindowType.Tool |
-            Qt.WindowType.WindowStaysOnTopHint |
             Qt.WindowType.FramelessWindowHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -1025,6 +1024,16 @@ class NodeListPanel(QDialog):
         if event.buttons() == Qt.MouseButton.LeftButton and hasattr(self, 'drag_position'):
             self.move(event.globalPosition().toPoint() - self.drag_position)
             event.accept()
+    
+    def showEvent(self, event):
+        """窗口显示事件 - 不主动置顶，让系统自然管理窗口层级"""
+        super().showEvent(event)
+        # 不调用 activateWindow() 和 raise_()，避免覆盖其他应用窗口
+        # 让用户手动点击来激活窗口
+    
+    def focusOutEvent(self, event):
+        """失去焦点事件 - 不做特殊处理"""
+        super().focusOutEvent(event)
     
     def set_project_path(self, project_path):
         """设置项目路径并加载节点组配置"""

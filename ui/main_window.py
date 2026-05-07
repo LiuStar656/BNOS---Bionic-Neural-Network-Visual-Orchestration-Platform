@@ -58,8 +58,8 @@ class ToastNotification(QLabel):
         
         self.setStyleSheet(base_style)
         
-        # 设置窗口属性
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
+        # 设置窗口属性（移除 WindowStaysOnTopHint 避免覆盖其他软件窗口）
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
@@ -1020,11 +1020,10 @@ python3 listener.py
             def __init__(self, parent=None):
                 super().__init__(parent)
                 
-                # 设置窗口标志：无边框、置顶、工具窗口
+                # 设置窗口标志：无边框、工具窗口（移除 WindowStaysOnTopHint 避免覆盖其他软件窗口）
                 self.setWindowFlags(
                     Qt.WindowType.FramelessWindowHint | 
-                    Qt.WindowType.Tool | 
-                    Qt.WindowType.WindowStaysOnTopHint
+                    Qt.WindowType.Tool
                 )
                 self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
                 
