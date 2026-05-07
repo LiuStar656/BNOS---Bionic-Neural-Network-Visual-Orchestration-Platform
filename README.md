@@ -19,6 +19,37 @@
 
 ---
 
+## 🆕 Recent Updates (2026-05-07)
+
+### ✨ New Features & Improvements
+
+#### 1. **Connection Anchor Position Fix** 🔧
+- **Issue**: Anchors displayed correctly during drag, but shifted to status indicator after connection
+- **Fix**: Use `sceneBoundingRect().center()` to directly get anchor geometric center, ensuring connections always attach to anchor center
+- **Affected File**: `ui/canvas_widget.py` - `EdgeItem.update_path()` method
+- **Technical Improvement**: Eliminated manual offset calculation, improving coordinate accuracy and reliability
+
+#### 2. **Window Stay-on-Top Behavior Optimization** 🪟
+- **Issue**: Node list, Toast notifications, and progress windows remained globally on top after switching applications, covering other software windows
+- **Fix**: Removed unnecessary `WindowStaysOnTopHint` flags while keeping `Qt.WindowType.Tool` flag
+- **Affected Files**:
+  - `ui/node_list_panel.py` - Node list panel
+  - `ui/main_window.py` - ToastNotification and ProgressFloatingWindow
+- **Result**: Tool windows now maintain hierarchy only within the application, without interfering with other applications
+
+#### 3. **Best Practices Documentation** 📚
+- Created memory knowledge base documenting QGraphicsItem anchor position calculation best practices
+- Documented Qt tool window stay-on-top issue solutions
+- Provided technical references and guidelines for future development
+
+### 🎯 Technical Highlights
+
+- **More Accurate Coordinate Calculation**: Replaced `scenePos() + offset` with `sceneBoundingRect().center()`
+- **Better User Experience**: Tool windows follow standard Windows behavior, no longer covering other applications
+- **Code Quality Improvement**: Captured best practices through memory system to avoid repeating mistakes
+
+---
+
 ## 📖 Overview
 
 **BNOS (Bionic Neural Network Program Operating System)** is a desktop-based visual orchestration platform built with **PyQt6**, designed for the BNOS Bionic Neural Network Node System. It provides graphical configuration, drag-and-drop neural circuit construction, and real-time monitoring capabilities.
