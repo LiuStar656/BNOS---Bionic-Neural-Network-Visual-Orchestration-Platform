@@ -225,7 +225,7 @@ python bnos_gui.py
 
 #### Option 2: Using Startup Script (Windows)
 
-```powershell
+``powershell
 # PowerShell (for paths with spaces)
 & ".\start_bnos_gui.bat"
 
@@ -256,7 +256,7 @@ start_bnos_gui.bat
    Nodes appear with auto-calculated positions.
 
 4. **Connect Neurons**
-   - Click **OUT** anchor (blue dot) on source node
+   - Click and hold **OUT** anchor (blue dot) on source node
    - Drag to **IN** anchor (green dot) on target node
    - Release to create synapse (auto-configures paths)
 
@@ -287,11 +287,22 @@ Right-click → ✏️ Rename → New Name → OK
 - Validates: Unique name, alphanumeric + underscores only
 
 #### Deleting Nodes
+
+**Option 1: Remove from Canvas Only** (Recommended for batch operations)
 ```
-Right-click → 🗑️ Delete → Confirm
+Right-click on canvas → Delete Selected Nodes
+```
+- Removes nodes from canvas view only
+- Does NOT delete source files or configurations
+- Safe for temporary cleanup
+
+**Option 2: Complete Deletion**
+```
+Right-click node in list → 🗑️ Delete → Confirm
 ```
 - Removes entire node folder from disk
 - Cleans up related synapses and path configurations
+- ⚠️ **Irreversible action** - use with caution
 
 #### Adding to Canvas
 ```
@@ -304,10 +315,13 @@ Right-click → ➕ Add to Canvas
 ### Canvas Operations
 
 #### Navigation
-- **Pan**: Right-click drag
-- **Zoom**: Mouse wheel (0.1x - 5.0x)
-- **Select**: Left-click
-- **Multi-select**: Ctrl + click
+- **Pan**: Ctrl + Left-click drag on empty area (hand cursor)
+- **Zoom**: Ctrl + Mouse wheel (0.1x - 5.0x), centered on mouse position
+- **Scroll**: Single mouse wheel for vertical scrolling
+- **Select**: Left-click on node
+- **Multi-select**: 
+  - Ctrl + Click nodes (toggle selection)
+  - Left-click drag on empty area (box selection with blue rectangle)
 
 #### Node Manipulation
 - **Move**: Drag node body (not anchors)
@@ -368,8 +382,9 @@ Method 3: Canvas node right-click → ⚙️ Open Config
 - **Empty Array**: No filtering, process all tasks
 
 #### Quick Actions
-- **💻 Terminal**: Open terminal with activated venv
+- **💻 Terminal**: Open terminal with activated venv (Windows: CMD, macOS: Terminal, Linux: gnome-terminal/konsole)
 - **📁 Explorer**: Open node folder in file explorer
+- **🔧 VSCode Workspace**: Generate `.code-workspace` file and open in VSCode with configured Python interpreter
 - **▶️/⏹️ Start/Stop**: Control node process
 - **📄 Logs**: View `listener.log` in real-time
 
@@ -420,14 +435,8 @@ BNOS/
 ├── nodes/                         # Node instances
 │   └── (user-created nodes)
 │
-├── docs/                          # Documentation
-│   ├── README.md                 # This file
-│   ├── TOAST_NO_LIMIT.md         # Toast notification guide
-│   ├── NODE_LIST_FOLLOWING_FIX_FINAL.md  # UI positioning
-│   └── ...
-│
-├── app_config.json                # App settings (window state)
-├── canvas_layout.json             # Current project layout
+├── app_config.json                # App settings (window state, last project)
+├── canvas_layout.json             # Current project layout (auto-generated)
 ├── color_settings.json            # Node color customization
 └── requirements_gui.txt           # Python dependencies
 ```
@@ -622,7 +631,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: Ahdong&Shouey Team
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-05-03
+- **Last Updated**: 2026-05-08
 
 ---
 
