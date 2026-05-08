@@ -178,6 +178,12 @@ class NodeConfigDialog(QDialog):
         open_terminal_btn.clicked.connect(self.open_terminal)
         control_layout.addWidget(open_terminal_btn)
         
+        # 打开 VSCode 工作区按钮
+        open_vscode_btn = QPushButton("🔧 打开为 VSCode 工作区")
+        open_vscode_btn.setStyleSheet("background-color: #007ACC; color: white; padding: 8px;")
+        open_vscode_btn.clicked.connect(self.open_vscode_workspace)
+        control_layout.addWidget(open_vscode_btn)
+        
         content_layout.addWidget(control_group)
         
         # 保存按钮
@@ -249,6 +255,58 @@ class NodeConfigDialog(QDialog):
                 subprocess.Popen(['xdg-open', self.node_path])
         except Exception as e:
             QMessageBox.critical(self, "错误", f"打开文件夹失败: {str(e)}")
+    
+    def open_vscode_workspace(self):
+        """打开为 VSCode 工作区"""
+        try:
+            # 容错：检查文件夹是否存在
+            if not os.path.exists(self.node_path) or not os.path.isdir(self.node_path):
+                QMessageBox.warning(self, "警告", f"节点文件夹不存在:\n{self.node_path}")
+                return
+            
+            # 生成 .code-workspace 文件路径
+            workspace_file = os.path.join(self.node_path, f"{self.node_name}.code-workspace")
+            
+            # 处理 Windows 分隔符，确保 JSON 格式正确
+            normalized_path = self.node_path.replace('\\', '/')
+            
+            # 创建标准的 VSCode 工作区配置
+            workspace_config = {
+                "folders": [
+                    {
+                        "path": "."
+                    }
+                ],
+                "settings": {
+                    "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe" if platform.system() == "Windows" else "${workspaceFolder}/venv/bin/python",
+                    "files.exclude": {
+                        "**/__pycache__": True,
+                        "**/*.pyc": True
+                    }
+                }
+            }
+            
+            # 写入工作区配置文件
+            with open(workspace_file, 'w', encoding='utf-8') as f:
+                json.dump(workspace_config, f, indent=2, ensure_ascii=False)
+            
+            # 调用系统打开方式，用 VSCode 以工作区模式打开
+            system = platform.system()
+            if system == "Windows":
+                subprocess.Popen(['code', workspace_file], shell=True)
+            elif system == "Darwin":  # macOS
+                subprocess.Popen(['code', workspace_file])
+            else:  # Linux
+                subprocess.Popen(['code', workspace_file])
+            
+            QMessageBox.information(self, "成功", f"✅ 已创建 VSCode 工作区并打开:\n{workspace_file}")
+            
+        except FileNotFoundError:
+            QMessageBox.warning(self, "提示", "⚠️ 未检测到 VSCode (code 命令)\n\n请确保已安装 VSCode 并将 'code' 命令添加到系统 PATH")
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"打开 VSCode 工作区失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     def open_terminal(self):
         """打开命令行并激活虚拟环境"""
