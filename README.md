@@ -19,6 +19,23 @@
 
 ---
 
+## 🆕 Recent Updates (2026-05-08)
+
+### ✨ New Features & Improvements
+
+#### 1. **VSCode Workspace Integration** 🔧
+- **Feature**: Added "Open as VSCode Workspace" button in Node Configuration Dialog
+- **Functionality**:
+  - Automatically generates standard `.code-workspace` configuration file for the node folder
+  - Configures Python virtual environment interpreter path (cross-platform: Windows/macOS/Linux)
+  - Excludes `__pycache__` and `.pyc` files from workspace view
+  - Opens the workspace directly in VSCode with one click
+- **Implementation**: Non-invasive design, only added new function `open_vscode_workspace()` without modifying existing code
+- **Affected File**: `ui/property_panel.py` - `NodeConfigDialog` class
+- **User Benefit**: Streamlines development workflow by providing instant access to node source code with proper environment configuration
+
+---
+
 ## 🆕 Recent Updates (2026-05-07)
 
 ### ✨ New Features & Improvements
