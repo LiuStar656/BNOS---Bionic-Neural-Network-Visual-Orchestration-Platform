@@ -256,6 +256,25 @@ class NodeConfigDialog(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "错误", f"打开文件夹失败: {str(e)}")
     
+    def _check_vscode_installed(self):
+        """检测 VSCode 是否已安装（通过 code 命令）"""
+        try:
+            system = platform.system()
+            if system == "Windows":
+                # Windows: 使用 where 命令检查
+                result = subprocess.run(['where', 'code'], 
+                                      capture_output=True, 
+                                      timeout=3)
+                return result.returncode == 0
+            else:
+                # macOS/Linux: 使用 which 命令检查
+                result = subprocess.run(['which', 'code'], 
+                                      capture_output=True, 
+                                      timeout=3)
+                return result.returncode == 0
+        except Exception:
+            return False
+
     def open_vscode_workspace(self):
         """打开为 VSCode 工作区"""
         try:
@@ -264,13 +283,25 @@ class NodeConfigDialog(QDialog):
                 QMessageBox.warning(self, "警告", f"节点文件夹不存在:\n{self.node_path}")
                 return
             
+            # 预检测 VSCode 是否安装
+            vscode_installed = self._check_vscode_installed()
+            if not vscode_installed:
+                reply = QMessageBox.question(
+                    self,
+                    "VSCode 未检测到",
+                    "⚠️ 未检测到 VSCode (code 命令)\n\n"
+                    "是否仍要创建工作区文件？\n\n"
+                    "您可以稍后手动用 VSCode 打开该文件。",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                if reply == QMessageBox.StandardButton.No:
+                    return
+            
             # 生成 .code-workspace 文件路径
             workspace_file = os.path.join(self.node_path, f"{self.node_name}.code-workspace")
             
-            # 处理 Windows 分隔符，确保 JSON 格式正确
-            normalized_path = self.node_path.replace('\\', '/')
-            
-            # 创建标准的 VSCode 工作区配置
+            # 创建标准的 VSCode 工作区配置（使用相对路径）
             workspace_config = {
                 "folders": [
                     {
@@ -290,21 +321,36 @@ class NodeConfigDialog(QDialog):
             with open(workspace_file, 'w', encoding='utf-8') as f:
                 json.dump(workspace_config, f, indent=2, ensure_ascii=False)
             
-            # 调用系统打开方式，用 VSCode 以工作区模式打开
-            system = platform.system()
-            if system == "Windows":
-                subprocess.Popen(['code', workspace_file], shell=True)
-            elif system == "Darwin":  # macOS
-                subprocess.Popen(['code', workspace_file])
-            else:  # Linux
-                subprocess.Popen(['code', workspace_file])
+            # 如果 VSCode 已安装，尝试自动打开
+            if vscode_installed:
+                system = platform.system()
+                try:
+                    if system == "Windows":
+                        subprocess.Popen(['code', workspace_file], shell=True)
+                    elif system == "Darwin":  # macOS
+                        subprocess.Popen(['code', workspace_file])
+                    else:  # Linux
+                        subprocess.Popen(['code', workspace_file])
+                    
+                    QMessageBox.information(self, "成功", 
+                        f"✅ 已创建 VSCode 工作区并自动打开\n\n"
+                        f"工作区文件：{workspace_file}\n"
+                        f"使用相对路径配置，可安全迁移项目")
+                except Exception as e:
+                    QMessageBox.information(self, "工作区已创建", 
+                        f"✅ VSCode 工作区文件已创建\n\n"
+                        f"工作区文件：{workspace_file}\n\n"
+                        f"⚠️ 自动打开失败：{str(e)}\n\n"
+                        f"请手动用 VSCode 打开该文件")
+            else:
+                QMessageBox.information(self, "工作区已创建", 
+                    f"✅ VSCode 工作区文件已创建\n\n"
+                    f"工作区文件：{workspace_file}\n\n"
+                    f"💡 提示：安装 VSCode 并添加 'code' 命令到 PATH 后，\n"
+                    f"可以双击此文件直接用 VSCode 打开")
             
-            QMessageBox.information(self, "成功", f"✅ 已创建 VSCode 工作区并打开:\n{workspace_file}")
-            
-        except FileNotFoundError:
-            QMessageBox.warning(self, "提示", "⚠️ 未检测到 VSCode (code 命令)\n\n请确保已安装 VSCode 并将 'code' 命令添加到系统 PATH")
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"打开 VSCode 工作区失败: {str(e)}")
+            QMessageBox.critical(self, "错误", f"创建 VSCode 工作区失败: {str(e)}")
             import traceback
             traceback.print_exc()
     

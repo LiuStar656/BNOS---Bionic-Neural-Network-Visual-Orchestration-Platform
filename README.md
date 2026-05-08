@@ -34,6 +34,26 @@
 - **Affected File**: `ui/property_panel.py` - `NodeConfigDialog` class
 - **User Benefit**: Streamlines development workflow by providing instant access to node source code with proper environment configuration
 
+#### 2. **VSCode Workspace Optimization** ⚡
+- **Smart Detection**: Pre-checks if VSCode is installed before attempting to open
+  - Windows: Uses `where code` command
+  - macOS/Linux: Uses `which code` command
+  - Timeout protection (3 seconds) prevents hanging
+- **Relative Path Configuration**: 
+  - Uses `"path": "."` for workspace folder (relative path)
+  - Uses `${workspaceFolder}` variable for Python interpreter path
+  - Ensures project portability and safe migration
+- **User-Friendly Interaction**:
+  - If VSCode not detected: Shows confirmation dialog with clear guidance
+  - User can choose to create workspace file anyway (for future use)
+  - Provides installation tips: "Add 'code' command to PATH"
+  - Respects user choice: Can cancel without creating any files
+- **Cross-Platform Support**: Works seamlessly on Windows, macOS, and Linux
+- **Enhanced Feedback**: Different success messages based on VSCode availability
+  - With VSCode: "✅ Created and auto-opened"
+  - Without VSCode: "✅ Created, double-click to open after installing VSCode"
+- **Technical Improvement**: Separated detection logic into `_check_vscode_installed()` method for better maintainability
+
 ---
 
 ## 🆕 Recent Updates (2026-05-07)
