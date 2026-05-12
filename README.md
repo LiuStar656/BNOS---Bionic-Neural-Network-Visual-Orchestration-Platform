@@ -19,6 +19,102 @@
 
 ---
 
+## 🆕 Recent Updates (2026-05-12)
+
+### ✨ New Features & Improvements
+
+#### 1. **Rust Node Generator Enhancement** 🦀
+- **Feature**: Complete Rust node project template generator with self-healing capabilities
+- **Functionality**:
+  - One-click generation of standardized Rust node projects following `node_rust_<name>` naming convention
+  - Automatic creation of dual binary structure: main program + listener service
+  - Built-in compilation product auto-detection and repair mechanism
+  - Cross-platform support (Windows/macOS/Linux) with platform-specific startup scripts
+- **Key Components**:
+  - **Cargo.toml**: Pre-configured with serde, serde_json, chrono dependencies and release optimization
+  - **src/main.rs**: Main processing logic with config.json parsing and packet-based output
+  - **src/listener.rs**: Independent listener service for real-time monitoring and log management
+  - **src/packet.rs**: Standardized packet structure for inter-node communication
+  - **config.json**: Node configuration with attention mechanism rules support
+  - **start.bat/start.sh**: Platform-aware startup scripts with environment detection
+- **Self-Healing Mechanism**:
+  - **Detection 1**: Checks if `target/release` directory exists
+  - **Detection 2**: Verifies main binary and listener binary files presence
+  - **Detection 3**: Tests binary executability to detect corruption
+  - **Auto-Repair**: Automatically rebuilds project when issues detected via `cargo build --release`
+  - **Smart Cleanup**: Removes corrupted build artifacts before rebuilding
+- **Usage Modes**:
+  - **Create Mode**: `python rust_create_node.py <node_name>` - Generate new node project
+  - **Repair Mode**: `python rust_create_node.py --repair-only <node_dir>` - Fix existing node
+  - **Interactive Mode**: Run without arguments for guided input
+- **Environment Validation**:
+  - Pre-checks for Rust toolchain (`rustc`) and Cargo package manager
+  - Provides clear installation guidance if not detected
+  - Displays build progress with timeout protection (5 minutes)
+- **Project Structure**:
+  ```
+  node_rust_<name>/
+  ├── Cargo.toml          # Package configuration
+  ├── config.json         # Node runtime config
+  ├── start.bat           # Windows launcher
+  ├── start.sh            # Linux/macOS launcher
+  ├── .gitignore          # Git ignore rules
+  ├── README.md           # Node documentation
+  ├── src/
+  │   ├── main.rs         # Main processing logic
+  │   ├── listener.rs     # Monitoring service
+  │   └── packet.rs       # Communication protocol
+  ├── logs/               # Runtime logs directory
+  └── target/             # Build artifacts (auto-generated)
+  ```
+- **Technical Highlights**:
+  - Release mode compilation with LTO (Link Time Optimization) enabled
+  - Binary stripping for smaller file size
+  - Modular code design with separate packet module
+  - Error handling with graceful degradation
+  - Configurable node name validation (alphanumeric, underscore, hyphen only)
+- **Affected File**: `rust_create_node.py` - Complete rewrite with enhanced features
+- **User Benefit**: Eliminates manual Rust project setup complexity, provides production-ready templates with automatic maintenance
+
+---
+
+## 🆕 Recent Updates (2026-05-08)
+
+### ✨ New Features & Improvements
+
+#### 1. **VSCode Workspace Integration** 🔧
+- **Feature**: Added "Open as VSCode Workspace" button in Node Configuration Dialog
+- **Functionality**:
+  - Automatically generates standard `.code-workspace` configuration file for the node folder
+  - Configures Python virtual environment interpreter path (cross-platform: Windows/macOS/Linux)
+  - Excludes `__pycache__` and `.pyc` files from workspace view
+  - Opens the workspace directly in VSCode with one click
+- **Implementation**: Non-invasive design, only added new function `open_vscode_workspace()` without modifying existing code
+- **Affected File**: `ui/property_panel.py` - `NodeConfigDialog` class
+- **User Benefit**: Streamlines development workflow by providing instant access to node source code with proper environment configuration
+
+#### 2. **VSCode Workspace Optimization** ⚡
+- **Smart Detection**: Pre-checks if VSCode is installed before attempting to open
+  - Windows: Uses `where code` command
+  - macOS/Linux: Uses `which code` command
+  - Timeout protection (3 seconds) prevents hanging
+- **Relative Path Configuration**: 
+  - Uses `"path": "."` for workspace folder (relative path)
+  - Uses `${workspaceFolder}` variable for Python interpreter path
+  - Ensures project portability and safe migration
+- **User-Friendly Interaction**:
+  - If VSCode not detected: Shows confirmation dialog with clear guidance
+  - User can choose to create workspace file anyway (for future use)
+  - Provides installation tips: "Add 'code' command to PATH"
+  - Respects user choice: Can cancel without creating any files
+- **Cross-Platform Support**: Works seamlessly on Windows, macOS, and Linux
+- **Enhanced Feedback**: Different success messages based on VSCode availability
+  - With VSCode: "✅ Created and auto-opened"
+  - Without VSCode: "✅ Created, double-click to open after installing VSCode"
+- **Technical Improvement**: Separated detection logic into `_check_vscode_installed()` method for better maintainability
+
+---
+
 ## 🆕 Recent Updates (2026-05-07)
 
 ### ✨ New Features & Improvements
@@ -208,7 +304,7 @@ python bnos_gui.py
 
 #### Option 2: Using Startup Script (Windows)
 
-```powershell
+``powershell
 # PowerShell (for paths with spaces)
 & ".\start_bnos_gui.bat"
 
@@ -239,7 +335,7 @@ start_bnos_gui.bat
    Nodes appear with auto-calculated positions.
 
 4. **Connect Neurons**
-   - Click **OUT** anchor (blue dot) on source node
+   - Click and hold **OUT** anchor (blue dot) on source node
    - Drag to **IN** anchor (green dot) on target node
    - Release to create synapse (auto-configures paths)
 
@@ -270,11 +366,22 @@ Right-click → ✏️ Rename → New Name → OK
 - Validates: Unique name, alphanumeric + underscores only
 
 #### Deleting Nodes
+
+**Option 1: Remove from Canvas Only** (Recommended for batch operations)
 ```
-Right-click → 🗑️ Delete → Confirm
+Right-click on canvas → Delete Selected Nodes
+```
+- Removes nodes from canvas view only
+- Does NOT delete source files or configurations
+- Safe for temporary cleanup
+
+**Option 2: Complete Deletion**
+```
+Right-click node in list → 🗑️ Delete → Confirm
 ```
 - Removes entire node folder from disk
 - Cleans up related synapses and path configurations
+- ⚠️ **Irreversible action** - use with caution
 
 #### Adding to Canvas
 ```
@@ -287,10 +394,13 @@ Right-click → ➕ Add to Canvas
 ### Canvas Operations
 
 #### Navigation
-- **Pan**: Right-click drag
-- **Zoom**: Mouse wheel (0.1x - 5.0x)
-- **Select**: Left-click
-- **Multi-select**: Ctrl + click
+- **Pan**: Ctrl + Left-click drag on empty area (hand cursor)
+- **Zoom**: Ctrl + Mouse wheel (0.1x - 5.0x), centered on mouse position
+- **Scroll**: Single mouse wheel for vertical scrolling
+- **Select**: Left-click on node
+- **Multi-select**: 
+  - Ctrl + Click nodes (toggle selection)
+  - Left-click drag on empty area (box selection with blue rectangle)
 
 #### Node Manipulation
 - **Move**: Drag node body (not anchors)
@@ -351,8 +461,9 @@ Method 3: Canvas node right-click → ⚙️ Open Config
 - **Empty Array**: No filtering, process all tasks
 
 #### Quick Actions
-- **💻 Terminal**: Open terminal with activated venv
+- **💻 Terminal**: Open terminal with activated venv (Windows: CMD, macOS: Terminal, Linux: gnome-terminal/konsole)
 - **📁 Explorer**: Open node folder in file explorer
+- **🔧 VSCode Workspace**: Generate `.code-workspace` file and open in VSCode with configured Python interpreter
 - **▶️/⏹️ Start/Stop**: Control node process
 - **📄 Logs**: View `listener.log` in real-time
 
@@ -403,14 +514,8 @@ BNOS/
 ├── nodes/                         # Node instances
 │   └── (user-created nodes)
 │
-├── docs/                          # Documentation
-│   ├── README.md                 # This file
-│   ├── TOAST_NO_LIMIT.md         # Toast notification guide
-│   ├── NODE_LIST_FOLLOWING_FIX_FINAL.md  # UI positioning
-│   └── ...
-│
-├── app_config.json                # App settings (window state)
-├── canvas_layout.json             # Current project layout
+├── app_config.json                # App settings (window state, last project)
+├── canvas_layout.json             # Current project layout (auto-generated)
 ├── color_settings.json            # Node color customization
 └── requirements_gui.txt           # Python dependencies
 ```
@@ -605,7 +710,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: Ahdong&Shouey Team
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-05-03
+- **Last Updated**: 2026-05-08
 
 ---
 
