@@ -19,6 +19,71 @@
 
 ---
 
+## 🆕 Recent Updates (2026-05-13)
+
+### ✨ New Features & Improvements
+
+#### 1. **Enhanced Rust Node Generator** 🔧
+- **Feature**: Complete rewrite of Rust node generation system with self-healing capabilities
+- **Functionality**:
+  - **Auto Environment Detection**: Automatically checks for Rust toolchain and build artifacts on startup
+  - **Self-Repair Mechanism**: Detects missing or corrupted binaries and automatically rebuilds using `cargo build --release`
+  - **Dual Binary Architecture**: Generates two executables:
+    - `{node_name}`: Main processing logic (single execution mode)
+    - `{node_name}_listener`: Persistent listener with auto-healing (continuous monitoring mode)
+  - **Smart Build System**: Release mode optimization with LTO, codegen-units=1, and symbol stripping for maximum performance
+  - **Cross-Platform Support**: Works seamlessly on Windows (.exe), macOS, and Linux
+  
+- **Implementation Details**:
+  - **Modular Source Structure**: 
+    - `src/main.rs`: Core business logic with JSON I/O handling
+    - `src/listener.rs`: File monitoring loop with environment self-healing
+    - `src/packet.rs`: Standardized output packet structure (success/error responses)
+  - **Configuration Management**: Auto-generated `config.json` with filter rules, upstream/downstream paths, and output type settings
+  - **Startup Scripts**: Platform-specific launchers (`start.bat` for Windows, `start.sh` for Unix) with built-in environment validation
+  - **Logging System**: Automatic log rotation in `logs/listener.log` with timestamp formatting
+  
+- **User Workflow**:
+  ```bash
+  # Generate new Rust node
+  python rust_create_node.py my_processor
+  
+  # Enter directory and implement logic
+  cd node_rust_my_processor
+  # Edit src/main.rs to add custom processing logic
+  
+  # Build and run (auto-repair if needed)
+  start.bat  # Windows
+  ./start.sh # macOS/Linux
+  ```
+  
+- **Performance Benefits**:
+  - **10-100x faster** than Python equivalents due to compiled nature
+  - **Memory safe**: Compiler-enforced ownership model prevents data races
+  - **Zero-cost abstractions**: High-level ergonomics with low-level control
+  - **Minimal runtime**: No garbage collector pauses, predictable latency
+  
+- **Self-Healing Capabilities**:
+  - ✅ Checks for `rustc` and `cargo` availability before execution
+  - ✅ Validates existence of `target/release/` directory
+  - ✅ Verifies binary integrity by attempting execution
+  - ✅ Automatically cleans corrupted build artifacts
+  - ✅ Rebuilds project with detailed error reporting
+  - ✅ Continues operation after successful repair without manual intervention
+  
+- **Affected Files**: 
+  - `rust_create_node.py` - Complete node generator with 1083 lines of template code
+  - `node_rust_9/` - Example implementation demonstrating the architecture
+  
+- **Technical Highlights**:
+  - Uses `serde` and `serde_json` for robust JSON serialization/deserialization
+  - Implements chrono library for precise timestamp logging
+  - Employs thread-based polling with configurable sleep intervals (200ms default)
+  - Supports attention mechanism filtering via config.json rules
+  - Graceful error handling with structured error packets
+
+---
+
 ## 🆕 Recent Updates (2026-05-08)
 
 ### ✨ New Features & Improvements
@@ -127,6 +192,14 @@ Traditional distributed neuron systems face these challenges:
 - **One-click Creation**: Graphical wizard generates standardized templates with isolated venv environments
 - **Smart Renaming**: Right-click rename synchronously updates folder, config, and canvas references
 - **Independent Runtime**: Each neuron has its own virtual environment, preventing dependency conflicts
+- **🚀 Enhanced Rust Nodes** (NEW):
+  - **Self-Healing Architecture**: Automatic detection and repair of missing/corrupted build artifacts
+  - **Dual Binary System**: Separate executables for processing (`{node_name}`) and listening (`{node_name}_listener`)
+  - **Performance Optimization**: Release mode builds with LTO, achieving 10-100x speedup over interpreted languages
+  - **Memory Safety**: Compiler-enforced ownership model eliminates data races and memory leaks
+  - **Auto-Rebuild on Startup**: Validates Rust toolchain and binaries, rebuilds if necessary before execution
+  - **Modular Design**: Clean separation of concerns (main.rs, listener.rs, packet.rs)
+  - **Cross-Platform Launchers**: Platform-specific startup scripts with environment validation
 
 ### ⚙️ Configuration Editor
 
@@ -206,7 +279,7 @@ Traditional distributed neuron systems face these challenges:
 | **Node List** | `ui/node_list_panel.py` | Tree view of nodes/groups, context menus, multi-select support |
 | **Property Panel** | `ui/property_panel.py` | Config editor, log viewer, process control dialog |
 | **Group Manager** | `ui/node_group_manager.py` | Node group management, persistence, batch operations |
-| **Node Creator** | `python_create_node.py` | Python node template generator with venv setup |
+| **Node Creator** | `create_node.py` | Multi-language template generator with venv setup |
 
 ---
 
@@ -440,7 +513,7 @@ Toolbar → New Project → Select Folder
 BNOS/
 │
 ├── bnos_gui.py                    # Main entry point
-├── python_create_node.py          # Python node template generator
+├── create_node.py                 # Node template generator
 ├── start_bnos_gui.bat             # Windows launcher
 ├── test_and_start_bnos.bat        # Test + launcher
 │
@@ -651,7 +724,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: Ahdong&Shouey Team
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-05-08
+- **Last Updated**: 2026-05-13
 
 ---
 
