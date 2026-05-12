@@ -577,7 +577,7 @@ impl OutputPacket {
 def create_config_json(node_name: str) -> str:
     """生成 config.json 文件内容"""
     config = {
-        "node_name": node_name,
+        "node_name": f"node_rust_{node_name}",
         "listen_upper_file": "../data/upper_data.json",
         "output_file": "./output.json",
         "filter": {},

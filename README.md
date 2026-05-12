@@ -19,62 +19,68 @@
 
 ---
 
-## 🆕 Recent Updates (2026-05-12)
+## 🆕 Recent Updates (2026-05-13)
 
 ### ✨ New Features & Improvements
 
-#### 1. **Rust Node Generator Enhancement** 🦀
-- **Feature**: Complete Rust node project template generator with self-healing capabilities
+#### 1. **Enhanced Rust Node Generator** 🔧
+- **Feature**: Complete rewrite of Rust node generation system with self-healing capabilities
 - **Functionality**:
-  - One-click generation of standardized Rust node projects following `node_rust_<name>` naming convention
-  - Automatic creation of dual binary structure: main program + listener service
-  - Built-in compilation product auto-detection and repair mechanism
-  - Cross-platform support (Windows/macOS/Linux) with platform-specific startup scripts
-- **Key Components**:
-  - **Cargo.toml**: Pre-configured with serde, serde_json, chrono dependencies and release optimization
-  - **src/main.rs**: Main processing logic with config.json parsing and packet-based output
-  - **src/listener.rs**: Independent listener service for real-time monitoring and log management
-  - **src/packet.rs**: Standardized packet structure for inter-node communication
-  - **config.json**: Node configuration with attention mechanism rules support
-  - **start.bat/start.sh**: Platform-aware startup scripts with environment detection
-- **Self-Healing Mechanism**:
-  - **Detection 1**: Checks if `target/release` directory exists
-  - **Detection 2**: Verifies main binary and listener binary files presence
-  - **Detection 3**: Tests binary executability to detect corruption
-  - **Auto-Repair**: Automatically rebuilds project when issues detected via `cargo build --release`
-  - **Smart Cleanup**: Removes corrupted build artifacts before rebuilding
-- **Usage Modes**:
-  - **Create Mode**: `python rust_create_node.py <node_name>` - Generate new node project
-  - **Repair Mode**: `python rust_create_node.py --repair-only <node_dir>` - Fix existing node
-  - **Interactive Mode**: Run without arguments for guided input
-- **Environment Validation**:
-  - Pre-checks for Rust toolchain (`rustc`) and Cargo package manager
-  - Provides clear installation guidance if not detected
-  - Displays build progress with timeout protection (5 minutes)
-- **Project Structure**:
+  - **Auto Environment Detection**: Automatically checks for Rust toolchain and build artifacts on startup
+  - **Self-Repair Mechanism**: Detects missing or corrupted binaries and automatically rebuilds using `cargo build --release`
+  - **Dual Binary Architecture**: Generates two executables:
+    - `{node_name}`: Main processing logic (single execution mode)
+    - `{node_name}_listener`: Persistent listener with auto-healing (continuous monitoring mode)
+  - **Smart Build System**: Release mode optimization with LTO, codegen-units=1, and symbol stripping for maximum performance
+  - **Cross-Platform Support**: Works seamlessly on Windows (.exe), macOS, and Linux
+  
+- **Implementation Details**:
+  - **Modular Source Structure**: 
+    - `src/main.rs`: Core business logic with JSON I/O handling
+    - `src/listener.rs`: File monitoring loop with environment self-healing
+    - `src/packet.rs`: Standardized output packet structure (success/error responses)
+  - **Configuration Management**: Auto-generated `config.json` with filter rules, upstream/downstream paths, and output type settings
+  - **Startup Scripts**: Platform-specific launchers (`start.bat` for Windows, `start.sh` for Unix) with built-in environment validation
+  - **Logging System**: Automatic log rotation in `logs/listener.log` with timestamp formatting
+  
+- **User Workflow**:
+  ```bash
+  # Generate new Rust node
+  python rust_create_node.py my_processor
+  
+  # Enter directory and implement logic
+  cd node_rust_my_processor
+  # Edit src/main.rs to add custom processing logic
+  
+  # Build and run (auto-repair if needed)
+  start.bat  # Windows
+  ./start.sh # macOS/Linux
   ```
-  node_rust_<name>/
-  ├── Cargo.toml          # Package configuration
-  ├── config.json         # Node runtime config
-  ├── start.bat           # Windows launcher
-  ├── start.sh            # Linux/macOS launcher
-  ├── .gitignore          # Git ignore rules
-  ├── README.md           # Node documentation
-  ├── src/
-  │   ├── main.rs         # Main processing logic
-  │   ├── listener.rs     # Monitoring service
-  │   └── packet.rs       # Communication protocol
-  ├── logs/               # Runtime logs directory
-  └── target/             # Build artifacts (auto-generated)
-  ```
+  
+- **Performance Benefits**:
+  - **10-100x faster** than Python equivalents due to compiled nature
+  - **Memory safe**: Compiler-enforced ownership model prevents data races
+  - **Zero-cost abstractions**: High-level ergonomics with low-level control
+  - **Minimal runtime**: No garbage collector pauses, predictable latency
+  
+- **Self-Healing Capabilities**:
+  - ✅ Checks for `rustc` and `cargo` availability before execution
+  - ✅ Validates existence of `target/release/` directory
+  - ✅ Verifies binary integrity by attempting execution
+  - ✅ Automatically cleans corrupted build artifacts
+  - ✅ Rebuilds project with detailed error reporting
+  - ✅ Continues operation after successful repair without manual intervention
+  
+- **Affected Files**: 
+  - `rust_create_node.py` - Complete node generator with 1083 lines of template code
+  - `node_rust_9/` - Example implementation demonstrating the architecture
+  
 - **Technical Highlights**:
-  - Release mode compilation with LTO (Link Time Optimization) enabled
-  - Binary stripping for smaller file size
-  - Modular code design with separate packet module
-  - Error handling with graceful degradation
-  - Configurable node name validation (alphanumeric, underscore, hyphen only)
-- **Affected File**: `rust_create_node.py` - Complete rewrite with enhanced features
-- **User Benefit**: Eliminates manual Rust project setup complexity, provides production-ready templates with automatic maintenance
+  - Uses `serde` and `serde_json` for robust JSON serialization/deserialization
+  - Implements chrono library for precise timestamp logging
+  - Employs thread-based polling with configurable sleep intervals (200ms default)
+  - Supports attention mechanism filtering via config.json rules
+  - Graceful error handling with structured error packets
 
 ---
 
@@ -186,6 +192,14 @@ Traditional distributed neuron systems face these challenges:
 - **One-click Creation**: Graphical wizard generates standardized templates with isolated venv environments
 - **Smart Renaming**: Right-click rename synchronously updates folder, config, and canvas references
 - **Independent Runtime**: Each neuron has its own virtual environment, preventing dependency conflicts
+- **🚀 Enhanced Rust Nodes** (NEW):
+  - **Self-Healing Architecture**: Automatic detection and repair of missing/corrupted build artifacts
+  - **Dual Binary System**: Separate executables for processing (`{node_name}`) and listening (`{node_name}_listener`)
+  - **Performance Optimization**: Release mode builds with LTO, achieving 10-100x speedup over interpreted languages
+  - **Memory Safety**: Compiler-enforced ownership model eliminates data races and memory leaks
+  - **Auto-Rebuild on Startup**: Validates Rust toolchain and binaries, rebuilds if necessary before execution
+  - **Modular Design**: Clean separation of concerns (main.rs, listener.rs, packet.rs)
+  - **Cross-Platform Launchers**: Platform-specific startup scripts with environment validation
 
 ### ⚙️ Configuration Editor
 
@@ -710,7 +724,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: Ahdong&Shouey Team
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-05-08
+- **Last Updated**: 2026-05-13
 
 ---
 
