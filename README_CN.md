@@ -204,7 +204,7 @@
 | **节点列表** | `ui/node_list_panel.py` | 节点/分组树形视图，上下文菜单，多选支持 |
 | **属性面板** | `ui/property_panel.py` | 配置编辑器、日志查看器、进程控制对话框 |
 | **分组管理器** | `ui/node_group_manager.py` | 节点分组管理、持久化、批量操作 |
-| **节点创建器** | `create_node.py`  | 多语言模板生成器，自动配置 venv |
+| **节点创建器** | `python_create_node.py`  | Python 节点模板生成器，自动配置 venv |
 
 ---
 
@@ -438,7 +438,7 @@ Ctrl + 单击多选节点 → 右键 → 批量启动/停止
 BNOS/
 │
 ├── bnos_gui.py                    # 主入口
-├── create_node.py                 # 节点模板生成器
+├── python_create_node.py          # Python 节点模板生成器
 ├── start_bnos_gui.bat             # Windows 启动脚本
 ├── test_and_start_bnos.bat        # 测试 + 启动脚本
 │

@@ -325,6 +325,10 @@ class BNOSMainWindow(QMainWindow):
         # Toast通知队列管理
         self.active_toasts = []  # 当前显示的Toast列表
         
+        # 初始化节点创建管理器（单例，自动注册所有语言创建器）
+        from ui.node_creator_manager import NodeCreatorManager
+        self.node_creator = NodeCreatorManager.get_instance()
+        
         # 初始化UI
         self.init_ui()
         self.init_toolbar()
@@ -705,7 +709,7 @@ class BNOSMainWindow(QMainWindow):
         self.canvas.sync_all_nodes_display()
         
     def create_new_node(self):
-        """创建新节点（异步方式，避免UI卡顿）"""
+        """创建新节点（使用节点创建管理器，支持多语言）"""
         if not self.current_project_path:
             self.show_toast("请先打开或新建项目", "warning")
             return
@@ -715,312 +719,98 @@ class BNOSMainWindow(QMainWindow):
         # 弹出对话框输入节点名称
         node_name, ok = QInputDialog.getText(
             self, "新建节点", 
-            "请输入节点名称:",
+            f"请输入节点名称（{language}）:",
             QLineEdit.EchoMode.Normal
         )
         
         if not ok or not node_name:
             return
         
-        # 检查节点是否已存在
-        base_dir = os.path.join(self.current_project_path, "nodes")
-        node_dir = os.path.join(base_dir, f"node_{node_name}")
+        # 映射语言标识
+        lang_map = {
+            "Python": "python",
+            "Node.js": "nodejs",
+            "Go": "go",
+            "Java": "java",
+            "C++": "cpp",
+            "Rust": "rust",
+            "Shell": "shell"
+        }
         
-        if os.path.exists(node_dir):
-            self.show_toast(f"节点 {node_name} 已存在", "warning")
+        lang_key = lang_map.get(language, language.lower())
+        
+        # 检查是否支持该语言
+        if not self.node_creator.has_creator(lang_key):
+            self.show_toast(f"暂不支持创建 {language} 节点", "warning")
+            print(f"⚠️ 未注册的语言创建器: {lang_key}")
+            print(f"   当前支持: {self.node_creator.get_supported_languages()}")
             return
         
         # 启动异步创建流程
-        self._start_async_node_creation(node_name, language)
+        self._start_async_node_creation(node_name, lang_key, language)
     
-    def _start_async_node_creation(self, node_name, language):
-        """启动异步节点创建流程"""
-        from PyQt6.QtWidgets import QProgressDialog
-        from PyQt6.QtCore import QThread, pyqtSignal
+    def _start_async_node_creation(self, node_name, lang_key, display_language):
+        """启动异步节点创建流程（使用节点创建管理器）"""
+        from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
+        from PyQt6.QtCore import QThread, pyqtSignal, Qt
         
         class NodeCreationWorker(QThread):
             """后台工作线程：负责创建节点"""
             progress_signal = pyqtSignal(str)  # 进度消息
             finished_signal = pyqtSignal(bool, str)  # (成功/失败, 消息)
             
-            def __init__(self, project_path, node_name, language):
+            def __init__(self, project_path, node_name, lang_key, display_language):
                 super().__init__()
                 self.project_path = project_path
                 self.node_name = node_name
-                self.language = language
+                self.lang_key = lang_key
+                self.display_language = display_language
             
             def run(self):
                 try:
-                    import sys
-                    import json
-                    import subprocess
+                    # 切换到项目 nodes 目录
+                    original_cwd = os.getcwd()
+                    nodes_dir = os.path.join(self.project_path, "nodes")
                     
-                    # 获取软件根目录
-                    software_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    if not os.path.exists(nodes_dir):
+                        os.makedirs(nodes_dir)
                     
-                    # 导入create_node模块
-                    import importlib.util
-                    create_node_path = os.path.join(software_root, "create_node.py")
+                    os.chdir(nodes_dir)
                     
-                    if not os.path.exists(create_node_path):
-                        self.finished_signal.emit(False, f"找不到create_node.py: {create_node_path}")
-                        return
+                    try:
+                        # 发送开始消息
+                        self.progress_signal.emit(f"🚀 开始创建 {self.display_language} 节点...")
+                        
+                        # 获取节点创建管理器实例
+                        from ui.node_creator_manager import NodeCreatorManager
+                        manager = NodeCreatorManager.get_instance()
+                        
+                        # 调用对应的创建器
+                        success = manager.create_node(self.lang_key, self.node_name)
+                        
+                        if success:
+                            self.finished_signal.emit(True, f"{self.display_language} 节点 '{self.node_name}' 创建成功")
+                        else:
+                            self.finished_signal.emit(False, f"{self.display_language} 节点创建失败")
                     
-                    spec = importlib.util.spec_from_file_location("create_node", create_node_path)
-                    create_node = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(create_node)
-                    
-                    # 步骤1：创建目录结构
-                    self.progress_signal.emit("📁 创建目录结构...")
-                    base_dir = os.path.join(self.project_path, "nodes")
-                    node_dir = os.path.join(base_dir, f"node_{self.node_name}")
-                    
-                    if os.path.exists(node_dir):
-                        self.finished_signal.emit(False, f"节点 {self.node_name} 已存在")
-                        return
-                    
-                    os.makedirs(node_dir)
-                    os.makedirs(os.path.join(node_dir, "logs"))
-                    
-                    # 步骤2：创建虚拟环境（最耗时的操作）
-                    self.progress_signal.emit("🔧 创建虚拟环境（可能需要10-30秒）...")
-                    venv_path = os.path.join(node_dir, "venv")
-                    result = subprocess.run(
-                        [sys.executable, "-m", "venv", venv_path],
-                        check=True,
-                        capture_output=True,
-                        text=True
-                    )
-                    
-                    # 步骤3：创建配置文件
-                    self.progress_signal.emit("⚙️ 生成配置文件...")
-                    
-                    # requirements.txt
-                    with open(os.path.join(node_dir, "requirements.txt"), "w", encoding="utf-8") as f:
-                        f.write("# 在此添加节点依赖\n")
-                    
-                    # config.json
-                    config = {
-                        "node_name": f"node_{self.node_name}",
-                        "listen_upper_file": "../data/upper_data.json",
-                        "output_file": "./output.json",
-                        "filter": {},
-                        "output_type": ""
-                    }
-                    with open(os.path.join(node_dir, "config.json"), "w", encoding="utf-8") as f:
-                        json.dump(config, f, indent=2, ensure_ascii=False)
-                    
-                    # packet.py
-                    packet = '''UPPER_PACKET = {"data": None}
-OUTPUT_PACKET = {"code": 0, "data": None}
-'''
-                    with open(os.path.join(node_dir, "packet.py"), "w", encoding="utf-8") as f:
-                        f.write(packet.strip())
-                    
-                    # listener.py
-                    listener = '''import os
-import json
-import time
-import subprocess
-from datetime import datetime
-
-NODE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.join(NODE_DIR, "config.json")
-LOG_DIR = os.path.join(NODE_DIR, "logs")
-
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
-
-def log(msg, level="INFO"):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    line = f"[{now}] [{level}] {msg}"
-    print(line)
-    with open(os.path.join(LOG_DIR, "listener.log"), "a", encoding="utf-8") as f:
-        f.write(line + "\\n")
-
-try:
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        cfg = json.load(f)
-except Exception as e:
-    log(f"配置加载失败: {e}", "ERROR")
-    exit(1)
-
-UPPER_FILE = os.path.abspath(os.path.join(NODE_DIR, cfg["listen_upper_file"]))
-OUTPUT_FILE = os.path.abspath(os.path.join(NODE_DIR, cfg["output_file"]))
-NODE_NAME = cfg["node_name"]
-MY_FILTER = cfg.get("filter", {})
-PROCESS_FLAG = f"_processed_{NODE_NAME}"
-
-def is_my_data(data):
-    if not MY_FILTER:
-        return True
-    for k, v in MY_FILTER.items():
-        if data.get(k) != v:
-            return False
-    return True
-
-log("=" * 50)
-log(f"节点启动: {NODE_NAME}")
-log(f"监听: {UPPER_FILE}")
-log(f"过滤: {MY_FILTER}")
-log("当前环境: 独立虚拟环境")
-log("=" * 50)
-
-while True:
-    try:
-        if not os.path.exists(UPPER_FILE):
-            time.sleep(0.2)
-            continue
-
-        with open(UPPER_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        if data.get(PROCESS_FLAG):
-            time.sleep(0.2)
-            continue
-
-        if not is_my_data(data):
-            time.sleep(0.2)
-            continue
-
-        log("✅ 开始处理数据")
-
-        # 【关键】只用自己虚拟环境运行 main.py
-        if os.name == "nt":
-            py_path = os.path.join(NODE_DIR, "venv", "Scripts", "python.exe")
-        else:
-            py_path = os.path.join(NODE_DIR, "venv", "bin", "python")
-
-        res = subprocess.run(
-            [py_path, os.path.join(NODE_DIR, "main.py"), json.dumps(data)],
-            capture_output=True, text=True, encoding="utf-8"
-        )
-
-        output = res.stdout.strip()
-        if not output:
-            log("⚠️ 返回空数据")
-            continue
-
-        with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-            f.write(output)
-
-        data[PROCESS_FLAG] = True
-        with open(UPPER_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-
-        log(f"✅ 处理完成: {PROCESS_FLAG}")
-
-    except json.JSONDecodeError:
-        log("❌ 数据包格式错误", "ERROR")
-        time.sleep(1)
-    except Exception as e:
-        log(f"❌ 异常: {e}", "ERROR")
-        time.sleep(1)
-
-    time.sleep(0.2)
-'''
-                    with open(os.path.join(node_dir, "listener.py"), "w", encoding="utf-8") as f:
-                        f.write(listener.strip())
-                    
-                    # main.py
-                    main = '''import sys
-import json
-import os
-
-NODE_DIR = os.path.dirname(os.path.abspath(__file__))
-config_path = os.path.join(NODE_DIR, "config.json")
-with open(config_path, "r", encoding="utf-8") as f:
-    cfg = json.load(f)
-
-def process(data):
-    return data.get("data")
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print(json.dumps({"code": -1, "error": "no input"}))
-        sys.exit(1)
-
-    input_data = json.loads(sys.argv[1])
-    result = process(input_data)
-
-    print(json.dumps({
-        "code": 0,
-        "type": cfg["output_type"],
-        "data": result
-    }, ensure_ascii=False))
-'''
-                    with open(os.path.join(node_dir, "main.py"), "w", encoding="utf-8") as f:
-                        f.write(main.strip())
-                    
-                    # output.json
-                    with open(os.path.join(node_dir, "output.json"), "w", encoding="utf-8") as f:
-                        f.write('{"code":0,"data":null}')
-                    
-                    # 自动生成启动脚本
-                    if os.name == "nt":
-                        start_bat = '''@echo off
-cls
-echo ======================================
-echo        BNOS Node Starter (Windows)
-echo ======================================
-echo.
-cd /d "%~dp0"
-chmp 65001 >nul
-if not exist "venv\\Scripts\\python.exe" (
-    echo ❌ 虚拟环境不存在！
-    pause
-    exit /b 1
-)
-call venv\\Scripts\\activate.bat
-echo ✅ 启动监听程序...
-echo.
-venv\\Scripts\\python.exe listener.py
-echo.
-echo ❌ 程序已退出
-pause
-'''
-                        with open(os.path.join(node_dir, "start.bat"), "w", encoding="utf-8") as f:
-                            f.write(start_bat)
-                    else:
-                        start_sh = '''#!/bin/bash
-cd "$(dirname "$0")"
-source venv/bin/activate
-python3 listener.py
-'''
-                        with open(os.path.join(node_dir, "start.sh"), "w", encoding="utf-8") as f:
-                            f.write(start_sh)
-                        os.chmod(os.path.join(node_dir, "start.sh"), 0o755)
-                    
-                    self.progress_signal.emit("✅ 节点创建完成！")
-                    self.finished_signal.emit(True, f"节点 {self.node_name} 创建成功")
-                    
-                except subprocess.CalledProcessError as e:
-                    error_msg = f"创建虚拟环境失败: {e.stderr}"
-                    self.finished_signal.emit(False, error_msg)
+                    finally:
+                        # 恢复原始工作目录
+                        os.chdir(original_cwd)
+                        
                 except Exception as e:
-                    error_msg = f"创建节点失败: {str(e)}"
+                    error_msg = f"创建节点异常: {str(e)}"
+                    self.finished_signal.emit(False, error_msg)
                     import traceback
                     traceback.print_exc()
-                    self.finished_signal.emit(False, error_msg)
         
-        # 创建工作线程
-        self.node_creation_worker = NodeCreationWorker(
-            self.current_project_path, 
-            node_name, 
-            language
-        )
-        
-        # 创建非模态进度提示窗口（右上角浮动）
-        from PyQt6.QtWidgets import QWidget, QVBoxLayout
-        from PyQt6.QtCore import Qt
-        
+        # 创建浮动进度窗口（右上角）
         class ProgressFloatingWindow(QWidget):
             """右上角浮动进度窗口 - 非模态，不阻塞画布操作"""
             
             def __init__(self, parent=None):
                 super().__init__(parent)
                 
-                # 设置窗口标志：无边框、工具窗口（移除 WindowStaysOnTopHint 避免覆盖其他软件窗口）
+                # 设置窗口标志：无边框、工具窗口
                 self.setWindowFlags(
                     Qt.WindowType.FramelessWindowHint | 
                     Qt.WindowType.Tool
@@ -1054,63 +844,66 @@ python3 listener.py
                 """)
                 layout.addWidget(self.message_label)
                 
-                # 取消按钮
-                self.cancel_button = QPushButton("取消")
-                self.cancel_button.setStyleSheet("""
-                    QPushButton {
-                        background-color: rgba(244, 67, 54, 200);
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        padding: 5px 15px;
-                        font-size: 12px;
-                    }
-                    QPushButton:hover {
-                        background-color: rgba(244, 67, 54, 230);
-                    }
-                """)
-                layout.addWidget(self.cancel_button)
-                
                 # 设置背景样式
                 self.setStyleSheet("""
                     QWidget {
-                        background-color: rgba(50, 50, 50, 230);
+                        background-color: rgba(33, 33, 33, 230);
                         border-radius: 8px;
                     }
                 """)
                 
-                # 调整大小
-                self.adjustSize()
-                
-                # 设置固定最小宽度
-                self.setMinimumWidth(250)
+                # 更新位置到右上角
+                self.update_position()
+            
+            def update_position(self):
+                """更新窗口位置到父窗口右上角"""
+                if self.parent():
+                    parent_rect = self.parent().geometry()
+                    window_width = self.width() if self.width() > 0 else 250
+                    window_height = self.height() if self.height() > 0 else 100
+                    
+                    x = parent_rect.right() - window_width - 20
+                    y = parent_rect.top() + 80
+                    
+                    self.move(x, y)
         
-        # 创建进度窗口实例
-        self.progress_window = ProgressFloatingWindow(self)
+        # 创建工作线程（保存为实例变量以便清理）
+        self.node_creation_worker = NodeCreationWorker(
+            self.current_project_path,
+            node_name,
+            lang_key,
+            display_language
+        )
         
-        # 设置窗口位置到右上角（距离右边缘20px，距离顶部80px）
-        if self.geometry():
-            parent_rect = self.geometry()
-            window_width = self.progress_window.width()
-            window_height = self.progress_window.height()
-            x = parent_rect.right() - window_width - 20
-            y = parent_rect.top() + 80  # 留出工具栏空间
-            self.progress_window.move(x, y)
+        # 设置线程在父对象销毁时自动删除
+        self.node_creation_worker.setParent(self)
+        
+        # 创建进度窗口
+        progress_window = ProgressFloatingWindow(self)
+        progress_window.show()
         
         # 连接信号
-        self.node_creation_worker.progress_signal.connect(
-            self.progress_window.message_label.setText
-        )
-        self.node_creation_worker.finished_signal.connect(
-            self._on_node_creation_finished
-        )
-        self.progress_window.cancel_button.clicked.connect(
-            self._on_node_creation_cancelled
-        )
+        def update_progress(message):
+            if progress_window.isVisible():
+                progress_window.message_label.setText(message)
         
-        # 启动工作线程
+        def creation_finished(success, message):
+            # 确保在主线程中关闭窗口
+            if progress_window.isVisible():
+                progress_window.close()
+            
+            if success:
+                self.show_toast(message, "success")
+                # 刷新节点列表
+                self.refresh_nodes()
+            else:
+                self.show_toast(message, "error")
+        
+        self.node_creation_worker.progress_signal.connect(update_progress)
+        self.node_creation_worker.finished_signal.connect(creation_finished)
+        
+        # 启动线程
         self.node_creation_worker.start()
-        self.progress_window.show()
     
     def _on_node_creation_finished(self, success, message):
         """节点创建完成的回调"""
@@ -1429,6 +1222,14 @@ python3 listener.py
 
     def closeEvent(self, event):
         """窗口关闭事件，保存所有状态"""
+        # 等待节点创建线程完成（如果正在运行）
+        if hasattr(self, 'node_creation_worker') and self.node_creation_worker.isRunning():
+            print("⏳ 等待节点创建线程完成...")
+            self.node_creation_worker.wait(5000)  # 最多等待5秒
+            if self.node_creation_worker.isRunning():
+                print("⚠️ 节点创建线程超时，强制终止")
+                self.node_creation_worker.terminate()
+        
         # 保存当前项目布局
         if self.current_project_path:
             self.canvas.save_layout(self.current_project_path)

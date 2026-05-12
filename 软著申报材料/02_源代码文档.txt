@@ -1,0 +1,3438 @@
+BNOS 仿生神经网络可视化编排平台 V1.0
+源代码文档（前30页 + 后30页）
+============================================================
+
+
+============================================================
+第一部分：源代码前30页
+============================================================
+
+第 1 页
+------------------------------------------------------------
+
+    1  
+============================================================
+    2  // 文件: bnos_gui.py
+    3  ============================================================
+    4  """
+    5  BNOS 桌面可视化节点编排平台 - 主入口
+    6  基于PyQt6的纯桌面端GUI应用
+    7  """
+    8  import sys
+    9  import os
+   10  from PyQt6.QtWidgets import QApplication
+   11  from ui.main_window import BNOSMainWindow
+   12  
+   13  def main():
+   14      """应用程序主入口"""
+   15      try:
+   16          app = QApplication(sys.argv)
+   17          app.setApplicationName("BNOS 节点编排平台")
+   18          app.setOrganizationName("BNOS")
+   19  
+   20          # 创建并显示主窗口
+   21          window = BNOSMainWindow()
+   22          window.show()
+   23  
+   24          sys.exit(app.exec())
+   25  
+   26      except KeyboardInterrupt:
+   27          # 用户按下 Ctrl+C，优雅退出
+   28          print("\n\n👋 BNOS 已安全关闭")
+   29          sys.exit(0)
+   30  
+   31      except Exception as e:
+   32          # 其他未预期异常
+   33          print(f"\n❌ BNOS 发生错误: {e}")
+   34          import traceback
+   35          traceback.print_exc()
+   36          sys.exit(1)
+   37  
+   38  if __name__ == "__main__":
+   39      main()
+   40  
+============================================================
+   41  // 文件: ui/main_window.py
+   42  ============================================================
+   43  """
+   44  BNOS 主窗口 - 包含完整的界面布局和核心功能
+   45  """
+   46  import os
+   47  import sys
+   48  import json
+   49  import subprocess
+   50  from pathlib import Path
+
+------------------------------------------------------------
+
+
+第 2 页
+------------------------------------------------------------
+
+   51  from PyQt6.QtWidgets import (
+   52      QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
+   53      QToolBar, QFileDialog, QMessageBox, QListWidget,
+   54      QListWidgetItem, QTreeWidget, QTreeWidgetItem, QTextEdit,
+   55      QFormLayout, QLineEdit, QPushButton, QLabel, QGroupBox,
+   56      QComboBox, QTabWidget, QDialog, QDialogButtonBox, QHeaderView,
+   57      QTableWidget, QTableWidgetItem, QMenu, QGraphicsView, QGraphicsScene,
+   58      QInputDialog, QGraphicsOpacityEffect
+   59  )
+   60  from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRectF, QTimer
+   61  from PyQt6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction
+   62  
+   63  from ui.canvas_widget import NodeCanvas
+   64  from ui.node_list_panel import NodeListPanel
+   65  
+   66  class ToastNotification(QLabel):
+   67      """右上角自动消失的通知弹窗（Toast）- 优化版
+   68  
+   69      使用高精度定时器实现流畅的60fps淡入淡出动画
+   70      支持堆叠显示和自动位置调整
+   71      显示在右上角，不干扰画布操作
+   72      """
+   73  
+   74      def __init__(self, message, parent=None, duration=3000, toast_type="info", stack_index=0):
+   75          super().__init__(message, parent)
+   76  
+   77          # 保存堆叠索引
+   78          self.stack_index = stack_index
+   79  
+   80          # 设置基础样式
+   81          base_style = """
+   82              QLabel {
+   83                  background-color: rgba(50, 50, 50, 230);
+   84                  color: white;
+   85                  padding: 12px 20px;
+   86                  border-radius: 8px;
+   87                  font-size: 14px;
+   88                  font-weight: bold;
+   89              }
+   90          """
+   91  
+   92          # 根据类型调整颜色
+   93          if toast_type == "success":
+   94              base_style = base_style.replace("rgba(50, 50, 50, 230)", "rgba(76, 175, 80, 230)")
+   95          elif toast_type == "warning":
+   96              base_style = base_style.replace("rgba(50, 50, 50, 230)", "rgba(255, 152, 0, 230)")
+   97          elif toast_type == "error":
+   98              base_style = base_style.replace("rgba(50, 50, 50, 230)", "rgba(244, 67, 54, 230)")
+   99  
+  100          self.setStyleSheet(base_style)
+
+------------------------------------------------------------
+
+
+第 3 页
+------------------------------------------------------------
+
+  101  
+  102          # 设置窗口属性（移除 WindowStaysOnTopHint 避免覆盖其他软件窗口）
+  103          self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
+  104          self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+  105          self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+  106  
+  107          # 调整大小以适应文本
+  108          self.adjustSize()
+  109  
+  110          # 初始化透明度效果
+  111          self.opacity_effect = QGraphicsOpacityEffect(self)
+  112          self.opacity_effect.setOpacity(0)
+  113          self.setGraphicsEffect(self.opacity_effect)
+  114  
+  115          # 动画参数
+  116          self.duration = duration
+  117          self.fade_duration = 300  # 淡入淡出时间（毫秒）
+  118          self.current_opacity = 0.0
+  119          self.is_fading_in = False
+  120          self.is_fading_out = False
+  121  
+  122          # 使用高精度定时器实现平滑动画（60fps）
+  123          self.animation_timer = QTimer(self)
+  124          self.animation_timer.setTimerType(Qt.TimerType.PreciseTimer)
+  125          self.animation_timer.timeout.connect(self.update_animation)
+  126  
+  127          # 停留计时器
+  128          self.stay_timer = QTimer(self)
+  129          self.stay_timer.setSingleShot(True)
+  130          self.stay_timer.timeout.connect(self.start_fade_out)
+  131  
+  132      def show_toast(self):
+  133          """显示通知并启动淡入动画"""
+  134          # 先确保大小已调整
+  135          self.adjustSize()
+  136  
+  137          # 计算位置：使用绝对屏幕坐标，固定在主窗口右上角
+  138          if self.parent():
+  139              # 获取主窗口在屏幕上的位置
+  140              parent_window = self.parent()
+  141              window_pos = parent_window.pos()
+  142              window_size = parent_window.size()
+  143  
+  144              # 计算相对于窗口的右上角位置（使用绝对屏幕坐标）
+  145              x = window_pos.x() + window_size.width() - self.width() - 20
+  146              y = window_pos.y() + 100 + (self.stack_index * 60)  # 留出两层工具栏空间
+  147  
+  148              # 边界检测：确保Toast不会超出屏幕底部
+  149              from PyQt6.QtWidgets import QApplication
+  150              screen = QApplication.primaryScreen().geometry()
+
+------------------------------------------------------------
+
+
+第 4 页
+------------------------------------------------------------
+
+  151              max_y = screen.bottom() - self.height() - 10
+  152              if y > max_y:
+  153                  y = max_y  # 限制在屏幕内
+  154          else:
+  155              # 如果没有父窗口，使用屏幕右上角
+  156              from PyQt6.QtWidgets import QApplication
+  157              screen = QApplication.primaryScreen().geometry()
+  158              x = screen.right() - self.width() - 20
+  159              y = screen.top() + 100 + (self.stack_index * 60)
+  160  
+  161          self.move(x, y)
+  162          self.show()
+  163  
+  164          # 启动淡入动画
+  165          self.current_opacity = 0.0
+  166          self.is_fading_in = True
+  167          self.is_fading_out = False
+  168          self.animation_timer.start(16)  # 16ms ≈ 60fps
+  169  
+  170      def update_animation(self):
+  171          """更新动画帧 - 手动控制透明度实现流畅动画"""
+  172          if self.is_fading_in:
+  173              # 淡入动画：线性增加透明度
+  174              self.current_opacity += 16.0 / self.fade_duration
+  175              if self.current_opacity >= 1.0:
+  176                  self.current_opacity = 1.0
+  177                  self.is_fading_in = False
+  178                  self.opacity_effect.setOpacity(1.0)
+  179                  self.animation_timer.stop()
+  180  
+  181                  # 开始停留计时（确保只启动一次）
+  182                  if not self.stay_timer.isActive():
+  183                      self.stay_timer.start(self.duration)
+  184              else:
+  185                  self.opacity_effect.setOpacity(self.current_opacity)
+  186  
+  187          elif self.is_fading_out:
+  188              # 淡出动画：线性减少透明度
+  189              self.current_opacity -= 16.0 / self.fade_duration
+  190              if self.current_opacity <= 0.0:
+  191                  self.current_opacity = 0.0
+  192                  self.opacity_effect.setOpacity(0.0)
+  193                  self.animation_timer.stop()
+  194  
+  195                  # 确保所有定时器都停止
+  196                  if self.stay_timer.isActive():
+  197                      self.stay_timer.stop()
+  198  
+  199                  # 延迟关闭，确保视觉效果完成
+  200                  QTimer.singleShot(50, self.close)
+
+------------------------------------------------------------
+
+
+第 5 页
+------------------------------------------------------------
+
+  201              else:
+  202                  self.opacity_effect.setOpacity(self.current_opacity)
+  203  
+  204      def update_position(self):
+  205          """更新位置（用于堆叠时的位置调整）"""
+  206          # 重新调整大小以确保准确性
+  207          self.adjustSize()
+  208  
+  209          # 计算位置：使用绝对屏幕坐标，固定在主窗口右上角
+  210          if self.parent():
+  211              # 获取主窗口在屏幕上的位置
+  212              parent_window = self.parent()
+  213              window_pos = parent_window.pos()
+  214              window_size = parent_window.size()
+  215  
+  216              # 计算相对于窗口的右上角位置（使用绝对屏幕坐标）
+  217              x = window_pos.x() + window_size.width() - self.width() - 20
+  218              y = window_pos.y() + 100 + (self.stack_index * 60)  # 留出两层工具栏空间
+  219  
+  220              # 边界检测：确保Toast不会超出屏幕底部
+  221              from PyQt6.QtWidgets import QApplication
+  222              screen = QApplication.primaryScreen().geometry()
+  223              max_y = screen.bottom() - self.height() - 10
+  224              if y > max_y:
+  225                  y = max_y  # 限制在屏幕内
+  226          else:
+  227              from PyQt6.QtWidgets import QApplication
+  228              screen = QApplication.primaryScreen().geometry()
+  229              x = screen.right() - self.width() - 20
+  230              y = screen.top() + 100 + (self.stack_index * 60)
+  231  
+  232          # 平滑移动到新位置
+  233          self.move(x, y)
+  234  
+  235      def start_fade_out(self):
+  236          """开始淡出动画"""
+  237          # 防止重复启动淡出
+  238          if self.is_fading_out or self.is_fading_in:
+  239              return
+  240  
+  241          self.is_fading_out = True
+  242          self.animation_timer.start(16)  # 16ms ≈ 60fps
+  243  
+  244      def closeEvent(self, event):
+  245          """窗口关闭事件 - 清理资源"""
+  246          # 停止所有定时器
+  247          self.animation_timer.stop()
+  248          if self.stay_timer.isActive():
+  249              self.stay_timer.stop()
+  250  
+
+------------------------------------------------------------
+
+
+第 6 页
+------------------------------------------------------------
+
+  251          # 接受关闭事件
+  252          event.accept()
+  253  
+  254  class AppConfig:
+  255      """应用配置管理 - 全局配置记忆系统"""
+  256  
+  257      def __init__(self):
+  258          # 配置文件路径（程序根目录）
+  259          self.config_file = os.path.join(
+  260              os.path.dirname(os.path.abspath(__file__)),
+  261              "..",
+  262              "app_config.json"
+  263          )
+  264  
+  265          # 默认配置
+  266          self.config = {
+  267              # 窗口布局持久化
+  268              "window_geometry": {
+  269                  "x": 100,
+  270                  "y": 100,
+  271                  "width": 1400,
+  272                  "height": 900,
+  273                  "maximized": False
+  274              },
+  275              "splitter_sizes": [250, 1150],  # 左侧节点列表 + 右侧画布
+  276  
+  277              # 项目记忆
+  278              "last_project": None,
+  279  
+  280              # 画布视图状态（最后的项目）
+  281              "canvas_view_state": {
+  282                  "scale": 1.0,
+  283                  "scroll_x": 0,
+  284                  "scroll_y": 0
+  285              }
+  286          }
+  287  
+  288          # 加载配置
+  289          self.load()
+  290  
+  291      def load(self):
+  292          """加载配置 - 带异常处理"""
+  293          try:
+  294              if os.path.exists(self.config_file):
+  295                  with open(self.config_file, 'r', encoding='utf-8') as f:
+  296                      loaded = json.load(f)
+  297  
+  298                      # 合并配置（保留新字段的默认值）
+  299                      for key in loaded:
+  300                          if key in self.config:
+
+------------------------------------------------------------
+
+
+第 7 页
+------------------------------------------------------------
+
+  301                              if isinstance(self.config[key], dict) and isinstance(loaded[key], dict):
+  302                                  # 字典类型：深度合并
+  303                                  self.config[key].update(loaded[key])
+  304                              else:
+  305                                  # 其他类型：直接覆盖
+  306                                  self.config[key] = loaded[key]
+  307  
+  308                  print(f"✅ 配置已加载: {self.config_file}")
+  309              else:
+  310                  print(f"ℹ️  配置文件不存在，使用默认配置")
+  311  
+  312          except (json.JSONDecodeError, IOError) as e:
+  313              print(f"⚠️  配置文件损坏，重置为默认配置: {e}")
+  314              # 备份损坏的文件
+  315              if os.path.exists(self.config_file):
+  316                  backup_file = self.config_file + ".bak"
+  317                  try:
+  318                      import shutil
+  319                      shutil.copy2(self.config_file, backup_file)
+  320                      print(f"📦 已备份损坏的配置: {backup_file}")
+  321                  except:
+  322                      pass
+  323          except Exception as e:
+  324              print(f"❌ 加载配置失败: {e}")
+  325  
+  326      def save(self):
+  327          """保存配置 - 带异常处理"""
+  328          try:
+  329              # 确保目录存在
+  330              config_dir = os.path.dirname(self.config_file)
+  331              if not os.path.exists(config_dir):
+  332                  os.makedirs(config_dir)
+  333  
+  334              with open(self.config_file, 'w', encoding='utf-8') as f:
+  335                  json.dump(self.config, f, indent=2, ensure_ascii=False)
+  336  
+  337              print(f"✅ 配置已保存: {self.config_file}")
+  338  
+  339          except Exception as e:
+  340              print(f"❌ 保存配置失败: {e}")
+  341  
+  342      def get(self, key, default=None):
+  343          """获取配置项"""
+  344          return self.config.get(key, default)
+  345  
+  346      def set(self, key, value):
+  347          """设置配置项"""
+  348          self.config[key] = value
+  349  
+  350  class BNOSMainWindow(QMainWindow):
+
+------------------------------------------------------------
+
+
+第 8 页
+------------------------------------------------------------
+
+  351      """BNOS主窗口类"""
+  352  
+  353      def __init__(self):
+  354          super().__init__()
+  355  
+  356          # 应用配置
+  357          self.app_config = AppConfig()
+  358  
+  359          # 项目状态
+  360          self.current_project_path = None
+  361          self.nodes_data = {}  # {node_name: {config, path, process, status}}
+  362          self.connections = []  # [(source_node, target_node)]
+  363  
+  364          # Toast通知队列管理
+  365          self.active_toasts = []  # 当前显示的Toast列表
+  366  
+  367          # 初始化UI
+  368          self.init_ui()
+  369          self.init_toolbar()
+  370          self.init_menu()
+  371  
+  372          # 恢复窗口状态
+  373          self.restore_window_state()
+  374  
+  375          # 设置窗口属性
+  376          self.setWindowTitle("BNOS 节点编排平台")
+  377  
+  378          # 自动打开最后的项目
+  379          self.auto_open_last_project()
+  380  
+  381      def init_ui(self):
+  382          """初始化主界面布局"""
+  383          # 中央部件
+  384          central_widget = QWidget()
+  385          self.setCentralWidget(central_widget)
+  386  
+  387          # 主布局 - 只包含画布
+  388          main_layout = QVBoxLayout(central_widget)
+  389          main_layout.setContentsMargins(0, 0, 0, 0)
+  390          main_layout.setSpacing(0)
+  391  
+  392          # 中间画布 - 节点编排（直接添加到主布局）
+  393          self.canvas = NodeCanvas(self)
+  394          main_layout.addWidget(self.canvas)
+  395  
+  396          # 创建节点列表面板（常驻半透明悬浮窗，默认显示）
+  397          self.node_list_panel = NodeListPanel(self)
+  398          self.node_list_panel.setWindowTitle("节点列表")
+  399          # 默认显示，不再隐藏
+  400  
+
+------------------------------------------------------------
+
+
+第 9 页
+------------------------------------------------------------
+
+  401          # 设置节点列表面板的初始位置和大小（窗口内部左上角区域）
+  402          panel_width = 280
+  403          panel_height = 500
+  404          # 计算相对于屏幕的绝对位置
+  405          window_pos = self.pos()
+  406          panel_x = window_pos.x() + 20  # 主窗口左边 + 20px
+  407          panel_y = window_pos.y() + 100  # 主窗口顶部 + 100px（留出两层工具栏空间）
+  408          self.node_list_panel.setGeometry(panel_x, panel_y, panel_width, panel_height)
+  409          self.node_list_panel.show()  # 默认显示
+  410  
+  411      def moveEvent(self, event):
+  412          """窗口移动事件 - 更新节点列表和Toast位置"""
+  413          super().moveEvent(event)
+  414  
+  415          # 更新节点列表面板位置（保持在窗口内部左上角）
+  416          if hasattr(self, 'node_list_panel') and self.node_list_panel.isVisible():
+  417              # 计算相对于屏幕的绝对位置
+  418              # 获取主窗口在屏幕上的位置
+  419              window_pos = self.pos()
+  420              # 节点列表应该在主窗口内部的左上角
+  421              panel_x = window_pos.x() + 20  # 主窗口左边 + 20px
+  422              panel_y = window_pos.y() + 100  # 主窗口顶部 + 100px（留出两层工具栏）
+  423              self.node_list_panel.move(panel_x, panel_y)
+  424  
+  425          # 更新所有Toast的位置
+  426          if hasattr(self, 'active_toasts'):
+  427              for toast in self.active_toasts:
+  428                  toast.update_position()
+  429  
+  430      def resizeEvent(self, event):
+  431          """窗口大小改变事件 - 更新节点列表和Toast位置"""
+  432          super().resizeEvent(event)
+  433  
+  434          # 更新节点列表面板位置（保持在窗口内部左上角）
+  435          if hasattr(self, 'node_list_panel') and self.node_list_panel.isVisible():
+  436              # 计算相对于屏幕的绝对位置
+  437              # 获取主窗口在屏幕上的位置
+  438              window_pos = self.pos()
+  439              # 节点列表应该在主窗口内部的左上角
+  440              panel_x = window_pos.x() + 20  # 主窗口左边 + 20px
+  441              panel_y = window_pos.y() + 100  # 主窗口顶部 + 100px（留出两层工具栏）
+  442              self.node_list_panel.move(panel_x, panel_y)
+  443  
+  444          # 更新所有Toast的位置
+  445          if hasattr(self, 'active_toasts'):
+  446              for toast in self.active_toasts:
+  447                  toast.update_position()
+  448  
+  449      def show_toast(self, message, toast_type="info", duration=3000):
+  450          """便捷方法：显示Toast通知（支持堆叠显示）
+
+------------------------------------------------------------
+
+
+第 10 页
+------------------------------------------------------------
+
+  451  
+  452          Args:
+  453              message: 通知文本内容
+  454              toast_type: 类型 (info/success/warning/error)
+  455              duration: 显示时长（毫秒），默认3000
+  456  
+  457          功能特性：
+  458          - 新Toast出现时，旧的自动下移
+  459          - 无数量上限，所有Toast都会显示
+  460          """
+  461          # 先更新所有现有Toast的位置（向下移动一位，为新Toast腾出顶部空间）
+  462          for i, existing_toast in enumerate(self.active_toasts):
+  463              existing_toast.stack_index = i + 1
+  464              existing_toast.update_position()
+  465  
+  466          # 创建新的Toast，设置堆叠索引为0（最顶部）
+  467          stack_index = 0
+  468          toast = ToastNotification(
+  469              message=message,
+  470              parent=self,
+  471              duration=duration,
+  472              toast_type=toast_type,
+  473              stack_index=stack_index
+  474          )
+  475  
+  476          # 添加到活动列表的最前面（最新的在最前）
+  477          self.active_toasts.insert(0, toast)
+  478  
+  479          # 显示Toast
+  480          toast.show_toast()
+  481  
+  482          # 当Toast关闭时，从列表中移除并更新其他Toast位置
+  483          original_close = toast.close
+  484          def custom_close():
+  485              if toast in self.active_toasts:
+  486                  self.active_toasts.remove(toast)
+  487                  # 更新剩余Toast的位置
+  488                  for i, remaining_toast in enumerate(self.active_toasts):
+  489                      remaining_toast.stack_index = i
+  490                      remaining_toast.update_position()
+  491              original_close()
+  492  
+  493          toast.close = custom_close
+  494  
+  495      def init_toolbar(self):
+  496          """初始化工具栏"""
+  497          toolbar = QToolBar("主工具栏")
+  498          toolbar.setMovable(False)
+  499          self.addToolBar(toolbar)
+  500  
+
+------------------------------------------------------------
+
+
+第 11 页
+------------------------------------------------------------
+
+  501          # 文件操作
+  502          new_project_action = QAction("新建项目", self)
+  503          new_project_action.triggered.connect(self.new_project)
+  504          toolbar.addAction(new_project_action)
+  505  
+  506          open_project_action = QAction("打开项目", self)
+  507          open_project_action.triggered.connect(self.open_project)
+  508          toolbar.addAction(open_project_action)
+  509  
+  510          toolbar.addSeparator()
+  511  
+  512          # 视图控制 - 节点列表开关
+  513          toggle_nodes_action = QAction("📋 节点列表", self)
+  514          toggle_nodes_action.setCheckable(True)
+  515          toggle_nodes_action.setToolTip("显示/隐藏节点列表面板")
+  516          toggle_nodes_action.triggered.connect(self.toggle_node_list_panel)
+  517          toolbar.addAction(toggle_nodes_action)
+  518          self.toggle_nodes_action = toggle_nodes_action
+  519  
+  520          toolbar.addSeparator()
+  521  
+  522          # 颜色设置
+  523          color_settings_action = QAction("🎨 颜色设置", self)
+  524          color_settings_action.setToolTip("自定义画布和节点颜色")
+  525          color_settings_action.triggered.connect(self.open_color_settings)
+  526          toolbar.addAction(color_settings_action)
+  527  
+  528          toolbar.addSeparator()
+  529  
+  530          # 节点操作
+  531          refresh_action = QAction("刷新节点", self)
+  532          refresh_action.triggered.connect(self.refresh_nodes)
+  533          toolbar.addAction(refresh_action)
+  534  
+  535          clear_connections_action = QAction("清空连线", self)
+  536          clear_connections_action.triggered.connect(self.clear_connections)
+  537          toolbar.addAction(clear_connections_action)
+  538  
+  539          toolbar.addSeparator()
+  540  
+  541          # 新建节点
+  542          self.language_combo = QComboBox()
+  543          self.language_combo.addItems(["Python", "Node.js", "Go", "Java", "C++", "Rust", "Shell"])
+  544          self.language_combo.setCurrentText("Python")
+  545          toolbar.addWidget(QLabel("语言:"))
+  546          toolbar.addWidget(self.language_combo)
+  547  
+  548          create_node_action = QAction("新建节点", self)
+  549          create_node_action.triggered.connect(self.create_new_node)
+  550          toolbar.addAction(create_node_action)
+
+------------------------------------------------------------
+
+
+第 12 页
+------------------------------------------------------------
+
+  551  
+  552          toolbar.addSeparator()
+  553  
+  554          # 节点控制
+  555          start_node_action = QAction("启动节点", self)
+  556          start_node_action.triggered.connect(self.start_selected_node)
+  557          toolbar.addAction(start_node_action)
+  558  
+  559          stop_node_action = QAction("停止节点", self)
+  560          stop_node_action.triggered.connect(self.stop_selected_node)
+  561          toolbar.addAction(stop_node_action)
+  562  
+  563      def init_menu(self):
+  564          """初始化菜单栏"""
+  565          menubar = self.menuBar()
+  566  
+  567          # 文件菜单
+  568          file_menu = menubar.addMenu("文件")
+  569  
+  570          new_project_action = file_menu.addAction("新建项目")
+  571          new_project_action.triggered.connect(self.new_project)
+  572  
+  573          open_project_action = file_menu.addAction("打开项目")
+  574          open_project_action.triggered.connect(self.open_project)
+  575  
+  576          file_menu.addSeparator()
+  577  
+  578          exit_action = file_menu.addAction("退出")
+  579          exit_action.triggered.connect(self.close)
+  580  
+  581          # 编辑菜单
+  582          edit_menu = menubar.addMenu("编辑")
+  583  
+  584          refresh_action = edit_menu.addAction("刷新节点")
+  585          refresh_action.triggered.connect(self.refresh_nodes)
+  586  
+  587          clear_action = edit_menu.addAction("清空连线")
+  588          clear_action.triggered.connect(self.clear_connections)
+  589  
+  590          # 帮助菜单
+  591          help_menu = menubar.addMenu("帮助")
+  592  
+  593          about_action = help_menu.addAction("关于")
+  594          about_action.triggered.connect(self.show_about)
+  595  
+  596      def toggle_node_list_panel(self, checked):
+  597          """切换节点列表面板的显示/隐藏"""
+  598          if checked:
+  599              self.node_list_panel.show()
+  600              self.node_list_panel.raise_()
+
+------------------------------------------------------------
+
+
+第 13 页
+------------------------------------------------------------
+
+  601              self.node_list_panel.activateWindow()
+  602          else:
+  603              self.node_list_panel.hide()
+  604  
+  605      def open_color_settings(self):
+  606          """打开颜色设置对话框"""
+  607          from ui.property_panel import ColorSettingsDialog
+  608  
+  609          dialog = ColorSettingsDialog(self.canvas, self)
+  610          dialog.exec()
+  611  
+  612      def new_project(self):
+  613          """新建项目"""
+  614          # 保存当前项目布局（如果有）
+  615          if self.current_project_path:
+  616              self.canvas.save_layout(self.current_project_path)
+  617  
+  618          project_dir = QFileDialog.getExistingDirectory(
+  619              self, "选择项目目录", "",
+  620              QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
+  621          )
+  622  
+  623          if not project_dir:
+  624              return
+  625  
+  626          # 确认是否在项目目录下创建nodes子目录
+  627          nodes_dir = os.path.join(project_dir, "nodes")
+  628          if not os.path.exists(nodes_dir):
+  629              reply = QMessageBox.question(
+  630                  self, "创建节点目录",
+  631                  f"在 {project_dir} 下创建 nodes/ 目录？",
+  632                  QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+  633              )
+  634              if reply == QMessageBox.StandardButton.Yes:
+  635                  os.makedirs(nodes_dir, exist_ok=True)
+  636              else:
+  637                  return
+  638  
+  639          # 绑定项目
+  640          self.current_project_path = project_dir
+  641          self.nodes_data.clear()
+  642          self.connections.clear()
+  643          self.canvas.clear_canvas()
+  644  
+  645          # 刷新节点列表
+  646          self.refresh_nodes()
+  647  
+  648          self.show_toast(f"已创建项目: {os.path.basename(project_dir)}", "success")
+  649  
+  650      def open_project(self):
+
+------------------------------------------------------------
+
+
+第 14 页
+------------------------------------------------------------
+
+  651          """打开项目"""
+  652          # 保存当前项目布局（如果有）
+  653          if self.current_project_path:
+  654              self.canvas.save_layout(self.current_project_path)
+  655  
+  656          project_dir = QFileDialog.getExistingDirectory(
+  657              self, "打开项目目录", "",
+  658              QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
+  659          )
+  660  
+  661          if not project_dir:
+  662              return
+  663  
+  664          nodes_dir = os.path.join(project_dir, "nodes")
+  665          if not os.path.exists(nodes_dir):
+  666              reply = QMessageBox.question(
+  667                  self, "未找到节点目录",
+  668                  f"{project_dir} 下未找到 nodes/ 目录，是否创建？",
+  669                  QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+  670              )
+  671              if reply == QMessageBox.StandardButton.Yes:
+  672                  os.makedirs(nodes_dir, exist_ok=True)
+  673              else:
+  674                  return
+  675  
+  676          # 绑定项目
+  677          self.current_project_path = project_dir
+  678          self.nodes_data.clear()
+  679          self.connections.clear()
+  680          self.canvas.clear_canvas()
+  681  
+  682          # 刷新节点列表
+  683          self.refresh_nodes()
+  684  
+  685          # 加载画布布局
+  686          self.canvas.load_layout(project_dir)
+  687  
+  688          self.show_toast(f"已打开项目: {os.path.basename(project_dir)}", "success")
+  689  
+  690      def update_node_status(self, node_name, status):
+  691          """更新节点状态并同步UI"""
+  692          if node_name in self.nodes_data:
+  693              self.nodes_data[node_name]['status'] = status
+  694  
+  695              # 同步更新画布上的节点显示
+  696              self.canvas.sync_node_display(node_name)
+  697  
+  698              # 更新节点列表面板
+  699              self.node_list_panel.update_node_list(self.nodes_data)
+  700  
+
+------------------------------------------------------------
+
+
+第 15 页
+------------------------------------------------------------
+
+  701      def refresh_nodes(self):
+  702          """刷新节点列表"""
+  703          if not self.current_project_path:
+  704              self.show_toast("请先打开或新建项目", "warning")
+  705              return
+  706  
+  707          nodes_dir = os.path.join(self.current_project_path, "nodes")
+  708          if not os.path.exists(nodes_dir):
+  709              self.show_toast("nodes/ 目录不存在", "warning")
+  710              return
+  711  
+  712          # 扫描节点
+  713          self.nodes_data.clear()
+  714          for item in os.listdir(nodes_dir):
+  715              node_path = os.path.join(nodes_dir, item)
+  716              if not os.path.isdir(node_path):
+  717                  continue
+  718  
+  719              config_path = os.path.join(node_path, "config.json")
+  720              if not os.path.exists(config_path):
+  721                  continue
+  722  
+  723              try:
+  724                  with open(config_path, 'r', encoding='utf-8') as f:
+  725                      config = json.load(f)
+  726  
+  727                  node_name = config.get('node_name', item)
+  728                  self.nodes_data[node_name] = {
+  729                      'config': config,
+  730                      'path': node_path,
+  731                      'process': None,
+  732                      'status': 'stopped'
+  733                  }
+  734              except Exception as e:
+  735                  print(f"加载节点 {item} 失败: {e}")
+  736  
+  737          # 更新节点组管理器的项目路径（自动加载配置）
+  738          self.node_list_panel.set_project_path(self.current_project_path)
+  739  
+  740          # 更新节点列表面板
+  741          self.node_list_panel.update_node_list(self.nodes_data)
+  742  
+  743          # 同步更新画布上的所有节点显示
+  744          self.canvas.sync_all_nodes_display()
+  745  
+  746      def create_new_node(self):
+  747          """创建新节点（异步方式，避免UI卡顿）"""
+  748          if not self.current_project_path:
+  749              self.show_toast("请先打开或新建项目", "warning")
+  750              return
+
+------------------------------------------------------------
+
+
+第 16 页
+------------------------------------------------------------
+
+  751  
+  752          language = self.language_combo.currentText()
+  753  
+  754          # 弹出对话框输入节点名称
+  755          node_name, ok = QInputDialog.getText(
+  756              self, "新建节点",
+  757              "请输入节点名称:",
+  758              QLineEdit.EchoMode.Normal
+  759          )
+  760  
+  761          if not ok or not node_name:
+  762              return
+  763  
+  764          # 检查节点是否已存在
+  765          base_dir = os.path.join(self.current_project_path, "nodes")
+  766          node_dir = os.path.join(base_dir, f"node_{node_name}")
+  767  
+  768          if os.path.exists(node_dir):
+  769              self.show_toast(f"节点 {node_name} 已存在", "warning")
+  770              return
+  771  
+  772          # 启动异步创建流程
+  773          self._start_async_node_creation(node_name, language)
+  774  
+  775      def _start_async_node_creation(self, node_name, language):
+  776          """启动异步节点创建流程"""
+  777          from PyQt6.QtWidgets import QProgressDialog
+  778          from PyQt6.QtCore import QThread, pyqtSignal
+  779  
+  780          class NodeCreationWorker(QThread):
+  781              """后台工作线程：负责创建节点"""
+  782              progress_signal = pyqtSignal(str)  # 进度消息
+  783              finished_signal = pyqtSignal(bool, str)  # (成功/失败, 消息)
+  784  
+  785              def __init__(self, project_path, node_name, language):
+  786                  super().__init__()
+  787                  self.project_path = project_path
+  788                  self.node_name = node_name
+  789                  self.language = language
+  790  
+  791              def run(self):
+  792                  try:
+  793                      import sys
+  794                      import json
+  795                      import subprocess
+  796  
+  797                      # 获取软件根目录
+  798                      software_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+  799  
+  800                      # 导入create_node模块
+
+------------------------------------------------------------
+
+
+第 17 页
+------------------------------------------------------------
+
+  801                      import importlib.util
+  802                      create_node_path = os.path.join(software_root, "create_node.py")
+  803  
+  804                      if not os.path.exists(create_node_path):
+  805                          self.finished_signal.emit(False, f"找不到create_node.py: {create_node_path}")
+  806                          return
+  807  
+  808                      spec = importlib.util.spec_from_file_location("create_node", create_node_path)
+  809                      create_node = importlib.util.module_from_spec(spec)
+  810                      spec.loader.exec_module(create_node)
+  811  
+  812                      # 步骤1：创建目录结构
+  813                      self.progress_signal.emit("📁 创建目录结构...")
+  814                      base_dir = os.path.join(self.project_path, "nodes")
+  815                      node_dir = os.path.join(base_dir, f"node_{self.node_name}")
+  816  
+  817                      if os.path.exists(node_dir):
+  818                          self.finished_signal.emit(False, f"节点 {self.node_name} 已存在")
+  819                          return
+  820  
+  821                      os.makedirs(node_dir)
+  822                      os.makedirs(os.path.join(node_dir, "logs"))
+  823  
+  824                      # 步骤2：创建虚拟环境（最耗时的操作）
+  825                      self.progress_signal.emit("🔧 创建虚拟环境（可能需要10-30秒）...")
+  826                      venv_path = os.path.join(node_dir, "venv")
+  827                      result = subprocess.run(
+  828                          [sys.executable, "-m", "venv", venv_path],
+  829                          check=True,
+  830                          capture_output=True,
+  831                          text=True
+  832                      )
+  833  
+  834                      # 步骤3：创建配置文件
+  835                      self.progress_signal.emit("⚙️ 生成配置文件...")
+  836  
+  837                      # requirements.txt
+  838                      with open(os.path.join(node_dir, "requirements.txt"), "w", encoding="utf-8") as f:
+  839                          f.write("# 在此添加节点依赖\n")
+  840  
+  841                      # config.json
+  842                      config = {
+  843                          "node_name": f"node_{self.node_name}",
+  844                          "listen_upper_file": "../data/upper_data.json",
+  845                          "output_file": "./output.json",
+  846                          "filter": {},
+  847                          "output_type": ""
+  848                      }
+  849                      with open(os.path.join(node_dir, "config.json"), "w", encoding="utf-8") as f:
+  850                          json.dump(config, f, indent=2, ensure_ascii=False)
+
+------------------------------------------------------------
+
+
+第 18 页
+------------------------------------------------------------
+
+  851  
+  852                      # packet.py
+  853                      packet = '''UPPER_PACKET = {"data": None}
+  854  OUTPUT_PACKET = {"code": 0, "data": None}
+  855  '''
+  856                      with open(os.path.join(node_dir, "packet.py"), "w", encoding="utf-8") as f:
+  857                          f.write(packet.strip())
+  858  
+  859                      # listener.py
+  860                      listener = '''import os
+  861  import json
+  862  import time
+  863  import subprocess
+  864  from datetime import datetime
+  865  
+  866  NODE_DIR = os.path.dirname(os.path.abspath(__file__))
+  867  CONFIG_PATH = os.path.join(NODE_DIR, "config.json")
+  868  LOG_DIR = os.path.join(NODE_DIR, "logs")
+  869  
+  870  if not os.path.exists(LOG_DIR):
+  871      os.makedirs(LOG_DIR)
+  872  
+  873  def log(msg, level="INFO"):
+  874      now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+  875      line = f"[{now}] [{level}] {msg}"
+  876      print(line)
+  877      with open(os.path.join(LOG_DIR, "listener.log"), "a", encoding="utf-8") as f:
+  878          f.write(line + "\\n")
+  879  
+  880  try:
+  881      with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+  882          cfg = json.load(f)
+  883  except Exception as e:
+  884      log(f"配置加载失败: {e}", "ERROR")
+  885      exit(1)
+  886  
+  887  UPPER_FILE = os.path.abspath(os.path.join(NODE_DIR, cfg["listen_upper_file"]))
+  888  OUTPUT_FILE = os.path.abspath(os.path.join(NODE_DIR, cfg["output_file"]))
+  889  NODE_NAME = cfg["node_name"]
+  890  MY_FILTER = cfg.get("filter", {})
+  891  PROCESS_FLAG = f"_processed_{NODE_NAME}"
+  892  
+  893  def is_my_data(data):
+  894      if not MY_FILTER:
+  895          return True
+  896      for k, v in MY_FILTER.items():
+  897          if data.get(k) != v:
+  898              return False
+  899      return True
+  900  
+
+------------------------------------------------------------
+
+
+第 19 页
+------------------------------------------------------------
+
+  901  log("=" * 50)
+  902  log(f"节点启动: {NODE_NAME}")
+  903  log(f"监听: {UPPER_FILE}")
+  904  log(f"过滤: {MY_FILTER}")
+  905  log("当前环境: 独立虚拟环境")
+  906  log("=" * 50)
+  907  
+  908  while True:
+  909      try:
+  910          if not os.path.exists(UPPER_FILE):
+  911              time.sleep(0.2)
+  912              continue
+  913  
+  914          with open(UPPER_FILE, "r", encoding="utf-8") as f:
+  915              data = json.load(f)
+  916  
+  917          if data.get(PROCESS_FLAG):
+  918              time.sleep(0.2)
+  919              continue
+  920  
+  921          if not is_my_data(data):
+  922              time.sleep(0.2)
+  923              continue
+  924  
+  925          log("✅ 开始处理数据")
+  926  
+  927          # 【关键】只用自己虚拟环境运行 main.py
+  928          if os.name == "nt":
+  929              py_path = os.path.join(NODE_DIR, "venv", "Scripts", "python.exe")
+  930          else:
+  931              py_path = os.path.join(NODE_DIR, "venv", "bin", "python")
+  932  
+  933          res = subprocess.run(
+  934              [py_path, os.path.join(NODE_DIR, "main.py"), json.dumps(data)],
+  935              capture_output=True, text=True, encoding="utf-8"
+  936          )
+  937  
+  938          output = res.stdout.strip()
+  939          if not output:
+  940              log("⚠️ 返回空数据")
+  941              continue
+  942  
+  943          with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+  944              f.write(output)
+  945  
+  946          data[PROCESS_FLAG] = True
+  947          with open(UPPER_FILE, "w", encoding="utf-8") as f:
+  948              json.dump(data, f, indent=2, ensure_ascii=False)
+  949  
+  950          log(f"✅ 处理完成: {PROCESS_FLAG}")
+
+------------------------------------------------------------
+
+
+第 20 页
+------------------------------------------------------------
+
+  951  
+  952      except json.JSONDecodeError:
+  953          log("❌ 数据包格式错误", "ERROR")
+  954          time.sleep(1)
+  955      except Exception as e:
+  956          log(f"❌ 异常: {e}", "ERROR")
+  957          time.sleep(1)
+  958  
+  959      time.sleep(0.2)
+  960  '''
+  961                      with open(os.path.join(node_dir, "listener.py"), "w", encoding="utf-8") as f:
+  962                          f.write(listener.strip())
+  963  
+  964                      # main.py
+  965                      main = '''import sys
+  966  import json
+  967  import os
+  968  
+  969  NODE_DIR = os.path.dirname(os.path.abspath(__file__))
+  970  config_path = os.path.join(NODE_DIR, "config.json")
+  971  with open(config_path, "r", encoding="utf-8") as f:
+  972      cfg = json.load(f)
+  973  
+  974  def process(data):
+  975      return data.get("data")
+  976  
+  977  if __name__ == "__main__":
+  978      if len(sys.argv) < 2:
+  979          print(json.dumps({"code": -1, "error": "no input"}))
+  980          sys.exit(1)
+  981  
+  982      input_data = json.loads(sys.argv[1])
+  983      result = process(input_data)
+  984  
+  985      print(json.dumps({
+  986          "code": 0,
+  987          "type": cfg["output_type"],
+  988          "data": result
+  989      }, ensure_ascii=False))
+  990  '''
+  991                      with open(os.path.join(node_dir, "main.py"), "w", encoding="utf-8") as f:
+  992                          f.write(main.strip())
+  993  
+  994                      # output.json
+  995                      with open(os.path.join(node_dir, "output.json"), "w", encoding="utf-8") as f:
+  996                          f.write('{"code":0,"data":null}')
+  997  
+  998                      # 自动生成启动脚本
+  999                      if os.name == "nt":
+ 1000                          start_bat = '''@echo off
+
+------------------------------------------------------------
+
+
+第 21 页
+------------------------------------------------------------
+
+ 1001  cls
+ 1002  echo ======================================
+ 1003  echo        BNOS Node Starter (Windows)
+ 1004  echo ======================================
+ 1005  echo.
+ 1006  cd /d "%~dp0"
+ 1007  chmp 65001 >nul
+ 1008  if not exist "venv\\Scripts\\python.exe" (
+ 1009      echo ❌ 虚拟环境不存在！
+ 1010      pause
+ 1011      exit /b 1
+ 1012  )
+ 1013  call venv\\Scripts\\activate.bat
+ 1014  echo ✅ 启动监听程序...
+ 1015  echo.
+ 1016  venv\\Scripts\\python.exe listener.py
+ 1017  echo.
+ 1018  echo ❌ 程序已退出
+ 1019  pause
+ 1020  '''
+ 1021                          with open(os.path.join(node_dir, "start.bat"), "w", encoding="utf-8") as f:
+ 1022                              f.write(start_bat)
+ 1023                      else:
+ 1024                          start_sh = '''#!/bin/bash
+ 1025  cd "$(dirname "$0")"
+ 1026  source venv/bin/activate
+ 1027  python3 listener.py
+ 1028  '''
+ 1029                          with open(os.path.join(node_dir, "start.sh"), "w", encoding="utf-8") as f:
+ 1030                              f.write(start_sh)
+ 1031                          os.chmod(os.path.join(node_dir, "start.sh"), 0o755)
+ 1032  
+ 1033                      self.progress_signal.emit("✅ 节点创建完成！")
+ 1034                      self.finished_signal.emit(True, f"节点 {self.node_name} 创建成功")
+ 1035  
+ 1036                  except subprocess.CalledProcessError as e:
+ 1037                      error_msg = f"创建虚拟环境失败: {e.stderr}"
+ 1038                      self.finished_signal.emit(False, error_msg)
+ 1039                  except Exception as e:
+ 1040                      error_msg = f"创建节点失败: {str(e)}"
+ 1041                      import traceback
+ 1042                      traceback.print_exc()
+ 1043                      self.finished_signal.emit(False, error_msg)
+ 1044  
+ 1045          # 创建工作线程
+ 1046          self.node_creation_worker = NodeCreationWorker(
+ 1047              self.current_project_path,
+ 1048              node_name,
+ 1049              language
+ 1050          )
+
+------------------------------------------------------------
+
+
+第 22 页
+------------------------------------------------------------
+
+ 1051  
+ 1052          # 创建非模态进度提示窗口（右上角浮动）
+ 1053          from PyQt6.QtWidgets import QWidget, QVBoxLayout
+ 1054          from PyQt6.QtCore import Qt
+ 1055  
+ 1056          class ProgressFloatingWindow(QWidget):
+ 1057              """右上角浮动进度窗口 - 非模态，不阻塞画布操作"""
+ 1058  
+ 1059              def __init__(self, parent=None):
+ 1060                  super().__init__(parent)
+ 1061  
+ 1062                  # 设置窗口标志：无边框、工具窗口（移除 WindowStaysOnTopHint 避免覆盖其他软件窗口）
+ 1063                  self.setWindowFlags(
+ 1064                      Qt.WindowType.FramelessWindowHint |
+ 1065                      Qt.WindowType.Tool
+ 1066                  )
+ 1067                  self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+ 1068  
+ 1069                  # 创建布局
+ 1070                  layout = QVBoxLayout(self)
+ 1071                  layout.setContentsMargins(15, 10, 15, 10)
+ 1072  
+ 1073                  # 标题标签
+ 1074                  self.title_label = QLabel("🔧 创建节点")
+ 1075                  self.title_label.setStyleSheet("""
+ 1076                      QLabel {
+ 1077                          color: white;
+ 1078                          font-size: 14px;
+ 1079                          font-weight: bold;
+ 1080                          padding: 5px;
+ 1081                      }
+ 1082                  """)
+ 1083                  layout.addWidget(self.title_label)
+ 1084  
+ 1085                  # 进度消息标签
+ 1086                  self.message_label = QLabel("正在初始化...")
+ 1087                  self.message_label.setStyleSheet("""
+ 1088                      QLabel {
+ 1089                          color: rgba(255, 255, 255, 0.9);
+ 1090                          font-size: 12px;
+ 1091                          padding: 5px;
+ 1092                      }
+ 1093                  """)
+ 1094                  layout.addWidget(self.message_label)
+ 1095  
+ 1096                  # 取消按钮
+ 1097                  self.cancel_button = QPushButton("取消")
+ 1098                  self.cancel_button.setStyleSheet("""
+ 1099                      QPushButton {
+ 1100                          background-color: rgba(244, 67, 54, 200);
+
+------------------------------------------------------------
+
+
+第 23 页
+------------------------------------------------------------
+
+ 1101                          color: white;
+ 1102                          border: none;
+ 1103                          border-radius: 4px;
+ 1104                          padding: 5px 15px;
+ 1105                          font-size: 12px;
+ 1106                      }
+ 1107                      QPushButton:hover {
+ 1108                          background-color: rgba(244, 67, 54, 230);
+ 1109                      }
+ 1110                  """)
+ 1111                  layout.addWidget(self.cancel_button)
+ 1112  
+ 1113                  # 设置背景样式
+ 1114                  self.setStyleSheet("""
+ 1115                      QWidget {
+ 1116                          background-color: rgba(50, 50, 50, 230);
+ 1117                          border-radius: 8px;
+ 1118                      }
+ 1119                  """)
+ 1120  
+ 1121                  # 调整大小
+ 1122                  self.adjustSize()
+ 1123  
+ 1124                  # 设置固定最小宽度
+ 1125                  self.setMinimumWidth(250)
+ 1126  
+ 1127          # 创建进度窗口实例
+ 1128          self.progress_window = ProgressFloatingWindow(self)
+ 1129  
+ 1130          # 设置窗口位置到右上角（距离右边缘20px，距离顶部80px）
+ 1131          if self.geometry():
+ 1132              parent_rect = self.geometry()
+ 1133              window_width = self.progress_window.width()
+ 1134              window_height = self.progress_window.height()
+ 1135              x = parent_rect.right() - window_width - 20
+ 1136              y = parent_rect.top() + 80  # 留出工具栏空间
+ 1137              self.progress_window.move(x, y)
+ 1138  
+ 1139          # 连接信号
+ 1140          self.node_creation_worker.progress_signal.connect(
+ 1141              self.progress_window.message_label.setText
+ 1142          )
+ 1143          self.node_creation_worker.finished_signal.connect(
+ 1144              self._on_node_creation_finished
+ 1145          )
+ 1146          self.progress_window.cancel_button.clicked.connect(
+ 1147              self._on_node_creation_cancelled
+ 1148          )
+ 1149  
+ 1150          # 启动工作线程
+
+------------------------------------------------------------
+
+
+第 24 页
+------------------------------------------------------------
+
+ 1151          self.node_creation_worker.start()
+ 1152          self.progress_window.show()
+ 1153  
+ 1154      def _on_node_creation_finished(self, success, message):
+ 1155          """节点创建完成的回调"""
+ 1156          # 关闭进度窗口
+ 1157          if hasattr(self, 'progress_window'):
+ 1158              self.progress_window.close()
+ 1159  
+ 1160          if success:
+ 1161              self.show_toast(message, "success")
+ 1162              # 刷新节点列表和画布
+ 1163              self.refresh_nodes()
+ 1164              self.canvas.sync_all_nodes_display()
+ 1165          else:
+ 1166              self.show_toast(message, "error")
+ 1167  
+ 1168          # 清理工作线程
+ 1169          if hasattr(self, 'node_creation_worker'):
+ 1170              self.node_creation_worker.quit()
+ 1171              self.node_creation_worker.wait()
+ 1172              del self.node_creation_worker
+ 1173  
+ 1174      def _on_node_creation_cancelled(self):
+ 1175          """用户取消节点创建"""
+ 1176          # 关闭进度窗口
+ 1177          if hasattr(self, 'progress_window'):
+ 1178              self.progress_window.close()
+ 1179  
+ 1180          self.show_toast("节点创建已取消", "warning")
+ 1181  
+ 1182          # 终止工作线程
+ 1183          if hasattr(self, 'node_creation_worker'):
+ 1184              self.node_creation_worker.terminate()
+ 1185              self.node_creation_worker.wait()
+ 1186              del self.node_creation_worker
+ 1187  
+ 1188      def start_selected_node(self):
+ 1189          """启动选中的节点（优先从画布获取，回退到节点列表）"""
+ 1190          # 优先从画布获取选中节点
+ 1191          selected_node = self.canvas.get_selected_node()
+ 1192  
+ 1193          # 如果画布未选中，回退到节点列表
+ 1194          if not selected_node:
+ 1195              selected_nodes = self.node_list_panel.get_selected_nodes()
+ 1196              selected_node = selected_nodes[0] if selected_nodes else None
+ 1197  
+ 1198          if not selected_node:
+ 1199              self.show_toast("请先在画布或节点列表中选择一个节点", "warning")
+ 1200              return
+
+------------------------------------------------------------
+
+
+第 25 页
+------------------------------------------------------------
+
+ 1201  
+ 1202          if selected_node not in self.nodes_data:
+ 1203              self.show_toast(f"节点 {selected_node} 不存在", "error")
+ 1204              return
+ 1205  
+ 1206          node_info = self.nodes_data[selected_node]
+ 1207          if node_info['status'] == 'running':
+ 1208              self.show_toast(f"节点 {selected_node} 已在运行中", "info")
+ 1209              return
+ 1210  
+ 1211          # 启动节点进程 - 直接执行Python命令而非批处理脚本
+ 1212          node_path = node_info['path']
+ 1213  
+ 1214          # 确定虚拟环境的Python解释器路径
+ 1215          if os.name == 'nt':  # Windows
+ 1216              python_exe = os.path.join(node_path, "venv", "Scripts", "python.exe")
+ 1217          else:  # Linux/Mac
+ 1218              python_exe = os.path.join(node_path, "venv", "bin", "python")
+ 1219  
+ 1220          listener_script = os.path.join(node_path, "listener.py")
+ 1221  
+ 1222          if not os.path.exists(python_exe):
+ 1223              QMessageBox.critical(self, "错误", f"虚拟环境不存在: {python_exe}")
+ 1224              return
+ 1225  
+ 1226          if not os.path.exists(listener_script):
+ 1227              QMessageBox.critical(self, "错误", f"监听脚本不存在: {listener_script}")
+ 1228              return
+ 1229  
+ 1230          try:
+ 1231              # 启动进程 - 直接运行Python，不使用shell
+ 1232              if os.name == 'nt':
+ 1233                  # Windows: 创建新的进程组以便后续可以终止整个进程树
+ 1234                  process = subprocess.Popen(
+ 1235                      [python_exe, listener_script],
+ 1236                      cwd=node_path,
+ 1237                      creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+ 1238                      stdout=subprocess.PIPE,
+ 1239                      stderr=subprocess.PIPE
+ 1240                  )
+ 1241              else:
+ 1242                  # Linux/Mac: 使用进程组
+ 1243                  process = subprocess.Popen(
+ 1244                      [python_exe, listener_script],
+ 1245                      cwd=node_path,
+ 1246                      start_new_session=True,
+ 1247                      stdout=subprocess.PIPE,
+ 1248                      stderr=subprocess.PIPE
+ 1249                  )
+ 1250  
+
+------------------------------------------------------------
+
+
+第 26 页
+------------------------------------------------------------
+
+ 1251              node_info['process'] = process
+ 1252              node_info['status'] = 'running'
+ 1253  
+ 1254              # 更新状态
+ 1255              self.node_list_panel.update_node_status(selected_node, 'running')
+ 1256              self.canvas.update_node_status(selected_node, 'running')
+ 1257  
+ 1258              self.show_toast(f"节点 {selected_node} 已启动", "success")
+ 1259          except Exception as e:
+ 1260              QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
+ 1261  
+ 1262      def start_selected_node_by_name(self, node_name):
+ 1263          """按名称启动节点（供对话框调用）"""
+ 1264          if node_name not in self.nodes_data:
+ 1265              return
+ 1266  
+ 1267          node_info = self.nodes_data[node_name]
+ 1268          if node_info['status'] == 'running':
+ 1269              self.show_toast("节点已在运行中", "info")
+ 1270              return
+ 1271  
+ 1272          # 启动节点进程 - 直接执行Python命令而非批处理脚本
+ 1273          node_path = node_info['path']
+ 1274  
+ 1275          # 确定虚拟环境的Python解释器路径
+ 1276          if os.name == 'nt':  # Windows
+ 1277              python_exe = os.path.join(node_path, "venv", "Scripts", "python.exe")
+ 1278          else:  # Linux/Mac
+ 1279              python_exe = os.path.join(node_path, "venv", "bin", "python")
+ 1280  
+ 1281          listener_script = os.path.join(node_path, "listener.py")
+ 1282  
+ 1283          if not os.path.exists(python_exe):
+ 1284              QMessageBox.critical(self, "错误", f"虚拟环境不存在: {python_exe}")
+ 1285              return
+ 1286  
+ 1287          if not os.path.exists(listener_script):
+ 1288              QMessageBox.critical(self, "错误", f"监听脚本不存在: {listener_script}")
+ 1289              return
+ 1290  
+ 1291          try:
+ 1292              # 启动进程 - 直接运行Python，不使用shell
+ 1293              if os.name == 'nt':
+ 1294                  # Windows: 创建新的进程组以便后续可以终止整个进程树
+ 1295                  process = subprocess.Popen(
+ 1296                      [python_exe, listener_script],
+ 1297                      cwd=node_path,
+ 1298                      creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+ 1299                      stdout=subprocess.PIPE,
+ 1300                      stderr=subprocess.PIPE
+
+------------------------------------------------------------
+
+
+第 27 页
+------------------------------------------------------------
+
+ 1301                  )
+ 1302              else:
+ 1303                  # Linux/Mac: 使用进程组
+ 1304                  process = subprocess.Popen(
+ 1305                      [python_exe, listener_script],
+ 1306                      cwd=node_path,
+ 1307                      start_new_session=True,
+ 1308                      stdout=subprocess.PIPE,
+ 1309                      stderr=subprocess.PIPE
+ 1310                  )
+ 1311  
+ 1312              node_info['process'] = process
+ 1313              node_info['status'] = 'running'
+ 1314  
+ 1315              # 更新状态
+ 1316              self.node_list_panel.update_node_status(node_name, 'running')
+ 1317              self.canvas.update_node_status(node_name, 'running')
+ 1318  
+ 1319              self.show_toast(f"节点 {node_name} 已启动", "success")
+ 1320          except Exception as e:
+ 1321              QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
+ 1322  
+ 1323      def stop_selected_node(self):
+ 1324          """停止选中的节点（优先从画布获取，回退到节点列表）"""
+ 1325          # 优先从画布获取选中节点
+ 1326          selected_node = self.canvas.get_selected_node()
+ 1327  
+ 1328          # 如果画布未选中，回退到节点列表
+ 1329          if not selected_node:
+ 1330              selected_nodes = self.node_list_panel.get_selected_nodes()
+ 1331              selected_node = selected_nodes[0] if selected_nodes else None
+ 1332  
+ 1333          if not selected_node:
+ 1334              self.show_toast("请先在画布或节点列表中选择一个节点", "warning")
+ 1335              return
+ 1336  
+ 1337          if selected_node not in self.nodes_data:
+ 1338              self.show_toast(f"节点 {selected_node} 不存在", "error")
+ 1339              return
+ 1340  
+ 1341          node_info = self.nodes_data[selected_node]
+ 1342          if node_info['status'] == 'stopped':
+ 1343              self.show_toast(f"节点 {selected_node} 未在运行", "info")
+ 1344              return
+ 1345  
+ 1346          # 停止进程
+ 1347          process = node_info['process']
+ 1348          if process:
+ 1349              try:
+ 1350                  if os.name == 'nt':
+
+------------------------------------------------------------
+
+
+第 28 页
+------------------------------------------------------------
+
+ 1351                      # Windows: 先尝试优雅终止
+ 1352                      process.terminate()
+ 1353                      try:
+ 1354                          process.wait(timeout=5)
+ 1355                      except subprocess.TimeoutExpired:
+ 1356                          # 如果超时，强制杀死进程及其子进程
+ 1357                          import signal
+ 1358                          process.send_signal(signal.CTRL_BREAK_EVENT)
+ 1359                          try:
+ 1360                              process.wait(timeout=3)
+ 1361                          except subprocess.TimeoutExpired:
+ 1362                              process.kill()
+ 1363                              process.wait()
+ 1364                  else:
+ 1365                      # Linux/Mac: 终止整个进程组
+ 1366                      import signal
+ 1367                      try:
+ 1368                          os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+ 1369                          process.wait(timeout=5)
+ 1370                      except (ProcessLookupError, subprocess.TimeoutExpired):
+ 1371                          os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+ 1372                          process.wait()
+ 1373              except Exception as e:
+ 1374                  print(f"停止节点时出错: {e}")
+ 1375                  try:
+ 1376                      process.kill()
+ 1377                      process.wait()
+ 1378                  except:
+ 1379                      pass
+ 1380  
+ 1381          node_info['process'] = None
+ 1382          node_info['status'] = 'stopped'
+ 1383  
+ 1384          # 更新状态
+ 1385          self.node_list_panel.update_node_status(selected_node, 'stopped')
+ 1386          self.canvas.update_node_status(selected_node, 'stopped')
+ 1387  
+ 1388          self.show_toast(f"节点 {selected_node} 已停止", "success")
+ 1389  
+ 1390      def stop_selected_node_by_name(self, node_name):
+ 1391          """按名称停止节点（供对话框调用）"""
+ 1392          if node_name not in self.nodes_data:
+ 1393              return
+ 1394  
+ 1395          node_info = self.nodes_data[node_name]
+ 1396          if node_info['status'] == 'stopped':
+ 1397              self.show_toast("节点未在运行", "info")
+ 1398              return
+ 1399  
+ 1400          # 停止进程
+
+------------------------------------------------------------
+
+
+第 29 页
+------------------------------------------------------------
+
+ 1401          process = node_info['process']
+ 1402          if process:
+ 1403              try:
+ 1404                  if os.name == 'nt':
+ 1405                      # Windows: 先尝试优雅终止
+ 1406                      process.terminate()
+ 1407                      try:
+ 1408                          process.wait(timeout=5)
+ 1409                      except subprocess.TimeoutExpired:
+ 1410                          # 如果超时，强制杀死进程及其子进程
+ 1411                          import signal
+ 1412                          process.send_signal(signal.CTRL_BREAK_EVENT)
+ 1413                          try:
+ 1414                              process.wait(timeout=3)
+ 1415                          except subprocess.TimeoutExpired:
+ 1416                              process.kill()
+ 1417                              process.wait()
+ 1418                  else:
+ 1419                      # Linux/Mac: 终止整个进程组
+ 1420                      import signal
+ 1421                      try:
+ 1422                          os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+ 1423                          process.wait(timeout=5)
+ 1424                      except (ProcessLookupError, subprocess.TimeoutExpired):
+ 1425                          os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+ 1426                          process.wait()
+ 1427              except Exception as e:
+ 1428                  print(f"停止节点时出错: {e}")
+ 1429                  try:
+ 1430                      process.kill()
+ 1431                      process.wait()
+ 1432                  except:
+ 1433                      pass
+ 1434  
+ 1435          node_info['process'] = None
+ 1436          node_info['status'] = 'stopped'
+ 1437  
+ 1438          # 更新状态
+ 1439          self.node_list_panel.update_node_status(node_name, 'stopped')
+ 1440          self.canvas.update_node_status(node_name, 'stopped')
+ 1441  
+ 1442          self.show_toast(f"节点 {node_name} 已停止", "success")
+ 1443  
+ 1444      def clear_connections(self):
+ 1445          """清空所有连线"""
+ 1446          reply = QMessageBox.question(
+ 1447              self, "确认",
+ 1448              "确定要清空所有连线吗？\n这将重置所有节点的 listen_upper_file 配置。",
+ 1449              QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+ 1450          )
+
+------------------------------------------------------------
+
+
+第 30 页
+------------------------------------------------------------
+
+ 1451  
+ 1452          if reply != QMessageBox.StandardButton.Yes:
+ 1453              return
+ 1454  
+ 1455          # 清空所有下游节点的 listen_upper_file
+ 1456          for node_name, node_info in self.nodes_data.items():
+ 1457              config = node_info['config']
+ 1458              config['listen_upper_file'] = ""
+ 1459  
+ 1460              config_path = os.path.join(node_info['path'], "config.json")
+ 1461              with open(config_path, 'w', encoding='utf-8') as f:
+ 1462                  json.dump(config, f, indent=2, ensure_ascii=False)
+ 1463  
+ 1464          # 清空画布连线
+ 1465          self.canvas.clear_edges()
+ 1466  
+ 1467          self.show_toast("已清空所有连线", "success")
+ 1468  
+ 1469      def closeEvent(self, event):
+ 1470          """窗口关闭事件，保存所有状态"""
+ 1471          # 保存当前项目布局
+ 1472          if self.current_project_path:
+ 1473              self.canvas.save_layout(self.current_project_path)
+ 1474  
+ 1475          # 保存应用配置
+ 1476          self.save_window_state()
+ 1477          self.app_config.set("last_project", self.current_project_path)
+ 1478          self.app_config.save()
+ 1479  
+ 1480          # 停止所有运行中的节点
+ 1481          for node_name, node_info in self.nodes_data.items():
+ 1482              if node_info['status'] == 'running' and node_info['process']:
+ 1483                  try:
+ 1484                      node_info['process'].terminate()
+ 1485                      node_info['process'].wait(timeout=3)
+ 1486                  except:
+ 1487                      pass
+ 1488  
+ 1489          event.accept()
+ 1490  
+ 1491      def save_window_state(self):
+ 1492          """保存窗口状态 - 完整布局持久化"""
+ 1493          try:
+ 1494              # 1. 保存窗口几何信息（位置、尺寸、最大化状态）
+ 1495              geometry = {
+ 1496                  "x": self.geometry().x(),
+ 1497                  "y": self.geometry().y(),
+ 1498                  "width": self.geometry().width(),
+ 1499                  "height": self.geometry().height(),
+ 1500                  "maximized": self.isMaximized()
+
+------------------------------------------------------------
+
+
+
+============================================================
+第二部分：源代码后30页
+============================================================
+
+第 1 页
+------------------------------------------------------------
+
+    1          self.filter_table.setRowCount(len(filter_data))
+    2          for i, (key, value) in enumerate(filter_data.items()):
+    3              self.filter_table.setItem(i, 0, QTableWidgetItem(str(key)))
+    4              self.filter_table.setItem(i, 1, QTableWidgetItem(str(value)))
+    5  
+    6          filter_layout.addWidget(self.filter_table)
+    7  
+    8          # 添加/删除按钮
+    9          btn_layout = QVBoxLayout()
+   10          add_btn = QPushButton("添加规则")
+   11          add_btn.clicked.connect(self.add_filter_rule)
+   12          btn_layout.addWidget(add_btn)
+   13  
+   14          del_btn = QPushButton("删除选中")
+   15          del_btn.clicked.connect(self.delete_filter_rule)
+   16          btn_layout.addWidget(del_btn)
+   17  
+   18          filter_layout.addLayout(btn_layout)
+   19  
+   20          self.content_layout.addWidget(filter_group)
+   21  
+   22          # 节点控制按钮组
+   23          control_group = QGroupBox("节点控制")
+   24          control_layout = QVBoxLayout(control_group)
+   25  
+   26          btn_row_layout = QVBoxLayout()
+   27  
+   28          # 启动按钮
+   29          start_btn = QPushButton("▶ 启动节点")
+   30          start_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; font-weight: bold;")
+   31          start_btn.clicked.connect(self.start_node)
+   32          btn_row_layout.addWidget(start_btn)
+   33  
+   34          # 停止按钮
+   35          stop_btn = QPushButton("⏹ 停止节点")
+   36          stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px; font-weight: bold;")
+   37          stop_btn.clicked.connect(self.stop_node)
+   38          btn_row_layout.addWidget(stop_btn)
+   39  
+   40          control_layout.addLayout(btn_row_layout)
+   41          self.content_layout.addWidget(control_group)
+   42  
+   43          # 保存按钮
+   44          save_btn = QPushButton("💾 保存配置")
+   45          save_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
+   46          save_btn.clicked.connect(self.save_config)
+   47          self.content_layout.addWidget(save_btn)
+   48  
+   49          # 添加弹性空间
+   50          self.content_layout.addStretch()
+
+------------------------------------------------------------
+
+
+第 2 页
+------------------------------------------------------------
+
+   51  
+   52      def start_node(self):
+   53          """启动节点"""
+   54          if not self.current_node_name or not self.current_node_path:
+   55              QMessageBox.warning(self, "警告", "请先选择一个节点")
+   56              return
+   57  
+   58          if not self.parent_window:
+   59              return
+   60  
+   61          # 检查节点是否已在运行
+   62          node_data = self.parent_window.nodes_data.get(self.current_node_name)
+   63          if node_data and node_data.get('process'):
+   64              QMessageBox.information(self, "提示", "节点已在运行中")
+   65              return
+   66  
+   67          try:
+   68              import subprocess
+   69              import sys
+   70  
+   71              # 确定Python解释器路径
+   72              if sys.platform == "win32":
+   73                  py_path = os.path.join(self.current_node_path, "venv", "Scripts", "python.exe")
+   74              else:
+   75                  py_path = os.path.join(self.current_node_path, "venv", "bin", "python")
+   76  
+   77              # 启动节点进程
+   78              main_py = os.path.join(self.current_node_path, "main.py")
+   79              process = subprocess.Popen(
+   80                  [py_path, main_py],
+   81                  cwd=self.current_node_path,
+   82                  creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
+   83              )
+   84  
+   85              # 更新状态
+   86              self.parent_window.update_node_status(self.current_node_name, 'running')
+   87  
+   88              QMessageBox.information(self, "成功", f"节点 '{self.current_node_name}' 已启动")
+   89  
+   90          except Exception as e:
+   91              QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
+   92  
+   93      def stop_node(self):
+   94          """停止节点"""
+   95          if not self.current_node_name or not self.current_node_path:
+   96              QMessageBox.warning(self, "警告", "请先选择一个节点")
+   97              return
+   98  
+   99          if not self.parent_window:
+  100              return
+
+------------------------------------------------------------
+
+
+第 3 页
+------------------------------------------------------------
+
+  101  
+  102          # 检查节点是否在运行
+  103          node_data = self.parent_window.nodes_data.get(self.current_node_name)
+  104          if not node_data or not node_data.get('process'):
+  105              QMessageBox.information(self, "提示", "节点未在运行")
+  106              return
+  107  
+  108          try:
+  109              # 终止进程
+  110              process = node_data['process']
+  111              if process.poll() is None:  # 进程仍在运行
+  112                  process.terminate()
+  113                  process.wait(timeout=5)
+  114  
+  115              # 更新状态
+  116              self.parent_window.update_node_status(self.current_node_name, 'stopped')
+  117  
+  118              QMessageBox.information(self, "成功", f"节点 '{self.current_node_name}' 已停止")
+  119  
+  120          except Exception as e:
+  121              QMessageBox.critical(self, "错误", f"停止节点失败: {str(e)}")
+  122  
+  123      def add_filter_rule(self):
+  124          """添加filter规则"""
+  125          row = self.filter_table.rowCount()
+  126          self.filter_table.insertRow(row)
+  127          self.filter_table.setItem(row, 0, QTableWidgetItem(""))
+  128          self.filter_table.setItem(row, 1, QTableWidgetItem(""))
+  129  
+  130      def delete_filter_rule(self):
+  131          """删除选中的filter规则"""
+  132          current_row = self.filter_table.currentRow()
+  133          if current_row >= 0:
+  134              self.filter_table.removeRow(current_row)
+  135  
+  136      def save_config(self):
+  137          """保存配置"""
+  138          if not self.current_node_name or not self.current_node_path:
+  139              return
+  140  
+  141          try:
+  142              # 读取当前配置
+  143              config_path = os.path.join(self.current_node_path, "config.json")
+  144              with open(config_path, 'r', encoding='utf-8') as f:
+  145                  config = json.load(f)
+  146  
+  147              # 更新配置
+  148              config['listen_upper_file'] = self.listen_file_edit.text()
+  149              config['output_type'] = self.output_type_edit.text()
+  150  
+
+------------------------------------------------------------
+
+
+第 4 页
+------------------------------------------------------------
+
+  151              # 更新filter
+  152              filter_data = {}
+  153              for row in range(self.filter_table.rowCount()):
+  154                  key_item = self.filter_table.item(row, 0)
+  155                  value_item = self.filter_table.item(row, 1)
+  156                  if key_item and value_item:
+  157                      key = key_item.text().strip()
+  158                      value = value_item.text().strip()
+  159                      if key:  # 只保存非空key
+  160                          filter_data[key] = value
+  161  
+  162              config['filter'] = filter_data
+  163  
+  164              # 写入文件
+  165              with open(config_path, 'w', encoding='utf-8') as f:
+  166                  json.dump(config, f, indent=2, ensure_ascii=False)
+  167  
+  168              # 更新内存中的数据
+  169              if self.parent_window and self.current_node_name in self.parent_window.nodes_data:
+  170                  self.parent_window.nodes_data[self.current_node_name]['config'] = config
+  171  
+  172                  # 同步更新画布上的节点显示
+  173                  if hasattr(self.parent_window, 'canvas'):
+  174                      self.parent_window.canvas.sync_node_display(self.current_node_name)
+  175  
+  176              QMessageBox.information(self, "成功", "配置已保存")
+  177          except Exception as e:
+  178              QMessageBox.critical(self, "错误", f"保存配置失败: {str(e)}")
+  179  
+  180      def load_connection_info(self, source_name, target_name, source_output_path):
+  181          """加载连线配置信息"""
+  182          self.clear_content()
+  183          self.current_node_name = None
+  184          self.current_node_path = None
+  185  
+  186          # 标题
+  187          title = QLabel(f"连线配置")
+  188          title.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+  189          self.content_layout.addWidget(title)
+  190  
+  191          # 连线信息
+  192          info_group = QGroupBox("连线详情")
+  193          info_layout = QFormLayout(info_group)
+  194  
+  195          upstream_label = QLabel(source_name)
+  196          info_layout.addRow("上游节点:", upstream_label)
+  197  
+  198          downstream_label = QLabel(target_name)
+  199          info_layout.addRow("下游节点:", downstream_label)
+  200  
+
+------------------------------------------------------------
+
+
+第 5 页
+------------------------------------------------------------
+
+  201          path_label = QLabel(source_output_path)
+  202          path_label.setWordWrap(True)
+  203          info_layout.addRow("上游输出路径:", path_label)
+  204  
+  205          self.content_layout.addWidget(info_group)
+  206  
+  207          # 说明文本
+  208          note = QLabel(
+  209              "说明:\n"
+  210              "- 上游节点的 output.json 路径已自动配置到下游节点\n"
+  211              "- 删除连线将清空下游节点的 listen_upper_file 配置"
+  212          )
+  213          note.setStyleSheet("padding: 10px; background-color: #fff3cd; border-radius: 5px;")
+  214          note.setWordWrap(True)
+  215          self.content_layout.addWidget(note)
+  216  
+  217          # 添加弹性空间
+  218          self.content_layout.addStretch()
+  219  
+  220  class ColorSettingsDialog(QDialog):
+  221      """画布和节点颜色设置对话框"""
+  222  
+  223      def __init__(self, canvas, parent=None):
+  224          super().__init__(parent)
+  225          self.canvas = canvas
+  226          self.setWindowTitle("🎨 画布与节点颜色设置")
+  227          self.setGeometry(300, 200, 500, 600)
+  228  
+  229          self.init_ui()
+  230  
+  231      def init_ui(self):
+  232          """初始化UI"""
+  233          layout = QVBoxLayout(self)
+  234          layout.setSpacing(15)
+  235  
+  236          # 标题
+  237          title = QLabel("🎨 自定义画布和节点外观")
+  238          title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+  239          title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+  240          layout.addWidget(title)
+  241  
+  242          # 滚动区域
+  243          scroll = QScrollArea()
+  244          scroll.setWidgetResizable(True)
+  245          scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+  246  
+  247          content_widget = QWidget()
+  248          content_layout = QVBoxLayout(content_widget)
+  249          content_layout.setSpacing(15)
+  250  
+
+------------------------------------------------------------
+
+
+第 6 页
+------------------------------------------------------------
+
+  251          scroll.setWidget(content_widget)
+  252          layout.addWidget(scroll)
+  253  
+  254          # ===== 画布背景色设置 =====
+  255          canvas_group = QGroupBox("🖼️ 画布背景")
+  256          canvas_layout = QFormLayout(canvas_group)
+  257  
+  258          # 画布背景色
+  259          self.canvas_color_btn = QPushButton("选择颜色")
+  260          self.canvas_color_btn.setStyleSheet(f"background-color: {self.canvas.canvas_bg_color}; min-height: 30px;")
+  261          self.canvas_color_btn.clicked.connect(lambda: self.choose_color('canvas'))
+  262          canvas_layout.addRow("背景颜色:", self.canvas_color_btn)
+  263  
+  264          # 网格线颜色
+  265          self.grid_color_btn = QPushButton("选择颜色")
+  266          self.grid_color_btn.setStyleSheet(f"background-color: {self.canvas.grid_color}; min-height: 30px;")
+  267          self.grid_color_btn.clicked.connect(lambda: self.choose_color('grid'))
+  268          canvas_layout.addRow("网格线颜色:", self.grid_color_btn)
+  269  
+  270          # 网格线透明度
+  271          self.grid_opacity_slider = QSlider(Qt.Orientation.Horizontal)
+  272          self.grid_opacity_slider.setRange(0, 100)
+  273          self.grid_opacity_slider.setValue(int(self.canvas.grid_opacity * 100))
+  274          self.grid_opacity_slider.valueChanged.connect(self.update_grid_opacity_label)
+  275          self.grid_opacity_label = QLabel(f"{int(self.canvas.grid_opacity * 100)}%")
+  276          grid_opacity_layout = QVBoxLayout()
+  277          grid_opacity_layout.addWidget(self.grid_opacity_slider)
+  278          grid_opacity_layout.addWidget(self.grid_opacity_label)
+  279          canvas_layout.addRow("网格线透明度:", grid_opacity_layout)
+  280  
+  281          content_layout.addWidget(canvas_group)
+  282  
+  283          # ===== 节点样式设置 =====
+  284          node_group = QGroupBox("📦 节点样式")
+  285          node_layout = QFormLayout(node_group)
+  286  
+  287          # 节点背景色
+  288          self.node_bg_btn = QPushButton("选择颜色")
+  289          self.node_bg_btn.setStyleSheet(f"background-color: {self.canvas.node_bg_color}; min-height: 30px;")
+  290          self.node_bg_btn.clicked.connect(lambda: self.choose_color('node_bg'))
+  291          node_layout.addRow("节点背景:", self.node_bg_btn)
+  292  
+  293          # 节点边框色
+  294          self.node_border_btn = QPushButton("选择颜色")
+  295          self.node_border_btn.setStyleSheet(f"background-color: {self.canvas.node_border_color}; min-height: 30px;")
+  296          self.node_border_btn.clicked.connect(lambda: self.choose_color('node_border'))
+  297          node_layout.addRow("节点边框:", self.node_border_btn)
+  298  
+  299          # 节点文字颜色
+  300          self.node_text_btn = QPushButton("选择颜色")
+
+------------------------------------------------------------
+
+
+第 7 页
+------------------------------------------------------------
+
+  301          self.node_text_btn.setStyleSheet(f"background-color: {self.canvas.node_text_color}; min-height: 30px;")
+  302          self.node_text_btn.clicked.connect(lambda: self.choose_color('node_text'))
+  303          node_layout.addRow("节点文字:", self.node_text_btn)
+  304  
+  305          # 选中节点边框色
+  306          self.node_selected_btn = QPushButton("选择颜色")
+  307          self.node_selected_btn.setStyleSheet(f"background-color: {self.canvas.node_selected_color}; min-height: 30px;")
+  308          self.node_selected_btn.clicked.connect(lambda: self.choose_color('node_selected'))
+  309          node_layout.addRow("选中边框:", self.node_selected_btn)
+  310  
+  311          content_layout.addWidget(node_group)
+  312  
+  313          # ===== 锚点样式设置 =====
+  314          anchor_group = QGroupBox("🔘 锚点样式")
+  315          anchor_layout = QFormLayout(anchor_group)
+  316  
+  317          # 输入锚点颜色
+  318          self.input_anchor_btn = QPushButton("选择颜色")
+  319          self.input_anchor_btn.setStyleSheet(f"background-color: {self.canvas.input_anchor_color}; min-height: 30px;")
+  320          self.input_anchor_btn.clicked.connect(lambda: self.choose_color('input_anchor'))
+  321          anchor_layout.addRow("输入锚点 (IN):", self.input_anchor_btn)
+  322  
+  323          # 输出锚点颜色
+  324          self.output_anchor_btn = QPushButton("选择颜色")
+  325          self.output_anchor_btn.setStyleSheet(f"background-color: {self.canvas.output_anchor_color}; min-height: 30px;")
+  326          self.output_anchor_btn.clicked.connect(lambda: self.choose_color('output_anchor'))
+  327          anchor_layout.addRow("输出锚点 (OUT):", self.output_anchor_btn)
+  328  
+  329          content_layout.addWidget(anchor_group)
+  330  
+  331          # ===== 连线样式设置 =====
+  332          edge_group = QGroupBox("🔗 连线样式")
+  333          edge_layout = QFormLayout(edge_group)
+  334  
+  335          # 连线颜色
+  336          self.edge_color_btn = QPushButton("选择颜色")
+  337          self.edge_color_btn.setStyleSheet(f"background-color: {self.canvas.edge_color}; min-height: 30px;")
+  338          self.edge_color_btn.clicked.connect(lambda: self.choose_color('edge'))
+  339          edge_layout.addRow("连线颜色:", self.edge_color_btn)
+  340  
+  341          # 连线宽度
+  342          self.edge_width_spinbox = QSpinBox()
+  343          self.edge_width_spinbox.setRange(1, 10)
+  344          self.edge_width_spinbox.setValue(self.canvas.edge_width)
+  345          edge_layout.addRow("连线宽度:", self.edge_width_spinbox)
+  346  
+  347          content_layout.addWidget(edge_group)
+  348  
+  349          # ===== 预设主题 =====
+  350          theme_group = QGroupBox("🎭 快速主题")
+
+------------------------------------------------------------
+
+
+第 8 页
+------------------------------------------------------------
+
+  351          theme_layout = QVBoxLayout(theme_group)
+  352  
+  353          theme_btn_layout = QVBoxLayout()
+  354  
+  355          # 浅色主题
+  356          light_theme_btn = QPushButton("☀️ 浅色主题")
+  357          light_theme_btn.clicked.connect(lambda: self.apply_preset_theme('light'))
+  358          theme_btn_layout.addWidget(light_theme_btn)
+  359  
+  360          # 深色主题
+  361          dark_theme_btn = QPushButton("🌙 深色主题")
+  362          dark_theme_btn.clicked.connect(lambda: self.apply_preset_theme('dark'))
+  363          theme_btn_layout.addWidget(dark_theme_btn)
+  364  
+  365          # 蓝色科技主题
+  366          blue_theme_btn = QPushButton("💙 蓝色科技")
+  367          blue_theme_btn.clicked.connect(lambda: self.apply_preset_theme('blue'))
+  368          theme_btn_layout.addWidget(blue_theme_btn)
+  369  
+  370          # 绿色自然主题
+  371          green_theme_btn = QPushButton("💚 绿色自然")
+  372          green_theme_btn.clicked.connect(lambda: self.apply_preset_theme('green'))
+  373          theme_btn_layout.addWidget(green_theme_btn)
+  374  
+  375          theme_layout.addLayout(theme_btn_layout)
+  376  
+  377          content_layout.addWidget(theme_group)
+  378  
+  379          # 按钮区域
+  380          button_layout = QVBoxLayout()
+  381  
+  382          # 应用按钮
+  383          apply_btn = QPushButton("✅ 应用更改")
+  384          apply_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-weight: bold;")
+  385          apply_btn.clicked.connect(self.apply_settings)
+  386          button_layout.addWidget(apply_btn)
+  387  
+  388          # 重置按钮
+  389          reset_btn = QPushButton("🔄 恢复默认")
+  390          reset_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 10px;")
+  391          reset_btn.clicked.connect(self.reset_to_default)
+  392          button_layout.addWidget(reset_btn)
+  393  
+  394          content_layout.addLayout(button_layout)
+  395  
+  396          # 关闭按钮
+  397          button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+  398          button_box.rejected.connect(self.reject)
+  399          layout.addWidget(button_box)
+  400  
+
+------------------------------------------------------------
+
+
+第 9 页
+------------------------------------------------------------
+
+  401      def update_grid_opacity_label(self, value):
+  402          """更新网格线透明度标签"""
+  403          self.grid_opacity_label.setText(f"{value}%")
+  404  
+  405      def choose_color(self, target):
+  406          """选择颜色"""
+  407          from PyQt6.QtWidgets import QColorDialog
+  408  
+  409          # 获取当前颜色
+  410          current_colors = {
+  411              'canvas': self.canvas.canvas_bg_color,
+  412              'grid': self.canvas.grid_color,
+  413              'node_bg': self.canvas.node_bg_color,
+  414              'node_border': self.canvas.node_border_color,
+  415              'node_text': self.canvas.node_text_color,
+  416              'node_selected': self.canvas.node_selected_color,
+  417              'input_anchor': self.canvas.input_anchor_color,
+  418              'output_anchor': self.canvas.output_anchor_color,
+  419              'edge': self.canvas.edge_color
+  420          }
+  421  
+  422          current_color = QColor(current_colors[target])
+  423          new_color = QColorDialog.getColor(current_color, self, "选择颜色")
+  424  
+  425          if new_color.isValid():
+  426              color_hex = new_color.name()
+  427  
+  428              # 更新按钮显示
+  429              btn_map = {
+  430                  'canvas': self.canvas_color_btn,
+  431                  'grid': self.grid_color_btn,
+  432                  'node_bg': self.node_bg_btn,
+  433                  'node_border': self.node_border_btn,
+  434                  'node_text': self.node_text_btn,
+  435                  'node_selected': self.node_selected_btn,
+  436                  'input_anchor': self.input_anchor_btn,
+  437                  'output_anchor': self.output_anchor_btn,
+  438                  'edge': self.edge_color_btn
+  439              }
+  440  
+  441              btn_map[target].setStyleSheet(f"background-color: {color_hex}; min-height: 30px;")
+  442  
+  443              # 临时存储新颜色
+  444              setattr(self, f'temp_{target}_color', color_hex)
+  445  
+  446      def apply_preset_theme(self, theme_name):
+  447          """应用预设主题"""
+  448          themes = {
+  449              'light': {
+  450                  'canvas_bg_color': '#ffffff',
+
+------------------------------------------------------------
+
+
+第 10 页
+------------------------------------------------------------
+
+  451                  'grid_color': '#e0e0e0',
+  452                  'grid_opacity': 0.5,
+  453                  'node_bg_color': '#f8f9fa',
+  454                  'node_border_color': '#dee2e6',
+  455                  'node_text_color': '#333333',
+  456                  'node_selected_color': '#2196F3',
+  457                  'input_anchor_color': '#4CAF50',
+  458                  'output_anchor_color': '#2196F3',
+  459                  'edge_color': '#666666',
+  460                  'edge_width': 2
+  461              },
+  462              'dark': {
+  463                  'canvas_bg_color': '#1e1e1e',
+  464                  'grid_color': '#3c3c3c',
+  465                  'grid_opacity': 0.3,
+  466                  'node_bg_color': '#2d2d2d',
+  467                  'node_border_color': '#404040',
+  468                  'node_text_color': '#d4d4d4',
+  469                  'node_selected_color': '#4FC3F7',
+  470                  'input_anchor_color': '#66BB6A',
+  471                  'output_anchor_color': '#42A5F5',
+  472                  'edge_color': '#888888',
+  473                  'edge_width': 2
+  474              },
+  475              'blue': {
+  476                  'canvas_bg_color': '#0a1929',
+  477                  'grid_color': '#1e3a5f',
+  478                  'grid_opacity': 0.4,
+  479                  'node_bg_color': '#1a3a5c',
+  480                  'node_border_color': '#2e5a7c',
+  481                  'node_text_color': '#e0f0ff',
+  482                  'node_selected_color': '#00bcd4',
+  483                  'input_anchor_color': '#00e676',
+  484                  'output_anchor_color': '#00bcd4',
+  485                  'edge_color': '#4fc3f7',
+  486                  'edge_width': 2
+  487              },
+  488              'green': {
+  489                  'canvas_bg_color': '#f1f8e9',
+  490                  'grid_color': '#c5e1a5',
+  491                  'grid_opacity': 0.5,
+  492                  'node_bg_color': '#ffffff',
+  493                  'node_border_color': '#aed581',
+  494                  'node_text_color': '#33691e',
+  495                  'node_selected_color': '#4CAF50',
+  496                  'input_anchor_color': '#66BB6A',
+  497                  'output_anchor_color': '#8BC34A',
+  498                  'edge_color': '#7CB342',
+  499                  'edge_width': 2
+  500              }
+
+------------------------------------------------------------
+
+
+第 11 页
+------------------------------------------------------------
+
+  501          }
+  502  
+  503          theme = themes.get(theme_name)
+  504          if theme:
+  505              # 应用主题到临时变量
+  506              for key, value in theme.items():
+  507                  setattr(self, f'temp_{key}', value)
+  508  
+  509              # 更新按钮显示
+  510              self.canvas_color_btn.setStyleSheet(f"background-color: {theme['canvas_bg_color']}; min-height: 30px;")
+  511              self.grid_color_btn.setStyleSheet(f"background-color: {theme['grid_color']}; min-height: 30px;")
+  512              self.grid_opacity_slider.setValue(int(theme['grid_opacity'] * 100))
+  513              self.grid_opacity_label.setText(f"{int(theme['grid_opacity'] * 100)}%")
+  514              self.node_bg_btn.setStyleSheet(f"background-color: {theme['node_bg_color']}; min-height: 30px;")
+  515              self.node_border_btn.setStyleSheet(f"background-color: {theme['node_border_color']}; min-height: 30px;")
+  516              self.node_text_btn.setStyleSheet(f"background-color: {theme['node_text_color']}; min-height: 30px;")
+  517              self.node_selected_btn.setStyleSheet(f"background-color: {theme['node_selected_color']}; min-height: 30px;")
+  518              self.input_anchor_btn.setStyleSheet(f"background-color: {theme['input_anchor_color']}; min-height: 30px;")
+  519              self.output_anchor_btn.setStyleSheet(f"background-color: {theme['output_anchor_color']}; min-height: 30px;")
+  520              self.edge_color_btn.setStyleSheet(f"background-color: {theme['edge_color']}; min-height: 30px;")
+  521              self.edge_width_spinbox.setValue(theme['edge_width'])
+  522  
+  523      def apply_settings(self):
+  524          """应用颜色设置"""
+  525          try:
+  526              # 收集所有颜色设置
+  527              settings = {
+  528                  'canvas_bg_color': getattr(self, 'temp_canvas_bg_color', self.canvas.canvas_bg_color),
+  529                  'grid_color': getattr(self, 'temp_grid_color', self.canvas.grid_color),
+  530                  'grid_opacity': self.grid_opacity_slider.value() / 100.0,
+  531                  'node_bg_color': getattr(self, 'temp_node_bg_color', self.canvas.node_bg_color),
+  532                  'node_border_color': getattr(self, 'temp_node_border_color', self.canvas.node_border_color),
+  533                  'node_text_color': getattr(self, 'temp_node_text_color', self.canvas.node_text_color),
+  534                  'node_selected_color': getattr(self, 'temp_node_selected_color', self.canvas.node_selected_color),
+  535                  'input_anchor_color': getattr(self, 'temp_input_anchor_color', self.canvas.input_anchor_color),
+  536                  'output_anchor_color': getattr(self, 'temp_output_anchor_color', self.canvas.output_anchor_color),
+  537                  'edge_color': getattr(self, 'temp_edge_color', self.canvas.edge_color),
+  538                  'edge_width': self.edge_width_spinbox.value()
+  539              }
+  540  
+  541              # 应用到画布
+  542              self.canvas.apply_color_settings(settings)
+  543  
+  544              QMessageBox.information(self, "成功", "✅ 颜色设置已应用")
+  545              self.accept()
+  546  
+  547          except Exception as e:
+  548              QMessageBox.critical(self, "错误", f"应用设置失败: {str(e)}")
+  549  
+  550      def reset_to_default(self):
+
+------------------------------------------------------------
+
+
+第 12 页
+------------------------------------------------------------
+
+  551          """恢复到默认颜色"""
+  552          default_settings = {
+  553              'canvas_bg_color': '#ffffff',
+  554              'grid_color': '#e0e0e0',
+  555              'grid_opacity': 0.5,
+  556              'node_bg_color': '#f8f9fa',
+  557              'node_border_color': '#dee2e6',
+  558              'node_text_color': '#333333',
+  559              'node_selected_color': '#2196F3',
+  560              'input_anchor_color': '#4CAF50',
+  561              'output_anchor_color': '#2196F3',
+  562              'edge_color': '#666666',
+  563              'edge_width': 2
+  564          }
+  565  
+  566          # 应用默认设置
+  567          for key, value in default_settings.items():
+  568              setattr(self, f'temp_{key}', value)
+  569  
+  570          # 更新UI显示
+  571          self.canvas_color_btn.setStyleSheet(f"background-color: {default_settings['canvas_bg_color']}; min-height: 30px;")
+  572          self.grid_color_btn.setStyleSheet(f"background-color: {default_settings['grid_color']}; min-height: 30px;")
+  573          self.grid_opacity_slider.setValue(int(default_settings['grid_opacity'] * 100))
+  574          self.grid_opacity_label.setText(f"{int(default_settings['grid_opacity'] * 100)}%")
+  575          self.node_bg_btn.setStyleSheet(f"background-color: {default_settings['node_bg_color']}; min-height: 30px;")
+  576          self.node_border_btn.setStyleSheet(f"background-color: {default_settings['node_border_color']}; min-height: 30px;")
+  577          self.node_text_btn.setStyleSheet(f"background-color: {default_settings['node_text_color']}; min-height: 30px;")
+  578          self.node_selected_btn.setStyleSheet(f"background-color: {default_settings['node_selected_color']}; min-height: 30px;")
+  579          self.input_anchor_btn.setStyleSheet(f"background-color: {default_settings['input_anchor_color']}; min-height: 30px;")
+  580          self.output_anchor_btn.setStyleSheet(f"background-color: {default_settings['output_anchor_color']}; min-height: 30px;")
+  581          self.edge_color_btn.setStyleSheet(f"background-color: {default_settings['edge_color']}; min-height: 30px;")
+  582          self.edge_width_spinbox.setValue(default_settings['edge_width'])
+  583  
+  584          QMessageBox.information(self, "提示", "🔄 已恢复默认颜色设置")
+  585  
+============================================================
+  586  // 文件: ui/node_group_manager.py
+  587  ============================================================
+  588  """
+  589  节点组管理器 - 负责节点分组的创建、管理和持久化
+  590  遵循非侵入式原则，独立于原有代码
+  591  """
+  592  import json
+  593  import os
+  594  from typing import Dict, List, Optional
+  595  
+  596  class NodeGroupManager:
+  597      """节点组管理器 - 管理节点分组信息
+  598  
+  599      功能：
+  600      1. 创建/删除/重命名节点组
+
+------------------------------------------------------------
+
+
+第 13 页
+------------------------------------------------------------
+
+  601      2. 添加/移除节点到组
+  602      3. 获取组内节点列表
+  603      4. 配置持久化（跟随项目）
+  604      """
+  605  
+  606      def __init__(self, project_path: str = None):
+  607          """初始化节点组管理器
+  608  
+  609          Args:
+  610              project_path: 项目路径，用于保存/加载配置文件
+  611          """
+  612          self.project_path = project_path
+  613          self.groups: Dict[str, dict] = {}  # {group_name: {"nodes": [], "color": "#..."}}
+  614          self.node_to_group: Dict[str, str] = {}  # {node_name: group_name}
+  615  
+  616          # 如果提供了项目路径，立即加载配置
+  617          if project_path:
+  618              self.load_groups(project_path)
+  619  
+  620      def set_project_path(self, project_path: str):
+  621          """设置项目路径并加载配置
+  622  
+  623          Args:
+  624              project_path: 项目根目录路径
+  625          """
+  626          self.project_path = project_path
+  627          self.load_groups(project_path)
+  628  
+  629      def get_config_file_path(self) -> str:
+  630          """获取配置文件路径
+  631  
+  632          Returns:
+  633              配置文件完整路径
+  634          """
+  635          if not self.project_path:
+  636              return ""
+  637          return os.path.join(self.project_path, "node_groups.json")
+  638  
+  639      def load_groups(self, project_path: str = None):
+  640          """从配置文件加载节点组信息
+  641  
+  642          Args:
+  643              project_path: 项目路径（可选，如果未提供则使用已设置的路径）
+  644          """
+  645          path = project_path or self.project_path
+  646          if not path:
+  647              print("⚠️  未设置项目路径，无法加载节点组配置")
+  648              return
+  649  
+  650          config_file = os.path.join(path, "node_groups.json")
+
+------------------------------------------------------------
+
+
+第 14 页
+------------------------------------------------------------
+
+  651  
+  652          if not os.path.exists(config_file):
+  653              print(f"ℹ️  未找到节点组配置文件: {config_file}")
+  654              self.groups.clear()
+  655              self.node_to_group.clear()
+  656              return
+  657  
+  658          try:
+  659              with open(config_file, 'r', encoding='utf-8') as f:
+  660                  data = json.load(f)
+  661  
+  662              self.groups = data.get('groups', {})
+  663              self.node_to_group = data.get('node_to_group', {})
+  664  
+  665              print(f"✅ 已加载 {len(self.groups)} 个节点组")
+  666  
+  667          except (json.JSONDecodeError, IOError) as e:
+  668              print(f"⚠️  加载节点组配置失败: {e}")
+  669              # 备份损坏的文件
+  670              try:
+  671                  import shutil
+  672                  backup_file = config_file + ".bak"
+  673                  shutil.copy2(config_file, backup_file)
+  674                  print(f"📦 已备份损坏的配置文件: {backup_file}")
+  675              except:
+  676                  pass
+  677  
+  678              self.groups.clear()
+  679              self.node_to_group.clear()
+  680  
+  681      def save_groups(self):
+  682          """保存节点组信息到配置文件"""
+  683          if not self.project_path:
+  684              print("⚠️  未设置项目路径，无法保存节点组配置")
+  685              return False
+  686  
+  687          config_file = self.get_config_file_path()
+  688  
+  689          try:
+  690              data = {
+  691                  'groups': self.groups,
+  692                  'node_to_group': self.node_to_group
+  693              }
+  694  
+  695              with open(config_file, 'w', encoding='utf-8') as f:
+  696                  json.dump(data, f, indent=2, ensure_ascii=False)
+  697  
+  698              print(f"✅ 节点组配置已保存到: {config_file}")
+  699              return True
+  700  
+
+------------------------------------------------------------
+
+
+第 15 页
+------------------------------------------------------------
+
+  701          except Exception as e:
+  702              print(f"❌ 保存节点组配置失败: {e}")
+  703              return False
+  704  
+  705      def create_group(self, group_name: str, color: str = "#4A90E2") -> bool:
+  706          """创建新的节点组
+  707  
+  708          Args:
+  709              group_name: 组名称
+  710              color: 组颜色（十六进制）
+  711  
+  712          Returns:
+  713              是否创建成功
+  714          """
+  715          if not group_name or group_name in self.groups:
+  716              return False
+  717  
+  718          self.groups[group_name] = {
+  719              'nodes': [],
+  720              'color': color
+  721          }
+  722  
+  723          self.save_groups()
+  724          print(f"✅ 创建节点组: {group_name}")
+  725          return True
+  726  
+  727      def delete_group(self, group_name: str) -> bool:
+  728          """删除节点组（不删除组内节点）
+  729  
+  730          Args:
+  731              group_name: 组名称
+  732  
+  733          Returns:
+  734              是否删除成功
+  735          """
+  736          if group_name not in self.groups:
+  737              return False
+  738  
+  739          # 清除组内节点的组归属
+  740          for node_name in self.groups[group_name]['nodes']:
+  741              if node_name in self.node_to_group:
+  742                  del self.node_to_group[node_name]
+  743  
+  744          # 删除组
+  745          del self.groups[group_name]
+  746  
+  747          self.save_groups()
+  748          print(f"✅ 删除节点组: {group_name}")
+  749          return True
+  750  
+
+------------------------------------------------------------
+
+
+第 16 页
+------------------------------------------------------------
+
+  751      def rename_group(self, old_name: str, new_name: str) -> bool:
+  752          """重命名节点组
+  753  
+  754          Args:
+  755              old_name: 原组名
+  756              new_name: 新组名
+  757  
+  758          Returns:
+  759              是否重命名成功
+  760          """
+  761          if old_name not in self.groups or new_name in self.groups:
+  762              return False
+  763  
+  764          # 复制组数据
+  765          self.groups[new_name] = self.groups[old_name]
+  766          del self.groups[old_name]
+  767  
+  768          # 更新节点归属
+  769          for node_name in self.groups[new_name]['nodes']:
+  770              if node_name in self.node_to_group:
+  771                  self.node_to_group[node_name] = new_name
+  772  
+  773          self.save_groups()
+  774          print(f"✅ 重命名节点组: {old_name} -> {new_name}")
+  775          return True
+  776  
+  777      def add_nodes_to_group(self, group_name: str, node_names: List[str]) -> bool:
+  778          """批量添加节点到组
+  779  
+  780          Args:
+  781              group_name: 组名称
+  782              node_names: 节点名称列表
+  783  
+  784          Returns:
+  785              是否添加成功
+  786          """
+  787          if group_name not in self.groups:
+  788              return False
+  789  
+  790          added_count = 0
+  791          for node_name in node_names:
+  792              # 如果节点已在其他组，先移除
+  793              if node_name in self.node_to_group:
+  794                  old_group = self.node_to_group[node_name]
+  795                  if old_group != group_name and old_group in self.groups:
+  796                      if node_name in self.groups[old_group]['nodes']:
+  797                          self.groups[old_group]['nodes'].remove(node_name)
+  798  
+  799              # 添加到新组（避免重复）
+  800              if node_name not in self.groups[group_name]['nodes']:
+
+------------------------------------------------------------
+
+
+第 17 页
+------------------------------------------------------------
+
+  801                  self.groups[group_name]['nodes'].append(node_name)
+  802                  self.node_to_group[node_name] = group_name
+  803                  added_count += 1
+  804  
+  805          if added_count > 0:
+  806              self.save_groups()
+  807              print(f"✅ 添加 {added_count} 个节点到组: {group_name}")
+  808  
+  809          return added_count > 0
+  810  
+  811      def remove_nodes_from_group(self, group_name: str, node_names: List[str]) -> bool:
+  812          """从组中移除节点
+  813  
+  814          Args:
+  815              group_name: 组名称
+  816              node_names: 节点名称列表
+  817  
+  818          Returns:
+  819              是否移除成功
+  820          """
+  821          if group_name not in self.groups:
+  822              return False
+  823  
+  824          removed_count = 0
+  825          for node_name in node_names:
+  826              if node_name in self.groups[group_name]['nodes']:
+  827                  self.groups[group_name]['nodes'].remove(node_name)
+  828                  removed_count += 1
+  829  
+  830              # 清除节点归属
+  831              if node_name in self.node_to_group:
+  832                  del self.node_to_group[node_name]
+  833  
+  834          if removed_count > 0:
+  835              self.save_groups()
+  836              print(f"✅ 从组 {group_name} 移除 {removed_count} 个节点")
+  837  
+  838          return removed_count > 0
+  839  
+  840      def get_group_nodes(self, group_name: str) -> List[str]:
+  841          """获取组内所有节点
+  842  
+  843          Args:
+  844              group_name: 组名称
+  845  
+  846          Returns:
+  847              节点名称列表
+  848          """
+  849          if group_name not in self.groups:
+  850              return []
+
+------------------------------------------------------------
+
+
+第 18 页
+------------------------------------------------------------
+
+  851          return self.groups[group_name]['nodes'].copy()
+  852  
+  853      def get_node_group(self, node_name: str) -> Optional[str]:
+  854          """获取节点所属的组
+  855  
+  856          Args:
+  857              node_name: 节点名称
+  858  
+  859          Returns:
+  860              组名称，如果节点不属于任何组则返回None
+  861          """
+  862          return self.node_to_group.get(node_name)
+  863  
+  864      def get_all_groups(self) -> Dict[str, dict]:
+  865          """获取所有节点组
+  866  
+  867          Returns:
+  868              所有组的字典
+  869          """
+  870          return self.groups.copy()
+  871  
+  872      def get_ungrouped_nodes(self, all_nodes: List[str]) -> List[str]:
+  873          """获取未分组的节点
+  874  
+  875          Args:
+  876              all_nodes: 所有节点名称列表
+  877  
+  878          Returns:
+  879              未分组的节点列表
+  880          """
+  881          grouped_nodes = set(self.node_to_group.keys())
+  882          return [node for node in all_nodes if node not in grouped_nodes]
+  883  
+  884      def clear_all_groups(self):
+  885          """清空所有分组（不删除节点）"""
+  886          self.groups.clear()
+  887          self.node_to_group.clear()
+  888          self.save_groups()
+  889          print("✅ 已清空所有节点组")
+  890  
+============================================================
+  891  // 文件: create_node.py
+  892  ============================================================
+  893  import os
+  894  import sys
+  895  import json
+  896  import subprocess
+  897  import shutil
+  898  
+  899  def create_portable_venv(node_dir):
+  900      """
+
+------------------------------------------------------------
+
+
+第 19 页
+------------------------------------------------------------
+
+  901      创建可迁移的虚拟环境
+  902      优先使用 virtualenv 工具，回退到标准 venv
+  903      """
+  904      venv_path = os.path.join(node_dir, "venv")
+  905  
+  906      # 方法1: 尝试使用 virtualenv（如果已安装）
+  907      try:
+  908          print("🔧 尝试使用 virtualenv 创建可迁移环境...")
+  909          result = subprocess.run(
+  910              [sys.executable, "-m", "virtualenv", "--copies", venv_path],
+  911              capture_output=True,
+  912              text=True,
+  913              timeout=60
+  914          )
+  915          if result.returncode == 0:
+  916              print("✅ 使用 virtualenv 创建成功（--copies 模式）")
+  917              return True
+  918          else:
+  919              print(f"⚠️ virtualenv 失败: {result.stderr}")
+  920      except FileNotFoundError:
+  921          print("⚠️ virtualenv 未安装，使用标准 venv")
+  922      except subprocess.TimeoutExpired:
+  923          print("⚠️ virtualenv 超时，使用标准 venv")
+  924      except Exception as e:
+  925          print(f"⚠️ virtualenv 异常: {e}，使用标准 venv")
+  926  
+  927      # 方法2: 使用标准 venv + 后处理
+  928      print("🔧 使用标准 venv 创建环境...")
+  929      try:
+  930          # Python 3.12+ 可以使用 --copies 参数
+  931          if sys.version_info >= (3, 12):
+  932              result = subprocess.run(
+  933                  [sys.executable, "-m", "venv", "--copies", venv_path],
+  934                  check=True,
+  935                  capture_output=True,
+  936                  text=True
+  937              )
+  938              print("✅ 使用 venv --copies 创建成功")
+  939          else:
+  940              # Python 3.11 及以下
+  941              result = subprocess.run(
+  942                  [sys.executable, "-m", "venv", venv_path],
+  943                  check=True,
+  944                  capture_output=True,
+  945                  text=True
+  946              )
+  947              print("✅ 使用标准 venv 创建成功")
+  948  
+  949              # 后处理：修改 pyvenv.cfg 使其更可迁移
+  950              fix_pyvenv_cfg(venv_path)
+
+------------------------------------------------------------
+
+
+第 20 页
+------------------------------------------------------------
+
+  951  
+  952          return True
+  953      except Exception as e:
+  954          print(f"❌ 创建虚拟环境失败: {e}")
+  955          return False
+  956  
+  957  def fix_pyvenv_cfg(venv_path):
+  958      """
+  959      修复 pyvenv.cfg 文件，添加可迁移标记
+  960      """
+  961      cfg_path = os.path.join(venv_path, "pyvenv.cfg")
+  962      if not os.path.exists(cfg_path):
+  963          return
+  964  
+  965      try:
+  966          with open(cfg_path, 'r', encoding='utf-8') as f:
+  967              lines = f.readlines()
+  968  
+  969          # 检查是否已经修复过
+  970          already_fixed = any('BNOS portable' in line for line in lines)
+  971          if already_fixed:
+  972              return
+  973  
+  974          # 添加注释说明这是 BNOS 管理的可迁移环境
+  975          with open(cfg_path, 'a', encoding='utf-8') as f:
+  976              f.write('\n# BNOS portable mode - environment can be moved\n')
+  977              f.write('# If moved, delete venv folder and recreate node\n')
+  978  
+  979          print("✅ 已标记为可迁移模式")
+  980      except Exception as e:
+  981          print(f"⚠️ 修复 pyvenv.cfg 失败: {e}")
+  982  
+  983  def auto_repair_venv(node_dir):
+  984      """
+  985      自动检测并修复虚拟环境（自愈逻辑）
+  986      在节点启动时调用，检测venv是否缺失/损坏，自动重建
+  987      """
+  988      venv_path = os.path.join(node_dir, "venv")
+  989  
+  990      # 检测1: venv目录是否存在
+  991      if not os.path.exists(venv_path):
+  992          print("⚠️ 检测到虚拟环境缺失，开始自动重建...")
+  993          return create_portable_venv(node_dir)
+  994  
+  995      # 检测2: Python解释器是否存在
+  996      if os.name == "nt":
+  997          python_exe = os.path.join(venv_path, "Scripts", "python.exe")
+  998      else:
+  999          python_exe = os.path.join(venv_path, "bin", "python")
+ 1000  
+
+------------------------------------------------------------
+
+
+第 21 页
+------------------------------------------------------------
+
+ 1001      if not os.path.exists(python_exe):
+ 1002          print("⚠️ 检测到Python解释器缺失，开始自动重建...")
+ 1003          # 删除损坏的venv
+ 1004          try:
+ 1005              shutil.rmtree(venv_path, ignore_errors=True)
+ 1006              print("✅ 已清理损坏的虚拟环境")
+ 1007          except Exception as e:
+ 1008              print(f"❌ 清理失败: {e}")
+ 1009              return False
+ 1010          return create_portable_venv(node_dir)
+ 1011  
+ 1012      # 检测3: 尝试运行Python，检查是否真正可用
+ 1013      try:
+ 1014          result = subprocess.run(
+ 1015              [python_exe, "--version"],
+ 1016              capture_output=True,
+ 1017              text=True,
+ 1018              timeout=5
+ 1019          )
+ 1020          if result.returncode != 0:
+ 1021              print("⚠️ 检测到虚拟环境损坏，开始自动重建...")
+ 1022              shutil.rmtree(venv_path, ignore_errors=True)
+ 1023              return create_portable_venv(node_dir)
+ 1024      except Exception:
+ 1025          print("⚠️ 检测到虚拟环境异常，开始自动重建...")
+ 1026          shutil.rmtree(venv_path, ignore_errors=True)
+ 1027          return create_portable_venv(node_dir)
+ 1028  
+ 1029      # 环境正常
+ 1030      print("✅ 虚拟环境检测通过")
+ 1031      return True
+ 1032  
+ 1033  def install_requirements(node_dir):
+ 1034      """
+ 1035      安装requirements.txt中的依赖
+ 1036      """
+ 1037      req_file = os.path.join(node_dir, "requirements.txt")
+ 1038      if not os.path.exists(req_file):
+ 1039          return True
+ 1040  
+ 1041      # 检查是否有实际依赖（跳过注释和空行）
+ 1042      has_deps = False
+ 1043      with open(req_file, 'r', encoding='utf-8') as f:
+ 1044          for line in f:
+ 1045              line = line.strip()
+ 1046              if line and not line.startswith('#'):
+ 1047                  has_deps = True
+ 1048                  break
+ 1049  
+ 1050      if not has_deps:
+
+------------------------------------------------------------
+
+
+第 22 页
+------------------------------------------------------------
+
+ 1051          return True
+ 1052  
+ 1053      print("📦 检测到依赖项，开始安装...")
+ 1054  
+ 1055      if os.name == "nt":
+ 1056          python_exe = os.path.join(node_dir, "venv", "Scripts", "python.exe")
+ 1057      else:
+ 1058          python_exe = os.path.join(node_dir, "venv", "bin", "python")
+ 1059  
+ 1060      try:
+ 1061          result = subprocess.run(
+ 1062              [python_exe, "-m", "pip", "install", "-r", req_file],
+ 1063              capture_output=True,
+ 1064              text=True,
+ 1065              timeout=300  # 5分钟超时
+ 1066          )
+ 1067          if result.returncode == 0:
+ 1068              print("✅ 依赖安装成功")
+ 1069              return True
+ 1070          else:
+ 1071              print(f"❌ 依赖安装失败: {result.stderr}")
+ 1072              return False
+ 1073      except Exception as e:
+ 1074          print(f"❌ 依赖安装异常: {e}")
+ 1075          return False
+ 1076  
+ 1077  def create_clean_node_with_empty_venv(node_name):
+ 1078      base_dir = os.getcwd()
+ 1079      node_dir = os.path.join(base_dir, f"node_{node_name}")
+ 1080  
+ 1081      if os.path.exists(node_dir):
+ 1082          print(f"❌ 节点 {node_dir} 已存在")
+ 1083          return
+ 1084  
+ 1085      os.makedirs(node_dir)
+ 1086      os.makedirs(os.path.join(node_dir, "logs"))
+ 1087  
+ 1088      # 🔧 使用改进的可迁移虚拟环境创建方法
+ 1089      print(f"🔧 创建可迁移虚拟环境 venv")
+ 1090      success = create_portable_venv(node_dir)
+ 1091  
+ 1092      if not success:
+ 1093          print(f"❌ 虚拟环境创建失败，终止节点创建")
+ 1094          import shutil
+ 1095          shutil.rmtree(node_dir, ignore_errors=True)
+ 1096          return
+ 1097  
+ 1098      with open(os.path.join(node_dir, "requirements.txt"), "w", encoding="utf-8") as f:
+ 1099          f.write("# 在此添加节点依赖\\n")
+ 1100  
+
+------------------------------------------------------------
+
+
+第 23 页
+------------------------------------------------------------
+
+ 1101      # ==============================
+ 1102      # config.json
+ 1103      # ==============================
+ 1104      config = {
+ 1105          "node_name": f"node_{node_name}",
+ 1106          "listen_upper_file": "../data/upper_data.json",
+ 1107          "output_file": "./output.json",
+ 1108          "filter": {},
+ 1109          "output_type": ""
+ 1110      }
+ 1111      with open(os.path.join(node_dir, "config.json"), "w", encoding="utf-8") as f:
+ 1112          json.dump(config, f, indent=2, ensure_ascii=False)
+ 1113  
+ 1114      # ==============================
+ 1115      # packet.py
+ 1116      # ==============================
+ 1117      packet = '''UPPER_PACKET = {"data": None}
+ 1118  OUTPUT_PACKET = {"code": 0, "data": None}
+ 1119  '''
+ 1120      with open(os.path.join(node_dir, "packet.py"), "w", encoding="utf-8") as f:
+ 1121          f.write(packet.strip())
+ 1122  
+ 1123      # ==============================
+ 1124      # listener.py
+ 1125      # ==============================
+ 1126      listener = '''import os
+ 1127  import sys
+ 1128  import json
+ 1129  import time
+ 1130  import subprocess
+ 1131  import shutil
+ 1132  from datetime import datetime
+ 1133  
+ 1134  NODE_DIR = os.path.dirname(os.path.abspath(__file__))
+ 1135  CONFIG_PATH = os.path.join(NODE_DIR, "config.json")
+ 1136  LOG_DIR = os.path.join(NODE_DIR, "logs")
+ 1137  
+ 1138  if not os.path.exists(LOG_DIR):
+ 1139      os.makedirs(LOG_DIR)
+ 1140  
+ 1141  def log(msg, level="INFO"):
+ 1142      now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+ 1143      line = f"[{now}] [{level}] {msg}"
+ 1144      print(line)
+ 1145      with open(os.path.join(LOG_DIR, "listener.log"), "a", encoding="utf-8") as f:
+ 1146          f.write(line + "\\n")
+ 1147  
+ 1148  # ==================== 自愈逻辑：启动前环境检测与修复 ====================
+ 1149  def check_and_repair_environment():
+ 1150      """检测并修复虚拟环境"""
+
+------------------------------------------------------------
+
+
+第 24 页
+------------------------------------------------------------
+
+ 1151      venv_path = os.path.join(NODE_DIR, "venv")
+ 1152  
+ 1153      # 检测Python解释器
+ 1154      if os.name == "nt":
+ 1155          python_exe = os.path.join(venv_path, "Scripts", "python.exe")
+ 1156      else:
+ 1157          python_exe = os.path.join(venv_path, "bin", "python")
+ 1158  
+ 1159      if not os.path.exists(python_exe):
+ 1160          log("⚠️ 检测到虚拟环境异常，尝试自动修复...", "WARNING")
+ 1161  
+ 1162          # 清理损坏的venv
+ 1163          if os.path.exists(venv_path):
+ 1164              try:
+ 1165                  shutil.rmtree(venv_path, ignore_errors=True)
+ 1166                  log("✅ 已清理损坏的虚拟环境")
+ 1167              except Exception as e:
+ 1168                  log(f"❌ 清理失败: {e}", "ERROR")
+ 1169                  return False
+ 1170  
+ 1171          # 调用create_node.py重建
+ 1172          software_root = os.path.dirname(NODE_DIR)  # nodes目录的父目录
+ 1173          create_node_script = os.path.join(software_root, "..", "create_node.py")
+ 1174  
+ 1175          if os.path.exists(create_node_script):
+ 1176              log("🔧 开始重建虚拟环境...")
+ 1177              try:
+ 1178                  result = subprocess.run(
+ 1179                      [sys.executable, create_node_script, "--repair-only", NODE_DIR],
+ 1180                      capture_output=True,
+ 1181                      text=True,
+ 1182                      timeout=120,
+ 1183                      encoding="utf-8"
+ 1184                  )
+ 1185                  if result.returncode == 0:
+ 1186                      log("✅ 虚拟环境重建成功")
+ 1187                      return True
+ 1188                  else:
+ 1189                      log(f"❌ 重建失败: {result.stderr}", "ERROR")
+ 1190                      return False
+ 1191              except Exception as e:
+ 1192                  log(f"❌ 重建异常: {e}", "ERROR")
+ 1193                  return False
+ 1194          else:
+ 1195              log("❌ 找不到create_node.py，无法自动修复", "ERROR")
+ 1196              log("💡 请手动删除venv文件夹后重新创建节点", "WARNING")
+ 1197              return False
+ 1198  
+ 1199      return True
+ 1200  
+
+------------------------------------------------------------
+
+
+第 25 页
+------------------------------------------------------------
+
+ 1201  # 执行环境检测
+ 1202  if not check_and_repair_environment():
+ 1203      log("❌ 环境修复失败，程序退出", "ERROR")
+ 1204      sys.exit(1)
+ 1205  # ==================== 自愈逻辑结束 ====================
+ 1206  
+ 1207  try:
+ 1208      with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+ 1209          cfg = json.load(f)
+ 1210  except Exception as e:
+ 1211      log(f"配置加载失败: {e}", "ERROR")
+ 1212      exit(1)
+ 1213  
+ 1214  UPPER_FILE = os.path.abspath(os.path.join(NODE_DIR, cfg["listen_upper_file"]))
+ 1215  OUTPUT_FILE = os.path.abspath(os.path.join(NODE_DIR, cfg["output_file"]))
+ 1216  NODE_NAME = cfg["node_name"]
+ 1217  MY_FILTER = cfg.get("filter", {})
+ 1218  PROCESS_FLAG = f"_processed_{NODE_NAME}"
+ 1219  
+ 1220  def is_my_data(data):
+ 1221      if not MY_FILTER:
+ 1222          return True
+ 1223      for k, v in MY_FILTER.items():
+ 1224          if data.get(k) != v:
+ 1225              return False
+ 1226      return True
+ 1227  
+ 1228  log("=" * 50)
+ 1229  log(f"节点启动: {NODE_NAME}")
+ 1230  log(f"监听: {UPPER_FILE}")
+ 1231  log(f"过滤: {MY_FILTER}")
+ 1232  log("当前环境: 独立虚拟环境（可迁移模式+自愈）")
+ 1233  log("=" * 50)
+ 1234  
+ 1235  while True:
+ 1236      try:
+ 1237          if not os.path.exists(UPPER_FILE):
+ 1238              time.sleep(0.2)
+ 1239              continue
+ 1240  
+ 1241          with open(UPPER_FILE, "r", encoding="utf-8") as f:
+ 1242              data = json.load(f)
+ 1243  
+ 1244          if data.get(PROCESS_FLAG):
+ 1245              time.sleep(0.2)
+ 1246              continue
+ 1247  
+ 1248          if not is_my_data(data):
+ 1249              time.sleep(0.2)
+ 1250              continue
+
+------------------------------------------------------------
+
+
+第 26 页
+------------------------------------------------------------
+
+ 1251  
+ 1252          log("✅ 开始处理数据")
+ 1253  
+ 1254          # 【关键】只用自己虚拟环境运行 main.py
+ 1255          if os.name == "nt":
+ 1256              py_path = os.path.join(NODE_DIR, "venv", "Scripts", "python.exe")
+ 1257          else:
+ 1258              py_path = os.path.join(NODE_DIR, "venv", "bin", "python")
+ 1259  
+ 1260          res = subprocess.run(
+ 1261              [py_path, os.path.join(NODE_DIR, "main.py"), json.dumps(data)],
+ 1262              capture_output=True, text=True, encoding="utf-8"
+ 1263          )
+ 1264  
+ 1265          output = res.stdout.strip()
+ 1266          if not output:
+ 1267              log("⚠️ 返回空数据")
+ 1268              continue
+ 1269  
+ 1270          with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+ 1271              f.write(output)
+ 1272  
+ 1273          data[PROCESS_FLAG] = True
+ 1274          with open(UPPER_FILE, "w", encoding="utf-8") as f:
+ 1275              json.dump(data, f, indent=2, ensure_ascii=False)
+ 1276  
+ 1277          log(f"✅ 处理完成: {PROCESS_FLAG}")
+ 1278  
+ 1279      except json.JSONDecodeError:
+ 1280          log("❌ 数据包格式错误", "ERROR")
+ 1281          time.sleep(1)
+ 1282      except Exception as e:
+ 1283          log(f"❌ 异常: {e}", "ERROR")
+ 1284          time.sleep(1)
+ 1285  
+ 1286      time.sleep(0.2)
+ 1287  '''
+ 1288      with open(os.path.join(node_dir, "listener.py"), "w", encoding="utf-8") as f:
+ 1289          f.write(listener.strip())
+ 1290  
+ 1291      # ==============================
+ 1292      # main.py
+ 1293      # ==============================
+ 1294      main = '''import sys
+ 1295  import json
+ 1296  import os
+ 1297  
+ 1298  NODE_DIR = os.path.dirname(os.path.abspath(__file__))
+ 1299  config_path = os.path.join(NODE_DIR, "config.json")
+ 1300  with open(config_path, "r", encoding="utf-8") as f:
+
+------------------------------------------------------------
+
+
+第 27 页
+------------------------------------------------------------
+
+ 1301      cfg = json.load(f)
+ 1302  
+ 1303  def process(data):
+ 1304      return data.get("data")
+ 1305  
+ 1306  if __name__ == "__main__":
+ 1307      if len(sys.argv) < 2:
+ 1308          print(json.dumps({"code": -1, "error": "no input"}))
+ 1309          sys.exit(1)
+ 1310  
+ 1311      input_data = json.loads(sys.argv[1])
+ 1312      result = process(input_data)
+ 1313  
+ 1314      print(json.dumps({
+ 1315          "code": 0,
+ 1316          "type": cfg["output_type"],
+ 1317          "data": result
+ 1318      }, ensure_ascii=False))
+ 1319  '''
+ 1320      with open(os.path.join(node_dir, "main.py"), "w", encoding="utf-8") as f:
+ 1321          f.write(main.strip())
+ 1322  
+ 1323      # ==============================
+ 1324      # output.json
+ 1325      # ==============================
+ 1326      with open(os.path.join(node_dir, "output.json"), "w", encoding="utf-8") as f:
+ 1327          f.write('{"code":0,"data":null}')
+ 1328  
+ 1329      # ==============================
+ 1330      # 自动生成启动脚本（双击即用，支持可迁移+自愈）
+ 1331      # ==============================
+ 1332      if os.name == "nt":
+ 1333          start_bat = '''@echo off
+ 1334  cls
+ 1335  chcp 65001 >nul
+ 1336  echo ======================================
+ 1337  echo        BNOS Node Starter (Windows)
+ 1338  echo ======================================
+ 1339  echo.
+ 1340  cd /d "%~dp0"
+ 1341  
+ 1342  REM ==================== 环境检测与自愈 ====================
+ 1343  echo 🔍 检测虚拟环境状态...
+ 1344  
+ 1345  if not exist "venv\\Scripts\\python.exe" (
+ 1346      echo ⚠️ 检测到虚拟环境缺失或损坏
+ 1347      echo.
+ 1348      echo 🔧 开始自动修复...
+ 1349      echo.
+ 1350  
+
+------------------------------------------------------------
+
+
+第 28 页
+------------------------------------------------------------
+
+ 1351      REM 调用create_node.py进行修复
+ 1352      if exist "..\\..\\create_node.py" (
+ 1353          python ..\\..\\create_node.py --repair-only "%CD%"
+ 1354          if errorlevel 1 (
+ 1355              echo.
+ 1356              echo ❌ 自动修复失败
+ 1357              echo 💡 请手动删除venv文件夹后重新创建节点
+ 1358              pause
+ 1359              exit /b 1
+ 1360          )
+ 1361          echo.
+ 1362          echo ✅ 虚拟环境重建成功
+ 1363      ) else (
+ 1364          echo ❌ 找不到create_node.py，无法自动修复
+ 1365          echo 💡 请手动删除venv文件夹后重新创建节点
+ 1366          pause
+ 1367          exit /b 1
+ 1368      )
+ 1369  ) else (
+ 1370      echo ✅ 虚拟环境检测通过
+ 1371  )
+ 1372  
+ 1373  echo.
+ 1374  REM ==================== 依赖安装检查 ====================
+ 1375  if exist "requirements.txt" (
+ 1376      findstr /R /C:"^[^#]" requirements.txt >nul 2>&1
+ 1377      if not errorlevel 1 (
+ 1378          echo 📦 检测到依赖项，检查安装状态...
+ 1379          venv\\Scripts\\python.exe -c "import pkg_resources; pkg_resources.working_set.require(open('requirements.txt').read().splitlines())" 2>nul
+ 1380          if errorlevel 1 (
+ 1381              echo 🔧 开始安装依赖...
+ 1382              venv\\Scripts\\python.exe -m pip install -r requirements.txt
+ 1383              if errorlevel 1 (
+ 1384                  echo ⚠️ 依赖安装失败，但将继续启动
+ 1385              ) else (
+ 1386                  echo ✅ 依赖安装成功
+ 1387              )
+ 1388          ) else (
+ 1389              echo ✅ 依赖已安装
+ 1390          )
+ 1391      )
+ 1392  )
+ 1393  
+ 1394  echo.
+ 1395  echo ✅ 启动监听程序...
+ 1396  echo.
+ 1397  venv\\Scripts\\python.exe listener.py
+ 1398  echo.
+ 1399  echo ❌ 程序已退出
+ 1400  pause
+
+------------------------------------------------------------
+
+
+第 29 页
+------------------------------------------------------------
+
+ 1401  '''
+ 1402          with open(os.path.join(node_dir, "start.bat"), "w", encoding="utf-8") as f:
+ 1403              f.write(start_bat)
+ 1404      else:
+ 1405          start_sh = '''#!/bin/bash
+ 1406  cd "$(dirname "$0")"
+ 1407  
+ 1408  # ==================== 环境检测与自愈 ====================
+ 1409  echo "🔍 检测虚拟环境状态..."
+ 1410  
+ 1411  if [ ! -f "venv/bin/python" ]; then
+ 1412      echo "⚠️ 检测到虚拟环境缺失或损坏"
+ 1413      echo ""
+ 1414      echo "🔧 开始自动修复..."
+ 1415      echo ""
+ 1416  
+ 1417      # 调用create_node.py进行修复
+ 1418      if [ -f "../../create_node.py" ]; then
+ 1419          python ../../create_node.py --repair-only "$(pwd)"
+ 1420          if [ $? -ne 0 ]; then
+ 1421              echo ""
+ 1422              echo "❌ 自动修复失败"
+ 1423              echo "💡 请手动删除venv文件夹后重新创建节点"
+ 1424              exit 1
+ 1425          fi
+ 1426          echo ""
+ 1427          echo "✅ 虚拟环境重建成功"
+ 1428      else
+ 1429          echo "❌ 找不到create_node.py，无法自动修复"
+ 1430          echo "💡 请手动删除venv文件夹后重新创建节点"
+ 1431          exit 1
+ 1432      fi
+ 1433  else
+ 1434      echo "✅ 虚拟环境检测通过"
+ 1435  fi
+ 1436  
+ 1437  echo ""
+ 1438  # ==================== 依赖安装检查 ====================
+ 1439  if [ -f "requirements.txt" ]; then
+ 1440      if grep -v "^#" requirements.txt | grep -q "[^[:space:]]"; then
+ 1441          echo "📦 检测到依赖项，检查安装状态..."
+ 1442          venv/bin/python -c "import pkg_resources; pkg_resources.working_set.require(open('requirements.txt').read().splitlines())" 2>/dev/null
+ 1443          if [ $? -ne 0 ]; then
+ 1444              echo "🔧 开始安装依赖..."
+ 1445              venv/bin/python -m pip install -r requirements.txt
+ 1446              if [ $? -eq 0 ]; then
+ 1447                  echo "✅ 依赖安装成功"
+ 1448              else
+ 1449                  echo "⚠️ 依赖安装失败，但将继续启动"
+ 1450              fi
+
+------------------------------------------------------------
+
+
+第 30 页
+------------------------------------------------------------
+
+ 1451          else
+ 1452              echo "✅ 依赖已安装"
+ 1453          fi
+ 1454      fi
+ 1455  fi
+ 1456  
+ 1457  source venv/bin/activate
+ 1458  python3 listener.py
+ 1459  '''
+ 1460          with open(os.path.join(node_dir, "start.sh"), "w", encoding="utf-8") as f:
+ 1461              f.write(start_sh)
+ 1462          os.chmod(os.path.join(node_dir, "start.sh"), 0o755)
+ 1463  
+ 1464      print(f"\n🎉 节点创建完成：{node_dir}")
+ 1465      print(f"✅ 独立虚拟环境：venv（可迁移模式）")
+ 1466      print(f"✅ 双击启动：start.bat / start.sh")
+ 1467      print(f"✅ 100% 环境隔离！")
+ 1468      print(f"✅ 支持项目文件夹移动/重命名")
+ 1469      print(f"💡 提示：如需迁移，建议删除 venv 后重新创建节点")
+ 1470  
+ 1471  # ==============================
+ 1472  # 运行
+ 1473  # ==============================
+ 1474  if __name__ == "__main__":
+ 1475      # 支持 --repair-only 模式：仅修复指定节点的venv
+ 1476      if len(sys.argv) >= 3 and sys.argv[1] == "--repair-only":
+ 1477          node_dir = sys.argv[2]
+ 1478          print(f"🔧 开始修复节点: {node_dir}")
+ 1479  
+ 1480          # 检测并修复venv
+ 1481          success = auto_repair_venv(node_dir)
+ 1482          if success:
+ 1483              # 安装依赖
+ 1484              install_requirements(node_dir)
+ 1485              print("✅ 节点修复完成")
+ 1486              sys.exit(0)
+ 1487          else:
+ 1488              print("❌ 节点修复失败")
+ 1489              sys.exit(1)
+ 1490  
+ 1491      # 正常创建节点模式
+ 1492      print("==================================")
+ 1493      print("    BNOS 干净节点生成器（可迁移venv）")
+ 1494      print("==================================")
+ 1495      name = input("输入节点名称：").strip()
+ 1496      if name:
+ 1497          create_clean_node_with_empty_venv(name)
+ 1498      else:
+ 1499          print("❌ 名称不能为空")
+ 1500      input("\n按回车退出")
+
+------------------------------------------------------------
+
+

@@ -265,6 +265,12 @@ class NodeItem(QGraphicsRectItem):
                     print(f"✅ 完成到 {self.node_name} 的输入锚点连线")
                 return
             
+            # ✅ 检测Ctrl+左键：切换节点选中状态（多选）
+            if (event.modifiers() & Qt.KeyboardModifier.ControlModifier) and self.canvas:
+                self.canvas._toggle_node_selection(self.node_name)
+                event.accept()
+                return  # ✅ 关键：立即返回，不调用 super()，防止事件传播到父项
+            
             # 其他区域：正常拖拽和选中
             if self.canvas:
                 self.canvas.on_node_selected(self)
@@ -493,6 +499,15 @@ class NodeCanvas(QGraphicsView):
         # 启用鼠标追踪
         self.setMouseTracking(True)
         
+        # ===== 画布交互状态 =====
+        self.is_pan_mode = False  # Ctrl+左键平移模式
+        self.pan_start_pos = None  # 平移起始位置
+        
+        self.is_box_selecting = False  # 框选模式
+        self.box_select_start_pos = None  # 框选起始位置
+        self.box_select_rect = None  # 框选矩形项
+        self.box_selected_nodes = []  # 框选中的节点列表
+        
         # 自动保存定时器（防抖500ms）
         from PyQt6.QtCore import QTimer
         self._save_timer = QTimer()
@@ -530,8 +545,60 @@ class NodeCanvas(QGraphicsView):
             y += grid_size
     
     def mouseMoveEvent(self, event):
-        """鼠标移动事件 - 修复连线拖拽跟随鼠标"""
-        # 如果正在连线中，更新临时连线的终点
+        """鼠标移动事件 - 处理平移、框选和连线拖拽"""
+        # 如果正在平移（Ctrl+左键拖拽）
+        if self.is_pan_mode and self.pan_start_pos:
+            # 计算偏移量（使用 widget 坐标）
+            delta = event.pos() - self.pan_start_pos
+            
+            # 直接移动滚动条
+            h_scroll = self.horizontalScrollBar()
+            v_scroll = self.verticalScrollBar()
+            h_scroll.setValue(h_scroll.value() - delta.x())
+            v_scroll.setValue(v_scroll.value() - delta.y())
+            
+            # 更新起始位置
+            self.pan_start_pos = event.pos()
+            
+            event.accept()
+            return
+        
+        # 如果正在框选（左键长按拖拽）
+        if self.is_box_selecting and self.box_select_rect and self.box_select_start_pos:
+            # 使用 widget 坐标计算矩形
+            current_pos = event.pos()
+            
+            # 创建 QRect（widget坐标）并规范化
+            from PyQt6.QtCore import QRect
+            widget_rect = QRect(self.box_select_start_pos, current_pos).normalized()
+            
+            # 将 widget 坐标转换为 scene 坐标
+            top_left = self.mapToScene(widget_rect.topLeft())
+            bottom_right = self.mapToScene(widget_rect.bottomRight())
+            scene_rect = QRectF(top_left, bottom_right)
+            
+            self.box_select_rect.setRect(scene_rect)
+            
+            # 清空之前的选中列表，每次移动时重新计算
+            self.box_selected_nodes = []
+            
+            # 检查哪些节点在框选区域内
+            for node_name, node in self.nodes.items():
+                node_rect = node.sceneBoundingRect()
+                if scene_rect.intersects(node_rect):
+                    # 高亮选中的节点
+                    selected_color = QColor(self.node_selected_color)
+                    node.setPen(QPen(selected_color, 3))
+                    self.box_selected_nodes.append(node_name)
+                else:
+                    # 恢复未选中节点的边框
+                    border_color = QColor(self.node_border_color)
+                    node.setPen(QPen(border_color, 2))
+            
+            event.accept()
+            return
+        
+        # 如果正在连线中，更新临时连线的终点跟随鼠标
         if self.is_connecting and self.temp_edge and self.connect_source:
             # 获取鼠标在场景中的位置
             scene_pos = self.mapToScene(event.position().toPoint())
@@ -561,35 +628,128 @@ class NodeCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
     
     def wheelEvent(self, event):
-        """滚轮缩放事件"""
-        # 计算缩放因子
-        factor = 1.15 if event.angleDelta().y() > 0 else 1/1.15
-        
-        # 限制缩放范围
-        current_scale = self.transform().m11()
-        new_scale = current_scale * factor
-        
-        if 0.1 <= new_scale <= 5.0:
-            self.scale(factor, factor)
+        """滚轮事件 - Ctrl+滚轮缩放，单滚轮上下移动"""
+        # 检查是否按下Ctrl键
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            # Ctrl+滚轮：放大缩小
+            factor = 1.15 if event.angleDelta().y() > 0 else 1/1.15
             
-            # 自动保存布局（包含视图状态）
-            if self.parent_window and self.parent_window.current_project_path:
-                self._save_timer.stop()
-                self._save_timer.start(500)
-        
-        event.accept()
+            # 限制缩放范围
+            current_scale = self.transform().m11()
+            new_scale = current_scale * factor
+            
+            if 0.1 <= new_scale <= 5.0:
+                self.scale(factor, factor)
+                
+                # 自动保存布局（包含视图状态）
+                if self.parent_window and self.parent_window.current_project_path:
+                    self._save_timer.stop()
+                    self._save_timer.start(500)
+            
+            event.accept()
+        else:
+            # 单滚轮：上下移动（垂直滚动）
+            scroll_value = event.angleDelta().y()
+            self.verticalScrollBar().setValue(
+                self.verticalScrollBar().value() - scroll_value
+            )
+            event.accept()
     
     def mousePressEvent(self, event):
-        """鼠标按下事件 - 处理空白区域点击"""
+        """鼠标按下事件 - 处理Ctrl+左键平移、左键长按框选"""
         # 获取点击位置的项
         item = self.itemAt(event.position().toPoint())
         
-        # 如果点击的是空白区域（不是节点、连线等），清除选择
-        if item is None or (not isinstance(item, NodeItem) and not isinstance(item, EdgeItem)):
-            self.clear_selection()
+        # Ctrl+左键：根据点击位置决定是多选还是平移
+        if event.button() == Qt.MouseButton.LeftButton and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            # ✅ 关键：检查点击目标
+            # 如果点击的是节点、连线或锚点，不进入平移模式，让NodeItem自己处理Ctrl+Click多选
+            if item is not None and (isinstance(item, NodeItem) or isinstance(item, EdgeItem) or isinstance(item, AnchorItem)):
+                # 不调用 super()，直接返回，让子项处理
+                print(f"🎯 点击了交互项，交给子项处理")
+                return
+            
+            # 点击空白区域，进入平移模式
+            self.is_pan_mode = True
+            # 使用 widget 坐标而不是 scene 坐标
+            self.pan_start_pos = event.position().toPoint()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            
+            # 临时禁用所有节点的移动标志，防止节点被拖动
+            for node in self.nodes.values():
+                node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+            
+            print(f"🖐️ 进入平移模式")
+            event.accept()
+            return
         
-        # 调用父类方法处理其他事件（如拖拽）
+        # 左键：检查是否点击空白区域（准备框选）- 仅在未按Ctrl时
+        if event.button() == Qt.MouseButton.LeftButton and not (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            # 如果点击的是空白区域（不是节点、连线、锚点等），准备框选
+            if item is None or (not isinstance(item, NodeItem) and not isinstance(item, EdgeItem) and not isinstance(item, AnchorItem)):
+                # 先清除之前的框选状态
+                self.clear_box_selection()
+                
+                self.is_box_selecting = True
+                # 使用 widget 坐标存储起始位置
+                self.box_select_start_pos = event.position().toPoint()
+                
+                # 创建框选矩形（初始大小为0）
+                from PyQt6.QtWidgets import QGraphicsRectItem
+                self.box_select_rect = QGraphicsRectItem()
+                self.box_select_rect.setPen(QPen(QColor("#2196F3"), 1.5, Qt.PenStyle.DashLine))
+                self.box_select_rect.setBrush(QColor(33, 150, 243, 30))  # 半透明蓝色
+                self.box_select_rect.setZValue(0)  # 在最底层
+                self.scene.addItem(self.box_select_rect)
+                
+                # 清除当前单选
+                self.clear_selection()
+                
+                print(f"📦 开始框选")
+                event.accept()
+                return
+
+        # 如果点击的是节点或锚点，正常处理（选中、连线等）
+        # 不调用 clear_selection()，让 NodeItem 自己处理
         super().mousePressEvent(event)
+        return
+    
+    def mouseReleaseEvent(self, event):
+        """鼠标释放事件 - 结束平移或框选"""
+        # 结束平移模式
+        if self.is_pan_mode and event.button() == Qt.MouseButton.LeftButton:
+            self.is_pan_mode = False
+            self.pan_start_pos = None
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            
+            # 恢复所有节点的移动标志
+            for node in self.nodes.values():
+                node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+            
+            print("✋ 退出平移模式")
+            event.accept()
+            return
+        
+        # 结束框选模式
+        if self.is_box_selecting and event.button() == Qt.MouseButton.LeftButton:
+            self.is_box_selecting = False
+            
+            # 移除框选矩形
+            if self.box_select_rect:
+                self.scene.removeItem(self.box_select_rect)
+                self.box_select_rect = None
+            
+            self.box_select_start_pos = None
+            
+            if self.box_selected_nodes:
+                print(f"✅ 结束框选，选中 {len(self.box_selected_nodes)} 个节点: {self.box_selected_nodes}")
+            else:
+                print("✅ 结束框选，未选中节点")
+            
+            event.accept()
+            return
+
+        super().mouseReleaseEvent(event)
 
     def add_node_to_canvas(self, node_name):
         """添加节点到画布"""
@@ -646,9 +806,51 @@ class NodeCanvas(QGraphicsView):
         del self.nodes[node_name]
         
     def contextMenuEvent(self, event):
-        """画布右键菜单"""
+        """画布右键菜单 - 上下文感知"""
         # 获取点击位置的项
         item = self.itemAt(event.pos())
+        
+        # 检查是否有选中的节点（框选或Ctrl+单击）
+        has_selected_nodes = len(self.box_selected_nodes) > 0
+        
+        # 如果有选中节点，显示批量操作菜单
+        if has_selected_nodes:
+            menu = QMenu(self)
+            
+            # 显示选中数量
+            count = len(self.box_selected_nodes)
+            menu_title = menu.addAction(f"📦 已选中 {count} 个节点")
+            menu_title.setEnabled(False)  # 禁用标题
+            menu.addSeparator()
+            
+            # 批量启动
+            start_action = menu.addAction(f"▶️ 启动已选节点 ({count})")
+            start_action.triggered.connect(self.batch_start_selected_nodes)
+            
+            # 批量停止
+            stop_action = menu.addAction(f"⏹️ 停止已选节点 ({count})")
+            stop_action.triggered.connect(self.batch_stop_selected_nodes)
+            
+            menu.addSeparator()
+            
+            # 批量从画布移除（不删除文件）
+            remove_action = menu.addAction(f"🗑️ 从画布移除已选节点 ({count})")
+            remove_action.triggered.connect(self.batch_remove_nodes_from_canvas)
+            
+            menu.addSeparator()
+            
+            # 清除连线配置
+            clear_config_action = menu.addAction("🔗 清除已选节点的连线配置")
+            clear_config_action.triggered.connect(self.batch_clear_listen_config)
+            
+            menu.addSeparator()
+            
+            # 清除选择
+            clear_selection_action = menu.addAction("❌ 清除选择")
+            clear_selection_action.triggered.connect(self.clear_box_selection)
+            
+            menu.exec(event.globalPos())
+            return
         
         # 如果点击的是节点，显示节点菜单
         if isinstance(item, NodeItem):
@@ -794,6 +996,189 @@ class NodeCanvas(QGraphicsView):
         print(f"✅ 已从画布删除节点: {node_name}")
         
         # 6. 自动保存布局
+        if self.parent_window and self.parent_window.current_project_path:
+            self._save_timer.stop()
+            self._save_timer.start(500)
+    
+    def batch_start_selected_nodes(self):
+        """批量启动选中的节点"""
+        if not self.box_selected_nodes:
+            return
+        
+        success_count = 0
+        skip_count = 0
+        fail_count = 0
+        
+        for node_name in self.box_selected_nodes[:]:  # 使用副本遍历
+            if not self.parent_window or node_name not in self.parent_window.nodes_data:
+                fail_count += 1
+                continue
+            
+            node_info = self.parent_window.nodes_data[node_name]
+            
+            # 检查是否已在运行
+            if node_info['status'] == 'running':
+                skip_count += 1
+                continue
+            
+            # 启动节点
+            try:
+                self.parent_window.start_selected_node_by_name(node_name)
+                success_count += 1
+            except Exception as e:
+                print(f"❌ 启动节点 {node_name} 失败: {e}")
+                fail_count += 1
+        
+        # 显示结果
+        result_msg = f"批量启动完成\n✅ 成功: {success_count}\n⏭️ 跳过: {skip_count}\n❌ 失败: {fail_count}"
+        QMessageBox.information(self, "批量启动结果", result_msg)
+        
+        # 清除选择状态
+        self.clear_box_selection()
+    
+    def batch_stop_selected_nodes(self):
+        """批量停止选中的节点（仅停止正在运行的）"""
+        if not self.box_selected_nodes:
+            return
+        
+        success_count = 0
+        skip_count = 0
+        fail_count = 0
+        
+        for node_name in self.box_selected_nodes[:]:  # 使用副本遍历
+            if not self.parent_window or node_name not in self.parent_window.nodes_data:
+                fail_count += 1
+                continue
+            
+            node_info = self.parent_window.nodes_data[node_name]
+            
+            # 检查是否在运行
+            if node_info['status'] != 'running':
+                skip_count += 1
+                continue
+            
+            # 停止节点
+            try:
+                self.parent_window.stop_selected_node_by_name(node_name)
+                success_count += 1
+            except Exception as e:
+                print(f"❌ 停止节点 {node_name} 失败: {e}")
+                fail_count += 1
+        
+        # 显示结果
+        result_msg = f"批量停止完成\n✅ 成功: {success_count}\n⏭️ 跳过: {skip_count}\n❌ 失败: {fail_count}"
+        QMessageBox.information(self, "批量停止结果", result_msg)
+        
+        # 清除选择状态
+        self.clear_box_selection()
+    
+    def batch_remove_nodes_from_canvas(self):
+        """批量从画布移除节点（不删除文件）"""
+        if not self.box_selected_nodes:
+            return
+        
+        count = len(self.box_selected_nodes)
+        
+        # 确认对话框，显示前10个节点名称
+        preview_nodes = self.box_selected_nodes[:10]
+        nodes_preview = "\n".join([f"  - {name}" for name in preview_nodes])
+        if count > 10:
+            nodes_preview += f"\n  ... 还有 {count - 10} 个节点"
+        
+        reply = QMessageBox.question(
+            self, "确认从画布移除",
+            f"确定要从画布中移除以下 {count} 个节点吗？\n\n"
+            f"{nodes_preview}\n\n"
+            f"注意：这只会从画布视图中移除节点显示和连线，\n"
+            f"不会删除节点文件或配置文件。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
+        removed_count = 0
+        for node_name in self.box_selected_nodes[:]:  # 使用副本遍历
+            if node_name in self.nodes:
+                # 仅从画布移除，不清理配置
+                node = self.nodes[node_name]
+                self.scene.removeItem(node)
+                del self.nodes[node_name]
+                removed_count += 1
+                print(f"✅ 已从画布移除节点: {node_name}")
+        
+        # 清除所有相关连线
+        edges_to_remove = []
+        for edge in self.edges:
+            source_name = None
+            target_name = None
+            for name, node_item in self.nodes.items():
+                if node_item == edge.start_node:
+                    source_name = name
+                if node_item == edge.end_node:
+                    target_name = name
+            
+            # 如果连线的任一端是被移除的节点，则删除该连线
+            if source_name not in self.nodes or target_name not in self.nodes:
+                edges_to_remove.append(edge)
+        
+        for edge in edges_to_remove:
+            self.remove_edge(edge)
+        
+        print(f"✅ 已从画布移除 {removed_count} 个节点")
+        
+        # 清除选择状态
+        self.clear_box_selection()
+        
+        # 自动保存布局
+        if self.parent_window and self.parent_window.current_project_path:
+            self._save_timer.stop()
+            self._save_timer.start(500)
+    
+    def batch_clear_listen_config(self):
+        """批量清除选中节点的 listen_upper_file 配置及画布连线"""
+        if not self.box_selected_nodes:
+            return
+        
+        cleared_count = 0
+        for node_name in self.box_selected_nodes[:]:
+            if self.parent_window and node_name in self.parent_window.nodes_data:
+                node_info = self.parent_window.nodes_data[node_name]
+                config = node_info['config']
+                
+                if config.get('listen_upper_file'):
+                    config['listen_upper_file'] = ""
+                    
+                    config_path = os.path.join(node_info['path'], "config.json")
+                    try:
+                        with open(config_path, 'w', encoding='utf-8') as f:
+                            json.dump(config, f, indent=2, ensure_ascii=False)
+                        cleared_count += 1
+                        print(f"✅ 已清除节点 {node_name} 的监听配置")
+                    except Exception as e:
+                        print(f"❌ 保存配置失败: {e}")
+        
+        # 清除这些节点的所有输入连线
+        edges_to_remove = []
+        for edge in self.edges:
+            target_name = None
+            for name, node_item in self.nodes.items():
+                if node_item == edge.end_node:
+                    target_name = name
+                    break
+            
+            if target_name in self.box_selected_nodes:
+                edges_to_remove.append(edge)
+        
+        for edge in edges_to_remove:
+            self.remove_edge(edge)
+        
+        QMessageBox.information(self, "清除配置完成", f"已清除 {cleared_count} 个节点的监听配置")
+        
+        # 清除选择状态
+        self.clear_box_selection()
+        
+        # 自动保存布局
         if self.parent_window and self.parent_window.current_project_path:
             self._save_timer.stop()
             self._save_timer.start(500)
@@ -1058,6 +1443,27 @@ class NodeCanvas(QGraphicsView):
         
         print(f"✅ 选中节点: {self.selected_node}")
     
+    def _toggle_node_selection(self, node_name):
+        """切换节点选中状态（用于Ctrl+单击多选）"""
+        if node_name not in self.nodes:
+            return
+        
+        node = self.nodes[node_name]
+        
+        # 检查节点是否已在框选列表中
+        if node_name in self.box_selected_nodes:
+            # 取消选中：从列表中移除，恢复边框颜色
+            self.box_selected_nodes.remove(node_name)
+            border_color = QColor(self.node_border_color)
+            node.setPen(QPen(border_color, 2))
+            print(f"❌ 取消选中节点: {node_name}")
+        else:
+            # 选中：添加到列表，高亮边框
+            self.box_selected_nodes.append(node_name)
+            selected_color = QColor(self.node_selected_color)
+            node.setPen(QPen(selected_color, 3))
+            print(f"✅ 选中节点: {node_name} (共{len(self.box_selected_nodes)}个)")
+    
     def get_selected_node(self):
         """获取当前选中的节点名称"""
         return self.selected_node
@@ -1070,6 +1476,23 @@ class NodeCanvas(QGraphicsView):
             node.setPen(QPen(border_color, 2))
         
         self.selected_node = None
+    
+    def clear_box_selection(self):
+        """清除框选状态"""
+        # 移除框选矩形
+        if self.box_select_rect:
+            self.scene.removeItem(self.box_select_rect)
+            self.box_select_rect = None
+        
+        # 恢复所有节点的边框颜色
+        for node_name, node in self.nodes.items():
+            border_color = QColor(self.node_border_color)
+            node.setPen(QPen(border_color, 2))
+        
+        # 清空选中列表
+        self.box_selected_nodes = []
+        self.is_box_selecting = False
+        self.box_select_start_pos = None
                     
     def start_connection_from_output(self, source_node):
         """从输出锚点开始连线"""

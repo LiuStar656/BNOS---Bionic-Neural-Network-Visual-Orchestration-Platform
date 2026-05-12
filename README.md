@@ -206,7 +206,7 @@ Traditional distributed neuron systems face these challenges:
 | **Node List** | `ui/node_list_panel.py` | Tree view of nodes/groups, context menus, multi-select support |
 | **Property Panel** | `ui/property_panel.py` | Config editor, log viewer, process control dialog |
 | **Group Manager** | `ui/node_group_manager.py` | Node group management, persistence, batch operations |
-| **Node Creator** | `create_node.py` | Multi-language template generator with venv setup |
+| **Node Creator** | `python_create_node.py` | Python node template generator with venv setup |
 
 ---
 
@@ -440,7 +440,7 @@ Toolbar → New Project → Select Folder
 BNOS/
 │
 ├── bnos_gui.py                    # Main entry point
-├── create_node.py                 # Node template generator
+├── python_create_node.py          # Python node template generator
 ├── start_bnos_gui.bat             # Windows launcher
 ├── test_and_start_bnos.bat        # Test + launcher
 │
