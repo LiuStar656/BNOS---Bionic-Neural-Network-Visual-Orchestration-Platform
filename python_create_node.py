@@ -184,7 +184,7 @@ def install_requirements(node_dir):
 
 def create_clean_node_with_empty_venv(node_name):
     base_dir = os.getcwd()
-    node_dir = os.path.join(base_dir, f"node_{node_name}")
+    node_dir = os.path.join(base_dir, f"node_python_{node_name}")
 
     if os.path.exists(node_dir):
         print(f"❌ 节点 {node_dir} 已存在")
@@ -210,7 +210,7 @@ def create_clean_node_with_empty_venv(node_name):
     # config.json
     # ==============================
     config = {
-        "node_name": f"node_{node_name}",
+        "node_name": f"node_python_{node_name}",
         "listen_upper_file": "../data/upper_data.json",
         "output_file": "./output.json",
         "filter": {},
@@ -276,9 +276,9 @@ def check_and_repair_environment():
                 log(f"❌ 清理失败: {e}", "ERROR")
                 return False
         
-        # 调用create_node.py重建
+        # 调用python_create_node.py重建
         software_root = os.path.dirname(NODE_DIR)  # nodes目录的父目录
-        create_node_script = os.path.join(software_root, "..", "create_node.py")
+        create_node_script = os.path.join(software_root, "..", "python_create_node.py")
         
         if os.path.exists(create_node_script):
             log("🔧 开始重建虚拟环境...")
@@ -300,7 +300,7 @@ def check_and_repair_environment():
                 log(f"❌ 重建异常: {e}", "ERROR")
                 return False
         else:
-            log("❌ 找不到create_node.py，无法自动修复", "ERROR")
+            log("❌ 找不到python_create_node.py，无法自动修复", "ERROR")
             log("💡 请手动删除venv文件夹后重新创建节点", "WARNING")
             return False
     
@@ -456,9 +456,9 @@ if not exist "venv\\Scripts\\python.exe" (
     echo 🔧 开始自动修复...
     echo.
     
-    REM 调用create_node.py进行修复
-    if exist "..\\..\\create_node.py" (
-        python ..\\..\\create_node.py --repair-only "%CD%"
+    REM 调用python_create_node.py进行修复
+    if exist "..\\..\\python_create_node.py" (
+        python ..\\..\\python_create_node.py --repair-only "%CD%"
         if errorlevel 1 (
             echo.
             echo ❌ 自动修复失败
@@ -469,48 +469,36 @@ if not exist "venv\\Scripts\\python.exe" (
         echo.
         echo ✅ 虚拟环境重建成功
     ) else (
-        echo ❌ 找不到create_node.py，无法自动修复
+        echo ❌ 找不到python_create_node.py，无法自动修复
         echo 💡 请手动删除venv文件夹后重新创建节点
         pause
         exit /b 1
     )
-) else (
-    echo ✅ 虚拟环境检测通过
 )
 
+REM ==================== 启动节点 ====================
+echo 🔍 检测到虚拟环境正常
 echo.
-REM ==================== 依赖安装检查 ====================
-if exist "requirements.txt" (
-    findstr /R /C:"^[^#]" requirements.txt >nul 2>&1
-    if not errorlevel 1 (
-        echo 📦 检测到依赖项，检查安装状态...
-        venv\\Scripts\\python.exe -c "import pkg_resources; pkg_resources.working_set.require(open('requirements.txt').read().splitlines())" 2>nul
-        if errorlevel 1 (
-            echo 🔧 开始安装依赖...
-            venv\\Scripts\\python.exe -m pip install -r requirements.txt
-            if errorlevel 1 (
-                echo ⚠️ 依赖安装失败，但将继续启动
-            ) else (
-                echo ✅ 依赖安装成功
-            )
-        ) else (
-            echo ✅ 依赖已安装
-        )
-    )
-)
+echo 🔧 启动节点...
+echo.
+
+python listener.py
 
 echo.
-echo ✅ 启动监听程序...
-echo.
-venv\\Scripts\\python.exe listener.py
-echo.
-echo ❌ 程序已退出
+echo ✅ 节点已停止
 pause
 '''
         with open(os.path.join(node_dir, "start.bat"), "w", encoding="utf-8") as f:
-            f.write(start_bat)
+            f.write(start_bat.strip())
+    
     else:
         start_sh = '''#!/bin/bash
+
+echo "======================================"
+echo "       BNOS Node Starter (Linux/Mac)"
+echo "======================================"
+echo ""
+
 cd "$(dirname "$0")"
 
 # ==================== 环境检测与自愈 ====================
@@ -522,19 +510,20 @@ if [ ! -f "venv/bin/python" ]; then
     echo "🔧 开始自动修复..."
     echo ""
     
-    # 调用create_node.py进行修复
-    if [ -f "../../create_node.py" ]; then
-        python ../../create_node.py --repair-only "$(pwd)"
+    # 调用python_create_node.py进行修复
+    if [ -f "../../python_create_node.py" ]; then
+        python3 ../../python_create_node.py --repair-only "$(pwd)"
         if [ $? -ne 0 ]; then
             echo ""
             echo "❌ 自动修复失败"
             echo "💡 请手动删除venv文件夹后重新创建节点"
+            read -p "按回车键退出..."
             exit 1
         fi
         echo ""
         echo "✅ 虚拟环境重建成功"
     else
-        echo "❌ 找不到create_node.py，无法自动修复"
+        echo "❌ 找不到python_create_node.py，无法自动修复"
         echo "💡 请手动删除venv文件夹后重新创建节点"
         exit 1
     fi
@@ -566,43 +555,194 @@ source venv/bin/activate
 python3 listener.py
 '''
         with open(os.path.join(node_dir, "start.sh"), "w", encoding="utf-8") as f:
-            f.write(start_sh)
+            f.write(start_sh.strip())
         os.chmod(os.path.join(node_dir, "start.sh"), 0o755)
 
-    print(f"\n🎉 节点创建完成：{node_dir}")
-    print(f"✅ 独立虚拟环境：venv（可迁移模式）")
-    print(f"✅ 双击启动：start.bat / start.sh")
-    print(f"✅ 100% 环境隔离！")
-    print(f"✅ 支持项目文件夹移动/重命名")
-    print(f"💡 提示：如需迁移，建议删除 venv 后重新创建节点")
 
-# ==============================
-# 运行
-# ==============================
-if __name__ == "__main__":
-    # 支持 --repair-only 模式：仅修复指定节点的venv
-    if len(sys.argv) >= 3 and sys.argv[1] == "--repair-only":
-        node_dir = sys.argv[2]
-        print(f"🔧 开始修复节点: {node_dir}")
+# ==================== 独立运行入口 ====================
+def main():
+    """
+    独立运行模式：交互式创建节点或修复环境
+    
+    用法：
+        python python_create_node.py                                    # 交互模式
+        python python_create_node.py <节点名称>                         # 直接创建
+        python python_create_node.py --repair-only <节点目录路径>       # 仅修复虚拟环境
+    """
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="BNOS Python 节点创建工具",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python python_create_node.py                    # 进入交互模式
+  python python_create_node.py my_node            # 直接创建名为 my_node 的节点
+  python python_create_node.py --repair-only ./node_python_my_node  # 修复指定节点的虚拟环境
+        """
+    )
+    
+    parser.add_argument(
+        'node_name',
+        nargs='?',
+        help='节点名称（将创建 node_python_<节点名称> 目录）'
+    )
+    
+    parser.add_argument(
+        '--repair-only',
+        metavar='NODE_DIR',
+        help='仅修复指定节点目录的虚拟环境（不创建新节点）'
+    )
+    
+    args = parser.parse_args()
+    
+    # 模式1: 仅修复虚拟环境
+    if args.repair_only:
+        node_dir = os.path.abspath(args.repair_only)
         
-        # 检测并修复venv
+        if not os.path.exists(node_dir):
+            print(f"❌ 节点目录不存在: {node_dir}")
+            sys.exit(1)
+        
+        print(f"🔧 开始修复节点: {node_dir}")
         success = auto_repair_venv(node_dir)
+        
         if success:
-            # 安装依赖
+            # 尝试安装依赖
             install_requirements(node_dir)
-            print("✅ 节点修复完成")
+            print("✅ 节点修复完成！")
             sys.exit(0)
         else:
             print("❌ 节点修复失败")
             sys.exit(1)
     
-    # 正常创建节点模式
-    print("==================================")
-    print("    BNOS 干净节点生成器（可迁移venv）")
-    print("==================================")
-    name = input("输入节点名称：").strip()
-    if name:
-        create_clean_node_with_empty_venv(name)
+    # 模式2: 提供了节点名称参数，直接创建
+    elif args.node_name:
+        node_name = args.node_name
+        
+        # 验证节点名称
+        if not node_name or not node_name.strip():
+            print("❌ 节点名称不能为空")
+            sys.exit(1)
+        
+        # 清理节点名称（只允许字母、数字、下划线、连字符）
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', node_name):
+            print("❌ 节点名称只能包含字母、数字、下划线和连字符")
+            sys.exit(1)
+        
+        print(f"🚀 开始创建节点: {node_name}")
+        print("=" * 60)
+        
+        try:
+            create_clean_node_with_empty_venv(node_name)
+            
+            node_dir = os.path.join(os.getcwd(), f"node_python_{node_name}")
+            
+            if os.path.exists(node_dir):
+                print("=" * 60)
+                print(f"✅ 节点创建成功！")
+                print(f"📁 节点目录: {node_dir}")
+                print(f"💡 使用方法:")
+                print(f"   1. 进入节点目录: cd {node_dir}")
+                print(f"   2. 编辑 main.py 实现业务逻辑")
+                print(f"   3. 如需依赖，编辑 requirements.txt")
+                print(f"   4. 双击 start.bat (Windows) 或运行 ./start.sh (Linux/Mac)")
+                print("=" * 60)
+                sys.exit(0)
+            else:
+                print("❌ 节点创建失败")
+                sys.exit(1)
+                
+        except Exception as e:
+            print(f"❌ 节点创建异常: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+    
+    # 模式3: 没有提供参数，进入交互模式
     else:
-        print("❌ 名称不能为空")
-    input("\n按回车退出")
+        print("=" * 60)
+        print("   BNOS Python 节点创建工具 - 交互模式")
+        print("=" * 60)
+        print()
+        
+        while True:
+            try:
+                # 获取用户输入
+                node_name = input("📝 请输入节点名称（输入 'q' 退出）: ").strip()
+                
+                # 检查是否退出
+                if node_name.lower() in ['q', 'quit', 'exit']:
+                    print("👋 再见！")
+                    sys.exit(0)
+                
+                # 验证输入
+                if not node_name:
+                    print("⚠️  节点名称不能为空，请重新输入\n")
+                    continue
+                
+                # 验证节点名称格式
+                import re
+                if not re.match(r'^[a-zA-Z0-9_-]+$', node_name):
+                    print("⚠️  节点名称只能包含字母、数字、下划线和连字符，请重新输入\n")
+                    continue
+                
+                # 检查节点是否已存在
+                node_dir = os.path.join(os.getcwd(), f"node_python_{node_name}")
+                if os.path.exists(node_dir):
+                    confirm = input(f"⚠️  节点 '{node_name}' 已存在，是否覆盖？(y/n): ").strip().lower()
+                    if confirm != 'y':
+                        print("❌ 已取消创建\n")
+                        continue
+                    
+                    # 删除已存在的节点
+                    try:
+                        shutil.rmtree(node_dir)
+                        print(f"✅ 已删除旧节点\n")
+                    except Exception as e:
+                        print(f"❌ 删除失败: {e}\n")
+                        continue
+                
+                # 创建节点
+                print(f"\n🚀 开始创建节点: {node_name}")
+                print("-" * 60)
+                
+                create_clean_node_with_empty_venv(node_name)
+                
+                if os.path.exists(node_dir):
+                    print("-" * 60)
+                    print(f"✅ 节点创建成功！")
+                    print(f"📁 节点目录: {node_dir}")
+                    print(f"💡 下一步:")
+                    print(f"   1. 进入节点目录: cd {node_dir}")
+                    print(f"   2. 编辑 main.py 实现业务逻辑")
+                    print(f"   3. 如需依赖，编辑 requirements.txt")
+                    print(f"   4. 双击 start.bat (Windows) 或运行 ./start.sh (Linux/Mac)")
+                    print("=" * 60)
+                    print()
+                    
+                    # 询问是否继续创建
+                    again = input("是否继续创建其他节点？(y/n): ").strip().lower()
+                    if again != 'y':
+                        print("👋 再见！")
+                        sys.exit(0)
+                    print()
+                else:
+                    print("❌ 节点创建失败\n")
+                    
+            except KeyboardInterrupt:
+                print("\n\n👋 用户中断，再见！")
+                sys.exit(0)
+            except EOFError:
+                print("\n\n👋 输入结束，再见！")
+                sys.exit(0)
+            except Exception as e:
+                print(f"❌ 发生错误: {e}")
+                import traceback
+                traceback.print_exc()
+                print()
+
+
+if __name__ == "__main__":
+    main()
