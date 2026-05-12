@@ -1,7 +1,0 @@
-{
-  "node_name": "9",
-  "listen_upper_file": "../data/upper_data.json",
-  "output_file": "./output.json",
-  "filter": {},
-  "output_type": ""
-}
