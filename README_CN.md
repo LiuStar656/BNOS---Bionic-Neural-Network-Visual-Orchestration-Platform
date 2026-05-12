@@ -46,7 +46,7 @@
 - **用户工作流**：
   ```bash
   # 生成新的 Rust 节点
-  python rust_create_node.py my_processor
+  python tools/rust_create_node.py my_processor
   
   # 进入目录并实现逻辑
   cd node_rust_my_processor
@@ -72,7 +72,7 @@
   - ✅ 修复成功后继续运行，无需人工干预
   
 - **影响文件**：
-  - `rust_create_node.py` - 完整的节点生成器，包含 1083 行模板代码
+  - `tools/rust_create_node.py` - 完整的节点生成器，包含 1083 行模板代码
   - `node_rust_9/` - 展示架构的示例实现
   
 - **技术亮点**：
@@ -277,7 +277,7 @@
 | **节点列表** | `ui/node_list_panel.py` | 节点/分组树形视图，上下文菜单，多选支持 |
 | **属性面板** | `ui/property_panel.py` | 配置编辑器、日志查看器、进程控制对话框 |
 | **分组管理器** | `ui/node_group_manager.py` | 节点分组管理、持久化、批量操作 |
-| **节点创建器** | `python_create_node.py`  | Python 节点模板生成器，自动配置 venv |
+| **节点创建器** | `tools/python_create_node.py`  | Python 节点模板生成器，自动配置 venv |
 
 ---
 
@@ -511,7 +511,9 @@ Ctrl + 单击多选节点 → 右键 → 批量启动/停止
 BNOS/
 │
 ├── bnos_gui.py                    # 主入口
-├── python_create_node.py          # Python 节点模板生成器
+├── tools/                         # 工具文件夹
+│   ├── python_create_node.py     # Python 节点模板生成器
+│   └── rust_create_node.py       # Rust 节点模板生成器
 ├── start_bnos_gui.bat             # Windows 启动脚本
 ├── test_and_start_bnos.bat        # 测试 + 启动脚本
 │

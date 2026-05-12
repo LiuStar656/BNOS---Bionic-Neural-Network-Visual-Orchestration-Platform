@@ -46,7 +46,7 @@
 - **User Workflow**:
   ```bash
   # Generate new Rust node
-  python rust_create_node.py my_processor
+  python tools/rust_create_node.py my_processor
   
   # Enter directory and implement logic
   cd node_rust_my_processor
@@ -72,7 +72,7 @@
   - ✅ Continues operation after successful repair without manual intervention
   
 - **Affected Files**: 
-  - `rust_create_node.py` - Complete node generator with 1083 lines of template code
+  - `tools/rust_create_node.py` - Complete node generator with 1083 lines of template code
   - `node_rust_9/` - Example implementation demonstrating the architecture
   
 - **Technical Highlights**:

@@ -278,7 +278,7 @@ def check_and_repair_environment():
         
         # 调用python_create_node.py重建
         software_root = os.path.dirname(NODE_DIR)  # nodes目录的父目录
-        create_node_script = os.path.join(software_root, "..", "python_create_node.py")
+        create_node_script = os.path.join(software_root, "tools", "python_create_node.py")
         
         if os.path.exists(create_node_script):
             log("🔧 开始重建虚拟环境...")
@@ -457,8 +457,8 @@ if not exist "venv\\Scripts\\python.exe" (
     echo.
     
     REM 调用python_create_node.py进行修复
-    if exist "..\\..\\python_create_node.py" (
-        python ..\\..\\python_create_node.py --repair-only "%CD%"
+    if exist "..\\..\\tools\\python_create_node.py" (
+        python ..\\..\\tools\\python_create_node.py --repair-only "%CD%"
         if errorlevel 1 (
             echo.
             echo ❌ 自动修复失败
@@ -511,8 +511,8 @@ if [ ! -f "venv/bin/python" ]; then
     echo ""
     
     # 调用python_create_node.py进行修复
-    if [ -f "../../python_create_node.py" ]; then
-        python3 ../../python_create_node.py --repair-only "$(pwd)"
+    if [ -f "../../tools/python_create_node.py" ]; then
+        python3 ../../tools/python_create_node.py --repair-only "$(pwd)"
         if [ $? -ne 0 ]; then
             echo ""
             echo "❌ 自动修复失败"
@@ -565,9 +565,9 @@ def main():
     独立运行模式：交互式创建节点或修复环境
     
     用法：
-        python python_create_node.py                                    # 交互模式
-        python python_create_node.py <节点名称>                         # 直接创建
-        python python_create_node.py --repair-only <节点目录路径>       # 仅修复虚拟环境
+        python tools/python_create_node.py                                    # 交互模式
+        python tools/python_create_node.py <节点名称>                         # 直接创建
+        python tools/python_create_node.py --repair-only <节点目录路径>       # 仅修复虚拟环境
     """
     import argparse
     
@@ -576,9 +576,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  python python_create_node.py                    # 进入交互模式
-  python python_create_node.py my_node            # 直接创建名为 my_node 的节点
-  python python_create_node.py --repair-only ./node_python_my_node  # 修复指定节点的虚拟环境
+  python tools/python_create_node.py                    # 进入交互模式
+  python tools/python_create_node.py my_node            # 直接创建名为 my_node 的节点
+  python tools/python_create_node.py --repair-only ./node_python_my_node  # 修复指定节点的虚拟环境
         """
     )
     

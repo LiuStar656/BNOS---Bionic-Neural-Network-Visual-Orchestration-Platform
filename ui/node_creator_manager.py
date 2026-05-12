@@ -67,7 +67,7 @@ class NodeCreatorManager:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         # 注册 Python 节点创建器
-        python_creator_path = os.path.join(base_dir, "python_create_node.py")
+        python_creator_path = os.path.join(base_dir, "tools", "python_create_node.py")
         if os.path.exists(python_creator_path):
             try:
                 spec = importlib.util.spec_from_file_location(
@@ -85,7 +85,7 @@ class NodeCreatorManager:
                 print(f"⚠️ 注册 Python 创建器失败: {e}")
         
         # 注册 Rust 节点创建器
-        rust_creator_path = os.path.join(base_dir, "rust_create_node.py")
+        rust_creator_path = os.path.join(base_dir, "tools", "rust_create_node.py")
         if os.path.exists(rust_creator_path):
             try:
                 spec = importlib.util.spec_from_file_location(
