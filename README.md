@@ -19,7 +19,7 @@
 
 ---
 
-## 🆕 Recent Updates (2026-05-13)
+## 🆕 Recent Updates (2026-05-17)
 
 ### ✨ New Features & Improvements
 
@@ -166,6 +166,50 @@ Traditional distributed neuron systems face these challenges:
 4. **Environment Chaos**: Dependency conflicts across multiple independent runtime environments
 
 **BNOS Solution**: Visual canvas, automatic path configuration, real-time monitoring, and one-click lifecycle management.
+
+### 🔍 BNOS vs Low-Code Platforms
+
+While BNOS may appear similar to low-code platforms at first glance, there are fundamental differences in philosophy, architecture, and use cases:
+
+| Aspect | **BNOS Platform** | **Traditional Low-Code Platforms** |
+|--------|-------------------|------------------------------------|
+| **Core Philosophy** | Code-first with visual orchestration | Visual-first with limited code extension |
+| **Node Implementation** | Full programming language support (Python, Rust, Go, Java, etc.) with complete IDE integration | Pre-built components with restricted customization |
+| **Execution Model** | Each node runs as an independent process with isolated environment | Centralized runtime engine managing all components |
+| **Extensibility** | Unlimited - write any logic in any supported language | Limited to platform-provided plugins or scripts |
+| **Performance** | Native performance per node (compiled languages like Rust achieve 10-100x speedup) | Constrained by platform's interpretation layer |
+| **Dependency Management** | Per-node virtual environments prevent conflicts | Shared dependencies may cause version conflicts |
+| **Debugging** | Standard debugging tools (VSCode, terminal, logs) per node | Platform-specific debuggers with limited capabilities |
+| **Portability** | Nodes are standalone applications, easily migratable | Tightly coupled to platform, difficult to extract |
+| **Learning Curve** | Requires programming knowledge but offers full control | Easier to start but hits ceiling quickly |
+| **Use Cases** | Complex AI agents, distributed systems, research experiments | Simple workflows, business automation, rapid prototyping |
+| **Data Flow** | File-based communication (JSON) with attention mechanism filtering | Proprietary messaging protocols |
+| **Deployment** | Each node can be deployed independently | Must deploy entire platform |
+
+#### Key Advantages of BNOS:
+
+✅ **True Programming Power**: Not limited by visual abstractions - write complex algorithms, integrate any library, implement custom protocols  
+✅ **Language Flexibility**: Mix Python for ML, Rust for performance-critical paths, Go for concurrency - all in one network  
+✅ **Independent Evolution**: Each node evolves independently, no platform upgrade required  
+✅ **Research-Friendly**: Perfect for experimenting with neural architectures, attention mechanisms, emergent behaviors  
+✅ **Production-Ready**: Nodes are standard applications that can run anywhere, not locked into a platform  
+
+#### When to Choose Low-Code:
+
+- Rapid prototyping without coding skills
+- Simple business workflows (approval processes, form handling)
+- Non-technical users need to build automations
+- Standard CRUD operations with predefined connectors
+
+#### When to Choose BNOS:
+
+- Building complex AI agent systems
+- Research on neural networks and emergent behaviors
+- Performance-critical distributed processing
+- Need for full control over implementation details
+- Long-term maintainability and portability requirements
+
+**In Summary**: BNOS is a **visual orchestration layer for real code**, not a replacement for programming. It combines the clarity of visual design with the power of traditional development, making it ideal for sophisticated neural network applications where low-code platforms fall short.
 
 ---
 
@@ -682,7 +726,7 @@ Output: `dist/BNOS.exe` (~100MB+, includes PyQt6)
 
 ## 📄 License
 
-MIT License © 2026 Ahdong&Shouey Team
+MIT License © 2026 阿东与守一工作室
 
 See [LICENSE](LICENSE) for details.
 
@@ -721,10 +765,10 @@ Contributions welcome! Please read our guidelines:
 
 ## 📞 Contact
 
-- **Team**: Ahdong&Shouey Team
+- **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-05-13
+- **Last Updated**: 2026-05-17
 
 ---
 
@@ -732,6 +776,6 @@ Contributions welcome! Please read our guidelines:
 
 **⭐ If BNOS helps you, please give it a Star!**
 
-Made with ❤️ by Ahdong&Shouey Team
+Made with ❤️ by 阿东与守一工作室
 
 </div>
