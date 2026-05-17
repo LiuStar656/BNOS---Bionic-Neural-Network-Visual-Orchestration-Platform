@@ -6,6 +6,7 @@
 
 ![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
 ![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
+![Rust](https://img.shields.io/badge/Rust-Supported-orange?style=for-the-badge&logo=rust)
 ![PyQt6](https://img.shields.io/badge/PyQt6-Latest-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-red?style=for-the-badge)
 
@@ -155,6 +156,8 @@
 ## 📖 Overview
 
 **BNOS (Bionic Neural Network Program Operating System)** is a desktop-based visual orchestration platform built with **PyQt6**, designed for the BNOS Bionic Neural Network Node System. It provides graphical configuration, drag-and-drop neural circuit construction, and real-time monitoring capabilities.
+
+**Multi-Language Support**: The platform supports nodes implemented in **Python, Rust, Node.js, Go, Java, C++, and Ruby**, enabling developers to leverage the strengths of different programming languages within a single neural network architecture. Each node runs in an isolated environment with native performance characteristics.
 
 ### 🎯 Problem Statement
 
