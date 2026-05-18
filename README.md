@@ -214,6 +214,19 @@ While BNOS may appear similar to low-code platforms at first glance, there are f
 
 **In Summary**: BNOS is a **visual orchestration layer for real code**, not a replacement for programming. It combines the clarity of visual design with the power of traditional development, making it ideal for sophisticated neural network applications where low-code platforms fall short.
 
+### 📚 Node Architecture Deep Dive
+
+For developers who want to understand the underlying mechanics of BNOS nodes, including:
+- How nodes communicate via file-based JSON messaging
+- The attention mechanism filtering system
+- Virtual environment isolation strategies
+- Process lifecycle management
+- Configuration schema and data flow patterns
+
+**Visit the detailed node documentation**: [Bionic Neural Network Operating System](https://github.com/LiuStar656/Bionic-Neural-Network-Operating-System)
+
+This companion repository provides comprehensive technical documentation on node internals, best practices for implementation, and advanced usage patterns.
+
 ---
 
 ## ✨ Core Features
