@@ -1197,6 +1197,10 @@ class BNOSMainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """窗口关闭事件，保存所有状态"""
+        print(f"🔍 开始关闭窗口检测...")
+        print(f"   当前项目: {self.current_project_path}")
+        print(f"   节点总数: {len(self.nodes_data)}")
+        
         # 等待节点创建线程完成（如果正在运行）
         if hasattr(self, 'node_creation_worker') and self.node_creation_worker.isRunning():
             print("⏳ 等待节点创建线程完成...")
@@ -1208,8 +1212,14 @@ class BNOSMainWindow(QMainWindow):
         # 检查是否有运行中的节点
         running_nodes = []
         for node_name, node_info in self.nodes_data.items():
-            if node_info['status'] == 'running' and node_info['process']:
+            status = node_info.get('status', 'unknown')
+            process = node_info.get('process', None)
+            print(f"   📌 节点 {node_name}: status={status}, process={'存在' if process else 'None'}")
+            
+            if status == 'running' and process:
                 running_nodes.append(node_name)
+        
+        print(f"   🔴 检测到 {len(running_nodes)} 个运行中的节点: {running_nodes}")
         
         # 如果有运行中的节点，提示用户
         if running_nodes:
@@ -1251,6 +1261,7 @@ class BNOSMainWindow(QMainWindow):
         self.app_config.set("last_project", self.current_project_path)
         self.app_config.save()
         
+        print(f"✅ 窗口关闭流程完成")
         event.accept()
     
     def _force_stop_all_nodes(self, node_names):

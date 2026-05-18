@@ -24,7 +24,52 @@
 
 ### ✨ New Features & Improvements
 
-#### 1. **Node Configuration Dialog - Complete Layout Redesign** 🎨
+#### 1. **Canvas Node Context Menu Enhancement - Start/Stop Nodes** ⚡
+- **Feature**: Added dynamic start/stop node options when right-clicking nodes on canvas, intelligently displaying corresponding operations based on current node status
+- **Design Philosophy**: **Context-Aware Quick Operations**, allowing users to directly control node lifecycle on canvas without switching to list panel or configuration dialog
+- **Core Features**:
+  - **Status-Aware Menu**: Dynamically displays "▶️ Start Node" or "⏹️ Stop Node" based on node running status
+  - **Logic Reuse**: Fully utilizes main window's [start_selected_node_by_name](file://d:\BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform-main\ui\main_window.py#L1010-L1064) and `stop_selected_node_by_name` methods
+  - **Instant Feedback**: Informs users of results through console logs and Toast notifications after operation
+  - **Exception Handling**: Comprehensive error catching and user-friendly prompt messages
+  
+- **Technical Implementation**:
+  - **Menu Refactoring**: Adds conditional judgment to node menu in `NodeCanvas.contextMenuEvent()`
+  - **Status Detection**: Checks `node_info['status'] == 'running'` to decide which option to display
+  - **New Methods**:
+    - `start_single_node(node_name)` - Starts single node, reuses main window startup logic
+    - `stop_single_node(node_name)` - Stops single node, reuses main window stop logic
+  - **Safety Validation**:
+    - Checks if node exists in [nodes_data](file://d:\BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform-main\ui\main_window.py#L0-L0)
+    - Prevents duplicate startup (prompts if already running)
+    - Prevents invalid stop (prompts if not running)
+  
+- **User Experience Improvements**:
+  - ✅ **Convenient Operation**: Right-click on canvas to start/stop nodes, reducing operation steps
+  - ✅ **Clear Visuals**: Menu items with icons and clear text,一目了然
+  - ✅ **Status Sync**: Immediately updates node indicator light color and status text after operation
+  - ✅ **Strong Error Tolerance**: Clear prompts for misoperations, won't cause program crashes
+  - ✅ **High Consistency**: Maintains complete consistency with start/stop functions in node list and configuration dialog
+  
+- **Usage Scenarios**:
+  ```
+  Scenario 1: Quick Node Testing
+  1. Find the node to test on canvas
+  2. Right-click → Select "▶️ Start Node"
+  3. Observe node status light turn green
+  4. Check log output to confirm normal operation
+  
+  Scenario 2: Batch Node Management
+  1. Right-click multiple nodes sequentially
+  2. Start or stop as needed
+  3. Real-time observation of each node's status changes
+  ```
+  
+- **Affected Files**:
+  - `ui/canvas_widget.py` - `NodeCanvas.contextMenuEvent()` method (modified node context menu)
+  - `ui/canvas_widget.py` - Added `start_single_node()` and `stop_single_node()` methods
+
+#### 2. **Node Configuration Dialog - Complete Layout Redesign** 🎨
 - **Feature**: Redesigned node configuration dialog with horizontal rectangular window layout, left side displays complete config.json and output.json editors (editable) in vertical stack, right side shows node information and control buttons
 - **Design Philosophy**: **Intuitive JSON Editing + Quick Operations Separation**, displaying configuration data and output data as plain text to enhance editing flexibility and visualization
 - **Core Features**:

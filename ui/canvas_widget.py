@@ -876,6 +876,22 @@ class NodeCanvas(QGraphicsView):
         if isinstance(item, NodeItem):
             menu = QMenu(self)
             
+            # 获取节点信息
+            node_name = item.node_name
+            if self.parent_window and node_name in self.parent_window.nodes_data:
+                node_info = self.parent_window.nodes_data[node_name]
+                is_running = node_info.get('status') == 'running'
+                
+                # 启动/停止节点（根据状态动态显示）
+                if is_running:
+                    stop_action = menu.addAction("⏹️ 停止节点")
+                    stop_action.triggered.connect(lambda: self.stop_single_node(node_name))
+                else:
+                    start_action = menu.addAction("▶️ 启动节点")
+                    start_action.triggered.connect(lambda: self.start_single_node(node_name))
+                
+                menu.addSeparator()
+            
             # 删除节点
             delete_action = menu.addAction("🗑️ 从画布删除节点")
             delete_action.triggered.connect(lambda: self.remove_node_with_cleanup(item.node_name))
