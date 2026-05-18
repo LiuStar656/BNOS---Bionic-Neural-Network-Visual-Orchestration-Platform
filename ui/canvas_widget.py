@@ -660,15 +660,6 @@ class NodeCanvas(QGraphicsView):
         # 获取点击位置的项
         item = self.itemAt(event.position().toPoint())
         
-        # ✅ 如果正在连线中，检查是否点击了锚点以外的地方
-        if self.is_connecting and event.button() == Qt.MouseButton.LeftButton:
-            # 如果点击的不是锚点，取消连线
-            if not isinstance(item, AnchorItem):
-                self.cancel_connection()
-                print("❌ 取消连线")
-                event.accept()
-                return
-        
         # Ctrl+左键：根据点击位置决定是多选还是平移
         if event.button() == Qt.MouseButton.LeftButton and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
             # ✅ 关键：检查点击目标
@@ -1658,30 +1649,6 @@ class NodeCanvas(QGraphicsView):
             if self.parent_window and self.parent_window.current_project_path:
                 self._save_timer.stop()
                 self._save_timer.start(500)
-
-    def complete_connection_to_input(self, target_node):
-        """完成连线到输入锚点"""
-        if self.connect_source and self.connect_source != target_node:
-            self.create_edge(self.connect_source, target_node)
-        
-        # 清理临时连线
-        if self.temp_edge:
-            self.scene.removeItem(self.temp_edge)
-            self.temp_edge = None
-        
-        self.is_connecting = False
-        self.connect_source = None
-    
-    def cancel_connection(self):
-        """取消连线（点击空白区域时调用）"""
-        # 清理临时连线
-        if self.temp_edge:
-            self.scene.removeItem(self.temp_edge)
-            self.temp_edge = None
-        
-        # 重置连线状态
-        self.is_connecting = False
-        self.connect_source = None
 
     def clear_edges(self):
         """清空所有连线"""
