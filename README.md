@@ -25,7 +25,7 @@
 ### ✨ New Features & Improvements
 
 #### 1. **Node List Drag-and-Drop Movement & Smart Grouping** 🎯
-- **Feature**: Support drag-and-drop movement of nodes to different groups in the node list, automatically create new groups when nodes overlap on canvas, convert nesting operations to group creation, and automatically delete empty groups
+- **Feature**: Support drag-and-drop movement of nodes to different groups in the node list, automatically create new groups when nodes overlap on canvas, convert nesting operations to group creation, automatically delete empty groups, and prevent node stacking on canvas
 - **Design Philosophy**: **Similar to Photoshop layer management**, node groups are parallel relationships without nesting structure. When users appear to create nesting, the system automatically converts it to creating new groups
 - **Core Features**:
   - **Drag-and-Drop Movement**: Directly drag nodes to target groups or root level in the node list
@@ -34,6 +34,7 @@
     - Target node in a group → Directly merge into that group
     - Target node not in a group → Create new group containing all nodes
   - **Empty Group Cleanup**: Automatically delete empty node groups when detected, no user confirmation needed
+  - **Anti-Stacking Restriction**: Strictly prohibit node stacking on canvas, prevent movement if it would overlap with other nodes
   
 - **Drag-and-Drop Implementation** (Fully Autonomous Control):
   - **Enable Dragging**: Enable `DragEnabled`, `InternalMove`, and `AcceptDrops` for `QTreeWidget`
@@ -69,6 +70,16 @@
   - **Random Coloring**: Assign random colors to new groups for visual distinction
   - **Instant Sync**: Immediately refresh node list and canvas display after creation
   - **Debounce Optimization**: Use timer to delay execution by 500ms, wait for user to stop dragging
+  
+- **Anti-Stacking Restriction** (New):
+  - **Pre-check**: Detect if new position would cause stacking during `ItemPositionChange` phase
+  - **Precise Calculation**: Calculate node's scene coordinate rectangle at new position, perform collision detection with other nodes
+  - **Block Movement**: If stacking is detected, return current position and reject position change
+  - **Smart Addition**: When adding nodes from node list to canvas, automatically calculate non-overlapping positions
+    - **Multi-Strategy Candidate Generation**: Prioritize placement around existing nodes, then use grid scanning
+    - **Real-time Collision Detection**: Iterate through all existing nodes to ensure new position won't overlap
+    - **Fallback Solution**: If all candidate positions overlap, automatically place at bottom-right corner
+  - **User Experience**: Nodes cannot overlap with others when dragging, and automatically avoid existing nodes when adding, keeping canvas tidy and organized
   
 - **Empty Group Cleanup Mechanism** (Automated):
   - **Trigger Timing**: Automatically check after each node movement

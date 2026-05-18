@@ -223,104 +223,61 @@ class NodeItem(QGraphicsRectItem):
             self.update_display(status=node_data['status'])
             
     def itemChange(self, change, value):
-        """监听节点位置变化，自动保存布局、更新连线并检测节点重叠"""
-        if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
+        """监听节点位置变化，自动保存布局、更新连线并限制节点堆叠"""
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange:
+            # 在位置改变之前检测是否会导致堆叠
+            new_pos = value
+            if self.canvas and self._would_overlap_with_other_nodes(new_pos):
+                # 如果会导致堆叠，拒绝位置改变，返回当前位置
+                return self.pos()
+        
+        elif change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             # 1. 更新所有相关连线的路径
             if self.canvas:
                 for edge in self.canvas.edges:
                     if edge.start_node == self or edge.end_node == self:
                         edge.update_path()
             
-            # 2. 检测节点重叠，自动生成新组
-            if self.canvas and hasattr(self.canvas, 'parent_window') and self.canvas.parent_window:
-                self._check_node_overlap_and_create_group()
-            
-            # 3. 节点位置改变后，自动保存布局（防抖500ms）
+            # 2. 节点位置改变后，自动保存布局（防抖500ms）
             if self.canvas and hasattr(self.canvas, '_save_timer'):
                 self.canvas._save_timer.stop()
                 self.canvas._save_timer.start(500)
         
         return super().itemChange(change, value)
     
-    def _check_node_overlap_and_create_group(self):
-        """检测节点重叠并自动生成新的节点组
+    def _would_overlap_with_other_nodes(self, new_pos):
+        """检测新位置是否会导致与其他节点堆叠
         
-        当两个节点重叠超过50%时，自动创建一个新的节点组并将它们加入
-        
-        注意：
-        - 使用防抖机制，避免频繁创建组
-        - 只在节点停止移动后才创建组（通过定时器延迟）
+        Args:
+            new_pos: 新的位置（QPointF）
+            
+        Returns:
+            bool: 如果会导致堆叠返回True，否则返回False
         """
         if not self.canvas:
-            return
+            return False
         
-        # 获取当前节点的矩形（scene坐标）
-        current_rect = self.sceneBoundingRect()
+        # 计算在新位置时的节点矩形（scene坐标）
+        current_rect = self.rect()
+        # 将本地矩形转换为scene坐标，使用新位置
+        new_scene_rect = self.mapToScene(current_rect).boundingRect()
+        # 调整到新位置
+        offset = new_pos - self.pos()
+        new_scene_rect.translate(offset)
         
         # 检查与其他节点的重叠情况
-        overlapping_nodes = []
-        
         for node_name, other_node in self.canvas.nodes.items():
             if node_name == self.node_name:
                 continue
             
             other_rect = other_node.sceneBoundingRect()
             
-            # 计算重叠区域
-            intersection = current_rect.intersected(other_rect)
-            
-            if not intersection.isEmpty():
-                # 计算重叠面积比例
-                overlap_area = intersection.width() * intersection.height()
-                min_area = min(current_rect.width() * current_rect.height(), 
-                              other_rect.width() * other_rect.height())
-                
-                # 如果重叠面积超过较小节点面积的50%，认为重叠
-                if min_area > 0 and overlap_area / min_area > 0.5:
-                    overlapping_nodes.append(node_name)
+            # 检测是否有重叠（只要有重叠就认为会堆叠）
+            if new_scene_rect.intersects(other_rect):
+                return True
         
-        # 如果有重叠节点，延迟创建新组（等待用户停止拖拽）
-        if overlapping_nodes:
-            # 使用画布的保存定时器作为防抖机制
-            # 当节点停止移动500ms后，才会真正创建组
-            if self.canvas and hasattr(self.canvas, '_save_timer'):
-                # 将创建组的逻辑绑定到定时器
-                if not hasattr(self.canvas, '_overlap_group_timer'):
-                    from PyQt6.QtCore import QTimer
-                    self.canvas._overlap_group_timer = QTimer()
-                    self.canvas._overlap_group_timer.setSingleShot(True)
-                    self.canvas._overlap_group_timer.timeout.connect(
-                        lambda: self._delayed_create_group(overlapping_nodes.copy())
-                    )
-                
-                # 重启定时器，实现防抖
-                self.canvas._overlap_group_timer.stop()
-                self.canvas._overlap_group_timer.start(500)
-    
-    def _delayed_create_group(self, overlapping_nodes):
-        """延迟创建组（防抖后执行）
-        
-        Args:
-            overlapping_nodes: 与当前节点重叠的节点名称列表
-        """
-        # 再次检查是否仍然重叠（可能用户已经移开）
-        self._create_group_for_overlapping_nodes(overlapping_nodes)
-    
-    def _create_group_for_overlapping_nodes(self, overlapping_nodes):
-        """为重叠的节点创建新的节点组
-        
-        Args:
-            overlapping_nodes: 与当前节点重叠的节点名称列表
-        """
-        if not self.canvas or not self.canvas.parent_window:
-            return
-        
-        # 包含当前节点
-        all_overlapping = [self.node_name] + overlapping_nodes
-        
-        # 检查这些节点是否已经在同一个组中
-        group_manager = self.canvas.parent_window.node_list_panel.group_manager
-        groups = group_manager.get_all_groups()
+        return False
+
         
         # 查找是否已存在包含所有这些节点的组
         existing_group = None
@@ -883,7 +840,7 @@ class NodeCanvas(QGraphicsView):
         super().mouseReleaseEvent(event)
 
     def add_node_to_canvas(self, node_name):
-        """添加节点到画布"""
+        """添加节点到画布（自动计算不重叠的位置）"""
         if node_name in self.nodes:
             QMessageBox.information(self, "提示", "节点已在画布中")
             return
@@ -897,17 +854,8 @@ class NodeCanvas(QGraphicsView):
             language = "Python"
             status = "stopped"
         
-        # 计算新节点位置（避免重叠）
-        if self.nodes:
-            # 找到最右下角的节点位置
-            max_x = max(node.pos().x() for node in self.nodes.values())
-            max_y = max(node.pos().y() for node in self.nodes.values())
-            x = max_x + 50
-            y = max_y + 50
-        else:
-            # 第一个节点放在中心附近
-            x = 200
-            y = 150
+        # 计算新节点位置（确保不与其他节点重叠）
+        x, y = self._find_non_overlapping_position()
         
         # 创建节点
         node = NodeItem(node_name, language, status, x, y, 140, 80, self)
@@ -915,7 +863,98 @@ class NodeCanvas(QGraphicsView):
         self.nodes[node_name] = node  # 添加到nodes字典
         
         print(f"✅ 节点 '{node_name}' 已添加到画布 (位置: {x}, {y})")
+    
+    def _find_non_overlapping_position(self):
+        """找到一个不与现有节点重叠的位置
         
+        Returns:
+            tuple: (x, y) 坐标
+        """
+        if not self.nodes:
+            # 第一个节点放在中心附近
+            return (200, 150)
+        
+        # 定义节点尺寸和间距
+        node_width = 140
+        node_height = 80
+        spacing = 30  # 节点之间的最小间距
+        
+        # 尝试多个候选位置，找到第一个不重叠的位置
+        candidates = self._generate_candidate_positions(node_width, node_height, spacing)
+        
+        for x, y in candidates:
+            if not self._would_overlap_at_position(x, y, node_width, node_height):
+                return (x, y)
+        
+        # 如果所有候选位置都重叠，返回最右下角的位置（保底方案）
+        max_x = max(node.pos().x() for node in self.nodes.values())
+        max_y = max(node.pos().y() for node in self.nodes.values())
+        return (max_x + node_width + spacing, max_y + node_height + spacing)
+    
+    def _generate_candidate_positions(self, node_width, node_height, spacing):
+        """生成候选位置列表（按优先级排序）
+        
+        Args:
+            node_width: 节点宽度
+            node_height: 节点高度
+            spacing: 节点间距
+            
+        Returns:
+            list: [(x, y), ...] 候选位置列表
+        """
+        candidates = []
+        
+        # 策略1：从左上角开始，按网格布局扫描
+        grid_size = max(node_width, node_height) + spacing
+        start_x = 50
+        start_y = 50
+        
+        # 先尝试在现有节点周围放置（更紧凑）
+        for node in self.nodes.values():
+            nx, ny = node.pos().x(), node.pos().y()
+            # 右侧
+            candidates.append((nx + node_width + spacing, ny))
+            # 下方
+            candidates.append((nx, ny + node_height + spacing))
+            # 右下
+            candidates.append((nx + node_width + spacing, ny + node_height + spacing))
+        
+        # 策略2：网格扫描（作为备选）
+        for row in range(20):  # 最多扫描20行
+            for col in range(20):  # 最多扫描20列
+                x = start_x + col * grid_size
+                y = start_y + row * grid_size
+                candidates.append((x, y))
+        
+        return candidates
+    
+    def _would_overlap_at_position(self, x, y, width, height):
+        """检测在指定位置放置节点是否会与其他节点重叠
+        
+        Args:
+            x: 节点x坐标
+            y: 节点y坐标
+            width: 节点宽度
+            height: 节点高度
+            
+        Returns:
+            bool: 如果会重叠返回True
+        """
+        from PyQt6.QtCore import QRectF
+        
+        # 创建新节点的矩形
+        new_rect = QRectF(x, y, width, height)
+        
+        # 检查与所有现有节点的重叠
+        for node in self.nodes.values():
+            existing_rect = node.sceneBoundingRect()
+            
+            # 检测是否有重叠（只要有交集就认为重叠）
+            if new_rect.intersects(existing_rect):
+                return True
+        
+        return False
+    
     def remove_node_from_canvas(self, node_name):
         """从画布移除节点"""
         if node_name not in self.nodes:
