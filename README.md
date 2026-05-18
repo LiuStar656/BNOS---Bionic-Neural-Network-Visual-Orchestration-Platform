@@ -17,14 +17,232 @@
 [Quick Start](#-quick-start) • [Features](#-core-features) • [Documentation](#-documentation) • [Contributing](#-contributing)
 
 </div>
-  
+
 ---
 
 ## 🆕 Recent Updates (2026-05-18)
 
 ### ✨ New Features & Improvements
 
-#### 1. **Window Close Process Detection & Management** 🛑
+#### 1. **Node List Drag-and-Drop Movement & Smart Grouping** 🎯
+- **Feature**: Support drag-and-drop movement of nodes to different groups in the node list, automatically create new groups when nodes overlap on canvas, convert nesting operations to group creation, and automatically delete empty groups
+- **Design Philosophy**: **Similar to Photoshop layer management**, node groups are parallel relationships without nesting structure. When users appear to create nesting, the system automatically converts it to creating new groups
+- **Core Features**:
+  - **Drag-and-Drop Movement**: Directly drag nodes to target groups or root level in the node list
+  - **Smart Grouping**: When two nodes overlap more than 50% on canvas, automatically create a new node group and add them
+  - **Nesting-to-Group Conversion**: When users attempt to drag a node onto another node (nesting), intelligently handle based on target node status:
+    - Target node in a group → Directly merge into that group
+    - Target node not in a group → Create new group containing all nodes
+  - **Empty Group Cleanup**: Automatically delete empty node groups when detected, no user confirmation needed
+  - **Anti-Stacking Restriction**: Strictly prohibit node stacking on canvas, prevent movement if it would overlap with other nodes
+  
+- **Drag-and-Drop Implementation** (Fully Autonomous Control):
+  - **Enable Dragging**: Enable `DragEnabled`, `InternalMove`, and `AcceptDrops` for `QTreeWidget`
+  - **Override dropEvent**: Intercept all drag-and-drop operations, don't rely on `rowsMoved` signal
+  - **Smart Processing**:
+    - Drag to group title: Call `add_nodes_to_group()` to add nodes to target group
+    - Drag to blank area: Remove nodes from original group, become independent nodes
+    - Drag to node within group: Check target node's group membership, merge or create new group
+    - Drag to root-level node: Create new group containing all involved nodes
+  - **Atomic Operations**: Complete all data changes first, then refresh UI once at the end, avoiding intermediate states
+  - **Real-time Feedback**: Refresh list after movement, display Toast notification
+  
+- **Nesting-to-Group Conversion Logic** (Core Innovation):
+  - **Intercept Drop**: Override `dropEvent`, check target type before drop occurs
+  - **Smart Judgment**:
+    ```python
+    if target is node:
+        if target node is in a group:
+            Directly add dragged nodes to that group  # Merge into existing group
+        else:
+            Create new group containing all nodes  # Create parallel group
+    elif target is blank area:
+        Remove nodes from all groups  # Become independent nodes
+    ```
+  - **User Experience**: Users feel like they're creating nesting, but actually get more reasonable parallel group structure
+  - **Debounce Mechanism**: Use timer to delay creation, avoid frequent operations
+  
+- **Auto-Create Group Logic** (Canvas Overlap Detection):
+  - **Overlap Detection**: Monitor position changes in `NodeItem.itemChange()`
+  - **Area Calculation**: Calculate overlap area ratio between two nodes (threshold 50%)
+  - **Deduplication Check**: Check if overlapping nodes are already in the same group to avoid duplicate creation
+  - **Smart Naming**: Automatically generate unique group names (Group_1, Group_2, ...)
+  - **Random Coloring**: Assign random colors to new groups for visual distinction
+  - **Instant Sync**: Immediately refresh node list and canvas display after creation
+  - **Debounce Optimization**: Use timer to delay execution by 500ms, wait for user to stop dragging
+  
+- **Anti-Stacking Restriction** (New):
+  - **Pre-check**: Detect if new position would cause stacking during `ItemPositionChange` phase
+  - **Precise Calculation**: Calculate node's scene coordinate rectangle at new position, perform collision detection with other nodes
+  - **Block Movement**: If stacking is detected, return current position and reject position change
+  - **Smart Addition**: When adding nodes from node list to canvas, automatically calculate non-overlapping positions
+    - **Multi-Strategy Candidate Generation**: Prioritize placement around existing nodes, then use grid scanning
+    - **Real-time Collision Detection**: Iterate through all existing nodes to ensure new position won't overlap
+    - **Fallback Solution**: If all candidate positions overlap, automatically place at bottom-right corner
+  - **User Experience**: Nodes cannot overlap with others when dragging, and automatically avoid existing nodes when adding, keeping canvas tidy and organized
+  
+- **Empty Group Cleanup Mechanism** (Automated):
+  - **Trigger Timing**: Automatically check after each node movement
+  - **Smart Identification**: Iterate through all groups to find empty groups with 0 nodes
+  - **Automatic Deletion**: Immediately delete empty groups when detected, no user confirmation needed
+  - **Unified Refresh**: Execute all data operations first, then refresh list once at the end
+  - **Friendly Notification**: Display number of deleted empty groups via Toast
+  
+- **Technical Implementation**:
+  - New/Modified methods:
+    - `_intercept_drop_event()` - Intercept and intelligently handle all drag-and-drop operations (core method)
+    - `_get_dragged_nodes_from_event()` - Extract node list from drag event
+    - `_create_group_for_dragged_nodes()` - Create new group for dragged nodes
+    - `on_nodes_moved()` - Handle node drag-and-drop movement events (backup, main logic in _intercept_drop_event)
+    - `_move_nodes_to_group()` - Move nodes to specified group (optimized refresh strategy)
+    - `_move_nodes_to_ungrouped()` - Move nodes out of groups (optimized refresh strategy)
+    - `_cleanup_empty_groups(refresh=True)` - Clean up empty node groups (supports refresh control)
+    - `_check_node_overlap_and_create_group()` - Detect node overlap (NodeItem class, added debounce)
+    - `_delayed_create_group()` - Delayed group creation (NodeItem class, debounce execution)
+    - `_create_group_for_overlapping_nodes()` - Create group for overlapping nodes (NodeItem class)
+  - Architecture Optimization:
+    - **Fully Autonomous Control**: Don't rely on Qt's default drag-and-drop behavior, handle all logic ourselves
+    - **Atomic Operations**: Complete all data changes first, then refresh UI once, avoiding intermediate states
+    - **Parameterized Refresh**: `_cleanup_empty_groups()` supports `refresh` parameter, caller decides when to refresh
+    - **Exception Handling**: Wrap drag-and-drop processing logic with try-except to ensure stability
+  - Non-intrusive design: Only add new feature calls in existing methods without modifying original core logic
+  
+- **User Experience Improvements**:
+  - ✅ Intuitive drag-and-drop operation, complete node grouping without right-click menu
+  - ✅ Intelligent nesting conversion, simple user operation, system automatically optimizes data structure
+  - ✅ Automatic empty group cleanup, keep node list tidy and organized, no manual maintenance needed
+  - ✅ Clear visual feedback and operation prompts, every step has log output
+  - ✅ Atomic refresh, avoid interface flickering and intermediate states
+  
+- **Affected Files**:
+  - `ui/node_list_panel.py` - `NodeListPanel` class (drag interception, smart grouping, empty group cleanup)
+  - `ui/canvas_widget.py` - `NodeItem` class (overlap detection, debounce group creation)
+
+#### 2. **Node List Multi-Select Context Menu Optimization** 📋
+- **Feature**: Refactored the multi-select right-click menu logic in the node list panel, all functions synchronously apply to all selected nodes
+- **Design Philosophy**: Follows "Context-Aware Context Menu Design Specification", dynamically displaying different menu content based on selection state
+- **Optimization Solution**:
+  - **Single Selection Mode**: Displays complete operation menu for individual nodes (add to canvas, move to group, start/stop, rename, open folder, view log, edit config, delete, etc.)
+  - **Multi-Selection Mode**: Only displays batch operation menus, all functions automatically apply to all selected nodes
+  
+- **New Batch Functions**:
+  - **Batch Add to Canvas**: Add multiple selected nodes to canvas at once, automatically skip nodes already on canvas
+  - **Batch Move to Group**: Move all selected nodes to specified group
+  - **Batch Remove from Group**: When all selected nodes are in the same group, provide batch removal option
+  - **Batch Start/Stop**: Start or stop all selected nodes simultaneously (existing feature, retained)
+  - **Batch Open Folders**: Open folders of all selected nodes at once
+  - **Batch View Logs**: Merge and display logs of all selected nodes for easy comparison and analysis
+  - **Batch Edit Configs**: Sequentially open configuration dialog for each node
+  - **Batch Delete**: Delete all selected nodes and their files simultaneously (existing feature, enhanced confirmation prompt)
+  
+- **Technical Implementation**:
+  - Refactored `_show_node_context_menu()` method, using conditional branches to distinguish single and multi-selection modes
+  - Added 7 new batch operation methods:
+    - `batch_add_nodes_to_canvas()` - Batch add to canvas
+    - `batch_open_node_folders()` - Batch open folders
+    - `batch_view_node_logs()` - Batch view logs
+    - `batch_edit_node_configs()` - Batch edit configs
+    - `_get_common_group()` - Get common group (helper method)
+    - `batch_remove_nodes_from_group()` - Batch remove from group
+  - Smart detection: Check if selected nodes are in the same group, dynamically display related menu items
+  - User-friendly: All batch operations provide detailed success/failure statistics and Toast notifications
+  
+- **User Experience Improvements**:
+  - ✅ Cleaner menu when multi-selecting, only showing relevant batch operations
+  - ✅ Prevent accidental operations: Won't accidentally execute single-node operations during multi-selection
+  - ✅ Improved efficiency: Handle multiple nodes with one operation
+  - ✅ Clear feedback: Clearly display operation count and results
+  
+- **Affected Files**: `ui/node_list_panel.py` - `NodeListPanel` class
+
+#### 3. **Canvas Box Selection Optimization** 📦
+- **Feature**: Strictly restrict box selection to trigger only on completely blank canvas areas, preventing accidental activation on nodes
+- **Problem Background**: The previous box selection trigger condition was not strict enough, potentially causing unintended box selection mode when clicking on nodes or other interactive items, affecting normal node selection and dragging operations
+- **Optimization Solution**:
+  - **Strict Blank Detection**: Modified the box selection trigger condition in `mousePressEvent` to only allow box selection when `item is None`
+  - **Removed Lenient Conditions**: Deleted the original `or` branch judgment to ensure box selection won't trigger on any QGraphicsItem
+  - **Clear Log Indication**: Added "(blank area)"标识 for easier debugging and user understanding
+  
+- **Technical Implementation**:
+  - Before: `if item is None or (not isinstance(item, NodeItem) and ...)`
+  - After: `if item is None:` (only when completely blank)
+  - If any item is clicked (node, edge, anchor, etc.), directly call `super().mousePressEvent(event)` to let default behavior handle it
+  - Maintains mutual exclusivity with other interaction modes (Ctrl+click multi-select, pan mode)
+  
+- **User Experience Improvements**:
+  - ✅ Clicking nodes normally selects/drags without accidentally entering box selection mode
+  - ✅ Clicking edges or anchors responds normally without triggering box selection
+  - ✅ Box selection rectangle only appears when long-pressing on truly blank canvas areas
+  - ✅ More precise operations, reduced accidental actions
+  
+- **Affected Files**: `ui/canvas_widget.py` - `NodeCanvas.mousePressEvent()` method
+
+#### 4. **Double-Click Node to Open Configuration** ⚙️
+- **Feature**: Double-click nodes on the canvas to directly open the configuration dialog for quick editing
+- **Implementation Details**:
+  - **Double-Click Detection**: Monitors the canvas's `mouseDoubleClickEvent` event
+  - **Target Recognition**: Uses `itemAt()` method to detect if the double-click position is on a node item (NodeItem)
+  - **Configuration Loading**: Automatically retrieves node configuration and path from parent window
+  - **Dialog Display**: Opens the complete [NodeConfigDialog](file://d:\BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform-main\ui\property_panel.py#L17-L490), including:
+    - Basic configuration editing (listen file, output type, etc.)
+    - Filter attention rule management
+    - Output.json content viewing and editing
+    - Node control buttons (start/stop/open folder/command line/VSCode workspace)
+    - Configuration save functionality
+  
+- **Technical Implementation**:
+  - Added new `mouseDoubleClickEvent()` method in `NodeCanvas` class
+  - Precise target detection using `isinstance(item, NodeItem)`
+  - Reuses existing `NodeConfigDialog` component without code duplication
+  - Follows Qt event handling specifications: calls `event.accept()` and `return` after processing
+  - Non-intrusive design: only adds new method without modifying existing code logic
+  
+- **Usage**:
+  ```
+  1. Find the node you want to configure on the canvas
+  2. Double-click the node
+  3. System automatically opens the configuration dialog
+  4. Edit configuration and click "Save Configuration" button
+  5. Configuration takes effect immediately and syncs to memory data
+  ```
+  
+- **Affected Files**: `ui/canvas_widget.py` - `NodeCanvas` class
+- **User Value**: Simplifies configuration editing workflow, no need to use context menu or list panel, improves operational efficiency
+
+#### 5. **Multi-Select Batch Delete in Node List** 🗑️
+- **Feature**: Support batch deletion of nodes after multi-selection using Shift/Ctrl in the node list panel
+- **Implementation Details**:
+  - **Multi-Selection Support**: Hold Shift or Ctrl key to select multiple nodes (existing feature)
+  - **Enhanced Context Menu**: When multiple nodes are selected, right-click menu displays "🗑️ Delete X Selected Nodes" option
+  - **Double Confirmation Mechanism**: Shows confirmation dialog before deletion, listing all nodes to be deleted (up to 10 displayed)
+  - **Complete Cleanup Process**:
+    - Automatically stops running node processes
+    - Deletes node folders and all files
+    - Removes references from node groups
+    - Deletes from memory data
+    - Removes node display from canvas
+  - **Detailed Result Feedback**: Displays success/failure statistics, with failed nodes listed separately
+  - **Toast Notification**: Notifies users via Toast after operation completion
+  
+- **Technical Implementation**:
+  - Added `batch_delete_nodes()` method to handle batch deletion logic
+  - Enhanced `_show_node_context_menu()` with conditional logic to show batch delete option when multiple nodes are selected
+  - Comprehensive exception handling ensures failure of one node doesn't affect others
+  - Follows project specifications: provides clear double confirmation to prevent accidental operations
+  
+- **Usage**:
+  ```
+  1. In the node list panel, hold Shift or Ctrl to select multiple nodes
+  2. Right-click on any selected node
+  3. Select "🗑️ Delete X Selected Nodes"
+  4. Confirm the deletion operation
+  5. System automatically completes cleanup for all nodes
+  ```
+  
+- **Affected Files**: `ui/node_list_panel.py` - `NodeListPanel` class
+- **User Value**: Improves node management efficiency, simplifies batch cleanup operations, reduces risk of accidental deletion
+
+#### 6. **Window Close Process Detection & Management** 🛑
 - **Feature**: Intelligent detection of running nodes when closing the application, with user-friendly confirmation dialog
 - **Functionality**:
   - **Automatic Detection**: Scans all nodes in `nodes_data` to identify those with status 'running' and active process objects
