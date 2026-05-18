@@ -20,6 +20,69 @@
   
 ---
 
+## 🆕 Recent Updates (2026-05-18)
+
+### ✨ New Features & Improvements
+
+#### 1. **Window Close Process Detection & Management** 🛑
+- **Feature**: Intelligent detection of running nodes when closing the application, with user-friendly confirmation dialog
+- **Functionality**:
+  - **Automatic Detection**: Scans all nodes in `nodes_data` to identify those with status 'running' and active process objects
+  - **Smart Notification**: Displays a clear list of running nodes (up to 10 shown, with ellipsis for additional nodes)
+  - **Three-Option Dialog**:
+    - **Yes**: Force stop all running nodes and close the window (default option for safety)
+    - **No**: Allow nodes to continue running in background, but close the window
+    - **Cancel**: Abort the close operation and return to the application
+  - **Cross-Platform Process Termination**:
+    - Windows: Graceful terminate → CTRL_BREAK_EVENT → force kill with timeout protection
+    - Linux/macOS: SIGTERM to process group → SIGKILL if needed
+  - **Robust Error Handling**: Individual node failures don't affect other nodes; all process references cleaned up properly
+  - **UI Synchronization**: Automatically updates node list panel and canvas display after batch operations
+  - **User Feedback**: Toast notifications inform users of the outcome (number of nodes stopped or left running)
+  
+- **Implementation Details**:
+  - Enhanced `BNOSMainWindow.closeEvent()` method with detection logic
+  - New `_force_stop_all_nodes()` helper method for batch process termination
+  - Follows external process management architecture specification
+  - Maintains consistency with existing node lifecycle management
+  
+- **User Workflow**:
+  ```
+  User clicks window close button (X)
+  ↓
+  System detects 3 running nodes: Node_A, Node_B, Node_C
+  ↓
+  Dialog appears: "The following 3 nodes are running... Choose action:"
+  ↓
+  User selects:
+    • Yes → All nodes stopped, window closes
+    • No → Nodes continue in background, window closes
+    • Cancel → Window stays open, user continues working
+  ```
+  
+- **Use Cases**:
+  - ✅ **Prevent Accidental Closure**: Users can cancel if they clicked close by mistake
+  - ✅ **Background Processing**: Allow long-running tasks to continue after closing GUI
+  - ✅ **Safe Shutdown**: Ensure clean termination of all processes before exit
+  - ✅ **Flexibility**: Three options cover all possible user intentions
+  
+- **Technical Highlights**:
+  - Default selection is "Yes" for safety-first approach
+  - Proper resource cleanup prevents zombie processes
+  - Exception handling ensures stability even if some processes fail to stop
+  - Console logging provides detailed operation trace for debugging
+  
+- **Affected Files**: 
+  - `ui/main_window.py` - `BNOSMainWindow.closeEvent()` and new `_force_stop_all_nodes()` methods
+  
+- **Code Quality**:
+  - Follows project specifications for external process management
+  - Cross-platform compatible with OS-specific strategies
+  - Clean separation of concerns (detection vs. termination logic)
+  - Comprehensive error handling and user feedback
+
+---
+
 ## 🆕 Recent Updates (2026-05-17)
 
 ### ✨ New Features & Improvements

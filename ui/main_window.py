@@ -1205,6 +1205,43 @@ class BNOSMainWindow(QMainWindow):
                 print("⚠️ 节点创建线程超时，强制终止")
                 self.node_creation_worker.terminate()
         
+        # 检查是否有运行中的节点
+        running_nodes = []
+        for node_name, node_info in self.nodes_data.items():
+            if node_info['status'] == 'running' and node_info['process']:
+                running_nodes.append(node_name)
+        
+        # 如果有运行中的节点，提示用户
+        if running_nodes:
+            nodes_list = "\n".join([f"• {name}" for name in running_nodes[:10]])  # 最多显示10个
+            if len(running_nodes) > 10:
+                nodes_list += f"\n... 还有 {len(running_nodes) - 10} 个节点"
+            
+            reply = QMessageBox.question(
+                self, 
+                "检测到运行中的节点",
+                f"以下 {len(running_nodes)} 个节点正在运行：\n\n{nodes_list}\n\n请选择操作：\n• 是：强制停止所有节点并关闭\n• 否：节点继续在后台运行，关闭窗口\n• 取消：返回程序，不关闭窗口",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Yes  # 默认选择"是"
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                # 用户选择关闭所有进程
+                print(f"🛑 正在关闭 {len(running_nodes)} 个运行中的节点...")
+                self._force_stop_all_nodes(running_nodes)
+                self.show_toast(f"已关闭 {len(running_nodes)} 个节点", "success")
+                # 继续执行后续的保存和关闭逻辑
+            elif reply == QMessageBox.StandardButton.No:
+                # 用户选择不关闭，让进程继续运行
+                print(f"ℹ️  {len(running_nodes)} 个节点将继续在后台运行")
+                self.show_toast(f"{len(running_nodes)} 个节点将在后台继续运行", "info")
+                # 继续执行后续的保存和关闭逻辑
+            else:
+                # 用户选择取消，中止关闭操作
+                print("❌ 用户取消了关闭操作")
+                event.ignore()  # 忽略关闭事件，保持窗口打开
+                return
+        
         # 保存当前项目布局
         if self.current_project_path:
             self.canvas.save_layout(self.current_project_path)
@@ -1214,16 +1251,64 @@ class BNOSMainWindow(QMainWindow):
         self.app_config.set("last_project", self.current_project_path)
         self.app_config.save()
         
-        # 停止所有运行中的节点
-        for node_name, node_info in self.nodes_data.items():
-            if node_info['status'] == 'running' and node_info['process']:
-                try:
-                    node_info['process'].terminate()
-                    node_info['process'].wait(timeout=3)
-                except:
-                    pass
-        
         event.accept()
+    
+    def _force_stop_all_nodes(self, node_names):
+        """强制停止所有指定节点进程
+        
+        Args:
+            node_names: 需要停止的节点名称列表
+        """
+        import signal
+        
+        for node_name in node_names:
+            if node_name not in self.nodes_data:
+                continue
+            
+            node_info = self.nodes_data[node_name]
+            process = node_info['process']
+            
+            if not process:
+                continue
+            
+            try:
+                if os.name == 'nt':
+                    # Windows: 先尝试优雅终止
+                    process.terminate()
+                    try:
+                        process.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        # 如果超时，强制杀死进程
+                        try:
+                            process.send_signal(signal.CTRL_BREAK_EVENT)
+                            process.wait(timeout=2)
+                        except:
+                            process.kill()
+                            process.wait()
+                else:
+                    # Linux/Mac: 终止整个进程组
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                        process.wait(timeout=3)
+                    except (ProcessLookupError, subprocess.TimeoutExpired):
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                        process.wait()
+                
+                # 清理进程对象
+                node_info['process'] = None
+                node_info['status'] = 'stopped'
+                
+                print(f"✅ 节点 {node_name} 已停止")
+                
+            except Exception as e:
+                print(f"⚠️ 停止节点 {node_name} 时出错: {e}")
+                # 即使出错也清理引用
+                node_info['process'] = None
+                node_info['status'] = 'stopped'
+        
+        # 更新UI状态
+        self.node_list_panel.update_node_list(self.nodes_data)
+        self.canvas.sync_all_nodes_display()
     
     def save_window_state(self):
         """保存窗口状态 - 完整布局持久化"""
