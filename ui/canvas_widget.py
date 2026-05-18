@@ -887,8 +887,8 @@ class NodeCanvas(QGraphicsView):
                 return (x, y)
         
         # 如果所有候选位置都重叠，返回最右下角的位置（保底方案）
-        max_x = max(node.pos().x() for node in self.nodes.values())
-        max_y = max(node.pos().y() for node in self.nodes.values())
+        max_x = max(node.scenePos().x() for node in self.nodes.values())
+        max_y = max(node.scenePos().y() for node in self.nodes.values())
         return (max_x + node_width + spacing, max_y + node_height + spacing)
     
     def _generate_candidate_positions(self, node_width, node_height, spacing):
@@ -900,7 +900,7 @@ class NodeCanvas(QGraphicsView):
             spacing: 节点间距
             
         Returns:
-            list: [(x, y), ...] 候选位置列表
+            list: [(x, y), ...] 候选位置列表（scene坐标）
         """
         candidates = []
         
@@ -911,7 +911,9 @@ class NodeCanvas(QGraphicsView):
         
         # 先尝试在现有节点周围放置（更紧凑）
         for node in self.nodes.values():
-            nx, ny = node.pos().x(), node.pos().y()
+            # 使用scene坐标
+            scene_pos = node.scenePos()
+            nx, ny = scene_pos.x(), scene_pos.y()
             # 右侧
             candidates.append((nx + node_width + spacing, ny))
             # 下方
@@ -942,15 +944,19 @@ class NodeCanvas(QGraphicsView):
         """
         from PyQt6.QtCore import QRectF
         
-        # 创建新节点的矩形
+        # 创建新节点的矩形（使用scene坐标）
         new_rect = QRectF(x, y, width, height)
         
         # 检查与所有现有节点的重叠
         for node in self.nodes.values():
             existing_rect = node.sceneBoundingRect()
             
+            # 增加一个小的边距，确保节点之间有间隙
+            margin = 5
+            expanded_rect = existing_rect.adjusted(-margin, -margin, margin, margin)
+            
             # 检测是否有重叠（只要有交集就认为重叠）
-            if new_rect.intersects(existing_rect):
+            if new_rect.intersects(expanded_rect):
                 return True
         
         return False
