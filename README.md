@@ -17,7 +17,7 @@
 [Quick Start](#-quick-start) • [Features](#-core-features) • [Documentation](#-documentation) • [Contributing](#-contributing)
 
 </div>
-
+  
 ---
 
 ## 🆕 Recent Updates (2026-05-17)
@@ -214,18 +214,21 @@ While BNOS may appear similar to low-code platforms at first glance, there are f
 
 **In Summary**: BNOS is a **visual orchestration layer for real code**, not a replacement for programming. It combines the clarity of visual design with the power of traditional development, making it ideal for sophisticated neural network applications where low-code platforms fall short.
 
-### 📚 Node Architecture Deep Dive
+---
 
-For developers who want to understand the underlying mechanics of BNOS nodes, including:
-- How nodes communicate via file-based JSON messaging
-- The attention mechanism filtering system
-- Virtual environment isolation strategies
-- Process lifecycle management
-- Configuration schema and data flow patterns
+## 🔗 Node Internal Mechanism Documentation
 
-**Visit the detailed node documentation**: [Bionic Neural Network Operating System](https://github.com/LiuStar656/Bionic-Neural-Network-Operating-System)
+For developers who want to understand the detailed technical implementation of BNOS nodes, we provide a comprehensive external documentation repository covering:
 
-This companion repository provides comprehensive technical documentation on node internals, best practices for implementation, and advanced usage patterns.
+- **Node Communication Mechanism**: File-based JSON communication protocol and data flow
+- **Attention Filtering System**: How nodes filter and process incoming data using attention rules
+- **Virtual Environment Isolation**: Per-node environment management and dependency isolation strategies
+- **Process Lifecycle Management**: Node startup, monitoring, shutdown, and error recovery mechanisms
+- **Configuration Structure**: Detailed explanation of config.json fields and their effects
+
+📚 **[View Node Technical Documentation →](https://github.com/LiuStar656/Bionic-Neural-Network-Operating-System)**
+
+This documentation provides deep technical insights beyond what's covered in this README, helping developers understand how nodes work internally and how to create custom implementations.
 
 ---
 

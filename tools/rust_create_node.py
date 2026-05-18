@@ -181,26 +181,13 @@ fn main() {{
     let exe_path = env::current_exe().expect("Failed to get executable path");
     let node_dir = exe_path.parent().expect("Failed to get parent directory");
     
-    // 尝试在多个位置查找配置文件
-    let config_paths = vec![
-        node_dir.join("config.json"),                              // 与可执行文件同目录 (target/release/)
-        node_dir.parent().unwrap_or(node_dir).join("config.json"), // 父目录 (target/)
-        node_dir.parent().and_then(|p| p.parent()).unwrap_or(node_dir).join("config.json"), // 祖父目录 (项目根目录)
-    ];
-    
-    let mut config_str = None;
-    
-    for config_path in &config_paths {{
-        if let Ok(s) = fs::read_to_string(config_path) {{
-            config_str = Some(s);
-            break;
-        }}
-    }}
-    
-    let config_str = config_str.unwrap_or_else(|| {{
-        eprintln!("Failed to read config file from any of the expected locations");
-        std::process::exit(1);
-    }});
+    // 读取配置文件
+    let config_path = node_dir.join("config.json");
+    let config_str = fs::read_to_string(&config_path)
+        .unwrap_or_else(|e| {{
+            eprintln!("Failed to read config file: {{}}", e);
+            std::process::exit(1);
+        }});
     
     let config: serde_json::Value = serde_json::from_str(&config_str)
         .unwrap_or_else(|e| {{
@@ -378,31 +365,18 @@ fn build_project() -> bool {
 
 /// 读取配置文件
 fn read_config() -> serde_json::Value {
-    // 获取当前可执行文件所在目录
-    let exe_path = env::current_exe().expect("Failed to get executable path");
-    let node_dir = exe_path.parent().expect("Failed to get parent directory");
+    let config_path = "config.json";
+    let config_str = fs::read_to_string(config_path)
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to read config file: {}", e);
+            std::process::exit(1);
+        });
     
-    // 尝试在多个位置查找配置文件
-    let config_paths = vec![
-        node_dir.join("config.json"),                              // 与可执行文件同目录 (target/release/)
-        node_dir.parent().unwrap_or(node_dir).join("config.json"), // 父目录 (target/)
-        node_dir.parent().and_then(|p| p.parent()).unwrap_or(node_dir).join("config.json"), // 祖父目录 (项目根目录)
-    ];
-    
-    for config_path in &config_paths {
-        if let Ok(config_str) = fs::read_to_string(config_path) {
-            match serde_json::from_str(&config_str) {
-                Ok(config) => return config,
-                Err(e) => {
-                    eprintln!("Failed to parse config at {:?}: {}", config_path, e);
-                    continue;
-                }
-            }
-        }
-    }
-    
-    eprintln!("Failed to read config file from any of the expected locations");
-    std::process::exit(1);
+    serde_json::from_str(&config_str)
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to parse config: {}", e);
+            std::process::exit(1);
+        })
 }
 
 /// 循环监听并处理数据
@@ -473,21 +447,16 @@ fn listen_loop(config: &serde_json::Value) {
         
         log_message("Processing data...");
         
-        // 调用主程序处理 - 使用完整路径
+        // 调用主程序处理
         let exe_name = if cfg!(target_os = "windows") {
             format!("{}.exe", env!("CARGO_PKG_NAME"))
         } else {
             env!("CARGO_PKG_NAME").to_string()
         };
         
-        // 获取当前可执行文件所在目录，以便找到主处理程序
-        let current_exe = env::current_exe().expect("Failed to get executable path");
-        let node_dir = current_exe.parent().expect("Failed to get parent directory");
-        let main_exe_path = node_dir.join(&exe_name);
-        
         let input_json = serde_json::to_string(&data).unwrap_or_else(|_| "{}".to_string());
         
-        let output = Command::new(&main_exe_path)
+        let output = Command::new(&exe_name)
             .arg(&input_json)
             .output();
         
@@ -618,9 +587,8 @@ def create_config_json(node_name: str) -> str:
 
 
 def create_start_bat(node_name: str) -> str:
-    """生成 start.bat 文件内容（增强版 - 双文件检测）"""
+    """生成 start.bat 文件内容（增强版）"""
     return f'''@echo off
-setlocal enabledelayedexpansion
 cls
 chcp 65001 >nul
 echo ======================================
@@ -632,19 +600,8 @@ cd /d "%%~dp0"
 REM ==================== 环境检测与自愈 ====================
 echo 🔍 检测 Rust 环境和编译产物...
 
-set NEED_BUILD=0
-
 if not exist "target\\release\\{node_name}.exe" (
-    echo ⚠️ 检测到 {node_name}.exe 缺失
-    set NEED_BUILD=1
-)
-
-if not exist "target\\release\\{node_name}_listener.exe" (
-    echo ⚠️ 检测到 {node_name}_listener.exe 缺失
-    set NEED_BUILD=1
-)
-
-if "!NEED_BUILD!"=="1" (
+    echo ⚠️ 检测到编译产物缺失
     echo.
     echo 🔧 开始自动构建...
     echo.
@@ -654,7 +611,7 @@ if "!NEED_BUILD!"=="1" (
     if errorlevel 1 (
         echo ❌ Rust 未安装
         echo 💡 请先安装 Rust: https://rustup.rs/
-        if not "%%1"=="--no-pause" pause
+        pause
         exit /b 1
     )
     
@@ -663,7 +620,7 @@ if "!NEED_BUILD!"=="1" (
     if errorlevel 1 (
         echo.
         echo ❌ 构建失败
-        if not "%%1"=="--no-pause" pause
+        pause
         exit /b 1
     )
     echo.
@@ -678,12 +635,12 @@ echo.
 target\\release\\{node_name}_listener.exe
 echo.
 echo ❌ 程序已退出
-if not "%%1"=="--no-pause" pause
+pause
 '''
 
 
 def create_start_sh(node_name: str) -> str:
-    """生成 start.sh 文件内容（增强版 - 双文件检测）"""
+    """生成 start.sh 文件内容（增强版）"""
     return f'''#!/bin/bash
 
 cd "$(dirname "$0")"
@@ -696,19 +653,8 @@ echo ""
 # ==================== 环境检测与自愈 ====================
 echo "🔍 检测 Rust 环境和编译产物..."
 
-NEED_BUILD=0
-
 if [ ! -f "target/release/{node_name}" ]; then
-    echo "⚠️ 检测到 {node_name} 缺失"
-    NEED_BUILD=1
-fi
-
-if [ ! -f "target/release/{node_name}_listener" ]; then
-    echo "⚠️ 检测到 {node_name}_listener 缺失"
-    NEED_BUILD=1
-fi
-
-if [ "$NEED_BUILD" -eq 1 ]; then
+    echo "⚠️ 检测到编译产物缺失"
     echo ""
     echo "🔧 开始自动构建..."
     echo ""
@@ -717,9 +663,6 @@ if [ "$NEED_BUILD" -eq 1 ]; then
     if ! command -v rustc &> /dev/null; then
         echo "❌ Rust 未安装"
         echo "💡 请先安装 Rust: https://rustup.rs/"
-        if [ "$1" != "--no-pause" ]; then
-            read -p "按回车键退出..."
-        fi
         exit 1
     fi
     
@@ -728,9 +671,6 @@ if [ "$NEED_BUILD" -eq 1 ]; then
     if [ $? -ne 0 ]; then
         echo ""
         echo "❌ 构建失败"
-        if [ "$1" != "--no-pause" ]; then
-            read -p "按回车键退出..."
-        fi
         exit 1
     fi
     echo ""
@@ -743,11 +683,6 @@ echo ""
 echo "✅ 启动监听程序..."
 echo ""
 ./target/release/{node_name}_listener
-echo ""
-echo "❌ 程序已退出"
-if [ "$1" != "--no-pause" ]; then
-    read -p "按回车键退出..."
-fi
 '''
 
 
@@ -1039,12 +974,6 @@ def generate_node(node_name: str, output_dir: str = None):
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
         print(f"  [OK] 创建文件: {filename}")
-    
-    # 创建空的 output.json 文件（与 Python 节点保持一致）
-    output_json_path = os.path.join(output_dir, "output.json")
-    with open(output_json_path, 'w', encoding='utf-8') as f:
-        f.write('{"code":0,"data":null}')
-    print(f"  [OK] 创建文件: output.json")
     
     # 为 start.sh 添加执行权限（在非 Windows 系统上）
     if sys.platform != 'win32':

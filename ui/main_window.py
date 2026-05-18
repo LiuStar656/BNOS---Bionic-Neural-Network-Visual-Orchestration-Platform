@@ -962,35 +962,40 @@ class BNOSMainWindow(QMainWindow):
             self.show_toast(f"节点 {selected_node} 已在运行中", "info")
             return
         
-        # 启动节点进程 - 使用节点文件夹内的启动脚本
+        # 启动节点进程 - 直接执行Python命令而非批处理脚本
         node_path = node_info['path']
         
-        # 确定启动脚本路径
+        # 确定虚拟环境的Python解释器路径
         if os.name == 'nt':  # Windows
-            start_script = os.path.join(node_path, "start.bat")
+            python_exe = os.path.join(node_path, "venv", "Scripts", "python.exe")
         else:  # Linux/Mac
-            start_script = os.path.join(node_path, "start.sh")
+            python_exe = os.path.join(node_path, "venv", "bin", "python")
         
-        if not os.path.exists(start_script):
-            QMessageBox.critical(self, "错误", f"启动脚本不存在: {start_script}")
+        listener_script = os.path.join(node_path, "listener.py")
+        
+        if not os.path.exists(python_exe):
+            QMessageBox.critical(self, "错误", f"虚拟环境不存在: {python_exe}")
+            return
+        
+        if not os.path.exists(listener_script):
+            QMessageBox.critical(self, "错误", f"监听脚本不存在: {listener_script}")
             return
         
         try:
-            # 启动进程 - 使用启动脚本
+            # 启动进程 - 直接运行Python，不使用shell
             if os.name == 'nt':
-                # Windows: 使用 cmd /c 执行 bat 文件，传入 --no-pause 参数避免pause
+                # Windows: 创建新的进程组以便后续可以终止整个进程树
                 process = subprocess.Popen(
-                    [start_script, "--no-pause"],
+                    [python_exe, listener_script],
                     cwd=node_path,
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
             else:
-                # Linux/Mac: 赋予执行权限并执行 shell 脚本，传入 --no-pause 参数
-                os.chmod(start_script, 0o755)
+                # Linux/Mac: 使用进程组
                 process = subprocess.Popen(
-                    ["/bin/bash", start_script, "--no-pause"],
+                    [python_exe, listener_script],
                     cwd=node_path,
                     start_new_session=True,
                     stdout=subprocess.PIPE,
@@ -1018,35 +1023,40 @@ class BNOSMainWindow(QMainWindow):
             self.show_toast("节点已在运行中", "info")
             return
         
-        # 启动节点进程 - 使用节点文件夹内的启动脚本
+        # 启动节点进程 - 直接执行Python命令而非批处理脚本
         node_path = node_info['path']
         
-        # 确定启动脚本路径
+        # 确定虚拟环境的Python解释器路径
         if os.name == 'nt':  # Windows
-            start_script = os.path.join(node_path, "start.bat")
+            python_exe = os.path.join(node_path, "venv", "Scripts", "python.exe")
         else:  # Linux/Mac
-            start_script = os.path.join(node_path, "start.sh")
+            python_exe = os.path.join(node_path, "venv", "bin", "python")
         
-        if not os.path.exists(start_script):
-            QMessageBox.critical(self, "错误", f"启动脚本不存在: {start_script}")
+        listener_script = os.path.join(node_path, "listener.py")
+        
+        if not os.path.exists(python_exe):
+            QMessageBox.critical(self, "错误", f"虚拟环境不存在: {python_exe}")
+            return
+        
+        if not os.path.exists(listener_script):
+            QMessageBox.critical(self, "错误", f"监听脚本不存在: {listener_script}")
             return
         
         try:
-            # 启动进程 - 使用启动脚本
+            # 启动进程 - 直接运行Python，不使用shell
             if os.name == 'nt':
-                # Windows: 直接执行 bat 文件，传入 --no-pause 参数避免pause
+                # Windows: 创建新的进程组以便后续可以终止整个进程树
                 process = subprocess.Popen(
-                    [start_script, "--no-pause"],
+                    [python_exe, listener_script],
                     cwd=node_path,
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
             else:
-                # Linux/Mac: 赋予执行权限并执行 shell 脚本，传入 --no-pause 参数
-                os.chmod(start_script, 0o755)
+                # Linux/Mac: 使用进程组
                 process = subprocess.Popen(
-                    ["/bin/bash", start_script, "--no-pause"],
+                    [python_exe, listener_script],
                     cwd=node_path,
                     start_new_session=True,
                     stdout=subprocess.PIPE,
@@ -1132,7 +1142,7 @@ class BNOSMainWindow(QMainWindow):
         self.show_toast(f"节点 {selected_node} 已停止", "success")
     
     def stop_selected_node_by_name(self, node_name):
-        """按名称停止节点 - 强制关闭进程（供对话框调用）"""
+        """按名称停止节点（供对话框调用）"""
         if node_name not in self.nodes_data:
             return
         
@@ -1141,25 +1151,40 @@ class BNOSMainWindow(QMainWindow):
             self.show_toast("节点未在运行", "info")
             return
         
-        # ✅ 强制杀死进程
+        # 停止进程
         process = node_info['process']
         if process:
             try:
-                if process.poll() is None:  # 进程仍在运行
+                if os.name == 'nt':
+                    # Windows: 先尝试优雅终止
+                    process.terminate()
                     try:
-                        # 直接强制终止进程
-                        process.kill()
-                        process.wait(timeout=3)
-                    except Exception as e:
-                        print(f"强制终止进程时出错: {e}")
-                        # 如果 kill 失败，尝试 terminate
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        # 如果超时，强制杀死进程及其子进程
+                        import signal
+                        process.send_signal(signal.CTRL_BREAK_EVENT)
                         try:
-                            process.terminate()
                             process.wait(timeout=3)
-                        except:
-                            pass
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.wait()
+                else:
+                    # Linux/Mac: 终止整个进程组
+                    import signal
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                        process.wait(timeout=5)
+                    except (ProcessLookupError, subprocess.TimeoutExpired):
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                        process.wait()
             except Exception as e:
                 print(f"停止节点时出错: {e}")
+                try:
+                    process.kill()
+                    process.wait()
+                except:
+                    pass
         
         node_info['process'] = None
         node_info['status'] = 'stopped'
@@ -1168,7 +1193,7 @@ class BNOSMainWindow(QMainWindow):
         self.node_list_panel.update_node_status(node_name, 'stopped')
         self.canvas.update_node_status(node_name, 'stopped')
         
-        self.show_toast(f"节点 {node_name} 已强制停止", "success")
+        self.show_toast(f"节点 {node_name} 已停止", "success")
 
     def clear_connections(self):
         """清空所有连线"""
