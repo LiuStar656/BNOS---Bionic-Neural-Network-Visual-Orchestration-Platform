@@ -223,7 +223,7 @@ class NodeItem(QGraphicsRectItem):
             self.update_display(status=node_data['status'])
             
     def itemChange(self, change, value):
-        """监听节点位置变化，自动保存布局并更新连线"""
+        """监听节点位置变化，自动保存布局、更新连线并检测节点重叠"""
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             # 1. 更新所有相关连线的路径
             if self.canvas:
@@ -231,12 +231,139 @@ class NodeItem(QGraphicsRectItem):
                     if edge.start_node == self or edge.end_node == self:
                         edge.update_path()
             
-            # 2. 节点位置改变后，自动保存布局（防抖500ms）
+            # 2. 检测节点重叠，自动生成新组
+            if self.canvas and hasattr(self.canvas, 'parent_window') and self.canvas.parent_window:
+                self._check_node_overlap_and_create_group()
+            
+            # 3. 节点位置改变后，自动保存布局（防抖500ms）
             if self.canvas and hasattr(self.canvas, '_save_timer'):
                 self.canvas._save_timer.stop()
                 self.canvas._save_timer.start(500)
         
         return super().itemChange(change, value)
+    
+    def _check_node_overlap_and_create_group(self):
+        """检测节点重叠并自动生成新的节点组
+        
+        当两个节点重叠超过50%时，自动创建一个新的节点组并将它们加入
+        
+        注意：
+        - 使用防抖机制，避免频繁创建组
+        - 只在节点停止移动后才创建组（通过定时器延迟）
+        """
+        if not self.canvas:
+            return
+        
+        # 获取当前节点的矩形（scene坐标）
+        current_rect = self.sceneBoundingRect()
+        
+        # 检查与其他节点的重叠情况
+        overlapping_nodes = []
+        
+        for node_name, other_node in self.canvas.nodes.items():
+            if node_name == self.node_name:
+                continue
+            
+            other_rect = other_node.sceneBoundingRect()
+            
+            # 计算重叠区域
+            intersection = current_rect.intersected(other_rect)
+            
+            if not intersection.isEmpty():
+                # 计算重叠面积比例
+                overlap_area = intersection.width() * intersection.height()
+                min_area = min(current_rect.width() * current_rect.height(), 
+                              other_rect.width() * other_rect.height())
+                
+                # 如果重叠面积超过较小节点面积的50%，认为重叠
+                if min_area > 0 and overlap_area / min_area > 0.5:
+                    overlapping_nodes.append(node_name)
+        
+        # 如果有重叠节点，延迟创建新组（等待用户停止拖拽）
+        if overlapping_nodes:
+            # 使用画布的保存定时器作为防抖机制
+            # 当节点停止移动500ms后，才会真正创建组
+            if self.canvas and hasattr(self.canvas, '_save_timer'):
+                # 将创建组的逻辑绑定到定时器
+                if not hasattr(self.canvas, '_overlap_group_timer'):
+                    from PyQt6.QtCore import QTimer
+                    self.canvas._overlap_group_timer = QTimer()
+                    self.canvas._overlap_group_timer.setSingleShot(True)
+                    self.canvas._overlap_group_timer.timeout.connect(
+                        lambda: self._delayed_create_group(overlapping_nodes.copy())
+                    )
+                
+                # 重启定时器，实现防抖
+                self.canvas._overlap_group_timer.stop()
+                self.canvas._overlap_group_timer.start(500)
+    
+    def _delayed_create_group(self, overlapping_nodes):
+        """延迟创建组（防抖后执行）
+        
+        Args:
+            overlapping_nodes: 与当前节点重叠的节点名称列表
+        """
+        # 再次检查是否仍然重叠（可能用户已经移开）
+        self._create_group_for_overlapping_nodes(overlapping_nodes)
+    
+    def _create_group_for_overlapping_nodes(self, overlapping_nodes):
+        """为重叠的节点创建新的节点组
+        
+        Args:
+            overlapping_nodes: 与当前节点重叠的节点名称列表
+        """
+        if not self.canvas or not self.canvas.parent_window:
+            return
+        
+        # 包含当前节点
+        all_overlapping = [self.node_name] + overlapping_nodes
+        
+        # 检查这些节点是否已经在同一个组中
+        group_manager = self.canvas.parent_window.node_list_panel.group_manager
+        groups = group_manager.get_all_groups()
+        
+        # 查找是否已存在包含所有这些节点的组
+        existing_group = None
+        for group_name, group_info in groups.items():
+            if all(node in group_info['nodes'] for node in all_overlapping):
+                existing_group = group_name
+                break
+        
+        if existing_group:
+            # 已经在同一组中，不需要操作
+            return
+        
+        # 生成新组名
+        base_name = f"Group_{len(groups) + 1}"
+        new_group_name = base_name
+        counter = 1
+        while new_group_name in groups:
+            new_group_name = f"{base_name}_{counter}"
+
+            counter += 1
+        
+        # 创建新组
+        import random
+        color = f"#{random.randint(0x400000, 0xFFFFFF):06X}"  # 随机颜色
+        group_manager.create_group(new_group_name, color)
+        
+        # 将所有重叠节点添加到新组
+        group_manager.add_nodes_to_group(new_group_name, all_overlapping)
+        
+        # 刷新节点列表
+        if hasattr(self.canvas.parent_window, 'node_list_panel'):
+            self.canvas.parent_window.node_list_panel.update_node_list(
+                self.canvas.parent_window.nodes_data
+            )
+        
+        # 显示提示
+        if self.canvas.parent_window:
+            self.canvas.parent_window.show_toast(
+                f"检测到节点重叠，已自动创建组 '{new_group_name}'", 
+                "success"
+            )
+        
+        print(f"✅ 自动创建节点组: {new_group_name} (包含 {len(all_overlapping)} 个节点)")
         
     def mousePressEvent(self, event):
         """鼠标按下事件"""
