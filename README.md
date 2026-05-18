@@ -24,7 +24,61 @@
 
 ### ✨ New Features & Improvements
 
-#### 1. **Multi-Select Batch Delete in Node List** 🗑️
+#### 1. **Canvas Box Selection Optimization** 📦
+- **Feature**: Strictly restrict box selection to trigger only on completely blank canvas areas, preventing accidental activation on nodes
+- **Problem Background**: The previous box selection trigger condition was not strict enough, potentially causing unintended box selection mode when clicking on nodes or other interactive items, affecting normal node selection and dragging operations
+- **Optimization Solution**:
+  - **Strict Blank Detection**: Modified the box selection trigger condition in `mousePressEvent` to only allow box selection when `item is None`
+  - **Removed Lenient Conditions**: Deleted the original `or` branch judgment to ensure box selection won't trigger on any QGraphicsItem
+  - **Clear Log Indication**: Added "(blank area)"标识 for easier debugging and user understanding
+  
+- **Technical Implementation**:
+  - Before: `if item is None or (not isinstance(item, NodeItem) and ...)`
+  - After: `if item is None:` (only when completely blank)
+  - If any item is clicked (node, edge, anchor, etc.), directly call `super().mousePressEvent(event)` to let default behavior handle it
+  - Maintains mutual exclusivity with other interaction modes (Ctrl+click multi-select, pan mode)
+  
+- **User Experience Improvements**:
+  - ✅ Clicking nodes normally selects/drags without accidentally entering box selection mode
+  - ✅ Clicking edges or anchors responds normally without triggering box selection
+  - ✅ Box selection rectangle only appears when long-pressing on truly blank canvas areas
+  - ✅ More precise operations, reduced accidental actions
+  
+- **Affected Files**: `ui/canvas_widget.py` - `NodeCanvas.mousePressEvent()` method
+
+#### 2. **Double-Click Node to Open Configuration** ⚙️
+- **Feature**: Double-click nodes on the canvas to directly open the configuration dialog for quick editing
+- **Implementation Details**:
+  - **Double-Click Detection**: Monitors the canvas's `mouseDoubleClickEvent` event
+  - **Target Recognition**: Uses `itemAt()` method to detect if the double-click position is on a node item (NodeItem)
+  - **Configuration Loading**: Automatically retrieves node configuration and path from parent window
+  - **Dialog Display**: Opens the complete [NodeConfigDialog](file://d:\BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform-main\ui\property_panel.py#L17-L490), including:
+    - Basic configuration editing (listen file, output type, etc.)
+    - Filter attention rule management
+    - Output.json content viewing and editing
+    - Node control buttons (start/stop/open folder/command line/VSCode workspace)
+    - Configuration save functionality
+  
+- **Technical Implementation**:
+  - Added new `mouseDoubleClickEvent()` method in `NodeCanvas` class
+  - Precise target detection using `isinstance(item, NodeItem)`
+  - Reuses existing `NodeConfigDialog` component without code duplication
+  - Follows Qt event handling specifications: calls `event.accept()` and `return` after processing
+  - Non-intrusive design: only adds new method without modifying existing code logic
+  
+- **Usage**:
+  ```
+  1. Find the node you want to configure on the canvas
+  2. Double-click the node
+  3. System automatically opens the configuration dialog
+  4. Edit configuration and click "Save Configuration" button
+  5. Configuration takes effect immediately and syncs to memory data
+  ```
+  
+- **Affected Files**: `ui/canvas_widget.py` - `NodeCanvas` class
+- **User Value**: Simplifies configuration editing workflow, no need to use context menu or list panel, improves operational efficiency
+
+#### 2. **Multi-Select Batch Delete in Node List** 🗑️
 - **Feature**: Support batch deletion of nodes after multi-selection using Shift/Ctrl in the node list panel
 - **Implementation Details**:
   - **Multi-Selection Support**: Hold Shift or Ctrl key to select multiple nodes (existing feature)

@@ -685,8 +685,9 @@ class NodeCanvas(QGraphicsView):
         
         # 左键：检查是否点击空白区域（准备框选）- 仅在未按Ctrl时
         if event.button() == Qt.MouseButton.LeftButton and not (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
-            # 如果点击的是空白区域（不是节点、连线、锚点等），准备框选
-            if item is None or (not isinstance(item, NodeItem) and not isinstance(item, EdgeItem) and not isinstance(item, AnchorItem)):
+            # ✅ 严格限制：只有在完全空白的画布区域才能开始框选
+            # item is None 表示点击位置没有任何 QGraphicsItem
+            if item is None:
                 # 先清除之前的框选状态
                 self.clear_box_selection()
                 
@@ -705,9 +706,12 @@ class NodeCanvas(QGraphicsView):
                 # 清除当前单选
                 self.clear_selection()
                 
-                print(f"📦 开始框选")
+                print(f"📦 开始框选（空白区域）")
                 event.accept()
                 return
+            
+            # 如果点击了任何项（节点、连线、锚点等），不进入框选模式
+            # 让默认行为处理（选中节点、拖拽等）
 
         # 如果点击的是节点或锚点，正常处理（选中、连线等）
         # 不调用 clear_selection()，让 NodeItem 自己处理
@@ -1199,6 +1203,34 @@ class NodeCanvas(QGraphicsView):
         self.resetTransform()
         self.centerOn(0, 0)
         print("✅ 视图已重置")
+    
+    def mouseDoubleClickEvent(self, event):
+        """鼠标双击事件 - 双击节点打开配置对话框"""
+        # 获取点击位置的项
+        item = self.itemAt(event.position().toPoint())
+        
+        # 如果双击的是节点，打开配置对话框
+        if isinstance(item, NodeItem):
+            node_name = item.node_name
+            
+            # 检查节点数据是否存在
+            if self.parent_window and node_name in self.parent_window.nodes_data:
+                node_info = self.parent_window.nodes_data[node_name]
+                config = node_info.get('config', {})
+                node_path = node_info.get('path', '')
+                
+                # 打开配置对话框
+                from ui.property_panel import NodeConfigDialog
+                dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
+                dialog.exec()
+            else:
+                QMessageBox.warning(self, "警告", f"节点 '{node_name}' 的配置信息不存在")
+            
+            event.accept()
+            return
+        
+        # 其他区域的双击，使用默认处理
+        super().mouseDoubleClickEvent(event)
     
     # ===== 颜色设置方法 =====
     
