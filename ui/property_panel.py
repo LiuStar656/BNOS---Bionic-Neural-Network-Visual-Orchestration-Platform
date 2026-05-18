@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout, QLineEdit, 
     QPushButton, QTextEdit, QGroupBox, QScrollArea, QMessageBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QDialog,
-    QDialogButtonBox, QColorDialog, QSlider, QSpinBox
+    QDialogButtonBox, QColorDialog, QSlider, QSpinBox, QComboBox
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
@@ -83,12 +83,35 @@ class NodeConfigDialog(QDialog):
         
         left_layout.addWidget(config_group, 1)  # 上半部分占据更多空间
         
-        # 下半部分：output.json 编辑器
-        output_group = QGroupBox("📄 output.json 输出数据")
-        output_layout = QVBoxLayout(output_group)
+        # 下半部分：logs 日志查看器
+        log_group = QGroupBox("📄 节点日志 (logs/)")
+        log_layout = QVBoxLayout(log_group)
+        
+        # 日志文件选择下拉框
+        log_file_layout = QHBoxLayout()
+        log_file_label = QLabel("日志文件:")
+        log_file_layout.addWidget(log_file_label)
+        
+        self.log_file_combo = QComboBox()
+        self.log_file_combo.setStyleSheet("""
+            QComboBox {
+                background-color: #2d2d2d;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+                border-radius: 3px;
+                padding: 3px;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+        """)
+        self.log_file_combo.currentIndexChanged.connect(self.on_log_file_changed)
+        log_file_layout.addWidget(self.log_file_combo)
+        
+        log_layout.addLayout(log_file_layout)
         
         self.output_text = QTextEdit()
-        self.output_text.setReadOnly(False)
+        self.output_text.setReadOnly(True)  # 日志只读
         self.output_text.setFont(QFont("Consolas", 10))
         self.output_text.setStyleSheet("""
             QTextEdit {
@@ -100,27 +123,27 @@ class NodeConfigDialog(QDialog):
             }
         """)
         
-        # 加载并显示 output.json 内容
-        self.load_output_json()
+        # 加载并显示日志文件列表
+        self.load_log_files()
         
-        output_layout.addWidget(self.output_text)
+        log_layout.addWidget(self.output_text)
         
-        # output.json 操作按钮
-        output_btn_layout = QHBoxLayout()
+        # 日志操作按钮
+        log_btn_layout = QHBoxLayout()
         
-        refresh_output_btn = QPushButton("🔄 刷新输出")
-        refresh_output_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 5px 15px;")
-        refresh_output_btn.clicked.connect(self.load_output_json)
-        output_btn_layout.addWidget(refresh_output_btn)
+        refresh_log_btn = QPushButton("🔄 刷新日志")
+        refresh_log_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 5px 15px;")
+        refresh_log_btn.clicked.connect(self.refresh_log_files)
+        log_btn_layout.addWidget(refresh_log_btn)
         
-        save_output_btn = QPushButton("💾 保存修改")
-        save_output_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px 15px;")
-        save_output_btn.clicked.connect(self.save_output_json)
-        output_btn_layout.addWidget(save_output_btn)
+        clear_log_btn = QPushButton("🗑️ 清空日志")
+        clear_log_btn.setStyleSheet("background-color: #FF5722; color: white; padding: 5px 15px;")
+        clear_log_btn.clicked.connect(self.clear_current_log)
+        log_btn_layout.addWidget(clear_log_btn)
         
-        output_layout.addLayout(output_btn_layout)
+        log_layout.addLayout(log_btn_layout)
         
-        left_layout.addWidget(output_group, 1)  # 下半部分同样占据空间
+        left_layout.addWidget(log_group, 1)  # 下半部分同样占据空间
         
         main_h_layout.addLayout(left_layout, 2)  # 左侧占2份空间
         
@@ -455,63 +478,105 @@ class NodeConfigDialog(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "错误", f"❌ 保存 config.json 失败:\n{str(e)}")
 
-    def load_output_json(self):
-        """加载并显示 output.json 的内容"""
+    def load_log_files(self):
+        """加载 logs 目录下的所有 .log 文件"""
         try:
-            output_path = os.path.join(self.node_path, "output.json")
+            logs_dir = os.path.join(self.node_path, "logs")
             
-            if not os.path.exists(output_path):
-                self.output_text.setPlainText("⚠️ output.json 文件不存在\n\n提示：节点启动并处理数据后会自动生成此文件")
+            if not os.path.exists(logs_dir):
+                self.output_text.setPlainText("⚠️ logs 目录不存在\n\n提示：节点启动后会自动创建此目录并生成日志文件")
+                self.log_file_combo.clear()
                 return
             
-            with open(output_path, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
+            # 查找所有 .log 文件
+            log_files = [f for f in os.listdir(logs_dir) if f.endswith('.log')]
             
-            if not content:
-                self.output_text.setPlainText("📭 output.json 文件为空\n\n提示：节点尚未产生输出数据")
+            if not log_files:
+                self.output_text.setPlainText("📭 logs 目录为空\n\n提示：节点尚未产生日志数据")
+                self.log_file_combo.clear()
                 return
             
-            # 尝试格式化 JSON
-            try:
-                data = json.loads(content)
-                formatted = json.dumps(data, indent=2, ensure_ascii=False)
-                self.output_text.setPlainText(formatted)
-            except json.JSONDecodeError:
-                # 如果不是有效的 JSON，直接显示原始内容
-                self.output_text.setPlainText(content)
+            # 按文件名排序
+            log_files.sort()
+            
+            # 填充下拉框
+            self.log_file_combo.blockSignals(True)  # 阻止信号触发
+            self.log_file_combo.clear()
+            for log_file in log_files:
+                self.log_file_combo.addItem(log_file)
+            self.log_file_combo.blockSignals(False)
+            
+            # 加载第一个日志文件
+            if log_files:
+                self.load_selected_log_file(log_files[0])
                 
         except Exception as e:
-            self.output_text.setPlainText(f"❌ 读取 output.json 失败:\n{str(e)}")
+            self.output_text.setPlainText(f"❌ 读取 logs 目录失败:\n{str(e)}")
+            self.log_file_combo.clear()
     
-    def save_output_json(self):
-        """保存编辑后的 output.json 内容"""
+    def load_selected_log_file(self, log_filename):
+        """加载选定的日志文件内容"""
         try:
-            output_path = os.path.join(self.node_path, "output.json")
-            content = self.output_text.toPlainText().strip()
+            logs_dir = os.path.join(self.node_path, "logs")
+            log_path = os.path.join(logs_dir, log_filename)
             
-            # 验证 JSON 格式
-            try:
-                data = json.loads(content)
-                # 格式化后保存
-                formatted = json.dumps(data, indent=2, ensure_ascii=False)
-                with open(output_path, 'w', encoding='utf-8') as f:
-                    f.write(formatted)
-                QMessageBox.information(self, "成功", "✅ output.json 已保存")
-            except json.JSONDecodeError as e:
-                reply = QMessageBox.question(
-                    self, 
-                    "JSON 格式错误",
-                    f"⚠️ 当前内容不是有效的 JSON 格式：\n\n{str(e)}\n\n是否仍要保存？",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No
-                )
-                if reply == QMessageBox.StandardButton.Yes:
-                    with open(output_path, 'w', encoding='utf-8') as f:
-                        f.write(content)
-                    QMessageBox.information(self, "成功", "✅ 已保存（未格式化）")
-                    
+            if not os.path.exists(log_path):
+                self.output_text.setPlainText(f"⚠️ 日志文件不存在: {log_filename}")
+                return
+            
+            with open(log_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            if not content:
+                self.output_text.setPlainText(f"📭 日志文件为空: {log_filename}")
+                return
+            
+            self.output_text.setPlainText(content)
+            
+            # 滚动到底部（显示最新日志）
+            scrollbar = self.output_text.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
+                
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"❌ 保存 output.json 失败:\n{str(e)}")
+            self.output_text.setPlainText(f"❌ 读取日志文件失败:\n{str(e)}")
+    
+    def on_log_file_changed(self, index):
+        """当日志文件选择改变时加载对应文件"""
+        if index >= 0:
+            log_filename = self.log_file_combo.itemText(index)
+            self.load_selected_log_file(log_filename)
+    
+    def refresh_log_files(self):
+        """刷新日志文件列表"""
+        self.load_log_files()
+        QMessageBox.information(self, "成功", "✅ 日志文件列表已刷新")
+    
+    def clear_current_log(self):
+        """清空当前日志文件"""
+        if self.log_file_combo.count() == 0:
+            QMessageBox.warning(self, "警告", "没有可清空的日志文件")
+            return
+        
+        log_filename = self.log_file_combo.currentText()
+        logs_dir = os.path.join(self.node_path, "logs")
+        log_path = os.path.join(logs_dir, log_filename)
+        
+        reply = QMessageBox.question(
+            self, 
+            "确认清空",
+            f"确定要清空日志文件 '{log_filename}' 吗？\n\n此操作不可恢复！",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                with open(log_path, 'w', encoding='utf-8') as f:
+                    f.write("")
+                self.output_text.setPlainText(f"📭 日志文件已清空: {log_filename}")
+                QMessageBox.information(self, "成功", f"✅ 日志文件 '{log_filename}' 已清空")
+            except Exception as e:
+                QMessageBox.critical(self, "错误", f"❌ 清空日志文件失败:\n{str(e)}")
 
 class PropertyPanel(QWidget):
     """属性配置面板"""
