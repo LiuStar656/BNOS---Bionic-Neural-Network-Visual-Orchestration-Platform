@@ -7,7 +7,7 @@ import json
 import subprocess
 import platform
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QFormLayout, QLineEdit, 
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout, QLineEdit, 
     QPushButton, QTextEdit, QGroupBox, QScrollArea, QMessageBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QDialog,
     QDialogButtonBox, QColorDialog, QSlider, QSpinBox
@@ -27,7 +27,7 @@ class NodeConfigDialog(QDialog):
         self.parent_window = parent_window
         
         self.setWindowTitle(f"节点配置: {node_name}")
-        self.setGeometry(200, 200, 600, 700)
+        self.setGeometry(150, 150, 1200, 700)  # 横向矩形窗口
         
         self.init_ui()
         
@@ -36,87 +36,60 @@ class NodeConfigDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
         
-        # 滚动区域
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # 主水平布局：左侧JSON编辑区 + 右侧控制区
+        main_h_layout = QHBoxLayout()
+        main_h_layout.setSpacing(10)
         
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setSpacing(10)
+        # ===== 左侧区域：上下两个JSON编辑器 =====
+        left_layout = QVBoxLayout()
+        left_layout.setSpacing(10)
         
-        scroll.setWidget(content_widget)
-        layout.addWidget(scroll)
+        # 上半部分：config.json 编辑器
+        config_group = QGroupBox("📋 config.json 配置")
+        config_layout = QVBoxLayout(config_group)
         
-        # 节点名称标题
-        title = QLabel(f"节点: {self.node_name}")
-        title.setFont(QFont("Arial", 12, QFont.Weight.Bold))
-        content_layout.addWidget(title)
+        self.config_text = QTextEdit()
+        self.config_text.setReadOnly(False)
+        self.config_text.setFont(QFont("Consolas", 10))
+        self.config_text.setStyleSheet("""
+            QTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+                border-radius: 3px;
+                selection-background-color: #264f78;
+            }
+        """)
         
-        # 基本配置
-        form_group = QGroupBox("基本配置")
-        form_layout = QFormLayout(form_group)
+        # 加载并显示 config.json 内容
+        self.load_config_json()
         
-        # node_name（只读）
-        node_name_edit = QLineEdit(self.config.get('node_name', ''))
-        node_name_edit.setReadOnly(True)
-        form_layout.addRow("节点名称:", node_name_edit)
+        config_layout.addWidget(self.config_text)
         
-        # listen_upper_file
-        self.listen_file_edit = QLineEdit(self.config.get('listen_upper_file', ''))
-        form_layout.addRow("监听文件:", self.listen_file_edit)
+        # config.json 操作按钮
+        config_btn_layout = QHBoxLayout()
         
-        # output_file（只读）
-        output_file_edit = QLineEdit(self.config.get('output_file', './output.json'))
-        output_file_edit.setReadOnly(True)
-        form_layout.addRow("输出文件:", output_file_edit)
+        refresh_config_btn = QPushButton("🔄 刷新配置")
+        refresh_config_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 5px 15px;")
+        refresh_config_btn.clicked.connect(self.load_config_json)
+        config_btn_layout.addWidget(refresh_config_btn)
         
-        # output_type
-        self.output_type_edit = QLineEdit(self.config.get('output_type', ''))
-        form_layout.addRow("输出类型:", self.output_type_edit)
+        save_config_btn = QPushButton("💾 保存配置")
+        save_config_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px 15px;")
+        save_config_btn.clicked.connect(self.save_config_from_editor)
+        config_btn_layout.addWidget(save_config_btn)
         
-        content_layout.addWidget(form_group)
+        config_layout.addLayout(config_btn_layout)
         
-        # Filter配置
-        filter_group = QGroupBox("Filter注意力规则")
-        filter_layout = QVBoxLayout(filter_group)
+        left_layout.addWidget(config_group, 1)  # 上半部分占据更多空间
         
-        self.filter_table = QTableWidget()
-        self.filter_table.setColumnCount(2)
-        self.filter_table.setHorizontalHeaderLabels(["Key", "Value"])
-        self.filter_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        
-        filter_data = self.config.get('filter', {})
-        self.filter_table.setRowCount(len(filter_data))
-        for i, (key, value) in enumerate(filter_data.items()):
-            self.filter_table.setItem(i, 0, QTableWidgetItem(str(key)))
-            self.filter_table.setItem(i, 1, QTableWidgetItem(str(value)))
-        
-        filter_layout.addWidget(self.filter_table)
-        
-        # 添加/删除按钮
-        btn_layout = QVBoxLayout()
-        add_btn = QPushButton("添加规则")
-        add_btn.clicked.connect(self.add_filter_rule)
-        btn_layout.addWidget(add_btn)
-        
-        del_btn = QPushButton("删除选中")
-        del_btn.clicked.connect(self.delete_filter_rule)
-        btn_layout.addWidget(del_btn)
-        
-        filter_layout.addLayout(btn_layout)
-        
-        content_layout.addWidget(filter_group)
-        
-        # Output.json 内容显示
-        output_group = QGroupBox("📄 输出数据 (output.json)")
+        # 下半部分：output.json 编辑器
+        output_group = QGroupBox("📄 output.json 输出数据")
         output_layout = QVBoxLayout(output_group)
         
-        # 创建可编辑的文本编辑器显示/编辑 output.json 内容
         self.output_text = QTextEdit()
-        self.output_text.setReadOnly(False)  # 设置为可编辑
-        self.output_text.setFont(QFont("Consolas", 9))
-        self.output_text.setMaximumHeight(200)
+        self.output_text.setReadOnly(False)
+        self.output_text.setFont(QFont("Consolas", 10))
         self.output_text.setStyleSheet("""
             QTextEdit {
                 background-color: #1e1e1e;
@@ -132,84 +105,98 @@ class NodeConfigDialog(QDialog):
         
         output_layout.addWidget(self.output_text)
         
-        # 按钮布局
-        output_btn_layout = QVBoxLayout()
+        # output.json 操作按钮
+        output_btn_layout = QHBoxLayout()
         
-        # 刷新按钮
-        refresh_output_btn = QPushButton("🔄 刷新输出数据")
-        refresh_output_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 5px;")
+        refresh_output_btn = QPushButton("🔄 刷新输出")
+        refresh_output_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 5px 15px;")
         refresh_output_btn.clicked.connect(self.load_output_json)
         output_btn_layout.addWidget(refresh_output_btn)
         
-        # 保存按钮
         save_output_btn = QPushButton("💾 保存修改")
-        save_output_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px;")
+        save_output_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px 15px;")
         save_output_btn.clicked.connect(self.save_output_json)
         output_btn_layout.addWidget(save_output_btn)
         
         output_layout.addLayout(output_btn_layout)
         
-        content_layout.addWidget(output_group)
+        left_layout.addWidget(output_group, 1)  # 下半部分同样占据空间
+        
+        main_h_layout.addLayout(left_layout, 2)  # 左侧占2份空间
+        
+        # ===== 右侧区域：节点控制和工具按钮 =====
+        right_layout = QVBoxLayout()
+        right_layout.setSpacing(10)
+        
+        # 节点信息卡片
+        info_group = QGroupBox("ℹ️ 节点信息")
+        info_layout = QVBoxLayout(info_group)
+        
+        node_name_label = QLabel(f"名称: {self.node_name}")
+        node_name_label.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+        info_layout.addWidget(node_name_label)
+        
+        node_path_label = QLabel(f"路径: {self.node_path}")
+        node_path_label.setFont(QFont("Arial", 9))
+        node_path_label.setWordWrap(True)
+        info_layout.addWidget(node_path_label)
+        
+        right_layout.addWidget(info_group)
         
         # 节点控制按钮组
-        control_group = QGroupBox("节点控制")
+        control_group = QGroupBox("🎮 节点控制")
         control_layout = QVBoxLayout(control_group)
         
         # 启动按钮
         start_btn = QPushButton("▶ 启动节点")
-        start_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; font-weight: bold;")
+        start_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 12px; font-weight: bold; font-size: 13px;")
         start_btn.clicked.connect(self.start_node)
         control_layout.addWidget(start_btn)
         
         # 停止按钮
         stop_btn = QPushButton("⏹ 停止节点")
-        stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px; font-weight: bold;")
+        stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 12px; font-weight: bold; font-size: 13px;")
         stop_btn.clicked.connect(self.stop_node)
         control_layout.addWidget(stop_btn)
         
+        control_layout.addSpacing(10)
+        
+        right_layout.addWidget(control_group)
+        
+        # 快捷操作按钮组
+        quick_group = QGroupBox("🔧 快捷操作")
+        quick_layout = QVBoxLayout(quick_group)
+        
         # 打开文件夹按钮
         open_folder_btn = QPushButton("📁 打开节点文件夹")
-        open_folder_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 8px;")
+        open_folder_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 10px;")
         open_folder_btn.clicked.connect(self.open_node_folder)
-        control_layout.addWidget(open_folder_btn)
+        quick_layout.addWidget(open_folder_btn)
         
         # 打开命令行按钮
-        open_terminal_btn = QPushButton("💻 打开命令行（虚拟环境）")
-        open_terminal_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 8px;")
+        open_terminal_btn = QPushButton("💻 打开命令行")
+        open_terminal_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px;")
         open_terminal_btn.clicked.connect(self.open_terminal)
-        control_layout.addWidget(open_terminal_btn)
+        quick_layout.addWidget(open_terminal_btn)
         
         # 打开 VSCode 工作区按钮
-        open_vscode_btn = QPushButton("🔧 打开为 VSCode 工作区")
-        open_vscode_btn.setStyleSheet("background-color: #007ACC; color: white; padding: 8px;")
+        open_vscode_btn = QPushButton("🔧 打开 VSCode")
+        open_vscode_btn.setStyleSheet("background-color: #007ACC; color: white; padding: 10px;")
         open_vscode_btn.clicked.connect(self.open_vscode_workspace)
-        control_layout.addWidget(open_vscode_btn)
+        quick_layout.addWidget(open_vscode_btn)
         
-        content_layout.addWidget(control_group)
+        right_layout.addWidget(quick_group)
         
-        # 保存按钮
-        save_btn = QPushButton("💾 保存配置")
-        save_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
-        save_btn.clicked.connect(self.save_config)
-        content_layout.addWidget(save_btn)
+        right_layout.addStretch()  # 底部弹性空间
         
-        # 关闭按钮
+        main_h_layout.addLayout(right_layout, 1)  # 右侧占1份空间
+        
+        layout.addLayout(main_h_layout)
+        
+        # 底部关闭按钮
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
-        
-    def add_filter_rule(self):
-        """添加filter规则"""
-        row = self.filter_table.rowCount()
-        self.filter_table.insertRow(row)
-        self.filter_table.setItem(row, 0, QTableWidgetItem(""))
-        self.filter_table.setItem(row, 1, QTableWidgetItem(""))
-        
-    def delete_filter_rule(self):
-        """删除选中的filter规则"""
-        current_row = self.filter_table.currentRow()
-        if current_row >= 0:
-            self.filter_table.removeRow(current_row)
     
     def start_node(self):
         """启动节点"""
@@ -393,6 +380,81 @@ class NodeConfigDialog(QDialog):
             import traceback
             traceback.print_exc()
     
+    def load_config_json(self):
+        """加载并显示 config.json 的内容"""
+        try:
+            config_path = os.path.join(self.node_path, "config.json")
+            
+            if not os.path.exists(config_path):
+                self.config_text.setPlainText("⚠️ config.json 文件不存在")
+                return
+            
+            with open(config_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+            
+            if not content:
+                self.config_text.setPlainText("{}")
+                return
+            
+            # 尝试格式化 JSON
+            try:
+                data = json.loads(content)
+                formatted = json.dumps(data, indent=2, ensure_ascii=False)
+                self.config_text.setPlainText(formatted)
+            except json.JSONDecodeError:
+                # 如果不是有效的 JSON，直接显示原始内容
+                self.config_text.setPlainText(content)
+                
+        except Exception as e:
+            self.config_text.setPlainText(f"❌ 读取 config.json 失败:\n{str(e)}")
+
+    def save_config_from_editor(self):
+        """从编辑器保存 config.json"""
+        try:
+            config_path = os.path.join(self.node_path, "config.json")
+            content = self.config_text.toPlainText().strip()
+            
+            # 验证 JSON 格式
+            try:
+                data = json.loads(content)
+                # 格式化后保存
+                formatted = json.dumps(data, indent=2, ensure_ascii=False)
+                with open(config_path, 'w', encoding='utf-8') as f:
+                    f.write(formatted)
+                
+                # 更新内存中的数据
+                if self.parent_window and self.node_name in self.parent_window.nodes_data:
+                    self.parent_window.nodes_data[self.node_name]['config'] = data
+                    
+                    # 同步更新画布上的节点显示
+                    if hasattr(self.parent_window, 'canvas'):
+                        self.parent_window.canvas.sync_node_display(self.node_name)
+                
+                QMessageBox.information(self, "成功", "✅ config.json 已保存")
+            except json.JSONDecodeError as e:
+                reply = QMessageBox.question(
+                    self, 
+                    "JSON 格式错误",
+                    f"⚠️ 当前内容不是有效的 JSON 格式：\n\n{str(e)}\n\n是否仍要保存？",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    with open(config_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    
+                    # 即使格式错误也尝试更新内存数据
+                    if self.parent_window and self.node_name in self.parent_window.nodes_data:
+                        try:
+                            self.parent_window.nodes_data[self.node_name]['config'] = json.loads(content)
+                        except:
+                            pass
+                    
+                    QMessageBox.information(self, "成功", "✅ 已保存（未格式化）")
+                    
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"❌ 保存 config.json 失败:\n{str(e)}")
+
     def load_output_json(self):
         """加载并显示 output.json 的内容"""
         try:
@@ -450,46 +512,6 @@ class NodeConfigDialog(QDialog):
                     
         except Exception as e:
             QMessageBox.critical(self, "错误", f"❌ 保存 output.json 失败:\n{str(e)}")
-            
-    def save_config(self):
-        """保存配置"""
-        try:
-            config_path = os.path.join(self.node_path, "config.json")
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            
-            # 更新配置
-            config['listen_upper_file'] = self.listen_file_edit.text()
-            config['output_type'] = self.output_type_edit.text()
-            
-            # 更新filter
-            filter_data = {}
-            for row in range(self.filter_table.rowCount()):
-                key_item = self.filter_table.item(row, 0)
-                value_item = self.filter_table.item(row, 1)
-                if key_item and value_item:
-                    key = key_item.text().strip()
-                    value = value_item.text().strip()
-                    if key:
-                        filter_data[key] = value
-            
-            config['filter'] = filter_data
-            
-            # 写入文件
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(config, f, indent=2, ensure_ascii=False)
-            
-            # 更新内存中的数据
-            if self.parent_window and self.node_name in self.parent_window.nodes_data:
-                self.parent_window.nodes_data[self.node_name]['config'] = config
-                
-                # 同步更新画布上的节点显示
-                if hasattr(self.parent_window, 'canvas'):
-                    self.parent_window.canvas.sync_node_display(self.node_name)
-            
-            QMessageBox.information(self, "成功", "配置已保存")
-        except Exception as e:
-            QMessageBox.critical(self, "错误", f"保存配置失败: {str(e)}")
 
 class PropertyPanel(QWidget):
     """属性配置面板"""

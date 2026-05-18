@@ -24,7 +24,77 @@
 
 ### ✨ New Features & Improvements
 
-#### 1. **Node List Drag-and-Drop Movement & Smart Grouping** 🎯
+#### 1. **Node Configuration Dialog - Complete Layout Redesign** 🎨
+- **Feature**: Redesigned node configuration dialog with horizontal rectangular window layout, left side displays complete config.json and output.json editors (editable) in vertical stack, right side shows node information and control buttons
+- **Design Philosophy**: **Intuitive JSON Editing + Quick Operations Separation**, displaying configuration data and output data as plain text to enhance editing flexibility and visualization
+- **Core Features**:
+  - **Horizontal Wide-Screen Layout**: Window size adjusted to 1200x700px, better suited for modern displays
+  - **Left-Right Split Design**: Left side occupies 2/3 space for JSON editing, right side occupies 1/3 space for controls and information
+  - **Complete JSON Editing**: No longer uses scattered form fields, directly edit complete JSON file content
+  - **Dark Theme Editor**: Consolas font, VSCode-style coloring (#1e1e1e background, #d4d4d4 text)
+  
+- **Left Area Details**:
+  - **Top Section - config.json Editor**:
+    - 📝 **Complete Configuration Editing**: Directly view and modify all configuration items (node_name, listen_upper_file, output_file, output_type, filter, etc.)
+    - 🔄 **Real-time Refresh**: Reload latest config.json file from disk
+    - 💾 **Smart Save**:
+      - Auto-format JSON (2-space indentation, ensure_ascii=False)
+      - JSON format validation, provide warning on errors but still allow forced save
+      - Synchronize update memory data (nodes_data)
+      - Auto-sync node display on canvas
+    
+  - **Bottom Section - output.json Editor**:
+    - 📊 **Output Data Monitoring**: Real-time view of node processing results
+    - ✏️ **Editable Mode**: Support manual modification of output data for testing
+    - 🔄 **Quick Refresh**: One-click reload file content
+    - 💾 **Safe Save**: Format validation + user confirmation mechanism
+  
+- **Right Area Details**:
+  - **ℹ️ Node Information Card**:
+    - Node name (bold display)
+    - Node path (auto-wrap for long paths)
+  
+  - **🎮 Node Control Group**:
+    - ▶️ **Start Node**: Green button, large font (13px), bold
+    - ⏹️ **Stop Node**: Red button, eye-catching alert
+    - *(10px spacing)*
+  
+  - **🔧 Quick Actions Group**:
+    - 📁 **Open Node Folder**: Orange button
+    - 💻 **Open Terminal**: Blue button, auto-activate virtual environment
+    - 🔧 **Open VSCode**: Dark blue button (#007ACC), create workspace file
+  
+- **Technical Implementation**:
+  - **Layout Refactoring**:
+    - Main container: `QHBoxLayout` for left-right split
+    - Left side: `QVBoxLayout` containing two `QGroupBox` (config.json and output.json)
+    - Right side: `QVBoxLayout` containing three `QGroupBox` (info, control, quick actions)
+    - Stretch ratio: Left stretch=2, Right stretch=1
+  
+  - **New Methods**:
+    - `load_config_json()` - Load and format display config.json from disk
+    - `save_config_from_editor()` - Save config.json from editor, including format validation and memory sync
+  
+  - **Removed Methods**:
+    - ❌ `add_filter_rule()` - No longer need table-based Filter management
+    - ❌ `delete_filter_rule()` - Edit directly in JSON
+    - ❌ Old form fields (`listen_file_edit`, `output_type_edit`, `filter_table`)
+  
+  - **Import Fix**: Added missing `QHBoxLayout` import
+  
+- **User Experience Improvements**:
+  - ✅ **Enhanced Flexibility**: Can directly copy-paste configuration blocks, batch modify multiple fields
+  - ✅ **Improved Visualization**: Complete JSON structure at a glance, easier to understand configuration relationships
+  - ✅ **Higher Efficiency**: No need to switch between multiple form fields, direct text editing is faster
+  - ✅ **Strong Error Tolerance**: Warning on JSON format errors, but still allows save (for special scenarios)
+  - ✅ **Reasonable Layout**: Horizontal wide-screen better suits modern displays, reduces scrolling
+  - ✅ **Centralized Operations**: Right-side control buttons vertically arranged for quick access to common functions
+  
+- **Affected Files**:
+  - `ui/property_panel.py` - `NodeConfigDialog` class (completely refactored init_ui method)
+  - `ui/canvas_widget.py` - Added `mouseDoubleClickEvent()` method to trigger configuration dialog
+
+#### 2. **Node List Drag-and-Drop Movement & Smart Grouping** 🎯
 - **Feature**: Support drag-and-drop movement of nodes to different groups in the node list, automatically create new groups when nodes overlap on canvas, convert nesting operations to group creation, and automatically delete empty groups
 - **Design Philosophy**: **Similar to Photoshop layer management**, node groups are parallel relationships without nesting structure. When users appear to create nesting, the system automatically converts it to creating new groups
 - **Core Features**:
