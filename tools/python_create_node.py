@@ -463,7 +463,7 @@ if not exist "venv\\Scripts\\python.exe" (
             echo.
             echo ❌ 自动修复失败
             echo 💡 请手动删除venv文件夹后重新创建节点
-            pause
+            if not "%1"=="--no-pause" pause
             exit /b 1
         )
         echo.
@@ -471,7 +471,7 @@ if not exist "venv\\Scripts\\python.exe" (
     ) else (
         echo ❌ 找不到python_create_node.py，无法自动修复
         echo 💡 请手动删除venv文件夹后重新创建节点
-        pause
+        if not "%1"=="--no-pause" pause
         exit /b 1
     )
 )
@@ -486,7 +486,7 @@ python listener.py
 
 echo.
 echo ✅ 节点已停止
-pause
+if not "%1"=="--no-pause" pause
 '''
         with open(os.path.join(node_dir, "start.bat"), "w", encoding="utf-8") as f:
             f.write(start_bat.strip())
@@ -517,7 +517,9 @@ if [ ! -f "venv/bin/python" ]; then
             echo ""
             echo "❌ 自动修复失败"
             echo "💡 请手动删除venv文件夹后重新创建节点"
-            read -p "按回车键退出..."
+            if [ "$1" != "--no-pause" ]; then
+                read -p "按回车键退出..."
+            fi
             exit 1
         fi
         echo ""
@@ -525,6 +527,9 @@ if [ ! -f "venv/bin/python" ]; then
     else
         echo "❌ 找不到python_create_node.py，无法自动修复"
         echo "💡 请手动删除venv文件夹后重新创建节点"
+        if [ "$1" != "--no-pause" ]; then
+            read -p "按回车键退出..."
+        fi
         exit 1
     fi
 else
@@ -553,6 +558,12 @@ fi
 
 source venv/bin/activate
 python3 listener.py
+
+echo ""
+echo "✅ 节点已停止"
+if [ "$1" != "--no-pause" ]; then
+    read -p "按回车键退出..."
+fi
 '''
         with open(os.path.join(node_dir, "start.sh"), "w", encoding="utf-8") as f:
             f.write(start_sh.strip())

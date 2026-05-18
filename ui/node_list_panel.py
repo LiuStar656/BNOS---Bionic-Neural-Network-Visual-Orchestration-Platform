@@ -104,27 +104,13 @@ class NodeListPanel(QDialog):
         hint_label.setStyleSheet("color: rgba(255, 255, 255, 100); font-size: 10px; font-style: italic; padding: 2px 0;")
         layout.addWidget(hint_label)
         
-        # 节点树形列表（支持分组显示、多选和拖拽）
+        # 节点树形列表（支持分组显示和多选）
         self.node_tree = QTreeWidget()
         self.node_tree.setHeaderHidden(True)
         self.node_tree.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)  # 支持多选
-        self.node_tree.setDragEnabled(True)  # 启用拖拽
-        self.node_tree.setDragDropMode(QTreeWidget.DragDropMode.InternalMove)  # 允许内部移动
-        self.node_tree.setDefaultDropAction(Qt.DropAction.MoveAction)  # 默认动作为移动
-        self.node_tree.setAcceptDrops(True)  # 接受拖放
         self.node_tree.itemDoubleClicked.connect(self.on_node_double_clicked)
         self.node_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.node_tree.customContextMenuRequested.connect(self.show_context_menu)
-        
-        # 重写dropEvent以完全控制拖放行为，防止节点嵌套
-        original_drop_event = self.node_tree.dropEvent
-        def custom_drop_event(event):
-            self._intercept_drop_event(event, original_drop_event)
-        self.node_tree.dropEvent = custom_drop_event
-        
-        # 连接拖拽信号
-        self.node_tree.model().rowsMoved.connect(self.on_nodes_moved)
-        
         self.node_tree.setStyleSheet("""
             QTreeWidget {
                 background-color: transparent;
@@ -154,164 +140,8 @@ class NodeListPanel(QDialog):
         # 设置初始大小
         self.resize(280, 500)
     
-    def _intercept_drop_event(self, event, original_drop_event):
-        """拦截拖放事件，智能处理节点拖拽
-        
-        规则：
-        - 允许：节点 → 组（正常移动到指定组）
-        - 允许：节点 → 根级别（移出组，成为独立节点）
-        - 智能转换：节点 → 组内节点（直接融入该节点所在的组）
-        - 智能转换：节点 → 根级别节点（创建新组包含两个节点）
-        
-        注意：所有拖拽操作都在这里处理，不依赖 rowsMoved 信号
-        """
-        try:
-            # 获取被拖拽的节点
-            dragged_nodes = self._get_dragged_nodes_from_event(event)
-            if not dragged_nodes:
-                print(f"⚠️ 未获取到被拖拽的节点")
-                original_drop_event(event)
-                return
-            
-            # 获取目标位置
-            target_item = self.node_tree.itemAt(event.position().toPoint())
-            
-            if target_item:
-                target_data = target_item.data(0, Qt.ItemDataRole.UserRole)
-                
-                # 如果目标是节点，需要智能判断
-                if target_data and target_data.get('type') == 'node':
-                    print(f"🔄 检测到节点拖拽到节点上，智能处理")
-                    
-                    target_node = target_data['name']
-                    
-                    if target_node not in dragged_nodes:
-                        # 检查目标节点是否在某个组中
-                        target_group = self.group_manager.get_node_group(target_node)
-                        
-                        if target_group:
-                            # 目标节点在某个组中，直接将拖拽的节点加入该组
-                            print(f"✅ 目标节点 '{target_node}' 在组 '{target_group}' 中，直接融入")
-                            
-                            # 将拖拽的节点添加到目标组
-                            self.group_manager.add_nodes_to_group(target_group, dragged_nodes)
-                            
-                            # 刷新列表
-                            self.update_node_list(self.nodes_data)
-                            
-                            # 显示提示
-                            if self.parent_window:
-                                self.parent_window.show_toast(
-                                    f"✅ 已将 {len(dragged_nodes)} 个节点加入组 '{target_group}'", 
-                                    "success"
-                                )
-                            
-                            # 拒绝原始拖放操作
-                            event.accept()
-                            return
-                        else:
-                            # 目标节点不在任何组中（根级别节点），创建新组
-                            print(f"🆕 目标节点 '{target_node}' 不在组中，创建新组")
-                            
-                            # 将所有涉及的节点合并
-                            all_nodes = dragged_nodes + [target_node]
-                            
-                            # 创建新组
-                            self._create_group_for_dragged_nodes(all_nodes)
-                            
-                            # 拒绝原始拖放操作
-                            event.accept()
-                            return
-            
-            elif not target_item:
-                # 拖到根级别（空白处）- 将节点移出所有组
-                print(f"✅ 拖到根级别，将 {len(dragged_nodes)} 个节点移出组")
-                self._move_nodes_to_ungrouped(dragged_nodes)
-                event.accept()
-                return
-            
-            # 其他情况（拖入组标题），允许正常拖放
-            original_drop_event(event)
-            
-        except Exception as e:
-            print(f"⚠️ 拦截拖放事件失败: {e}")
-            import traceback
-            traceback.print_exc()
-            # 出错时允许默认行为
-            original_drop_event(event)
-    
-    def _get_dragged_nodes_from_event(self, event):
-        """从拖拽事件中获取被拖拽的节点名称列表
-        
-        Args:
-            event: 拖拽事件对象
-            
-        Returns:
-            节点名称列表
-        """
-        try:
-            # 获取选中的项
-            selected_items = self.node_tree.selectedItems()
-            nodes = []
-            
-            for item in selected_items:
-                data = item.data(0, Qt.ItemDataRole.UserRole)
-                if data and data.get('type') == 'node':
-                    nodes.append(data['name'])
-            
-            return nodes if nodes else None
-            
-        except Exception as e:
-            print(f"⚠️ 获取拖拽节点失败: {e}")
-            return None
-    
-    def _create_group_for_dragged_nodes(self, node_names):
-        """为拖拽涉及的节点创建新组
-        
-        Args:
-            node_names: 节点名称列表
-        """
-        if not node_names or len(node_names) < 2:
-            return
-        
-        group_manager = self.group_manager
-        groups = group_manager.get_all_groups()
-        
-        # 生成新组名
-        base_name = f"Group_{len(groups) + 1}"
-        new_group_name = base_name
-        counter = 1
-        while new_group_name in groups:
-            new_group_name = f"{base_name}_{counter}"
-            counter += 1
-        
-        # 创建新组（随机颜色）
-        import random
-        color = f"#{random.randint(0x400000, 0xFFFFFF):06X}"
-        group_manager.create_group(new_group_name, color)
-        
-        # 将所有节点添加到新组
-        group_manager.add_nodes_to_group(new_group_name, node_names)
-        
-        # 刷新列表
-        self.update_node_list(self.nodes_data)
-        
-        # 显示提示
-        if self.parent_window:
-            self.parent_window.show_toast(
-                f"✅ 已创建组 '{new_group_name}'，包含 {len(node_names)} 个节点", 
-                "success"
-            )
-        
-        print(f"✅ 自动创建节点组: {new_group_name} (包含 {', '.join(node_names)})")
-    
     def update_node_list(self, nodes_data):
-        """更新节点列表（树形结构，支持分组）
-        
-        注意：
-        - 节点组之间是平行关系，没有嵌套（类似PS图层组）
-        - 不再显示"未分组节点"分类，所有节点都明确属于某个组或根层级
-        """
+        """更新节点列表（树形结构，支持分组）"""
         self.nodes_data = nodes_data
         
         # 清空树
@@ -319,8 +149,9 @@ class NodeListPanel(QDialog):
         
         # 按组组织节点
         groups = self.group_manager.get_all_groups()
+        ungrouped_nodes = self.group_manager.get_ungrouped_nodes(list(nodes_data.keys()))
         
-        # 添加各个组（平行关系，无嵌套）
+        # 添加各个组
         for group_name, group_info in sorted(groups.items()):
             group_item = QTreeWidgetItem(self.node_tree)
             group_item.setText(0, f"📁 {group_name} ({len(group_info['nodes'])})")
@@ -338,21 +169,23 @@ class NodeListPanel(QDialog):
             
             group_item.setExpanded(True)
         
-        # 显示不属于任何组的节点（直接作为根节点，不归类为"未分组"）
-        all_grouped_nodes = set()
-        for group_info in groups.values():
-            all_grouped_nodes.update(group_info['nodes'])
-        
-        root_nodes = [name for name in nodes_data.keys() if name not in all_grouped_nodes]
-        
-        if root_nodes:
-            # 直接添加为根级别的节点项，不放在任何分类下
-            for node_name in sorted(root_nodes):
+        # 添加未分组的节点
+        if ungrouped_nodes:
+            ungrouped_item = QTreeWidgetItem(self.node_tree)
+            ungrouped_item.setText(0, f"📄 未分组节点 ({len(ungrouped_nodes)})")
+            ungrouped_item.setForeground(0, QColor("#9B9B9B"))
+            ungrouped_item.setFont(0, QFont("Arial", 10, QFont.Weight.Bold))
+            
+            # 标记为未分组类别
+            ungrouped_item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'category', 'name': 'ungrouped'})
+            
+            # 添加未分组节点
+            for node_name in sorted(ungrouped_nodes):
                 if node_name in nodes_data:
-                    node_item = QTreeWidgetItem(self.node_tree)
+                    node_item = QTreeWidgetItem(ungrouped_item)
                     self._setup_node_item(node_item, node_name, nodes_data[node_name])
-                    # 标记为根级别节点
-                    node_item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'node', 'name': node_name, 'level': 'root'})
+            
+            ungrouped_item.setExpanded(True)
         
         # 更新路径显示
         if self.parent_window and self.parent_window.current_project_path:
@@ -455,151 +288,11 @@ class NodeListPanel(QDialog):
             group_name = data['name']
             self._show_group_context_menu(menu, group_name)
         
-        # 注意：不再处理"未分组类别"，因为已经移除了该分类
+        elif data.get('type') == 'category' and data.get('name') == 'ungrouped':
+            # 未分组类别菜单
+            self._show_ungrouped_category_menu(menu)
         
         menu.exec(self.node_tree.mapToGlobal(position))
-    
-    def on_nodes_moved(self, parent_index, start, end, destination_index, row):
-        """节点拖拽移动事件处理
-        
-        Args:
-            parent_index: 父项索引
-            start: 起始行
-            end: 结束行
-            destination_index: 目标父项索引
-            row: 目标行
-        
-        注意：
-        - 节点组之间是平行关系，没有嵌套（类似PS图层组）
-        - 非法的节点嵌套已在_intercept_drop_event中被阻止
-        - 只处理合法的移动：节点→组、节点→根级别
-        """
-        try:
-            # 获取被移动的节点项
-            moved_items = []
-            for i in range(start, end + 1):
-                item = self.node_tree.topLevelItem(parent_index.row()).child(i) if parent_index.isValid() else self.node_tree.topLevelItem(i)
-                if item:
-                    data = item.data(0, Qt.ItemDataRole.UserRole)
-                    if data and data.get('type') == 'node':
-                        moved_items.append(data['name'])
-            
-            if not moved_items:
-                print(f"⚠️ 未找到被移动的节点")
-                return
-            
-            print(f"📦 检测到节点移动: {moved_items}")
-            
-            # 获取目标位置
-            target_item = None
-            if destination_index.isValid():
-                target_item = self.node_tree.itemFromIndex(destination_index)
-                if target_item:
-                    target_data = target_item.data(0, Qt.ItemDataRole.UserRole)
-                    print(f"🎯 目标类型: {target_data.get('type') if target_data else 'None'}")
-            
-            if not target_item:
-                # 移动到根级别 - 将节点移出所有组，成为独立节点
-                print(f"✅ 移动到根级别，调用 _move_nodes_to_ungrouped")
-                self._move_nodes_to_ungrouped(moved_items)
-                return
-            
-            target_data = target_item.data(0, Qt.ItemDataRole.UserRole)
-            
-            if target_data and target_data.get('type') == 'group':
-                # 移动到某个节点组 - 正常操作
-                target_group = target_data['name']
-                print(f"✅ 移动到组 '{target_group}'，调用 _move_nodes_to_group")
-                self._move_nodes_to_group(moved_items, target_group)
-            
-            elif target_data and target_data.get('type') == 'node':
-                # 这个情况应该在_intercept_drop_event中已经被处理了
-                print(f"⚠️ 检测到节点到节点的移动（不应该到达这里）")
-        
-        except Exception as e:
-            print(f"⚠️ 处理节点移动失败: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def _move_nodes_to_group(self, node_names, group_name):
-        """将节点移动到指定组
-        
-        Args:
-            node_names: 节点名称列表
-            group_name: 目标组名称
-        """
-        if self.group_manager.add_nodes_to_group(group_name, node_names):
-            # 清理空组（不刷新列表）
-            self._cleanup_empty_groups(refresh=False)
-            
-            # 统一刷新一次列表
-            self.update_node_list(self.nodes_data)
-            
-            # 显示提示
-            if self.parent_window:
-                self.parent_window.show_toast(f"已将 {len(node_names)} 个节点移动到组 '{group_name}'", "success")
-    
-    def _move_nodes_to_ungrouped(self, node_names):
-        """将节点移动到未分组状态
-        
-        Args:
-            node_names: 节点名称列表
-        """
-        # 从当前组中移除（如果节点在某个组中）
-        removed_count = 0
-        for node_name in node_names:
-            current_group = self.group_manager.get_node_group(node_name)
-            if current_group:
-                self.group_manager.remove_nodes_from_group(current_group, [node_name])
-                removed_count += 1
-        
-        # 清理空组并刷新列表
-        empty_groups_deleted = self._cleanup_empty_groups(refresh=True)
-        
-        # 如果没有删除空组且移除了节点，可能需要手动刷新（如果 cleanup 没做的话）
-        # 但 cleanup 已经处理了 refresh=True 的情况
-        if removed_count > 0 and not empty_groups_deleted:
-             self.update_node_list(self.nodes_data)
-        
-        # 显示提示
-        if self.parent_window:
-            if removed_count > 0:
-                self.parent_window.show_toast(f"已将 {removed_count} 个节点移出组", "success")
-            else:
-                self.parent_window.show_toast("选中的节点未在组中", "info")
-    
-    def _cleanup_empty_groups(self, refresh=True):
-        """清理空的节点组（自动删除，无需确认）
-        
-        Args:
-            refresh: 是否刷新列表，默认为True
-            
-        Returns:
-            bool: 是否删除了空组
-        """
-        groups = self.group_manager.get_all_groups()
-        empty_groups = []
-        
-        for group_name, group_info in groups.items():
-            if len(group_info['nodes']) == 0:
-                empty_groups.append(group_name)
-        
-        if empty_groups:
-            # 自动删除所有空组，无需用户确认
-            for group_name in empty_groups:
-                self.group_manager.delete_group(group_name)
-            
-            # 根据参数决定是否刷新列表
-            if refresh:
-                self.update_node_list(self.nodes_data)
-            
-            if self.parent_window and refresh:
-                self.parent_window.show_toast(f"已自动删除 {len(empty_groups)} 个空节点组", "info")
-            
-            print(f"✅ 自动删除空节点组: {', '.join(empty_groups)}")
-            return True
-        
-        return False
     
     def _show_global_context_menu(self, position):
         """显示全局右键菜单（空白处）"""
@@ -631,14 +324,18 @@ class NodeListPanel(QDialog):
         """显示节点右键菜单"""
         selected_nodes = self.get_selected_nodes()
         
-        # 如果选中了多个节点，只显示批量操作菜单
+        # 如果选中了多个节点，显示批量操作
         if len(selected_nodes) > 1 and node_name in selected_nodes:
             menu.addAction(f"📌 已选中 {len(selected_nodes)} 个节点").setEnabled(False)
             menu.addSeparator()
             
-            # 批量添加到画布
-            batch_add_action = menu.addAction(f"➕ 添加选中的 {len(selected_nodes)} 个节点到画布")
-            batch_add_action.triggered.connect(self.batch_add_nodes_to_canvas)
+            # 批量启动
+            batch_start_action = menu.addAction(f"▶️ 启动选中的 {len(selected_nodes)} 个节点")
+            batch_start_action.triggered.connect(self.batch_start_nodes)
+            
+            # 批量停止
+            batch_stop_action = menu.addAction(f"⏹️ 停止选中的 {len(selected_nodes)} 个节点")
+            batch_stop_action.triggered.connect(self.batch_stop_nodes)
             
             menu.addSeparator()
             
@@ -652,103 +349,66 @@ class NodeListPanel(QDialog):
             else:
                 move_to_group_menu.addAction("（无可用组）").setEnabled(False)
             
-            # 从组移除（如果选中的节点都在同一个组）
-            common_group = self._get_common_group(selected_nodes)
-            if common_group:
-                remove_from_group_action = menu.addAction(f"❌ 从组 '{common_group}' 移除所有选中节点")
-                remove_from_group_action.triggered.connect(lambda: self.batch_remove_nodes_from_group(common_group))
-            
             menu.addSeparator()
-            
-            # 批量启动
-            batch_start_action = menu.addAction(f"▶️ 启动选中的 {len(selected_nodes)} 个节点")
-            batch_start_action.triggered.connect(self.batch_start_nodes)
-            
-            # 批量停止
-            batch_stop_action = menu.addAction(f"⏹️ 停止选中的 {len(selected_nodes)} 个节点")
-            batch_stop_action.triggered.connect(self.batch_stop_nodes)
-            
-            menu.addSeparator()
-            
-            # 批量打开文件夹
-            batch_open_folder_action = menu.addAction(f"📁 打开选中的 {len(selected_nodes)} 个节点文件夹")
-            batch_open_folder_action.triggered.connect(self.batch_open_node_folders)
-            
-            # 批量查看日志
-            batch_view_log_action = menu.addAction(f"📄 查看选中的 {len(selected_nodes)} 个节点日志")
-            batch_view_log_action.triggered.connect(self.batch_view_node_logs)
-            
-            menu.addSeparator()
-            
-            # 批量编辑配置
-            batch_edit_config_action = menu.addAction(f"⚙️ 编辑选中的 {len(selected_nodes)} 个节点配置")
-            batch_edit_config_action.triggered.connect(self.batch_edit_node_configs)
-            
-            menu.addSeparator()
-            
-            # 批量删除
-            batch_delete_action = menu.addAction(f"🗑️ 删除选中的 {len(selected_nodes)} 个节点")
-            batch_delete_action.triggered.connect(self.batch_delete_nodes)
         
+        # 单个节点操作
+        add_to_canvas_action = menu.addAction("➕ 添加到画布")
+        add_to_canvas_action.triggered.connect(lambda: self.add_node_to_canvas(node_name))
+        
+        menu.addSeparator()
+        
+        # 移动到组
+        move_to_group_menu = menu.addMenu("📁 移动到组")
+        groups = self.group_manager.get_all_groups()
+        if groups:
+            for group_name in sorted(groups.keys()):
+                action = move_to_group_menu.addAction(group_name)
+                action.triggered.connect(lambda checked, gn=group_name: self.move_node_to_group(node_name, gn))
         else:
-            # 单个节点操作
-            add_to_canvas_action = menu.addAction("➕ 添加到画布")
-            add_to_canvas_action.triggered.connect(lambda: self.add_node_to_canvas(node_name))
-            
-            menu.addSeparator()
-            
-            # 移动到组
-            move_to_group_menu = menu.addMenu("📁 移动到组")
-            groups = self.group_manager.get_all_groups()
-            if groups:
-                for group_name in sorted(groups.keys()):
-                    action = move_to_group_menu.addAction(group_name)
-                    action.triggered.connect(lambda checked, gn=group_name: self.move_node_to_group(node_name, gn))
-            else:
-                move_to_group_menu.addAction("（无可用组）").setEnabled(False)
-            
-            # 从组移除
-            current_group = self.group_manager.get_node_group(node_name)
-            if current_group:
-                remove_from_group_action = menu.addAction(f"❌ 从组 '{current_group}' 移除")
-                remove_from_group_action.triggered.connect(lambda: self.remove_node_from_group(node_name))
-            
-            menu.addSeparator()
-            
-            # 启动/停止
-            node_info = self.nodes_data.get(node_name, {})
-            if node_info.get('status') == 'running':
-                stop_action = menu.addAction("⏹️ 停止节点")
-                stop_action.triggered.connect(lambda: self._stop_single_node(node_name))
-            else:
-                start_action = menu.addAction("▶️ 启动节点")
-                start_action.triggered.connect(lambda: self._start_single_node(node_name))
-            
-            menu.addSeparator()
-            
-            # 重命名节点
-            rename_action = menu.addAction("✏️ 重命名节点")
-            rename_action.triggered.connect(lambda: self.rename_node(node_name))
-            
-            menu.addSeparator()
-            
-            # 打开节点文件夹
-            open_folder_action = menu.addAction("📁 打开节点文件夹")
-            open_folder_action.triggered.connect(lambda: self.open_node_folder(node_name))
-            
-            # 查看日志
-            view_log_action = menu.addAction("📄 查看日志")
-            view_log_action.triggered.connect(lambda: self.view_node_log(node_name))
-            
-            menu.addSeparator()
-            
-            # 编辑配置
-            edit_config_action = menu.addAction("⚙️ 编辑配置")
-            edit_config_action.triggered.connect(lambda: self.edit_node_config(node_name))
-            
-            # 删除节点
-            delete_action = menu.addAction("🗑️ 删除节点")
-            delete_action.triggered.connect(lambda: self.delete_node(node_name))
+            move_to_group_menu.addAction("（无可用组）").setEnabled(False)
+        
+        # 从组移除
+        current_group = self.group_manager.get_node_group(node_name)
+        if current_group:
+            remove_from_group_action = menu.addAction(f"❌ 从组 '{current_group}' 移除")
+            remove_from_group_action.triggered.connect(lambda: self.remove_node_from_group(node_name))
+        
+        menu.addSeparator()
+        
+        # 启动/停止
+        node_info = self.nodes_data.get(node_name, {})
+        if node_info.get('status') == 'running':
+            stop_action = menu.addAction("⏹️ 停止节点")
+            stop_action.triggered.connect(lambda: self._stop_single_node(node_name))
+        else:
+            start_action = menu.addAction("▶️ 启动节点")
+            start_action.triggered.connect(lambda: self._start_single_node(node_name))
+        
+        menu.addSeparator()
+        
+        # 重命名节点
+        rename_action = menu.addAction("✏️ 重命名节点")
+        rename_action.triggered.connect(lambda: self.rename_node(node_name))
+        
+        menu.addSeparator()
+        
+        # 打开节点文件夹
+        open_folder_action = menu.addAction("📁 打开节点文件夹")
+        open_folder_action.triggered.connect(lambda: self.open_node_folder(node_name))
+        
+        # 查看日志
+        view_log_action = menu.addAction("📄 查看日志")
+        view_log_action.triggered.connect(lambda: self.view_node_log(node_name))
+        
+        menu.addSeparator()
+        
+        # 编辑配置
+        edit_config_action = menu.addAction("⚙️ 编辑配置")
+        edit_config_action.triggered.connect(lambda: self.edit_node_config(node_name))
+        
+        # 删除节点
+        delete_action = menu.addAction("🗑️ 删除节点")
+        delete_action.triggered.connect(lambda: self.delete_node(node_name))
     
     def _show_group_context_menu(self, menu, group_name):
         """显示组右键菜单"""
@@ -1225,293 +885,6 @@ class NodeListPanel(QDialog):
         
         if self.parent_window:
             self.parent_window.show_toast(f"已停止 {success_count} 个节点", "success")
-    
-    def batch_delete_nodes(self):
-        """批量删除选中的节点"""
-        selected_nodes = self.get_selected_nodes()
-        
-        if not selected_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast("请先选中要删除的节点", "warning")
-            return
-        
-        # 确认删除
-        reply = QMessageBox.question(
-            self, "确认批量删除",
-            f"确定要删除选中的 {len(selected_nodes)} 个节点吗？\n这将删除所有选中节点的文件夹！\n\n节点列表:\n" + "\n".join(selected_nodes[:10]) + ("..." if len(selected_nodes) > 10 else ""),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        
-        success_count = 0
-        fail_count = 0
-        failed_nodes = []
-        
-        for node_name in selected_nodes:
-            if node_name not in self.nodes_data:
-                fail_count += 1
-                failed_nodes.append(node_name)
-                continue
-            
-            try:
-                node_info = self.nodes_data[node_name]
-                node_path = node_info['path']
-                
-                # 停止节点进程（如果在运行）
-                if node_info['process']:
-                    process = node_info['process']
-                    try:
-                        if os.name == 'nt':
-                            process.terminate()
-                            try:
-                                process.wait(timeout=5)
-                            except subprocess.TimeoutExpired:
-                                import signal
-                                process.send_signal(signal.CTRL_BREAK_EVENT)
-                                try:
-                                    process.wait(timeout=3)
-                                except subprocess.TimeoutExpired:
-                                    process.kill()
-                                    process.wait()
-                        else:
-                            import signal
-                            try:
-                                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                                process.wait(timeout=5)
-                            except (ProcessLookupError, subprocess.TimeoutExpired):
-                                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                                process.wait()
-                    except Exception as e:
-                        print(f"停止节点时出错: {e}")
-                        try:
-                            process.kill()
-                            process.wait()
-                        except:
-                            pass
-                
-                # 删除文件夹
-                import shutil
-                shutil.rmtree(node_path)
-                
-                # 从节点组中移除
-                current_group = self.group_manager.get_node_group(node_name)
-                if current_group:
-                    self.group_manager.remove_nodes_from_group(current_group, [node_name])
-                
-                # 从数据中移除
-                del self.nodes_data[node_name]
-                
-                # 从画布中移除
-                if self.parent_window:
-                    self.parent_window.canvas.remove_node_from_canvas(node_name)
-                
-                success_count += 1
-                
-            except Exception as e:
-                print(f"删除节点 {node_name} 失败: {e}")
-                fail_count += 1
-                failed_nodes.append(node_name)
-        
-        # 刷新列表
-        self.update_node_list(self.nodes_data)
-        
-        # 显示结果
-        msg = f"成功删除 {success_count} 个节点"
-        if fail_count > 0:
-            msg += f"\n{fail_count} 个节点删除失败:\n" + "\n".join(failed_nodes[:5])
-            if len(failed_nodes) > 5:
-                msg += f"\n...等{len(failed_nodes)}个"
-        
-        QMessageBox.information(self, "批量删除完成", msg)
-        
-        if self.parent_window:
-            self.parent_window.show_toast(f"已删除 {success_count} 个节点", "success")
-    
-    def batch_add_nodes_to_canvas(self):
-        """批量添加选中的节点到画布"""
-        selected_nodes = self.get_selected_nodes()
-        
-        if not selected_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast("请先选中要添加的节点", "warning")
-            return
-        
-        if not self.parent_window:
-            return
-        
-        success_count = 0
-        skip_count = 0
-        
-        for node_name in selected_nodes:
-            # 检查节点是否已在画布上
-            if node_name in self.parent_window.canvas.nodes:
-                skip_count += 1
-                continue
-            
-            # 添加到画布
-            self.parent_window.canvas.add_node_to_canvas(node_name)
-            success_count += 1
-        
-        msg = f"已添加 {success_count} 个节点到画布"
-        if skip_count > 0:
-            msg += f"，{skip_count} 个节点已在画布上"
-        
-        self.parent_window.show_toast(msg, "success")
-    
-    def batch_open_node_folders(self):
-        """批量打开选中的节点文件夹"""
-        selected_nodes = self.get_selected_nodes()
-        
-        if not selected_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast("请先选中要打开的节点", "warning")
-            return
-        
-        import platform
-        
-        for node_name in selected_nodes:
-            if node_name in self.nodes_data:
-                node_path = self.nodes_data[node_name]['path']
-                
-                system = platform.system()
-                if system == "Windows":
-                    subprocess.Popen(['explorer', node_path])
-                elif system == "Darwin":  # macOS
-                    subprocess.Popen(['open', node_path])
-                else:  # Linux
-                    subprocess.Popen(['xdg-open', node_path])
-        
-        if self.parent_window:
-            self.parent_window.show_toast(f"已打开 {len(selected_nodes)} 个节点文件夹", "success")
-    
-    def batch_view_node_logs(self):
-        """批量查看选中的节点日志"""
-        selected_nodes = self.get_selected_nodes()
-        
-        if not selected_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast("请先选中要查看日志的节点", "warning")
-            return
-        
-        # 收集所有日志内容
-        all_logs = []
-        missing_logs = []
-        
-        for node_name in selected_nodes:
-            if node_name not in self.nodes_data:
-                continue
-            
-            node_path = self.nodes_data[node_name]['path']
-            log_file = os.path.join(node_path, "logs", "listener.log")
-            
-            if not os.path.exists(log_file):
-                missing_logs.append(node_name)
-                continue
-            
-            try:
-                with open(log_file, 'r', encoding='utf-8') as f:
-                    log_content = f.read()
-                
-                all_logs.append(f"{'='*60}\n节点: {node_name}\n{'='*60}\n{log_content}\n")
-            except Exception as e:
-                print(f"读取节点 {node_name} 日志失败: {e}")
-        
-        if not all_logs:
-            QMessageBox.information(self, "提示", "没有可用的日志文件")
-            return
-        
-        # 显示合并的日志内容
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton
-        
-        dialog = QDialog(self)
-        dialog.setWindowTitle(f"批量日志查看 - {len(selected_nodes)} 个节点")
-        dialog.setGeometry(200, 200, 900, 700)
-        
-        layout = QVBoxLayout(dialog)
-        
-        text_edit = QTextEdit()
-        text_edit.setReadOnly(True)
-        text_edit.setText("\n".join(all_logs))
-        layout.addWidget(text_edit)
-        
-        close_button = QPushButton("关闭")
-        close_button.clicked.connect(dialog.close)
-        layout.addWidget(close_button)
-        
-        dialog.exec()
-    
-    def batch_edit_node_configs(self):
-        """批量编辑选中的节点配置"""
-        selected_nodes = self.get_selected_nodes()
-        
-        if not selected_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast("请先选中要编辑配置的节点", "warning")
-            return
-        
-        # 如果只有一个节点，直接打开配置对话框
-        if len(selected_nodes) == 1:
-            node_name = selected_nodes[0]
-            self.edit_node_config(node_name)
-            return
-        
-        # 多个节点时，显示确认对话框
-        reply = QMessageBox.question(
-            self, "批量编辑配置",
-            f"您选中了 {len(selected_nodes)} 个节点。\n\n"
-            f"将依次打开每个节点的配置对话框。\n"
-            f"是否继续？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        
-        # 依次打开每个节点的配置对话框
-        for node_name in selected_nodes:
-            if node_name in self.nodes_data:
-                node_info = self.nodes_data[node_name]
-                config = node_info['config']
-                node_path = node_info['path']
-                
-                from ui.property_panel import NodeConfigDialog
-                dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
-                dialog.exec()
-    
-    def _get_common_group(self, node_names):
-        """获取多个节点的共同组（如果都在同一个组）"""
-        if not node_names:
-            return None
-        
-        groups = set()
-        for node_name in node_names:
-            group = self.group_manager.get_node_group(node_name)
-            if group:
-                groups.add(group)
-            else:
-                return None  # 如果有节点不在任何组，返回None
-        
-        # 如果所有节点都在同一个组，返回该组名
-        if len(groups) == 1:
-            return groups.pop()
-        
-        return None
-    
-    def batch_remove_nodes_from_group(self, group_name):
-        """批量从组中移除选中的节点"""
-        selected_nodes = self.get_selected_nodes()
-        
-        if not selected_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast("请先选中要移除的节点", "warning")
-            return
-        
-        if self.group_manager.remove_nodes_from_group(group_name, selected_nodes):
-            self.update_node_list(self.nodes_data)
-            if self.parent_window:
-                self.parent_window.show_toast(f"已将 {len(selected_nodes)} 个节点从组 {group_name} 移除", "success")
     
     def start_group_nodes(self, group_name):
         """启动组内所有节点"""

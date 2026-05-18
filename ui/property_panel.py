@@ -2,6 +2,7 @@
 属性配置面板 - 右侧面板，显示和编辑节点配置
 """
 import os
+import sys
 import json
 import subprocess
 import platform
@@ -667,21 +668,33 @@ class PropertyPanel(QWidget):
         
         try:
             import subprocess
-            import sys
             
-            # 确定Python解释器路径
+            # 确定启动脚本路径
             if sys.platform == "win32":
-                py_path = os.path.join(self.current_node_path, "venv", "Scripts", "python.exe")
+                start_script = os.path.join(self.current_node_path, "start.bat")
             else:
-                py_path = os.path.join(self.current_node_path, "venv", "bin", "python")
+                start_script = os.path.join(self.current_node_path, "start.sh")
             
-            # 启动节点进程
-            main_py = os.path.join(self.current_node_path, "main.py")
-            process = subprocess.Popen(
-                [py_path, main_py],
-                cwd=self.current_node_path,
-                creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
-            )
+            if not os.path.exists(start_script):
+                QMessageBox.critical(self, "错误", f"启动脚本不存在: {start_script}")
+                return
+            
+            # 启动节点进程 - 使用启动脚本
+            if sys.platform == "win32":
+                # Windows: 直接执行 bat 文件，传入 --no-pause 参数避免pause
+                process = subprocess.Popen(
+                    [start_script, "--no-pause"],
+                    cwd=self.current_node_path,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                )
+            else:
+                # Linux/Mac: 赋予执行权限并执行 shell 脚本，传入 --no-pause 参数
+                os.chmod(start_script, 0o755)
+                process = subprocess.Popen(
+                    ["/bin/bash", start_script, "--no-pause"],
+                    cwd=self.current_node_path,
+                    start_new_session=True
+                )
             
             # 更新状态
             self.parent_window.update_node_status(self.current_node_name, 'running')
@@ -692,7 +705,7 @@ class PropertyPanel(QWidget):
             QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
             
     def stop_node(self):
-        """停止节点"""
+        """停止节点 - 强制关闭进程"""
         if not self.current_node_name or not self.current_node_path:
             QMessageBox.warning(self, "警告", "请先选择一个节点")
             return
@@ -707,16 +720,30 @@ class PropertyPanel(QWidget):
             return
         
         try:
-            # 终止进程
+            # ✅ 强制杀死进程
             process = node_data['process']
             if process.poll() is None:  # 进程仍在运行
-                process.terminate()
-                process.wait(timeout=5)
+                try:
+                    # 直接强制终止进程
+                    process.kill()
+                    process.wait(timeout=3)
+                except Exception as e:
+                    print(f"强制终止进程时出错: {e}")
+                    # 如果 kill 失败，尝试 terminate
+                    try:
+                        process.terminate()
+                        process.wait(timeout=3)
+                    except:
+                        pass
+            
+            # 清理进程引用
+            node_data['process'] = None
+            node_data['status'] = 'stopped'
             
             # 更新状态
             self.parent_window.update_node_status(self.current_node_name, 'stopped')
             
-            QMessageBox.information(self, "成功", f"节点 '{self.current_node_name}' 已停止")
+            QMessageBox.information(self, "成功", f"节点 '{self.current_node_name}' 已强制停止")
             
         except Exception as e:
             QMessageBox.critical(self, "错误", f"停止节点失败: {str(e)}")

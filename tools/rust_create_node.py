@@ -611,7 +611,7 @@ if not exist "target\\release\\{node_name}.exe" (
     if errorlevel 1 (
         echo ❌ Rust 未安装
         echo 💡 请先安装 Rust: https://rustup.rs/
-        pause
+        if not "%%1"=="--no-pause" pause
         exit /b 1
     )
     
@@ -620,7 +620,7 @@ if not exist "target\\release\\{node_name}.exe" (
     if errorlevel 1 (
         echo.
         echo ❌ 构建失败
-        pause
+        if not "%%1"=="--no-pause" pause
         exit /b 1
     )
     echo.
@@ -635,7 +635,7 @@ echo.
 target\\release\\{node_name}_listener.exe
 echo.
 echo ❌ 程序已退出
-pause
+if not "%%1"=="--no-pause" pause
 '''
 
 
@@ -663,6 +663,9 @@ if [ ! -f "target/release/{node_name}" ]; then
     if ! command -v rustc &> /dev/null; then
         echo "❌ Rust 未安装"
         echo "💡 请先安装 Rust: https://rustup.rs/"
+        if [ "$1" != "--no-pause" ]; then
+            read -p "按回车键退出..."
+        fi
         exit 1
     fi
     
@@ -671,6 +674,9 @@ if [ ! -f "target/release/{node_name}" ]; then
     if [ $? -ne 0 ]; then
         echo ""
         echo "❌ 构建失败"
+        if [ "$1" != "--no-pause" ]; then
+            read -p "按回车键退出..."
+        fi
         exit 1
     fi
     echo ""
@@ -683,6 +689,11 @@ echo ""
 echo "✅ 启动监听程序..."
 echo ""
 ./target/release/{node_name}_listener
+echo ""
+echo "❌ 程序已退出"
+if [ "$1" != "--no-pause" ]; then
+    read -p "按回车键退出..."
+fi
 '''
 
 
