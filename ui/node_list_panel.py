@@ -350,6 +350,12 @@ class NodeListPanel(QDialog):
                 move_to_group_menu.addAction("（无可用组）").setEnabled(False)
             
             menu.addSeparator()
+            
+            # 批量删除
+            batch_delete_action = menu.addAction(f"🗑️ 删除选中的 {len(selected_nodes)} 个节点")
+            batch_delete_action.triggered.connect(self.batch_delete_nodes)
+            
+            menu.addSeparator()
         
         # 单个节点操作
         add_to_canvas_action = menu.addAction("➕ 添加到画布")
@@ -885,6 +891,109 @@ class NodeListPanel(QDialog):
         
         if self.parent_window:
             self.parent_window.show_toast(f"已停止 {success_count} 个节点", "success")
+    
+    def batch_delete_nodes(self):
+        """批量删除选中的节点"""
+        selected_nodes = self.get_selected_nodes()
+        
+        if not selected_nodes:
+            if self.parent_window:
+                self.parent_window.show_toast("请先选中要删除的节点", "warning")
+            return
+        
+        # 确认删除
+        reply = QMessageBox.question(
+            self, "确认批量删除",
+            f"确定要删除选中的 {len(selected_nodes)} 个节点吗？\n这将删除所有选中节点的文件夹！\n\n节点列表:\n" + "\n".join(selected_nodes[:10]) + ("..." if len(selected_nodes) > 10 else ""),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        
+        success_count = 0
+        fail_count = 0
+        failed_nodes = []
+        
+        for node_name in selected_nodes:
+            if node_name not in self.nodes_data:
+                fail_count += 1
+                failed_nodes.append(node_name)
+                continue
+            
+            try:
+                node_info = self.nodes_data[node_name]
+                node_path = node_info['path']
+                
+                # 停止节点进程（如果在运行）
+                if node_info['process']:
+                    process = node_info['process']
+                    try:
+                        if os.name == 'nt':
+                            process.terminate()
+                            try:
+                                process.wait(timeout=5)
+                            except subprocess.TimeoutExpired:
+                                import signal
+                                process.send_signal(signal.CTRL_BREAK_EVENT)
+                                try:
+                                    process.wait(timeout=3)
+                                except subprocess.TimeoutExpired:
+                                    process.kill()
+                                    process.wait()
+                        else:
+                            import signal
+                            try:
+                                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                                process.wait(timeout=5)
+                            except (ProcessLookupError, subprocess.TimeoutExpired):
+                                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                                process.wait()
+                    except Exception as e:
+                        print(f"停止节点时出错: {e}")
+                        try:
+                            process.kill()
+                            process.wait()
+                        except:
+                            pass
+                
+                # 删除文件夹
+                import shutil
+                shutil.rmtree(node_path)
+                
+                # 从节点组中移除
+                current_group = self.group_manager.get_node_group(node_name)
+                if current_group:
+                    self.group_manager.remove_nodes_from_group(current_group, [node_name])
+                
+                # 从数据中移除
+                del self.nodes_data[node_name]
+                
+                # 从画布中移除
+                if self.parent_window:
+                    self.parent_window.canvas.remove_node_from_canvas(node_name)
+                
+                success_count += 1
+                
+            except Exception as e:
+                print(f"删除节点 {node_name} 失败: {e}")
+                fail_count += 1
+                failed_nodes.append(node_name)
+        
+        # 刷新列表
+        self.update_node_list(self.nodes_data)
+        
+        # 显示结果
+        msg = f"成功删除 {success_count} 个节点"
+        if fail_count > 0:
+            msg += f"\n{fail_count} 个节点删除失败:\n" + "\n".join(failed_nodes[:5])
+            if len(failed_nodes) > 5:
+                msg += f"\n...等{len(failed_nodes)}个"
+        
+        QMessageBox.information(self, "批量删除完成", msg)
+        
+        if self.parent_window:
+            self.parent_window.show_toast(f"已删除 {success_count} 个节点", "success")
     
     def start_group_nodes(self, group_name):
         """启动组内所有节点"""

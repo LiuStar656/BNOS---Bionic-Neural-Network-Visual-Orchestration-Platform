@@ -20,6 +20,45 @@
 
 ---
 
+## 🆕 Recent Updates (2026-05-18)
+
+### ✨ New Features & Improvements
+
+#### 1. **Multi-Select Batch Delete in Node List** 🗑️
+- **Feature**: Support batch deletion of nodes after multi-selection using Shift/Ctrl in the node list panel
+- **Implementation Details**:
+  - **Multi-Selection Support**: Hold Shift or Ctrl key to select multiple nodes (existing feature)
+  - **Enhanced Context Menu**: When multiple nodes are selected, right-click menu displays "🗑️ Delete X Selected Nodes" option
+  - **Double Confirmation Mechanism**: Shows confirmation dialog before deletion, listing all nodes to be deleted (up to 10 displayed)
+  - **Complete Cleanup Process**:
+    - Automatically stops running node processes
+    - Deletes node folders and all files
+    - Removes references from node groups
+    - Deletes from memory data
+    - Removes node display from canvas
+  - **Detailed Result Feedback**: Displays success/failure statistics, with failed nodes listed separately
+  - **Toast Notification**: Notifies users via Toast after operation completion
+  
+- **Technical Implementation**:
+  - Added `batch_delete_nodes()` method to handle batch deletion logic
+  - Enhanced `_show_node_context_menu()` with conditional logic to show batch delete option when multiple nodes are selected
+  - Comprehensive exception handling ensures failure of one node doesn't affect others
+  - Follows project specifications: provides clear double confirmation to prevent accidental operations
+  
+- **Usage**:
+  ```
+  1. In the node list panel, hold Shift or Ctrl to select multiple nodes
+  2. Right-click on any selected node
+  3. Select "🗑️ Delete X Selected Nodes"
+  4. Confirm the deletion operation
+  5. System automatically completes cleanup for all nodes
+  ```
+  
+- **Affected Files**: `ui/node_list_panel.py` - `NodeListPanel` class
+- **User Value**: Improves node management efficiency, simplifies batch cleanup operations, reduces risk of accidental deletion
+
+---
+
 ## 🆕 Recent Updates (2026-05-17)
 
 ### ✨ New Features & Improvements
