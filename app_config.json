@@ -1,25 +1,25 @@
 {
   "window_geometry": {
-    "x": 225,
-    "y": 138,
+    "x": 582,
+    "y": 346,
     "width": 1114,
-    "height": 675,
+    "height": 684,
     "maximized": false
   },
   "splitter_sizes": [
     362,
     751
   ],
-  "last_project": "D:/杂项",
+  "last_project": "F:/test",
   "canvas_view_state": {
-    "scale": 1.15,
+    "scale": 1.0,
     "scroll_x": 0,
     "scroll_y": 0
   },
   "node_list_panel": {
     "visible": true,
-    "x": 245,
-    "y": 208,
+    "x": 602,
+    "y": 416,
     "width": 280,
     "height": 500
   }
