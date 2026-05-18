@@ -1,9 +1,9 @@
 {
   "window_geometry": {
-    "x": 223,
-    "y": 126,
-    "width": 1118,
-    "height": 689,
+    "x": 225,
+    "y": 138,
+    "width": 1114,
+    "height": 675,
     "maximized": false
   },
   "splitter_sizes": [
@@ -12,14 +12,14 @@
   ],
   "last_project": "D:/杂项",
   "canvas_view_state": {
-    "scale": 1.0000000000000002,
+    "scale": 0.6575162324319883,
     "scroll_x": 0,
     "scroll_y": 0
   },
   "node_list_panel": {
     "visible": true,
-    "x": 243,
-    "y": 196,
+    "x": 245,
+    "y": 208,
     "width": 280,
     "height": 500
   }
