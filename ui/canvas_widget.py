@@ -751,6 +751,26 @@ class NodeCanvas(QGraphicsView):
 
         super().mouseReleaseEvent(event)
 
+    def mouseDoubleClickEvent(self, event):
+        """鼠标双击事件 - 双击节点打开配置对话框"""
+        # 获取双击位置的项
+        item = self.itemAt(event.position().toPoint())
+        
+        # 如果双击的是节点，打开配置对话框
+        if isinstance(item, NodeItem):
+            node_name = item.node_name
+            print(f"🖱️ 双击节点: {node_name}，打开配置对话框")
+            
+            # 调用打开配置的方法
+            self.open_node_config(node_name)
+            
+            # 接受事件，阻止传播
+            event.accept()
+            return
+        
+        # 其他情况使用默认处理
+        super().mouseDoubleClickEvent(event)
+
     def add_node_to_canvas(self, node_name):
         """添加节点到画布"""
         if node_name in self.nodes:
