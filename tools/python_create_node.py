@@ -278,7 +278,7 @@ def check_and_repair_environment():
         
         # 调用python_create_node.py重建
         software_root = os.path.dirname(NODE_DIR)  # nodes目录的父目录
-        create_node_script = os.path.join(software_root, "tools", "python_create_node.py")
+        create_node_script = os.path.join(software_root, "..", "python_create_node.py")
         
         if os.path.exists(create_node_script):
             log("🔧 开始重建虚拟环境...")
@@ -435,6 +435,21 @@ if __name__ == "__main__":
         f.write('{"code":0,"data":null}')
 
     # ==============================
+    # requirements.txt（依赖管理文件）
+    # ==============================
+    requirements_content = '''# BNOS Python Node Dependencies
+# 在此添加节点所需的 Python 包
+# 格式：包名==版本号 或 包名>=最低版本
+# 
+# 示例（取消注释以使用）：
+# requests>=2.28.0
+# numpy==1.24.0
+# pandas>=1.5.0
+'''
+    with open(os.path.join(node_dir, "requirements.txt"), "w", encoding="utf-8") as f:
+        f.write(requirements_content.strip())
+
+    # ==============================
     # 自动生成启动脚本（双击即用，支持可迁移+自愈）
     # ==============================
     if os.name == "nt":
@@ -457,13 +472,13 @@ if not exist "venv\\Scripts\\python.exe" (
     echo.
     
     REM 调用python_create_node.py进行修复
-    if exist "..\\..\\tools\\python_create_node.py" (
-        python ..\\..\\tools\\python_create_node.py --repair-only "%CD%"
+    if exist "..\\..\\python_create_node.py" (
+        python ..\\..\\python_create_node.py --repair-only "%CD%"
         if errorlevel 1 (
             echo.
             echo ❌ 自动修复失败
             echo 💡 请手动删除venv文件夹后重新创建节点
-            if not "%1"=="--no-pause" pause
+            pause
             exit /b 1
         )
         echo.
@@ -471,7 +486,7 @@ if not exist "venv\\Scripts\\python.exe" (
     ) else (
         echo ❌ 找不到python_create_node.py，无法自动修复
         echo 💡 请手动删除venv文件夹后重新创建节点
-        if not "%1"=="--no-pause" pause
+        pause
         exit /b 1
     )
 )
@@ -479,6 +494,33 @@ if not exist "venv\\Scripts\\python.exe" (
 REM ==================== 启动节点 ====================
 echo 🔍 检测到虚拟环境正常
 echo.
+
+REM ==================== 依赖安装检查 ====================
+if exist "requirements.txt" (
+    echo 📦 检测到 requirements.txt，检查依赖安装状态...
+    
+    REM 激活虚拟环境并检查依赖
+    call venv\Scripts\activate.bat
+    
+    REM 尝试导入所有依赖来检查是否已安装（使用 UTF-8 编码）
+    python -c "import pkg_resources; pkg_resources.working_set.require([l.strip() for l in open('requirements.txt', encoding='utf-8').read().splitlines() if l.strip() and not l.strip().startswith('#')])" 2>nul
+    if errorlevel 1 (
+        echo 🔧 开始安装依赖...
+        python -m pip install -r requirements.txt
+        if errorlevel 1 (
+            echo.
+            echo ⚠️ 依赖安装失败，但将继续启动
+        ) else (
+            echo.
+            echo ✅ 依赖安装成功
+        )
+    ) else (
+        echo ✅ 依赖已安装或无需安装
+    )
+    
+    echo.
+)
+
 echo 🔧 启动节点...
 echo.
 
@@ -486,7 +528,7 @@ python listener.py
 
 echo.
 echo ✅ 节点已停止
-if not "%1"=="--no-pause" pause
+pause
 '''
         with open(os.path.join(node_dir, "start.bat"), "w", encoding="utf-8") as f:
             f.write(start_bat.strip())
@@ -511,15 +553,13 @@ if [ ! -f "venv/bin/python" ]; then
     echo ""
     
     # 调用python_create_node.py进行修复
-    if [ -f "../../tools/python_create_node.py" ]; then
-        python3 ../../tools/python_create_node.py --repair-only "$(pwd)"
+    if [ -f "../../python_create_node.py" ]; then
+        python3 ../../python_create_node.py --repair-only "$(pwd)"
         if [ $? -ne 0 ]; then
             echo ""
             echo "❌ 自动修复失败"
             echo "💡 请手动删除venv文件夹后重新创建节点"
-            if [ "$1" != "--no-pause" ]; then
-                read -p "按回车键退出..."
-            fi
+            read -p "按回车键退出..."
             exit 1
         fi
         echo ""
@@ -527,9 +567,6 @@ if [ ! -f "venv/bin/python" ]; then
     else
         echo "❌ 找不到python_create_node.py，无法自动修复"
         echo "💡 请手动删除venv文件夹后重新创建节点"
-        if [ "$1" != "--no-pause" ]; then
-            read -p "按回车键退出..."
-        fi
         exit 1
     fi
 else
@@ -541,7 +578,7 @@ echo ""
 if [ -f "requirements.txt" ]; then
     if grep -v "^#" requirements.txt | grep -q "[^[:space:]]"; then
         echo "📦 检测到依赖项，检查安装状态..."
-        venv/bin/python -c "import pkg_resources; pkg_resources.working_set.require(open('requirements.txt').read().splitlines())" 2>/dev/null
+        venv/bin/python -c "import pkg_resources; pkg_resources.working_set.require([l.strip() for l in open('requirements.txt', encoding='utf-8').read().splitlines() if l.strip() and not l.strip().startswith('#')])" 2>/dev/null
         if [ $? -ne 0 ]; then
             echo "🔧 开始安装依赖..."
             venv/bin/python -m pip install -r requirements.txt
@@ -551,19 +588,15 @@ if [ -f "requirements.txt" ]; then
                 echo "⚠️ 依赖安装失败，但将继续启动"
             fi
         else
-            echo "✅ 依赖已安装"
+            echo "✅ 依赖已安装或无需安装"
         fi
+    else
+        echo "✅ requirements.txt 为空或仅有注释，跳过依赖安装"
     fi
 fi
 
 source venv/bin/activate
 python3 listener.py
-
-echo ""
-echo "✅ 节点已停止"
-if [ "$1" != "--no-pause" ]; then
-    read -p "按回车键退出..."
-fi
 '''
         with open(os.path.join(node_dir, "start.sh"), "w", encoding="utf-8") as f:
             f.write(start_sh.strip())
@@ -576,9 +609,9 @@ def main():
     独立运行模式：交互式创建节点或修复环境
     
     用法：
-        python tools/python_create_node.py                                    # 交互模式
-        python tools/python_create_node.py <节点名称>                         # 直接创建
-        python tools/python_create_node.py --repair-only <节点目录路径>       # 仅修复虚拟环境
+        python python_create_node.py                                    # 交互模式
+        python python_create_node.py <节点名称>                         # 直接创建
+        python python_create_node.py --repair-only <节点目录路径>       # 仅修复虚拟环境
     """
     import argparse
     
@@ -587,9 +620,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  python tools/python_create_node.py                    # 进入交互模式
-  python tools/python_create_node.py my_node            # 直接创建名为 my_node 的节点
-  python tools/python_create_node.py --repair-only ./node_python_my_node  # 修复指定节点的虚拟环境
+  python python_create_node.py                    # 进入交互模式
+  python python_create_node.py my_node            # 直接创建名为 my_node 的节点
+  python python_create_node.py --repair-only ./node_python_my_node  # 修复指定节点的虚拟环境
         """
     )
     
@@ -753,8 +786,6 @@ def main():
                 import traceback
                 traceback.print_exc()
                 print()
-
-
 
 
 if __name__ == "__main__":
