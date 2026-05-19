@@ -455,8 +455,14 @@ class NodeCanvas(QGraphicsView):
         super().__init__(parent)
         self.parent_window = parent
         
-        # 创建场景
-        self.scene = QGraphicsScene(self)
+        # ===== 画布场景尺寸配置 =====
+        self.canvas_width = 5000   # 画布宽度（像素）
+        self.canvas_height = 5000  # 画布高度（像素）
+        
+        # 创建场景（使用固定的初始大小）
+        half_width = self.canvas_width // 2
+        half_height = self.canvas_height // 2
+        self.scene = QGraphicsScene(-half_width, -half_height, self.canvas_width, self.canvas_height, self)
         self.setScene(self.scene)
         
         # 设置视图属性
@@ -1740,6 +1746,10 @@ class NodeCanvas(QGraphicsView):
                 "scale": self.transform().m11(),
                 "scroll_x": self.horizontalScrollBar().value(),
                 "scroll_y": self.verticalScrollBar().value()
+            },
+            "canvas_size": {
+                "width": self.canvas_width,
+                "height": self.canvas_height
             }
         }
         
@@ -1815,6 +1825,55 @@ class NodeCanvas(QGraphicsView):
             
             with open(layout_file, 'r', encoding='utf-8') as f:
                 layout_data = json.load(f)
+            
+            # ===== 第一步：恢复画布尺寸（如果有保存）=====
+            canvas_size = layout_data.get("canvas_size")
+            if canvas_size:
+                new_width = canvas_size.get("width", self.canvas_width)
+                new_height = canvas_size.get("height", self.canvas_height)
+                
+                # 只有当尺寸发生变化时才重新创建场景
+                if new_width != self.canvas_width or new_height != self.canvas_height:
+                    self.canvas_width = new_width
+                    self.canvas_height = new_height
+                    
+                    # 重新创建场景
+                    half_width = self.canvas_width // 2
+                    half_height = self.canvas_height // 2
+                    
+                    # 保存当前所有节点和连线的引用
+                    saved_nodes = {}
+                    for node_name, node in self.nodes.items():
+                        saved_nodes[node_name] = {
+                            'item': node,
+                            'pos': node.pos(),
+                            'rect': node.rect()
+                        }
+                    
+                    # 清除旧场景
+                    old_scene = self.scene
+                    self.scene = QGraphicsScene(-half_width, -half_height, self.canvas_width, self.canvas_height, self)
+                    self.setScene(self.scene)
+                    
+                    # 恢复节点到新场景
+                    for node_name, saved_data in saved_nodes.items():
+                        node = saved_data['item']
+                        # 从旧场景中移除
+                        old_scene.removeItem(node)
+                        # 添加到新场景
+                        self.scene.addItem(node)
+                        # 恢复位置
+                        node.setPos(saved_data['pos'])
+                    
+                    # 恢复连线到新场景
+                    saved_edges = self.edges[:]
+                    self.edges = []
+                    for edge in saved_edges:
+                        old_scene.removeItem(edge)
+                        self.scene.addItem(edge)
+                        self.edges.append(edge)
+                    
+                    print(f"✅ 画布尺寸已更新: {self.canvas_width}x{self.canvas_height}")
             
             nodes_loaded = 0
             edges_loaded = 0
@@ -1926,6 +1985,7 @@ class NodeCanvas(QGraphicsView):
                         self.nodes[node_name] = node
                         
                         nodes_added_auto += 1
+                        print(f"   🔄 自动恢复节点: {node_name} (位置: {x}, {y})")
                         print(f"   🔄 自动恢复节点: {node_name} (位置: {x}, {y})")
 
             # 第三步：恢复连线（避免重复，只恢复两端节点都在画布中的连线）

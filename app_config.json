@@ -1,7 +1,7 @@
 {
   "window_geometry": {
-    "x": 539,
-    "y": 365,
+    "x": 618,
+    "y": 374,
     "width": 1114,
     "height": 684,
     "maximized": false
@@ -10,10 +10,17 @@
     362,
     751
   ],
-  "last_project": null,
+  "last_project": "F:/",
   "canvas_view_state": {
-    "scale": 0.7561436672967865,
-    "scroll_x": 0,
-    "scroll_y": 0
+    "scale": 1.3224999999999998,
+    "scroll_x": -31,
+    "scroll_y": -644
+  },
+  "node_list_panel": {
+    "visible": true,
+    "x": 638,
+    "y": 444,
+    "width": 280,
+    "height": 500
   }
 }
