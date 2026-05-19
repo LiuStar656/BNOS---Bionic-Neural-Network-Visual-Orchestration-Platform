@@ -506,8 +506,9 @@ class NodeCanvas(QGraphicsView):
         self.setMouseTracking(True)
         
         # ===== 画布交互状态 =====
-        self.is_pan_mode = False  # Ctrl+左键平移模式
+        self.is_pan_mode = False  # 空格+左键平移模式
         self.pan_start_pos = None  # 平移起始位置
+        self.is_space_pressed = False  # 空格键按下状态
         
         self.is_box_selecting = False  # 框选模式
         self.box_select_start_pos = None  # 框选起始位置
@@ -552,7 +553,7 @@ class NodeCanvas(QGraphicsView):
     
     def mouseMoveEvent(self, event):
         """鼠标移动事件 - 处理平移、框选和连线拖拽"""
-        # 如果正在平移（Ctrl+左键拖拽）
+        # 如果正在平移（空格+左键拖拽）
         if self.is_pan_mode and self.pan_start_pos:
             # 计算偏移量（使用 widget 坐标）
             delta = event.pos() - self.pan_start_pos
@@ -662,7 +663,7 @@ class NodeCanvas(QGraphicsView):
             event.accept()
     
     def mousePressEvent(self, event):
-        """鼠标按下事件 - 处理Ctrl+左键平移、左键长按框选"""
+        """鼠标按下事件 - 处理空格+左键平移、左键长按框选"""
         # 获取点击位置的项
         item = self.itemAt(event.position().toPoint())
         
@@ -675,8 +676,8 @@ class NodeCanvas(QGraphicsView):
                 event.accept()
                 return
         
-        # Ctrl+左键：根据点击位置决定是多选还是平移
-        if event.button() == Qt.MouseButton.LeftButton and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+        # 空格+左键：根据点击位置决定是多选还是平移
+        if event.button() == Qt.MouseButton.LeftButton and self.is_space_pressed:
             # ✅ 关键：检查点击目标
             # 如果点击的是节点、连线或锚点，不进入平移模式，让NodeItem自己处理Ctrl+Click多选
             if item is not None and (isinstance(item, NodeItem) or isinstance(item, EdgeItem) or isinstance(item, AnchorItem)):
@@ -694,12 +695,12 @@ class NodeCanvas(QGraphicsView):
             for node in self.nodes.values():
                 node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
             
-            print(f"🖐️ 进入平移模式")
+            print(f"🖐️ 进入平移模式（空格+左键）")
             event.accept()
             return
         
-        # 左键：检查是否点击空白区域（准备框选）- 仅在未按Ctrl时
-        if event.button() == Qt.MouseButton.LeftButton and not (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+        # 左键：检查是否点击空白区域（准备框选）- 仅在未按空格时
+        if event.button() == Qt.MouseButton.LeftButton and not self.is_space_pressed:
             # 如果点击的是空白区域（不是节点、连线、锚点等），准备框选
             if item is None or (not isinstance(item, NodeItem) and not isinstance(item, EdgeItem) and not isinstance(item, AnchorItem)):
                 # 先清除之前的框选状态
@@ -721,6 +722,15 @@ class NodeCanvas(QGraphicsView):
                 self.clear_selection()
                 
                 print(f"📦 开始框选")
+                event.accept()
+                return
+
+        # 如果点击的是节点或锚点，正常处理（选中、连线等）
+        if event.button() == Qt.MouseButton.LeftButton and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            # ✅ 关键：检查点击目标
+            # 如果点击的是节点、连线或锚点，不进入平移模式，让NodeItem自己处理Ctrl+Click多选
+                print(f"🎯 点击了交互项，交给子项处理")
+                return
                 event.accept()
                 return
 
@@ -786,6 +796,40 @@ class NodeCanvas(QGraphicsView):
         # 其他情况使用默认处理
         super().mouseDoubleClickEvent(event)
 
+    def keyPressEvent(self, event):
+        """键盘按下事件 - 跟踪空格键状态"""
+        if event.key() == Qt.Key.Key_Space:
+            self.is_space_pressed = True
+            # 如果按住空格时没有按鼠标，可以显示提示
+            if not self.is_pan_mode:
+                self.setCursor(Qt.CursorShape.OpenHandCursor)
+            event.accept()
+            return
+        super().keyPressEvent(event)
+    
+    def keyReleaseEvent(self, event):
+        """键盘释放事件 - 跟踪空格键状态"""
+        if event.key() == Qt.Key.Key_Space:
+            self.is_space_pressed = False
+            # 如果退出平移模式，恢复光标
+            if self.is_pan_mode:
+                self.is_pan_mode = False
+                self.pan_start_pos = None
+                self.setCursor(Qt.CursorShape.ArrowCursor)
+                
+                # 恢复所有节点的移动标志
+                for node in self.nodes.values():
+                    node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+                
+                print("✋ 退出平移模式（空格键释放）")
+            else:
+                self.setCursor(Qt.CursorShape.ArrowCursor)
+            event.accept()
+            return
+        super().keyReleaseEvent(event)
+
+    def add_node_to_canvas(self, node_name):
+        """添加节点到画布"""
     def add_node_to_canvas(self, node_name):
         """添加节点到画布"""
         if node_name in self.nodes:
