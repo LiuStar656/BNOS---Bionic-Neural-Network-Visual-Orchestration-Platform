@@ -1435,7 +1435,7 @@ class NodeCanvas(QGraphicsView):
             return "Java"
         elif os.path.exists(os.path.join(node_path, "main.cpp")):
             return "C++"
-        elif os.path.exists(os.path.join(node_path, "main.rs")):
+        elif os.path.exists(os.path.join(node_path, "src", "main.rs")) or os.path.exists(os.path.join(node_path, "Cargo.toml")):
             return "Rust"
         elif os.path.exists(os.path.join(node_path, "main.sh")):
             return "Shell"

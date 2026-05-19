@@ -822,9 +822,73 @@ class NodeListPanel(QDialog):
     def open_node_folder(self, node_name):
         """打开节点文件夹"""
         if node_name not in self.nodes_data:
+            QMessageBox.warning(self, "警告", f"⚠️ 节点 '{node_name}' 未找到！")
             return
         
         node_path = self.nodes_data[node_name]['path']
+        
+        # 详细调试：打印所有路径相关信息
+        print(f"\n{'='*60}")
+        print(f"🔍 [NodeListPanel] 打开节点文件夹")
+        print(f"🔍 节点名称: {node_name}")
+        print(f"🔍 原始节点路径: {node_path}")
+        print(f"🔍 路径类型: {type(node_path)}")
+        
+        # ✅ 关键修复：确保路径是绝对路径且规范化
+        original_path = node_path
+        corrected_path = os.path.abspath(original_path)
+        corrected_path = os.path.normpath(corrected_path)
+        
+        if original_path != corrected_path:
+            print(f"⚠️  路径已修正:")
+            print(f"   原始: {original_path}")
+            print(f"   修正: {corrected_path}")
+            node_path = corrected_path
+        
+        print(f"🔍 最终节点路径: {node_path}")
+        print(f"🔍 路径是否存在: {os.path.exists(node_path)}")
+        print(f"🔍 是否为目录: {os.path.isdir(node_path) if os.path.exists(node_path) else 'N/A'}")
+        print(f"🔍 父目录: {os.path.dirname(node_path)}")
+        print(f"🔍 文件夹名称: {os.path.basename(node_path)}")
+        print(f"🔍 当前工作目录: {os.getcwd()}")
+        
+        # 检查路径是否包含预期的节点名称
+        expected_folder = node_name
+        actual_folder = os.path.basename(node_path)
+        print(f"🔍 期望的文件夹名: {expected_folder}")
+        print(f"🔍 实际的文件夹名: {actual_folder}")
+        print(f"🔍 名称匹配: {expected_folder == actual_folder}")
+        
+        if not os.path.exists(node_path):
+            print(f"❌ 路径不存在！")
+            
+            # 尝试从主窗口获取正确路径
+            if hasattr(self, 'parent_window') and self.parent_window:
+                if node_name in self.parent_window.nodes_data:
+                    correct_path = self.parent_window.nodes_data[node_name]['path']
+                    correct_path = os.path.abspath(correct_path)
+                    correct_path = os.path.normpath(correct_path)
+                    
+                    print(f"💡 尝试从主窗口 nodes_data 获取路径: {correct_path}")
+                    
+                    if os.path.exists(correct_path):
+                        print(f"✅ 找到正确路径，使用此路径")
+                        node_path = correct_path
+                    else:
+                        print(f"❌ 备用路径也不存在")
+            
+            if not os.path.exists(node_path):
+                QMessageBox.warning(
+                    self, 
+                    "警告", 
+                    f"⚠️ 节点文件夹不存在！\n\n路径: {node_path}\n\n"
+                    f"可能原因：\n"
+                    f"1. 节点已被删除\n"
+                    f"2. 项目路径已更改\n"
+                    f"3. 节点数据未正确加载\n\n"
+                    f"请尝试刷新节点列表。"
+                )
+                return
         
         # 使用系统默认文件管理器打开
         import platform
@@ -837,6 +901,8 @@ class NodeListPanel(QDialog):
         else:  # Linux
             subprocess.Popen(['xdg-open', node_path])
             
+        print(f"✅ 已打开节点文件夹: {node_path}")
+        print(f"{'='*60}\n")
     def view_node_log(self, node_name):
         """查看节点日志"""
         if node_name not in self.nodes_data:

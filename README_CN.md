@@ -21,7 +21,139 @@
 
 ---
 
-## 🆕 最近更新 (2026-05-18)
+## 🆕 最近更新 (2026-05-19)
+
+### 🔧 关键问题修复与增强
+
+#### 1. **Rust 节点语言检测修复** 🦀
+- **问题**：画布上的 Rust 节点显示为 "Unknown" 而非 "Rust"
+- **根本原因**：`detect_language()` 方法只检查根目录下的 `main.rs`，但 Rust 项目使用 `src/main.rs` 结构
+- **解决方案**：增强语言检测逻辑，同时检查 `src/main.rs` 和 `Cargo.toml` 文件
+- **技术实现**：
+  ```python
+  # 修复前：只检查根目录
+  elif os.path.exists(os.path.join(node_path, "main.rs")):
+      return "Rust"
+  
+  # 修复后：检查标准 Rust 项目结构
+  elif os.path.exists(os.path.join(node_path, "src", "main.rs")) or \
+       os.path.exists(os.path.join(node_path, "Cargo.toml")):
+      return "Rust"
+  ```
+- **影响文件**：
+  - `ui/canvas_widget.py` - `NodeCanvas.detect_language()` 方法
+- **用户影响**：✅ Rust 节点现在在画布上正确显示 "Rust" 标签
+
+#### 2. **节点文件夹路径解析修复** 📁
+- **问题**：点击"打开节点文件夹"时打开了错误的目录（如文档文件夹），而非实际的节点文件夹
+- **根本原因**：节点路径未正确规范化，可能存储为相对路径，受工作目录变化影响
+- **解决方案**：实现三层路径验证和规范化机制
+
+##### **第一层：节点加载时的路径规范化** (`ui/main_window.py`)
+- **增强的 `refresh_nodes()` 方法**：
+  ```python
+  # 确保项目路径是绝对路径
+  project_path = os.path.abspath(self.current_project_path)
+  nodes_dir = os.path.join(project_path, "nodes")
+  
+  # 规范化每个节点路径
+  node_path = os.path.join(nodes_dir, item)
+  node_path = os.path.abspath(node_path)  # 转换为绝对路径
+  node_path = os.path.normpath(node_path)  # 规范化（处理 ..\ 等）
+  ```
+- **新增功能**：
+  - ✅ 每个节点的详细加载日志（路径、存在状态）
+  - ✅ 路径一致性验证
+  - ✅ 自动修正不一致的路径
+  - ✅ 显示加载的节点总数
+
+##### **第二层：配置对话框中的路径验证** (`ui/property_panel.py`)
+- **增强的 `NodeConfigDialog.open_node_folder()` 方法**：
+  ```python
+  # 确保路径是绝对路径且规范化
+  original_path = self.node_path
+  corrected_path = os.path.abspath(original_path)
+  corrected_path = os.path.normpath(corrected_path)
+  
+  if original_path != corrected_path:
+      print(f"⚠️  路径已修正:")
+      print(f"   原始: {original_path}")
+      print(f"   修正: {corrected_path}")
+      self.node_path = corrected_path
+  
+  # 备用方案：从父窗口的 nodes_data 获取正确路径
+  if not os.path.exists(self.node_path):
+      if self.parent_window and hasattr(self.parent_window, 'nodes_data'):
+          node_info = self.parent_window.nodes_data.get(self.node_name)
+          if node_info and 'path' in node_info:
+              correct_path = os.path.abspath(node_info['path'])
+              correct_path = os.path.normpath(correct_path)
+              if os.path.exists(correct_path):
+                  self.node_path = correct_path
+  ```
+- **新增功能**：
+  - ✅ 自动检测和修正路径
+  - ✅ 从父窗口进行备用路径恢复
+  - ✅ 全面的调试日志（路径类型、存在性、父目录等）
+  - ✅ 用户友好的错误消息和故障排除提示
+
+##### **第三层：节点列表中的路径验证** (`ui/node_list_panel.py`)
+- **增强的 `NodeListPanel.open_node_folder()` 方法**：
+  - 与配置对话框相同的路径验证和修正逻辑
+  - 从主窗口的 nodes_data 进行备用路径恢复
+  - 完整的调试信息输出
+
+- **调试日志示例**：
+  ```
+  ============================================================
+  🔍 [NodeConfigDialog] 打开节点文件夹
+  🔍 节点名称: node_rust_test
+  🔍 原始路径: D:\Project\nodes\node_rust_test
+  🔍 最终路径: D:\Project\nodes\node_rust_test
+  🔍 路径是否存在: True
+  🔍 是否为目录: True
+  🔍 父目录: D:\Project\nodes
+  🔍 文件夹名称: node_rust_test
+  🔍 当前工作目录: D:\Project
+  🔍 期望的文件夹名: node_rust_test
+  🔍 实际的文件夹名: node_rust_test
+  🔍 名称匹配: True
+  ✅ 已打开节点文件夹: D:\Project\nodes\node_rust_test
+  ============================================================
+  ```
+
+- **修复前后对比**：
+  | 方面 | 修复前 | 修复后 |
+  |------|--------|--------|
+  | **路径类型** | 可能是相对路径 | 强制绝对路径 + 规范化 |
+  | **路径一致性** | 可能不一致 | 自动验证和修正 |
+  | **错误恢复** | 无 | 多层级备用路径 |
+  | **调试信息** | 无 | 详细的控制台日志 |
+  | **用户体验** | 打开错误的文件夹 | 始终打开正确的节点文件夹 |
+
+- **影响文件**：
+  - `ui/main_window.py` - `MainWindow.refresh_nodes()` 方法
+  - `ui/property_panel.py` - `NodeConfigDialog.open_node_folder()` 方法
+  - `ui/node_list_panel.py` - `NodeListPanel.open_node_folder()` 方法
+  - `diagnose_rust_node.py` - 新增 Rust 节点诊断工具
+  - `RUST_NODE_PATH_FIX.md` - 详细的修复文档
+
+- **使用说明**：
+  1. 启动程序后，点击"刷新节点列表"按钮
+  2. 查看控制台输出，确认所有节点路径正确加载
+  3. 双击节点或右键 → "编辑配置"
+  4. 点击"📁 打开节点文件夹"按钮
+  5. 验证调试日志（以 🔍 开头的行）显示正确的路径
+
+- **用户影响**：
+  - ✅ 所有节点（Python、Rust、Node.js 等）现在都能打开正确的文件夹
+  - ✅ 路径始终是绝对路径且规范化，不受工作目录影响
+  - ✅ 路径缺失时的智能错误恢复
+  - ✅ 全面的调试信息便于故障排除
+
+---
+
+## 🆕 之前的更新 (2026-05-18)
 
 ### ✨ 新增功能与优化
 

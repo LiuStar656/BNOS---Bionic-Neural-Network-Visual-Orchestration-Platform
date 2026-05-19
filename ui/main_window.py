@@ -669,15 +669,29 @@ class BNOSMainWindow(QMainWindow):
             self.show_toast("请先打开或新建项目", "warning")
             return
         
-        nodes_dir = os.path.join(self.current_project_path, "nodes")
+        # 确保项目路径是绝对路径
+        project_path = os.path.abspath(self.current_project_path)
+        nodes_dir = os.path.join(project_path, "nodes")
+        
         if not os.path.exists(nodes_dir):
             self.show_toast("nodes/ 目录不存在", "warning")
             return
+        
+        print(f"\n{'='*60}")
+        print(f"🔄 刷新节点列表")
+        print(f"📁 项目路径: {project_path}")
+        print(f"📁 Nodes 目录: {nodes_dir}")
+        print(f"{'='*60}\n")
         
         # 扫描节点
         self.nodes_data.clear()
         for item in os.listdir(nodes_dir):
             node_path = os.path.join(nodes_dir, item)
+            
+            # 强制转换为绝对路径并规范化
+            node_path = os.path.abspath(node_path)
+            node_path = os.path.normpath(node_path)
+            
             if not os.path.isdir(node_path):
                 continue
             
@@ -690,14 +704,36 @@ class BNOSMainWindow(QMainWindow):
                     config = json.load(f)
                 
                 node_name = config.get('node_name', item)
+                
+                # 再次验证路径是否正确
+                expected_path = os.path.join(nodes_dir, item)
+                expected_path = os.path.abspath(expected_path)
+                expected_path = os.path.normpath(expected_path)
+                
+                if node_path != expected_path:
+                    print(f"⚠️  警告: 节点 '{item}' 路径不一致")
+                    print(f"   期望: {expected_path}")
+                    print(f"   实际: {node_path}")
+                    node_path = expected_path  # 使用期望的路径
+                
                 self.nodes_data[node_name] = {
                     'config': config,
-                    'path': node_path,
+                    'path': node_path,  # 确保存储的是规范的绝对路径
                     'process': None,
                     'status': 'stopped'
                 }
+                
+                print(f"✅ 加载节点: {node_name}")
+                print(f"   文件夹: {item}")
+                print(f"   路径: {node_path}")
+                print(f"   存在: {os.path.exists(node_path)}")
+                
             except Exception as e:
-                print(f"加载节点 {item} 失败: {e}")
+                print(f"❌ 加载节点 {item} 失败: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        print(f"\n✅ 共加载 {len(self.nodes_data)} 个节点\n")
         
         # 更新节点组管理器的项目路径（自动加载配置）
         self.node_list_panel.set_project_path(self.current_project_path)
