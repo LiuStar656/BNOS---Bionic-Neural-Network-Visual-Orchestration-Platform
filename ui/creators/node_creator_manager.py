@@ -64,7 +64,9 @@ class NodeCreatorManager:
     
     def _register_builtin_creators(self):
         """注册内置的节点创建器"""
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # 获取项目根目录（ui/creators/../.. = 项目根目录）
+        current_file = os.path.abspath(__file__)
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
         
         # 注册 Python 节点创建器
         python_creator_path = os.path.join(base_dir, "tools", "python_create_node.py")

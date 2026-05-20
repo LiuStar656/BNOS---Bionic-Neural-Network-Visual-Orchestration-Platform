@@ -927,7 +927,7 @@ class NodeCanvas(QGraphicsView):
             config = node_info['config']
             node_path = node_info['path']
             
-            from ui.property_panel import NodeConfigDialog
+            from ui.panels.property_panel import NodeConfigDialog
             dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
             dialog.exec()
     

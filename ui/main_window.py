@@ -18,10 +18,19 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRectF, QTimer
 from PyQt6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction
 
-from ui.canvas_widget import NodeCanvas
-from ui.node_list_panel import NodeListPanel
+# 使用新的模块化导入
+from ui.canvas.canvas_view import NodeCanvas
+from ui.panels.node_list_panel import NodeListPanel
+from ui.core.toast.toast_notification import ToastNotification
+from ui.core.app_config import AppConfig
+from ui.menu.menu_manager import MenuManager
+from ui.creators.node_creator_manager import NodeCreatorManager
 
 
+# ==========================================
+# 注意：以下 ToastNotification 和 AppConfig 类定义保留作为源码备份
+# 实际使用的是新模块中的版本
+# ==========================================
 class ToastNotification(QLabel):
     """右上角自动消失的通知弹窗（Toast）- 优化版
     
@@ -326,14 +335,14 @@ class BNOSMainWindow(QMainWindow):
         self.active_toasts = []  # 当前显示的Toast列表
         
         # 初始化节点创建管理器（单例，自动注册所有语言创建器）
-        from ui.node_creator_manager import NodeCreatorManager
+        from ui.creators.node_creator_manager import NodeCreatorManager
         self.node_creator = NodeCreatorManager.get_instance()
         
         # 初始化UI
         self.init_ui()
         
         # 初始化菜单栏（使用MenuManager）
-        from ui.menu_manager import MenuManager
+        from ui.menu.menu_manager import MenuManager
         MenuManager.init_menu(self)
         
         # 恢复窗口状态
@@ -571,7 +580,7 @@ class BNOSMainWindow(QMainWindow):
     
     def open_color_settings(self):
         """打开颜色设置对话框"""
-        from ui.property_panel import ColorSettingsDialog
+        from ui.panels.property_panel import ColorSettingsDialog
         
         dialog = ColorSettingsDialog(self.canvas, self)
         dialog.exec()
@@ -820,7 +829,7 @@ class BNOSMainWindow(QMainWindow):
                         self.progress_signal.emit(f"🚀 开始创建 {self.display_language} 节点...")
                         
                         # 获取节点创建管理器实例
-                        from ui.node_creator_manager import NodeCreatorManager
+                        from ui.creators.node_creator_manager import NodeCreatorManager
                         manager = NodeCreatorManager.get_instance()
                         
                         # 调用对应的创建器
@@ -1235,12 +1244,12 @@ class BNOSMainWindow(QMainWindow):
 
     def create_new_node_with_language(self, language):
         """使用指定语言创建新节点（委托给MenuManager）"""
-        from ui.menu_manager import MenuManager
+        from ui.menu.menu_manager import MenuManager
         MenuManager.create_new_node_with_language(self, language)
     
     def show_about(self):
         """显示关于对话框（委托给MenuManager）"""
-        from ui.menu_manager import MenuManager
+        from ui.menu.menu_manager import MenuManager
         MenuManager.show_about(self)
 
     def closeEvent(self, event):

@@ -32,7 +32,7 @@ class NodeListPanel(QDialog):
         self.nodes_data = {}
         
         # 初始化节点组管理器
-        from ui.node_group_manager import NodeGroupManager
+        from ui.panels.node_group_manager import NodeGroupManager
         self.group_manager = NodeGroupManager()
         
         # 设置窗口标志：工具窗口、无边框（移除 WindowStaysOnTopHint 避免覆盖其他软件窗口）
@@ -43,6 +43,15 @@ class NodeListPanel(QDialog):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
         self.init_ui()
+    
+    def set_project_path(self, project_path: str):
+        """设置项目路径并加载节点组配置
+        
+        Args:
+            project_path: 项目根目录路径
+        """
+        if hasattr(self, 'group_manager'):
+            self.group_manager.set_project_path(project_path)
         
     def init_ui(self):
         """初始化UI - 极简设计"""
@@ -952,7 +961,7 @@ class NodeListPanel(QDialog):
         node_path = node_info['path']
         
         # 打开配置对话框
-        from ui.property_panel import NodeConfigDialog
+        from ui.panels.property_panel import NodeConfigDialog
         dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
         dialog.exec()
 
@@ -1542,196 +1551,6 @@ class NodeListPanel(QDialog):
                 config = node_info['config']
                 node_path = node_info['path']
                 
-                from ui.property_panel import NodeConfigDialog
+                from ui.panels.property_panel import NodeConfigDialog
                 dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
                 dialog.exec()
-    
-    def _get_common_group(self, node_names):
-        """获取多个节点的共同组（如果都在同一个组）"""
-        if not node_names:
-            return None
-        
-        groups = set()
-        for node_name in node_names:
-            group = self.group_manager.get_node_group(node_name)
-            if group:
-                groups.add(group)
-            else:
-                return None  # 如果有节点不在任何组，返回None
-        
-        # 如果所有节点都在同一个组，返回该组名
-        if len(groups) == 1:
-            return groups.pop()
-        
-        return None
-    
-    def batch_remove_nodes_from_group(self, group_name):
-        """批量从组中移除选中的节点"""
-        selected_nodes = self.get_selected_nodes()
-        
-        if not selected_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast("请先选中要移除的节点", "warning")
-            return
-        
-        if self.group_manager.remove_nodes_from_group(group_name, selected_nodes):
-            self.update_node_list(self.nodes_data)
-            if self.parent_window:
-                self.parent_window.show_toast(f"已将 {len(selected_nodes)} 个节点从组 {group_name} 移除", "success")
-    
-    def start_group_nodes(self, group_name):
-        """启动组内所有节点"""
-        group_nodes = self.group_manager.get_group_nodes(group_name)
-        
-        if not group_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast(f"组 '{group_name}' 中没有节点", "warning")
-            return
-        
-        success_count = 0
-        for node_name in group_nodes:
-            if node_name in self.nodes_data and self.nodes_data[node_name]['status'] == 'stopped':
-                try:
-                    self._start_single_node(node_name)
-                    success_count += 1
-                except Exception as e:
-                    print(f"启动节点 {node_name} 失败: {e}")
-        
-        if self.parent_window:
-            self.parent_window.show_toast(f"已启动组 '{group_name}' 中的 {success_count} 个节点", "success")
-    
-    def stop_group_nodes(self, group_name):
-        """停止组内所有节点"""
-        group_nodes = self.group_manager.get_group_nodes(group_name)
-        
-        if not group_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast(f"组 '{group_name}' 中没有节点", "warning")
-            return
-        
-        success_count = 0
-        for node_name in group_nodes:
-            if node_name in self.nodes_data and self.nodes_data[node_name]['status'] == 'running':
-                try:
-                    self._stop_single_node(node_name)
-                    success_count += 1
-                except Exception as e:
-                    print(f"停止节点 {node_name} 失败: {e}")
-        
-        if self.parent_window:
-            self.parent_window.show_toast(f"已停止组 '{group_name}' 中的 {success_count} 个节点", "success")
-    
-    def start_ungrouped_nodes(self):
-        """启动所有未分组节点"""
-        all_nodes = list(self.nodes_data.keys())
-        ungrouped_nodes = self.group_manager.get_ungrouped_nodes(all_nodes)
-        
-        if not ungrouped_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast("没有未分组的节点", "warning")
-            return
-        
-        success_count = 0
-        for node_name in ungrouped_nodes:
-            if self.nodes_data[node_name]['status'] == 'stopped':
-                try:
-                    self._start_single_node(node_name)
-                    success_count += 1
-                except Exception as e:
-                    print(f"启动节点 {node_name} 失败: {e}")
-        
-        if self.parent_window:
-            self.parent_window.show_toast(f"已启动 {success_count} 个未分组节点", "success")
-    
-    def stop_ungrouped_nodes(self):
-        """停止所有未分组节点"""
-        all_nodes = list(self.nodes_data.keys())
-        ungrouped_nodes = self.group_manager.get_ungrouped_nodes(all_nodes)
-        
-        if not ungrouped_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast("没有未分组的节点", "warning")
-            return
-        
-        success_count = 0
-        for node_name in ungrouped_nodes:
-            if self.nodes_data[node_name]['status'] == 'running':
-                try:
-                    self._stop_single_node(node_name)
-                    success_count += 1
-                except Exception as e:
-                    print(f"停止节点 {node_name} 失败: {e}")
-        
-        if self.parent_window:
-            self.parent_window.show_toast(f"已停止 {success_count} 个未分组节点", "success")
-    
-    def create_group_from_ungrouped(self, ungrouped_nodes):
-        """从未分组节点创建新组"""
-        if not ungrouped_nodes:
-            if self.parent_window:
-                self.parent_window.show_toast("没有未分组的节点", "warning")
-            return
-        
-        group_name, ok = QInputDialog.getText(
-            self, "创建新组",
-            f"将为 {len(ungrouped_nodes)} 个未分组节点创建新组\n请输入组名称:"
-        )
-        
-        if not ok or not group_name:
-            return
-        
-        # 选择颜色
-        from PyQt6.QtWidgets import QColorDialog
-        color = QColorDialog.getColor(QColor("#7ED321"), self, "选择组颜色")
-        
-        if not color.isValid():
-            color = QColor("#7ED321")
-        
-        # 创建组并添加节点
-        if self.group_manager.create_group(group_name, color.name()):
-            self.group_manager.add_nodes_to_group(group_name, ungrouped_nodes)
-            self.update_node_list(self.nodes_data)
-            if self.parent_window:
-                self.parent_window.show_toast(f"已创建组 '{group_name}' 并添加 {len(ungrouped_nodes)} 个节点", "success")
-    
-    def _start_single_node(self, node_name):
-        """启动单个节点（调用父窗口的方法）"""
-        if self.parent_window:
-            self.parent_window.start_selected_node_by_name(node_name)
-    
-    def _stop_single_node(self, node_name):
-        """停止单个节点（调用父窗口的方法）"""
-        if self.parent_window:
-            self.parent_window.stop_selected_node_by_name(node_name)
-    
-    # ==================== 鼠标拖动支持 ====================
-    
-    def mousePressEvent(self, event):
-        """鼠标按下事件 - 开始拖动"""
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
-            event.accept()
-    
-    def mouseMoveEvent(self, event):
-        """鼠标移动事件 - 拖动窗口"""
-        if event.buttons() == Qt.MouseButton.LeftButton and hasattr(self, 'drag_position'):
-            self.move(event.globalPosition().toPoint() - self.drag_position)
-            event.accept()
-    
-    def showEvent(self, event):
-        """窗口显示事件 - 不主动置顶，让系统自然管理窗口层级"""
-        super().showEvent(event)
-        # 不调用 activateWindow() 和 raise_()，避免覆盖其他应用窗口
-        # 让用户手动点击来激活窗口
-    
-    def focusOutEvent(self, event):
-        """失去焦点事件 - 不做特殊处理"""
-        super().focusOutEvent(event)
-    
-    def set_project_path(self, project_path):
-        """设置项目路径并加载节点组配置"""
-        self.group_manager.set_project_path(project_path)
-
-
-# 需要导入os
-import os
