@@ -34,6 +34,6 @@ var/
 *.swo
 
 #配置文件
-.app_config.json
-.canvas_layout.json
-.color_setting.json
+app_config.json
+canvas_layout.json
+color_setting.json
