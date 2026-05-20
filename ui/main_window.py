@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QFormLayout, QLineEdit, QPushButton, QLabel, QGroupBox,
     QComboBox, QTabWidget, QDialog, QDialogButtonBox, QHeaderView,
     QTableWidget, QTableWidgetItem, QMenu, QGraphicsView, QGraphicsScene,
-    QInputDialog, QGraphicsOpacityEffect
+    QInputDialog, QGraphicsOpacityEffect, QToolBar
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRectF, QTimer
 from PyQt6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction
