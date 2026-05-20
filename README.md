@@ -907,39 +907,422 @@ pip install -r requirements_gui.txt
 python bnos_gui.py
 ```
 
-#### Option 2: Using Startup Script (Recommended for Users)
+#### Option 2: Using Startup Script (Windows)
 
-**Windows:**
-```batch
-# Double-click in File Explorer
+``powershell
+# PowerShell (for paths with spaces)
+& ".\start_bnos_gui.bat"
+
+# Or CMD
 start_bnos_gui.bat
-
-# Or run from terminal
-.\start_bnos_gui.bat
 ```
 
-**Linux/macOS:**
+> **Note**: First run will automatically check and install PyQt6 if missing.
+
+### Your First Project
+
+1. **Create Project**
+   ```
+   Toolbar → New Project → Select Folder
+   ```
+   System creates `nodes/` directory automatically.
+
+2. **Create Neurons**
+   ```
+   Toolbar → New Node → Enter Name → Select Language → OK
+   ```
+   Generates complete structure: `config.json`, `main.py`, `listener.py`, `start.bat`, `venv/`
+
+3. **Add to Canvas**
+   ```
+   Right-click node in list → ➕ Add to Canvas
+   ```
+   Nodes appear with auto-calculated positions.
+
+4. **Connect Neurons**
+   - Click and hold **OUT** anchor (blue dot) on source node
+   - Drag to **IN** anchor (green dot) on target node
+   - Release to create synapse (auto-configures paths)
+
+5. **Start Neurons**
+   ```
+   Double-click node → Click ▶️ Start
+   ```
+   Status light turns green when running.
+
+---
+
+## 📋 User Guide
+
+### Node Management
+
+#### Creating Nodes
+```
+Toolbar → New Node → Name + Language → OK
+```
+- Supported: Python, Node.js, Go, Java, C++, Rust, Ruby
+- Auto-generated: Config, templates, startup scripts, isolated venv
+
+#### Renaming Nodes
+```
+Right-click → ✏️ Rename → New Name → OK
+```
+- Updates: Folder name, `node_name` in config, canvas display
+- Validates: Unique name, alphanumeric + underscores only
+
+#### Deleting Nodes
+
+**Option 1: Remove from Canvas Only** (Recommended for batch operations)
+```
+Right-click on canvas → Delete Selected Nodes
+```
+- Removes nodes from canvas view only
+- Does NOT delete source files or configurations
+- Safe for temporary cleanup
+
+**Option 2: Complete Deletion**
+```
+Right-click node in list → 🗑️ Delete → Confirm
+```
+- Removes entire node folder from disk
+- Cleans up related synapses and path configurations
+- ⚠️ **Irreversible action** - use with caution
+
+#### Adding to Canvas
+```
+Right-click → ➕ Add to Canvas
+```
+- Auto-layout: Avoids overlaps with existing nodes
+- First node: Position (200, 150)
+- Subsequent: Offset (50, 50) from bottom-right node
+
+### Canvas Operations
+
+#### Navigation
+- **Pan**: Ctrl + Left-click drag on empty area (hand cursor)
+- **Zoom**: Ctrl + Mouse wheel (0.1x - 5.0x), centered on mouse position
+- **Scroll**: Single mouse wheel for vertical scrolling
+- **Select**: Left-click on node
+- **Multi-select**: 
+  - Ctrl + Click nodes (toggle selection)
+  - Left-click drag on empty area (box selection with blue rectangle)
+
+#### Node Manipulation
+- **Move**: Drag node body (not anchors)
+- **Synapses Update**: Bezier curves follow in real-time
+- **Auto-save**: Positions saved 500ms after drag stops
+
+#### Synapse Management
+- **Create**: OUT anchor → IN anchor
+- **Delete**: Right-click synapse → Delete Connection
+- **Clear All**: Toolbar → Clear Connections
+
+#### View Control
+- **Reset**: Toolbar → Reset View (1.0x zoom, centered)
+- **Fit Content**: Coming soon
+
+### Node Groups
+
+#### Creating Groups
+```
+Right-click empty area → Create Group → Enter Name
+```
+
+#### Managing Groups
+```
+Right-click group → Expand/Collapse
+Right-click node → Move to Group → Select Group
+```
+
+#### Batch Operations
+```
+Ctrl + Click multiple nodes → Right-click → Batch Start/Stop
+Right-click group → Start All Nodes in Group
+```
+
+### Configuration Editing
+
+#### Opening Config Dialog
+```
+Method 1: Double-click canvas node
+Method 2: Right-click → ⚙️ Edit Config
+Method 3: Canvas node right-click → ⚙️ Open Config
+```
+
+#### Configuration Fields
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `node_name` | string | Unique identifier | `"data_processor"` |
+| `language` | string | Programming language | `"Python"` |
+| `listen_upper_file` | string | Upstream output path (auto-set) | `"../node_1/output.json"` |
+| `output_type` | string | Output data type | `"data_result"` |
+| `filter` | array | Attention mechanism rules | `[{"key": "type", "value": "task"}]` |
+
+#### Filter Rules Editor
+- **Add**: Click "➕ Add Rule"
+- **Delete**: Select row → "➖ Delete Rule"
+- **Edit**: Double-click cell
+- **Empty Array**: No filtering, process all tasks
+
+#### Quick Actions
+- **💻 Terminal**: Open terminal with activated venv (Windows: CMD, macOS: Terminal, Linux: gnome-terminal/konsole)
+- **📁 Explorer**: Open node folder in file explorer
+- **🔧 VSCode Workspace**: Generate `.code-workspace` file and open in VSCode with configured Python interpreter
+- **▶️/⏹️ Start/Stop**: Control node process
+- **📄 Logs**: View `listener.log` in real-time
+
+### Project Management
+
+#### Opening Projects
+```
+Toolbar → Open Project → Select Folder
+```
+- Auto-detects `nodes/` directory
+- Loads all nodes to list
+- Restores canvas layout if available
+
+#### Creating New Projects
+```
+Toolbar → New Project → Select Folder
+```
+- Creates empty `nodes/` directory
+- Clears canvas and node list
+
+#### Auto-Recovery
+- Reopens last project on startup
+- Restores window state, splitter ratio
+- Recovers canvas topology and view state
+
+---
+
+## 🔧 Developer Guide
+
+### Project Structure
+
+```
+BNOS/
+│
+├── bnos_gui.py                    # Main entry point
+├── create_node.py                 # Node template generator
+├── start_bnos_gui.bat             # Windows launcher
+├── test_and_start_bnos.bat        # Test + launcher
+│
+├── ui/                            # UI modules
+│   ├── __init__.py
+│   ├── main_window.py            # Main window + Toast system
+│   ├── canvas_widget.py          # Neural canvas component
+│   ├── node_list_panel.py        # Node list with groups
+│   ├── node_group_manager.py     # Group management logic
+│   └── property_panel.py         # Config dialog
+│
+├── nodes/                         # Node instances
+│   └── (user-created nodes)
+│
+├── app_config.json                # App settings (window state, last project)
+├── canvas_layout.json             # Current project layout (auto-generated)
+├── color_settings.json            # Node color customization
+└── requirements_gui.txt           # Python dependencies
+```
+
+### Extending BNOS
+
+#### Adding Language Support
+
+Edit `detect_language()` in `ui/canvas_widget.py`:
+
+```python
+def detect_language(self, node_path):
+    """Detect node programming language"""
+    if os.path.exists(os.path.join(node_path, "main.py")):
+        return "Python"
+    elif os.path.exists(os.path.join(node_path, "main.js")):
+        return "Node.js"
+    # Add new language...
+    elif os.path.exists(os.path.join(node_path, "Main.kt")):
+        return "Kotlin"
+    return "Unknown"
+```
+
+#### Customizing Node Styles
+
+Modify `NodeItem.__init__()` in `ui/canvas_widget.py`:
+
+```python
+# Node background color
+self.setBrush(QBrush(QColor("#f8f9fa")))  # Change color
+
+# Node dimensions
+super().__init__(x, y, w, h, None)  # w=140, h=80 adjustable
+```
+
+#### Adding Toolbar Buttons
+
+Extend `init_toolbar()` in `ui/main_window.py`:
+
+```python
+custom_action = QAction("Custom Feature", self)
+custom_action.triggered.connect(self.custom_function)
+toolbar.addAction(custom_action)
+```
+
+#### Customizing Toast Notifications
+
+Toast system in `ui/main_window.py`:
+
+```python
+# Show notification
+self.show_toast("Operation successful", "success", duration=3000)
+
+# Types: "info", "success", "warning", "error"
+# Duration: milliseconds (default 3000)
+```
+
+### Packaging
+
+#### Windows EXE
+
 ```bash
-# Make executable first time only
-chmod +x start_bnos_gui.sh
+# Install PyInstaller
+pip install pyinstaller
 
-# Run the script
-./start_bnos_gui.sh
+# Package
+pyinstaller --onefile --windowed --name="BNOS" bnos_gui.py
 ```
 
-> **✨ Smart Auto-Setup Features:**
-> - 🔍 **Python Detection**: Automatically checks if Python 3.8+ is installed
-> - 📦 **Virtual Environment**: Creates `myenv_new` if not exists, or uses existing one
-> - 🔄 **Dependency Check**: Scans for required packages (PyQt6, etc.)
-> - ⚡ **Auto-Install**: Installs missing dependencies from `requirements_gui.txt`
-> - 🛡️ **Error Handling**: Provides clear error messages and recovery suggestions
-> 
-> **First Run Flow:**
-> ```
-> Check Python → Create venv → Activate venv → Install deps → Launch App
-> ```
-> 
-> **Subsequent Runs:**
-> ```
-> Check Python → Use existing venv → Verify deps → Launch App (fast!)
-> ```
+Output: `dist/BNOS.exe` (~100MB+, includes PyQt6)
+
+---
+
+## 🎯 Use Cases
+
+### 🤖 AI Agent Workflows
+- **Perception Nodes**: Image recognition, speech-to-text, sensor data
+- **Reasoning Nodes**: LLM calls, logic evaluation, decision making
+- **Execution Nodes**: API calls, database ops, file operations
+- **Workflow**: Drag-connect to build complete agent pipelines
+
+### 📊 Data Pipelines
+- **ETL**: Clean → Transform → Load
+- **Real-time**: Collect → Analyze → Alert
+- **Batch**: Scan → Process → Archive
+
+### 🌐 Microservices
+- **API Gateway**: Route → Auth → Forward
+- **Background Jobs**: Schedule → Execute → Notify
+- **Event-driven**: Listen → Process → Update
+
+### 🛠️ Automation
+- **CI/CD**: Pull → Build → Test → Deploy
+- **Monitoring**: Metrics → Thresholds → Alerts
+- **Operations**: Health checks → Cleanup → Backup
+
+### 🔬 Research
+- **Neural Simulation**: Nodes → Synapses → Signal propagation
+- **Attention Studies**: Filter tuning → Task filtering analysis
+- **Emergent Behavior**: Multi-node coordination experiments
+
+---
+
+## ⚠️ Known Limitations
+
+1. **Circular Dependencies**: A→B→A cycles not detected (manual avoidance required)
+2. **Path Sensitivity**: Moving project folders may break absolute paths (reconnect needed)
+3. **Concurrency**: Multiple instances shouldn't operate on same project simultaneously
+4. **Performance**: Canvas may lag with >100 nodes (optimization pending)
+5. **Cross-platform**: Linux/macOS features partially tested
+
+### Best Practices
+
+✅ **Naming**: Use lowercase + underscores (`data_processor`)  
+✅ **Saving**: Manual save after critical operations (Ctrl+S planned)  
+✅ **Monitoring**: Check logs immediately after starting nodes  
+✅ **Backup**: Regularly backup `nodes/` and `canvas_layout.json`  
+✅ **Environments**: Don't manually modify `venv/` directories  
+
+---
+
+## ❓ FAQ
+
+### Q: Node failed to start?
+**A**: Check:
+- Virtual environment created correctly (`venv/` exists)
+- Startup script present (`start.bat` or `start.sh`)
+- Error messages in `logs/listener.log`
+- Try "💻 Open Terminal" in config dialog for manual start
+
+### Q: Downstream node not receiving data?
+**A**: Verify:
+- Upstream node is running
+- `listen_upper_file` path correct in config
+- Downstream logs show no filter blocking
+- Upstream `output.json` has content
+
+### Q: Canvas empty after restart?
+**A**: Ensure:
+- Nodes were on canvas before closing (not just in list)
+- `canvas_layout.json` exists in project folder
+- Check console for load errors
+
+### Q: How to reset node processing state?
+**A**: 
+- Edit `upper_data.json`, remove `_processed_<node_name>` field
+- Or stop node, delete `output.json`, restart
+
+---
+
+## 📄 License
+
+MIT License © 2026 阿东与守一工作室
+
+See [LICENSE](LICENSE) for details.
+
+---
+
+## 👥 Contributing
+
+Contributions welcome! Please read our guidelines:
+
+### Reporting Issues
+- **Bugs**: Describe problem, steps to reproduce, expected vs actual behavior, environment info
+- **Features**: Explain use case, requirements, desired outcome
+
+### Pull Requests
+1. Fork repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+### Standards
+- Follow PEP 8 style guide
+- Add docstrings and comments
+- Include tests for new features (planned)
+- Update documentation
+
+---
+
+## 🙏 Acknowledgments
+
+- **PyQt6 Team**: Powerful cross-platform GUI framework
+- **BNOS Neuron System**: Core bionic architecture concepts
+- **Open Source Community**: Inspiration from countless excellent projects
+
+---
+
+## 📞 Contact
+
+- **Team**: 阿东与守一工作室
+- **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
+- **Email**: 1240543656@qq.com
+- **Last Updated**: 2026-05-17
+
+---
+
+<div align="center">
+
+**⭐ If BNOS helps you, please give it a Star!**
+
+Made with ❤️ by 阿东与守一工作室
+
+</div>
