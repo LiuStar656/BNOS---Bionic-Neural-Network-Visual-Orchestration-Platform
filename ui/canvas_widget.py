@@ -635,10 +635,10 @@ class NodeCanvas(QGraphicsView):
         super().mouseMoveEvent(event)
     
     def wheelEvent(self, event):
-        """滚轮事件 - Ctrl+滚轮缩放，单滚轮上下移动"""
+        """滚轮事件 - Ctrl+滚轮缩放，触控板/滚轮平移"""
         # 检查是否按下Ctrl键
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            # Ctrl+滚轮：放大缩小
+            # Ctrl+滚轮：放大缩小（保持原有行为）
             factor = 1.15 if event.angleDelta().y() > 0 else 1/1.15
             
             # 限制缩放范围
@@ -655,11 +655,34 @@ class NodeCanvas(QGraphicsView):
             
             event.accept()
         else:
-            # 单滚轮：上下移动（垂直滚动）
-            scroll_value = event.angleDelta().y()
-            self.verticalScrollBar().setValue(
-                self.verticalScrollBar().value() - scroll_value
-            )
+            # ===== 触控板优化：支持双指平移 =====
+            
+            # 优先使用 pixelDelta（触控板提供像素级精度）
+            pixel_delta = event.pixelDelta()
+            if not pixel_delta.isNull():
+                # 触控板事件：使用像素级滚动值，更平滑
+                scroll_x = pixel_delta.x()
+                scroll_y = pixel_delta.y()
+            else:
+                # 传统鼠标滚轮：使用角度增量（通常每格120）
+                angle_delta = event.angleDelta()
+                scroll_x = angle_delta.x()
+                scroll_y = angle_delta.y()
+            
+            # 应用滚动（支持水平和垂直双向平移）
+            h_scroll = self.horizontalScrollBar()
+            v_scroll = self.verticalScrollBar()
+            
+            # 根据滚动类型调整灵敏度
+            if not pixel_delta.isNull():
+                # 触控板：直接使用像素值，保持1:1映射
+                h_scroll.setValue(h_scroll.value() - scroll_x)
+                v_scroll.setValue(v_scroll.value() - scroll_y)
+            else:
+                # 鼠标滚轮：可能需要调整系数（默认1:1）
+                h_scroll.setValue(h_scroll.value() - scroll_x)
+                v_scroll.setValue(v_scroll.value() - scroll_y)
+            
             event.accept()
     
     def mousePressEvent(self, event):

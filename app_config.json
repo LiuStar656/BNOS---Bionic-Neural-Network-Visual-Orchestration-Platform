@@ -1,7 +1,7 @@
 {
   "window_geometry": {
-    "x": 618,
-    "y": 374,
+    "x": 257,
+    "y": 59,
     "width": 1114,
     "height": 684,
     "maximized": false
@@ -10,16 +10,16 @@
     362,
     751
   ],
-  "last_project": "F:/",
+  "last_project": "D:/杂项",
   "canvas_view_state": {
-    "scale": 1.3224999999999998,
-    "scroll_x": -155,
-    "scroll_y": -519
+    "scale": 0.7561436672967866,
+    "scroll_x": -90,
+    "scroll_y": -233
   },
   "node_list_panel": {
     "visible": true,
-    "x": 638,
-    "y": 444,
+    "x": 277,
+    "y": 129,
     "width": 280,
     "height": 500
   }
