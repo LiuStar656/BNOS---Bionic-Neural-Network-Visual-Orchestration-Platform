@@ -38,4 +38,4 @@ ui/__pycache__/
 #配置文件
 app_config.json
 canvas_layout.json
-color_setting.json
+color_settings.json
