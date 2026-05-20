@@ -1,6 +1,18 @@
 """
 节点画布 - VueFlow风格的无限画布（QGraphicsView + 自定义Item）
 支持：无限画布、节点拖拽、锚点连线、贝塞尔曲线、缩放平移
+
+【新增功能】画布中心坐标持久化：
+- 自动保存当前窗口中心的画布坐标到 canvas_layout.json
+- 下次打开项目时，自动恢复到上次的视野位置
+- 触发时机：缩放、平移（滚轮/触控板/空格拖拽）后500ms自动保存
+- 恢复逻辑：读取保存的中心坐标，调整滚动条使该坐标位于窗口中心
+
+【交互优化】两阶段空格平移机制：
+- 第一阶段：按住空格键 → 进入"空格快捷键模式"（光标变为手型）
+- 第二阶段：在空格模式下按左键 → 进入"平移模式"（可拖拽画布）
+- 释放顺序：先释放鼠标退出平移模式，再释放空格退出快捷键模式
+- 优势：避免误触，提供更清晰的视觉反馈
 """
 import os
 import json
@@ -79,9 +91,13 @@ class NodeCanvas(QGraphicsView):
         self.setMouseTracking(True)
         
         # ===== 画布交互状态 =====
-        self.is_pan_mode = False  # 空格+左键平移模式
+        self.is_pan_mode = False  # 平移模式（空格+左键拖拽）
         self.pan_start_pos = None  # 平移起始位置
         self.is_space_pressed = False  # 空格键按下状态
+        self.space_mode_active = False  # 空格快捷键模式激活状态（按住空格后进入）
+        # ✅ 新增：用于过滤操作系统键盘重复产生的虚假事件
+        self._last_space_event_time = 0  # 上次空格事件的时间戳
+        self._space_event_debounce_ms = 100  # 防抖时间（毫秒），小于此间隔的事件视为重复
         
         self.is_box_selecting = False  # 框选模式
         self.box_select_start_pos = None  # 框选起始位置
@@ -256,6 +272,11 @@ class NodeCanvas(QGraphicsView):
                 h_scroll.setValue(h_scroll.value() - scroll_x)
                 v_scroll.setValue(v_scroll.value() - scroll_y)
             
+            # 自动保存布局（包含视图状态）
+            if self.parent_window and self.parent_window.current_project_path:
+                self._save_timer.stop()
+                self._save_timer.start(500)
+            
             event.accept()
     
     def mousePressEvent(self, event):
@@ -272,8 +293,10 @@ class NodeCanvas(QGraphicsView):
                 event.accept()
                 return
         
-        # 空格+左键：根据点击位置决定是多选还是平移
-        if event.button() == Qt.MouseButton.LeftButton and self.is_space_pressed:
+        # 空格+左键：两阶段触发机制
+        # 第一阶段：按住空格进入空格快捷键模式
+        # 第二阶段：在空格模式下按左键进入平移模式
+        if event.button() == Qt.MouseButton.LeftButton and self.space_mode_active:
             # ✅ 关键：检查点击目标
             # 如果点击的是节点、连线或锚点，不进入平移模式，让NodeItem自己处理Ctrl+Click多选
             if item is not None and (isinstance(item, NodeItem) or isinstance(item, EdgeItem) or isinstance(item, AnchorItem)):
@@ -281,7 +304,7 @@ class NodeCanvas(QGraphicsView):
                 print(f"🎯 点击了交互项，交给子项处理")
                 return
             
-            # 点击空白区域，进入平移模式
+            # 点击空白区域，进入平移模式（第二阶段）
             self.is_pan_mode = True
             # 使用 widget 坐标而不是 scene 坐标
             self.pan_start_pos = event.position().toPoint()
@@ -291,7 +314,7 @@ class NodeCanvas(QGraphicsView):
             for node in self.nodes.values():
                 node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
             
-            print(f"🖐️ 进入平移模式（空格+左键）")
+            print(f"🖐️ 进入平移模式（空格模式+左键）")
             event.accept()
             return
         
@@ -321,33 +344,34 @@ class NodeCanvas(QGraphicsView):
                 event.accept()
                 return
 
-        # 如果点击的是节点或锚点，正常处理（选中、连线等）
-        if event.button() == Qt.MouseButton.LeftButton and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
-            # ✅ 关键：检查点击目标
-            # 如果点击的是节点、连线或锚点，不进入平移模式，让NodeItem自己处理Ctrl+Click多选
-                print(f"🎯 点击了交互项，交给子项处理")
-                return
-                event.accept()
-                return
-
-        # 如果点击的是节点或锚点，正常处理（选中、连线等）
-        # 不调用 clear_selection()，让 NodeItem 自己处理
+        # 其他情况：交给默认处理或子项处理
         super().mousePressEvent(event)
         return
     
     def mouseReleaseEvent(self, event):
         """鼠标释放事件 - 结束平移或框选"""
-        # 结束平移模式
+        # 结束平移模式（第二阶段退出）
         if self.is_pan_mode and event.button() == Qt.MouseButton.LeftButton:
             self.is_pan_mode = False
             self.pan_start_pos = None
-            self.setCursor(Qt.CursorShape.ArrowCursor)
+            
+            # 如果空格键还按住，保持手型光标；否则恢复箭头
+            if self.space_mode_active:
+                self.setCursor(Qt.CursorShape.OpenHandCursor)
+            else:
+                self.setCursor(Qt.CursorShape.ArrowCursor)
             
             # 恢复所有节点的移动标志
             for node in self.nodes.values():
                 node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
             
             print("✋ 退出平移模式")
+            
+            # 自动保存布局（包含视图状态）
+            if self.parent_window and self.parent_window.current_project_path:
+                self._save_timer.stop()
+                self._save_timer.start(500)
+            
             event.accept()
             return
         
@@ -395,10 +419,21 @@ class NodeCanvas(QGraphicsView):
     def keyPressEvent(self, event):
         """键盘按下事件 - 跟踪空格键状态"""
         if event.key() == Qt.Key.Key_Space:
+            # ✅ 关键修复：使用Qt内置的isAutoRepeat()过滤系统自动重复事件
+            if event.isAutoRepeat():
+                # 这是Windows系统长按产生的自动重复事件，直接忽略
+                event.accept()
+                return
+            
+            # 首次按下空格（非自动重复），进入空格快捷键模式
             self.is_space_pressed = True
-            # 如果按住空格时没有按鼠标，可以显示提示
+            self.space_mode_active = True
+            print("⌨️ 进入空格快捷键模式")
+            
+            # 显示手型光标提示
             if not self.is_pan_mode:
                 self.setCursor(Qt.CursorShape.OpenHandCursor)
+            
             event.accept()
             return
         super().keyPressEvent(event)
@@ -406,8 +441,17 @@ class NodeCanvas(QGraphicsView):
     def keyReleaseEvent(self, event):
         """键盘释放事件 - 跟踪空格键状态"""
         if event.key() == Qt.Key.Key_Space:
+            # ✅ 关键修复：使用Qt内置的isAutoRepeat()过滤虚假释放事件
+            if event.isAutoRepeat():
+                # 这是Windows系统产生的虚假release事件，直接忽略
+                event.accept()
+                return
+            
+            # 真正的释放（非自动重复）：退出空格快捷键模式
             self.is_space_pressed = False
-            # 如果退出平移模式，恢复光标
+            self.space_mode_active = False
+            
+            # 如果还在平移模式，强制退出
             if self.is_pan_mode:
                 self.is_pan_mode = False
                 self.pan_start_pos = None
@@ -420,12 +464,13 @@ class NodeCanvas(QGraphicsView):
                 print("✋ 退出平移模式（空格键释放）")
             else:
                 self.setCursor(Qt.CursorShape.ArrowCursor)
+            
+            print("⌨️ 退出空格快捷键模式")
+            
             event.accept()
             return
         super().keyReleaseEvent(event)
 
-    def add_node_to_canvas(self, node_name):
-        """添加节点到画布"""
     def add_node_to_canvas(self, node_name):
         """添加节点到画布"""
         if node_name in self.nodes:
@@ -445,6 +490,7 @@ class NodeCanvas(QGraphicsView):
         if self.nodes:
             # 找到最右下角的节点位置
             max_x = max(node.pos().x() for node in self.nodes.values())
+
             max_y = max(node.pos().y() for node in self.nodes.values())
             x = max_x + 50
             y = max_y + 50
@@ -1379,13 +1425,19 @@ class NodeCanvas(QGraphicsView):
         if not project_path:
             return
         
+        # 计算当前窗口中心的画布坐标
+        viewport_center = self.viewport().rect().center()
+        center_scene_pos = self.mapToScene(viewport_center)
+        
         layout_data = {
             "nodes": {},
             "edges": [],
             "view_state": {
                 "scale": self.transform().m11(),
                 "scroll_x": self.horizontalScrollBar().value(),
-                "scroll_y": self.verticalScrollBar().value()
+                "scroll_y": self.verticalScrollBar().value(),
+                "center_x": center_scene_pos.x(),  # 新增：窗口中心X坐标
+                "center_y": center_scene_pos.y()   # 新增：窗口中心Y坐标
             },
             "canvas_size": {
                 "width": self.canvas_width,
@@ -1676,7 +1728,7 @@ class NodeCanvas(QGraphicsView):
             if edges_restored > 0:
                 print(f"   🔗 恢复连线: {edges_restored}条")
 
-            # 第四步：恢复视图状态（缩放、滚动位置）
+            # 第四步：恢复视图状态（缩放、滚动位置、中心点）
             view_state = layout_data.get("view_state")
             if view_state:
                 try:
@@ -1692,7 +1744,27 @@ class NodeCanvas(QGraphicsView):
                     self.horizontalScrollBar().setValue(scroll_x)
                     self.verticalScrollBar().setValue(scroll_y)
                     
-                    print(f"✅ 画布视图状态已恢复 (缩放: {scale:.2f}x)")
+                    # 恢复窗口中心画布坐标（如果有保存）
+                    center_x = view_state.get("center_x")
+                    center_y = view_state.get("center_y")
+                    if center_x is not None and center_y is not None:
+                        # 将场景坐标转换为视口坐标，然后设置滚动条位置
+                        viewport_center = self.viewport().rect().center()
+                        target_viewport_pos = self.mapFromScene(QPointF(center_x, center_y))
+                        
+                        # 计算需要的滚动偏移量
+                        delta_x = target_viewport_pos.x() - viewport_center.x()
+                        delta_y = target_viewport_pos.y() - viewport_center.y()
+                        
+                        # 应用偏移
+                        h_scroll = self.horizontalScrollBar()
+                        v_scroll = self.verticalScrollBar()
+                        h_scroll.setValue(h_scroll.value() + int(delta_x))
+                        v_scroll.setValue(v_scroll.value() + int(delta_y))
+                        
+                        print(f"✅ 画布视图状态已恢复 (缩放: {scale:.2f}x, 中心: {center_x:.0f}, {center_y:.0f})")
+                    else:
+                        print(f"✅ 画布视图状态已恢复 (缩放: {scale:.2f}x)")
                 except Exception as e:
                     print(f"⚠️  恢复画布视图状态失败: {e}")
 
