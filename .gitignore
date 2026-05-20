@@ -32,3 +32,8 @@ var/
 .vscode/
 *.swp
 *.swo
+
+#配置文件
+.app_config.json
+.canvas_layout.json
+.color_setting.json
