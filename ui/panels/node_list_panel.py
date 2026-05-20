@@ -32,7 +32,7 @@ class NodeListPanel(QDialog):
         self.nodes_data = {}
         
         # 初始化节点组管理器
-        from ui.node_group_manager import NodeGroupManager
+        from ui.panels.node_group_manager import NodeGroupManager
         self.group_manager = NodeGroupManager()
         
         # 设置窗口标志：工具窗口、无边框（移除 WindowStaysOnTopHint 避免覆盖其他软件窗口）
@@ -952,7 +952,7 @@ class NodeListPanel(QDialog):
         node_path = node_info['path']
         
         # 打开配置对话框
-        from ui.property_panel import NodeConfigDialog
+        from ui.panels.property_panel import NodeConfigDialog
         dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
         dialog.exec()
 
@@ -1542,7 +1542,7 @@ class NodeListPanel(QDialog):
                 config = node_info['config']
                 node_path = node_info['path']
                 
-                from ui.property_panel import NodeConfigDialog
+                from ui.panels.property_panel import NodeConfigDialog
                 dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
                 dialog.exec()
     

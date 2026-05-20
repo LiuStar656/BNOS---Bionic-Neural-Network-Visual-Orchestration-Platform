@@ -1,6 +1,109 @@
 
 
 
+# BNOS 更新日志
+
+> 📖 英文版：[UPDATE_EN.md](UPDATE_EN.md)
+
+---
+
+## 🏗️ 导入路径修复与代码质量优化 (2026-05-21 晚)
+
+### **核心修复概览** 🔧
+
+本次更新完成了全面的导入路径修复和代码质量提升：
+
+1. **导入路径统一** - 所有模块导入使用正确的子目录路径
+2. **工具栏→菜单栏迁移完成** - MenuManager 全面接管菜单
+3. **新建节点功能修复** - NodeCreatorManager 路径计算修复
+4. **代码质量提升** - 移除冗余导入，添加缺失导入
+
+---
+
+### **1. 导入路径全面修复** 📁
+
+**问题**：`ui/` 目录重组后，多个模块的导入路径使用了错误的平坦路径而非子目录路径。
+
+| 文件 | 错误导入 | 正确导入 |
+|------|---------|---------|
+| `main_window.py` | `from ui.property_panel import` | `from ui.panels.property_panel import` |
+| `main_window.py` | `from ui.node_list_panel import` | `from ui.panels.node_list_panel import` |
+| `main_window.py` | `from ui.node_creator_manager import` | `from ui.creators.node_creator_manager import` |
+| `node_list_panel.py` | `from ui.node_group_manager import` | `from ui.panels.node_group_manager import` |
+
+**影响文件**：
+- `ui/__init__.py` - 移除不存在的 `NodeStyleDialog` 导入
+- `ui/main_window.py` - 3 处导入路径修正
+- `ui/panels/node_list_panel.py` - 2 处导入路径修正
+
+---
+
+### **2. 工具栏彻底移除，MenuManager 接管** 📋
+
+**改动**：
+- ✅ 删除 `init_toolbar()` 方法（原 68 行代码）
+- ✅ 删除旧的 `init_menu()` 方法
+- ✅ `MenuManager.init_menu(self)` 统一管理菜单栏
+- ✅ 新增 `create_new_node_with_language(language)` 方法
+- ✅ 补全 `show_about()` 方法体
+
+**菜单结构**：
+```
+文件(&F)    编辑(&E)         帮助(&H)
+├ 新建项目  ├ 新建节点 >     └ 关于
+├ 打开项目  │  ├ Python
+├ 节点列表  │  ├ Node.js
+├ 颜色设置  │  ├ Go
+└ 退出      │  ├ Java
+            │  ├ C++
+            │  ├ Rust
+            │  └ Shell
+            ├ 刷新节点
+            ├ 清空连线
+            ├ 启动节点
+            └ 停止节点
+```
+
+---
+
+### **3. 新建节点功能修复** 🔧
+
+**问题**：点击菜单「新建节点」无法调用 tools/ 目录下的创建脚本。
+
+**根因**：`node_creator_manager.py` 中 `base_dir` 路径只取了 2 级目录：
+- 当前：`os.path.dirname(os.path.dirname(__file__))` → `ui/` ❌
+- 正确：`os.path.dirname(os.path.dirname(os.path.dirname(__file__)))` → 项目根 ✅
+
+**修复**：增加一级 `os.path.dirname()`，正确指向项目根目录。
+
+---
+
+### **4. 代码质量优化** 🧹
+
+| 优化项 | 位置 | 说明 |
+|--------|------|------|
+| 添加缺失导入 | `main_window.py` | `QThread`, `signal`, `QApplication` 移至顶部 |
+| 移除冗余导入 | `main_window.py` | `__init__` 中重复的 `NodeCreatorManager` 导入 |
+| 移除方法内导入 | `main_window.py` | `show_toast`, `update_position` 中的 `QApplication` |
+| 移除方法内导入 | `main_window.py` | `stop_selected_node`, `_force_stop_all_nodes` 中的 `signal` |
+| 移除方法内导入 | `main_window.py` | `_start_async_node_creation` 中的 Qt 组件 |
+| Lambda 修复 | `menu_manager.py` | `checked` 参数改为默认参数 `None` |
+| Windows 进程终止 | `main_window.py` | 统一使用 `taskkill /F /T /PID` 替代 `terminate()` |
+
+---
+
+### **5. Windows 进程管理统一** 🪟
+
+所有 3 个进程终止方法统一为可靠方案：
+
+```python
+# 统一使用 taskkill 强制终止进程树
+subprocess.run(['taskkill', '/F', '/T', '/PID', str(process.pid)],
+               capture_output=True, timeout=10)
+```
+
+影响方法：`stop_selected_node`, `stop_selected_node_by_name`, `_force_stop_all_nodes`
+
 ---
 
 ## 🏗️ 重大架构重构：UI 组件模块化与菜单栏整合 (2026-05-21)

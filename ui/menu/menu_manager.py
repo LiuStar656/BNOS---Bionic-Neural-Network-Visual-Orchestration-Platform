@@ -75,7 +75,9 @@ class MenuManager:
         for lang in languages:
             action = QAction(lang, main_window)
             action.setStatusTip(f"创建新的 {lang} 节点")
-            action.triggered.connect(lambda checked, l=lang: main_window.create_new_node_with_language(l))
+            action.triggered.connect(
+                lambda checked=None, language=lang: main_window.create_new_node_with_language(language)
+            )
             new_node_menu.addAction(action)
         
         edit_menu.addSeparator()

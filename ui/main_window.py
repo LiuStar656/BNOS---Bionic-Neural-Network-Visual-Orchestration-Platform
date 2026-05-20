@@ -5,6 +5,7 @@ import os
 import sys
 import json
 import subprocess
+import signal
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
@@ -13,13 +14,16 @@ from PyQt6.QtWidgets import (
     QFormLayout, QLineEdit, QPushButton, QLabel, QGroupBox,
     QComboBox, QTabWidget, QDialog, QDialogButtonBox, QHeaderView,
     QTableWidget, QTableWidgetItem, QMenu, QGraphicsView, QGraphicsScene,
-    QInputDialog, QGraphicsOpacityEffect
+    QInputDialog, QGraphicsOpacityEffect, QApplication
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRectF, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRectF, QTimer, QThread
 from PyQt6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction
 
 from ui.canvas_widget import NodeCanvas
-from ui.node_list_panel import NodeListPanel
+from ui.panels.node_list_panel import NodeListPanel
+from ui.panels.property_panel import ColorSettingsDialog
+from ui.creators.node_creator_manager import NodeCreatorManager
+from ui.menu.menu_manager import MenuManager
 
 
 class ToastNotification(QLabel):
@@ -105,14 +109,12 @@ class ToastNotification(QLabel):
             y = window_pos.y() + 100 + (self.stack_index * 60)  # 留出两层工具栏空间
             
             # 边界检测：确保Toast不会超出屏幕底部
-            from PyQt6.QtWidgets import QApplication
             screen = QApplication.primaryScreen().geometry()
             max_y = screen.bottom() - self.height() - 10
             if y > max_y:
                 y = max_y  # 限制在屏幕内
         else:
             # 如果没有父窗口，使用屏幕右上角
-            from PyQt6.QtWidgets import QApplication
             screen = QApplication.primaryScreen().geometry()
             x = screen.right() - self.width() - 20
             y = screen.top() + 100 + (self.stack_index * 60)
@@ -177,13 +179,11 @@ class ToastNotification(QLabel):
             y = window_pos.y() + 100 + (self.stack_index * 60)  # 留出两层工具栏空间
             
             # 边界检测：确保Toast不会超出屏幕底部
-            from PyQt6.QtWidgets import QApplication
             screen = QApplication.primaryScreen().geometry()
             max_y = screen.bottom() - self.height() - 10
             if y > max_y:
                 y = max_y  # 限制在屏幕内
         else:
-            from PyQt6.QtWidgets import QApplication
             screen = QApplication.primaryScreen().geometry()
             x = screen.right() - self.width() - 20
             y = screen.top() + 100 + (self.stack_index * 60)
@@ -326,13 +326,12 @@ class BNOSMainWindow(QMainWindow):
         self.active_toasts = []  # 当前显示的Toast列表
         
         # 初始化节点创建管理器（单例，自动注册所有语言创建器）
-        from ui.node_creator_manager import NodeCreatorManager
         self.node_creator = NodeCreatorManager.get_instance()
         
         # 初始化UI
         self.init_ui()
-        self.init_toolbar()
-        self.init_menu()
+        # 使用MenuManager初始化菜单栏（替代工具栏）
+        MenuManager.init_menu(self)
         
         # 恢复窗口状态
         self.restore_window_state()
@@ -457,107 +456,6 @@ class BNOSMainWindow(QMainWindow):
         
         toast.close = custom_close
     
-    def init_toolbar(self):
-        """初始化工具栏"""
-        toolbar = QToolBar("主工具栏")
-        toolbar.setMovable(False)
-        self.addToolBar(toolbar)
-        
-        # 文件操作
-        new_project_action = QAction("新建项目", self)
-        new_project_action.triggered.connect(self.new_project)
-        toolbar.addAction(new_project_action)
-        
-        open_project_action = QAction("打开项目", self)
-        open_project_action.triggered.connect(self.open_project)
-        toolbar.addAction(open_project_action)
-        
-        toolbar.addSeparator()
-        
-        # 视图控制 - 节点列表开关
-        toggle_nodes_action = QAction("📋 节点列表", self)
-        toggle_nodes_action.setCheckable(True)
-        toggle_nodes_action.setToolTip("显示/隐藏节点列表面板")
-        toggle_nodes_action.triggered.connect(self.toggle_node_list_panel)
-        toolbar.addAction(toggle_nodes_action)
-        self.toggle_nodes_action = toggle_nodes_action
-        
-        toolbar.addSeparator()
-        
-        # 颜色设置
-        color_settings_action = QAction("🎨 颜色设置", self)
-        color_settings_action.setToolTip("自定义画布和节点颜色")
-        color_settings_action.triggered.connect(self.open_color_settings)
-        toolbar.addAction(color_settings_action)
-        
-        toolbar.addSeparator()
-        
-        # 节点操作
-        refresh_action = QAction("刷新节点", self)
-        refresh_action.triggered.connect(self.refresh_nodes)
-        toolbar.addAction(refresh_action)
-        
-        clear_connections_action = QAction("清空连线", self)
-        clear_connections_action.triggered.connect(self.clear_connections)
-        toolbar.addAction(clear_connections_action)
-        
-        toolbar.addSeparator()
-        
-        # 新建节点
-        self.language_combo = QComboBox()
-        self.language_combo.addItems(["Python", "Node.js", "Go", "Java", "C++", "Rust", "Shell"])
-        self.language_combo.setCurrentText("Python")
-        toolbar.addWidget(QLabel("语言:"))
-        toolbar.addWidget(self.language_combo)
-        
-        create_node_action = QAction("新建节点", self)
-        create_node_action.triggered.connect(self.create_new_node)
-        toolbar.addAction(create_node_action)
-        
-        toolbar.addSeparator()
-        
-        # 节点控制
-        start_node_action = QAction("启动节点", self)
-        start_node_action.triggered.connect(self.start_selected_node)
-        toolbar.addAction(start_node_action)
-        
-        stop_node_action = QAction("停止节点", self)
-        stop_node_action.triggered.connect(self.stop_selected_node)
-        toolbar.addAction(stop_node_action)
-        
-    def init_menu(self):
-        """初始化菜单栏"""
-        menubar = self.menuBar()
-        
-        # 文件菜单
-        file_menu = menubar.addMenu("文件")
-        
-        new_project_action = file_menu.addAction("新建项目")
-        new_project_action.triggered.connect(self.new_project)
-        
-        open_project_action = file_menu.addAction("打开项目")
-        open_project_action.triggered.connect(self.open_project)
-        
-        file_menu.addSeparator()
-        
-        exit_action = file_menu.addAction("退出")
-        exit_action.triggered.connect(self.close)
-        
-        # 编辑菜单
-        edit_menu = menubar.addMenu("编辑")
-        
-        refresh_action = edit_menu.addAction("刷新节点")
-        refresh_action.triggered.connect(self.refresh_nodes)
-        
-        clear_action = edit_menu.addAction("清空连线")
-        clear_action.triggered.connect(self.clear_connections)
-        
-        # 帮助菜单
-        help_menu = menubar.addMenu("帮助")
-        
-        about_action = help_menu.addAction("关于")
-        about_action.triggered.connect(self.show_about)
-    
     def toggle_node_list_panel(self, checked):
         """切换节点列表面板的显示/隐藏"""
         if checked:
@@ -569,8 +467,6 @@ class BNOSMainWindow(QMainWindow):
     
     def open_color_settings(self):
         """打开颜色设置对话框"""
-        from ui.property_panel import ColorSettingsDialog
-        
         dialog = ColorSettingsDialog(self.canvas, self)
         dialog.exec()
     
@@ -745,12 +641,14 @@ class BNOSMainWindow(QMainWindow):
         self.canvas.sync_all_nodes_display()
         
     def create_new_node(self):
-        """创建新节点（使用节点创建管理器，支持多语言）"""
+        """创建新节点（默认Python）"""
+        self.create_new_node_with_language("Python")
+    
+    def create_new_node_with_language(self, language):
+        """使用指定语言创建新节点（供菜单调用）"""
         if not self.current_project_path:
             self.show_toast("请先打开或新建项目", "warning")
             return
-        
-        language = self.language_combo.currentText()
         
         # 弹出对话框输入节点名称
         node_name, ok = QInputDialog.getText(
@@ -787,9 +685,6 @@ class BNOSMainWindow(QMainWindow):
     
     def _start_async_node_creation(self, node_name, lang_key, display_language):
         """启动异步节点创建流程（使用节点创建管理器）"""
-        from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
-        from PyQt6.QtCore import QThread, pyqtSignal, Qt
-        
         class NodeCreationWorker(QThread):
             """后台工作线程：负责创建节点"""
             progress_signal = pyqtSignal(str)  # 进度消息
@@ -818,7 +713,6 @@ class BNOSMainWindow(QMainWindow):
                         self.progress_signal.emit(f"🚀 开始创建 {self.display_language} 节点...")
                         
                         # 获取节点创建管理器实例
-                        from ui.node_creator_manager import NodeCreatorManager
                         manager = NodeCreatorManager.get_instance()
                         
                         # 调用对应的创建器
@@ -1128,22 +1022,27 @@ class BNOSMainWindow(QMainWindow):
         if process:
             try:
                 if os.name == 'nt':
-                    # Windows: 先尝试优雅终止
-                    process.terminate()
+                    # Windows: 直接使用taskkill强制终止进程树（包括子进程）
                     try:
-                        process.wait(timeout=5)
+                        subprocess.run(['taskkill', '/F', '/T', '/PID', str(process.pid)],
+                                     capture_output=True, timeout=10)
                     except subprocess.TimeoutExpired:
-                        # 如果超时，强制杀死进程及其子进程
-                        import signal
-                        process.send_signal(signal.CTRL_BREAK_EVENT)
+                        # 如果 taskkill 超时，尝试直接 kill
                         try:
-                            process.wait(timeout=3)
-                        except subprocess.TimeoutExpired:
                             process.kill()
-                            process.wait()
+                            process.wait(timeout=3)
+                        except:
+                            pass
+                    except Exception as e:
+                        print(f"taskkill执行失败: {e}")
+                        # 回退到直接终止
+                        try:
+                            process.kill()
+                            process.wait(timeout=3)
+                        except:
+                            pass
                 else:
                     # Linux/Mac: 终止整个进程组
-                    import signal
                     try:
                         os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                         process.wait(timeout=5)
@@ -1182,18 +1081,30 @@ class BNOSMainWindow(QMainWindow):
         if process:
             try:
                 if process.poll() is None:  # 进程仍在运行
-                    try:
-                        # 直接强制终止进程
-                        process.kill()
-                        process.wait(timeout=3)
-                    except Exception as e:
-                        print(f"强制终止进程时出错: {e}")
-                        # 如果 kill 失败，尝试 terminate
+                    if os.name == 'nt':
+                        # Windows: 使用taskkill强制终止进程树
                         try:
-                            process.terminate()
+                            subprocess.run(['taskkill', '/F', '/T', '/PID', str(process.pid)],
+                                         capture_output=True, timeout=10)
+                        except Exception as e:
+                            print(f"taskkill执行失败: {e}")
+                            try:
+                                process.kill()
+                                process.wait(timeout=3)
+                            except:
+                                pass
+                    else:
+                        # Linux/Mac: 直接终止进程
+                        try:
+                            process.kill()
                             process.wait(timeout=3)
-                        except:
-                            pass
+                        except Exception as e:
+                            print(f"强制终止进程时出错: {e}")
+                            try:
+                                process.terminate()
+                                process.wait(timeout=3)
+                            except:
+                                pass
             except Exception as e:
                 print(f"停止节点时出错: {e}")
         
@@ -1306,7 +1217,6 @@ class BNOSMainWindow(QMainWindow):
         Args:
             node_names: 需要停止的节点名称列表
         """
-        import signal
         
         for node_name in node_names:
             if node_name not in self.nodes_data:
@@ -1320,18 +1230,25 @@ class BNOSMainWindow(QMainWindow):
             
             try:
                 if os.name == 'nt':
-                    # Windows: 先尝试优雅终止
-                    process.terminate()
+                    # Windows: 直接使用taskkill强制终止进程树（包括子进程）
                     try:
-                        process.wait(timeout=3)
+                        subprocess.run(['taskkill', '/F', '/T', '/PID', str(process.pid)],
+                                     capture_output=True, timeout=10)
                     except subprocess.TimeoutExpired:
-                        # 如果超时，强制杀死进程
+                        # 如果 taskkill 超时，尝试直接 kill
                         try:
-                            process.send_signal(signal.CTRL_BREAK_EVENT)
-                            process.wait(timeout=2)
-                        except:
                             process.kill()
-                            process.wait()
+                            process.wait(timeout=3)
+                        except:
+                            pass
+                    except Exception as e:
+                        print(f"taskkill执行失败: {e}")
+                        # 回退到直接终止
+                        try:
+                            process.kill()
+                            process.wait(timeout=3)
+                        except:
+                            pass
                 else:
                     # Linux/Mac: 终止整个进程组
                     try:
@@ -1462,3 +1379,17 @@ class BNOSMainWindow(QMainWindow):
     
     def show_about(self):
         """显示关于对话框"""
+        QMessageBox.about(self, "关于 BNOS", 
+            "BNOS - Bionic Neural Network Program Operating System\n\n"
+            "版本: 1.0.0\n"
+            "仿生神经网络程序操作系统\n\n"
+            "一款基于 PyQt6 的纯桌面端可视化节点编排平台。\n\n"
+            "核心特性:\n"
+            "• 项目管理：仿 VSCode 模式，打开文件夹即项目\n"
+            "• 可视化编排：无限平移画布，拖拽节点，智能连线\n"
+            "• 多语言支持：Python、Node.js、Go、Java、C++、Rust、Shell\n"
+            "• 环境隔离：每个节点拥有独立虚拟环境\n"
+            "• 配置编辑：图形化编辑 config.json\n"
+            "• 实时监控：状态指示灯，实时日志查看\n"
+            "• 状态持久化：自动保存布局，重启完整恢复"
+        )
