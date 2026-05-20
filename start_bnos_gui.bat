@@ -1,71 +1,73 @@
 @echo off
 chcp 65001 >nul
+set PYTHONIOENCODING=utf-8
+set PYTHONLEGACYWINDOWSSTDIO=utf-8
 setlocal enabledelayedexpansion
 
+cls
 echo ======================================
 echo   BNOS Desktop Visual Node Platform
 echo ======================================
 echo.
 
-:: ==================== 配置区域（你不用改）====================
+:: ==================== CONFIG ====================
 set "VENV_DIR=myenv_new"
 set "REQUIREMENTS=requirements_gui.txt"
-set "PYTHON_CMD=python"
-set "PIP_CMD=!VENV_DIR!\Scripts\pip.exe"
-set "ACTIVATE_CMD=!VENV_DIR!\Scripts\activate.bat"
-set "MAIN_SCRIPT=bnos_gui.py"
+set "PYTHON=python"
+set "MAIN_FILE=bnos_gui.py"
+set "GUI_DIR=."
 
-:: ==================== 检查Python ====================
-echo [INFO] 检查 Python 环境...
-where !PYTHON_CMD! >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] 未找到 Python，请安装并添加到PATH
+:: ==================== CHECK PYTHON ====================
+echo [INFO] Checking Python environment...
+where %PYTHON% >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERROR] Python not found. Please install Python and add to PATH.
     pause
     exit /b 1
 )
 
-:: ==================== 检查虚拟环境 ====================
-echo [INFO] 检查虚拟环境：!VENV_DIR!
-if not exist "!ACTIVATE_CMD!" (
-    echo [WARN] 虚拟环境不存在，正在自动创建...
-    !PYTHON_CMD! -m venv !VENV_DIR!
+:: ==================== CREATE VENV IF NOT EXISTS ====================
+echo [INFO] Checking virtual environment: %VENV_DIR%
+if not exist "%VENV_DIR%\Scripts\python.exe" (
+    echo [WARN] Virtual environment not found. Creating new one...
+    %PYTHON% -m venv %VENV_DIR%
     
-    if errorlevel 1 (
-        echo [ERROR] 创建虚拟环境失败
+    if %errorlevel% neq 0 (
+        echo [ERROR] Failed to create virtual environment.
         pause
         exit /b 1
     )
-    echo [SUCCESS] 虚拟环境创建完成
+    echo [SUCCESS] Virtual environment created.
 )
 
-:: ==================== 激活虚拟环境 ====================
-echo [INFO] 激活虚拟环境...
-call "!ACTIVATE_CMD!"
+:: ==================== ACTIVATE VENV ====================
+echo [INFO] Activating virtual environment...
+call "%VENV_DIR%\Scripts\activate.bat"
 
-:: ==================== 升级pip ====================
-echo [INFO] 升级 pip...
-!PYTHON_CMD! -m pip install --upgrade pip >nul 2>&1
+:: ==================== GO TO GUI FOLDER ====================
+cd /d "%GUI_DIR%"
 
-:: ==================== 安装依赖 ====================
-echo [INFO] 检查项目依赖...
-if exist "!REQUIREMENTS!" (
-    echo [INFO] 正在安装依赖：!REQUIREMENTS!
-    !PIP_CMD! install -r !REQUIREMENTS!
+:: ==================== CHECK DEPENDENCIES ====================
+echo [INFO] Verifying dependencies...
+if exist "%REQUIREMENTS%" (
+    echo [INFO] Installing dependencies from %REQUIREMENTS%...
+    pip install -r %REQUIREMENTS%
 ) else (
-    echo [INFO] 安装基础依赖 PyQt6
-    !PIP_CMD! install pyqt6
+    echo [WARN] %REQUIREMENTS% not found. Installing base PyQt6...
+    pip install pyqt6
 )
 
-:: ==================== 启动程序 ====================
+:: ==================== START GUI ====================
 echo.
 echo ======================================
-echo 启动 BNOS GUI 主程序...
+echo Starting BNOS GUI Application...
 echo ======================================
 echo.
 
-!PYTHON_CMD! "!MAIN_SCRIPT!"
+%PYTHON% "%MAIN_FILE%"
 
+:: ==================== EXIT ====================
 echo.
-echo [INFO] 程序已退出
+echo [INFO] Application exited.
 pause
 exit /b %errorlevel%
