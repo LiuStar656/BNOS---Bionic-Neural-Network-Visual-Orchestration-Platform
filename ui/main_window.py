@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QToolBar, QFileDialog, QMessageBox, QListWidget,
+    QFileDialog, QMessageBox, QListWidget,
     QListWidgetItem, QTreeWidget, QTreeWidgetItem, QTextEdit,
     QFormLayout, QLineEdit, QPushButton, QLabel, QGroupBox,
     QComboBox, QTabWidget, QDialog, QDialogButtonBox, QHeaderView,
@@ -331,8 +331,10 @@ class BNOSMainWindow(QMainWindow):
         
         # 初始化UI
         self.init_ui()
-        self.init_toolbar()
-        self.init_menu()
+        
+        # 初始化菜单栏（使用MenuManager）
+        from ui.menu_manager import MenuManager
+        MenuManager.init_menu(self)
         
         # 恢复窗口状态
         self.restore_window_state()
@@ -369,7 +371,7 @@ class BNOSMainWindow(QMainWindow):
         # 计算相对于屏幕的绝对位置
         window_pos = self.pos()
         panel_x = window_pos.x() + 20  # 主窗口左边 + 20px
-        panel_y = window_pos.y() + 100  # 主窗口顶部 + 100px（留出两层工具栏空间）
+        panel_y = window_pos.y() +60  # 主窗口顶部 + 100px（留出两层工具栏空间）
         self.node_list_panel.setGeometry(panel_x, panel_y, panel_width, panel_height)
         self.node_list_panel.show()  # 默认显示
     
@@ -384,7 +386,7 @@ class BNOSMainWindow(QMainWindow):
             window_pos = self.pos()
             # 节点列表应该在主窗口内部的左上角
             panel_x = window_pos.x() + 20  # 主窗口左边 + 20px
-            panel_y = window_pos.y() + 100  # 主窗口顶部 + 100px（留出两层工具栏）
+            panel_y = window_pos.y() +60  # 主窗口顶部 + 100px（留出两层工具栏）
             self.node_list_panel.move(panel_x, panel_y)
         
         # 更新所有Toast的位置
@@ -403,7 +405,7 @@ class BNOSMainWindow(QMainWindow):
             window_pos = self.pos()
             # 节点列表应该在主窗口内部的左上角
             panel_x = window_pos.x() + 20  # 主窗口左边 + 20px
-            panel_y = window_pos.y() + 100  # 主窗口顶部 + 100px（留出两层工具栏）
+            panel_y = window_pos.y() +60  # 主窗口顶部 + 100px（留出两层工具栏）
             self.node_list_panel.move(panel_x, panel_y)
         
         # 更新所有Toast的位置
@@ -1230,6 +1232,16 @@ class BNOSMainWindow(QMainWindow):
         self.canvas.clear_edges()
         
         self.show_toast("已清空所有连线", "success")
+
+    def create_new_node_with_language(self, language):
+        """使用指定语言创建新节点（委托给MenuManager）"""
+        from ui.menu_manager import MenuManager
+        MenuManager.create_new_node_with_language(self, language)
+    
+    def show_about(self):
+        """显示关于对话框（委托给MenuManager）"""
+        from ui.menu_manager import MenuManager
+        MenuManager.show_about(self)
 
     def closeEvent(self, event):
         """窗口关闭事件，保存所有状态"""
