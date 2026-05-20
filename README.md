@@ -20,6 +20,121 @@
 
 ---
 
+## 🆕 Recent Updates (2026-05-20)
+
+### 🏗️ Major Architecture Refactoring: Canvas Widget Modularization
+
+#### **Canvas Widget Split into Layered Architecture** 🎨
+- **Overview**: Successfully refactored the monolithic canvas_widget.py (91.9KB) into a modular four-layer architecture, significantly improving code maintainability, testability, and extensibility
+- **Motivation**: 
+  - Single file exceeded 2200 lines, difficult to maintain and extend
+  - Mixed responsibilities (UI rendering + business logic + event handling)
+  - Poor testability due to tight coupling
+  - Violation of SOLID principles
+
+##### **New Architecture Design**
+
+**Layer 1: Items Layer** (ui/canvas/items/)
+- **Responsibility**: Pure UI rendering components, no business logic
+- **Components**:
+  - nchor_item.py: Node ports (input/output anchors), supports hover highlighting and connection state display
+  - 
+ode_item.py: Node container, manages title, labels, selection state
+  - edge_item.py: Connection lines, draws Bezier curves, supports dynamic updates
+- **Design Principles**:
+  - No canvas references held
+  - Communication via callback functions
+  - Focus on visual presentation and interaction feedback
+
+**Layer 2: Core Layer** (ui/canvas/canvas_view.py)
+- **Responsibility**: Canvas core management and business logic
+- **Contains**:
+  - NodeCanvas class: Main canvas controller (74.5KB, ~1763 lines)
+  - Node/edge management (CRUD operations)
+  - Mouse/keyboard event handling
+  - Layout save/load
+  - Zoom/pan control
+  - Box selection/multi-selection features
+- **Key Features**:
+  - QGraphicsView + QGraphicsScene architecture
+  - VueFlow-style infinite canvas experience
+  - Supports 5000x5000 pixel canvas space
+  - Grid background rendering
+  - Auto-save mechanism (debounced 500ms)
+
+**Layer 3: Compatibility Layer** (ui/canvas_widget.py)
+- **Responsibility**: Maintain backward compatibility
+- **Implementation**: Facade pattern, redirects to new modules
+- **Code Size**: Only 15 lines
+- **Migration Strategy**: 
+  `python
+  # Old code (still works)
+  from ui.canvas_widget import NodeCanvas
+  
+  # New code (recommended)
+  from ui.canvas import NodeCanvas
+  `
+
+**Layer 4: Module Exports** (ui/canvas/__init__.py, ui/canvas/items/__init__.py)
+- **Responsibility**: Unified import interfaces
+- **Advantage**: Simplifies caller code, hides internal structure
+
+##### **Refactoring Results**
+
+**Code Metrics Comparison**:
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| **Single File Size** | 91.9KB | 74.5KB (core) + distributed items | ⬇️ 19% |
+| **Module Count** | 1 | 5 core modules | ⬆️ 5x |
+| **Lines of Code** | ~2200 | ~1763 (core) + items | Similar |
+| **Responsibility Clarity** | Mixed | Clear layering | ✅ Significant improvement |
+| **Testability** | Difficult | Easy unit testing | ✅ Significant improvement |
+| **Maintainability** | Low | High | ✅ Significant improvement |
+
+##### **Verification Results**
+
+**Functional Completeness Check**:
+- ✅ Node drag functionality works normally
+- ✅ Anchor connection functionality works normally
+- ✅ Bezier curve rendering works normally
+- ✅ Zoom/pan functionality works normally
+- ✅ Box selection/multi-selection works normally
+- ✅ Layout save/load works normally
+- ✅ Right-click menu functionality works normally
+- ✅ Node configuration dialog works normally
+
+**Compatibility Check**:
+- ✅ Old import method still works: rom ui.canvas_widget import NodeCanvas
+- ✅ New import method available: rom ui.canvas import NodeCanvas
+- ✅ All existing features have no breaking changes
+
+**Performance Check**:
+- ✅ Canvas rendering frame rate has no significant change
+- ✅ Memory usage has no significant increase
+- ✅ Node operation response speed remains consistent
+
+##### **Affected Files**:
+- ui/canvas/__init__.py - **NEW**: Module export interface
+- ui/canvas/canvas_view.py - **NEW**: Core view and business logic (1763 lines)
+- ui/canvas/items/__init__.py - **NEW**: Graphics item module exports
+- ui/canvas/items/anchor_item.py - **NEW**: Anchor item (input/output ports)
+- ui/canvas/items/node_item.py - **NEW**: Node container item
+- ui/canvas/items/edge_item.py - **NEW**: Connection line (Bezier curve)
+- ui/canvas_widget.py - **MODIFIED**: Reduced to 15 lines (Facade pattern)
+- ui/canvas/CANVAS_SPLIT_REPORT.md - **NEW**: Detailed refactoring report
+
+##### **User Impact**: 
+- ✅ **Zero Breaking Changes**: All existing functionality preserved
+- ✅ **Improved Stability**: Better code organization reduces bug risk
+- ✅ **Faster Future Development**: Modular architecture enables rapid feature additions
+- ✅ **Better Documentation**: Clear separation makes code easier to understand
+
+##### **Documentation**:
+- Full technical details: [ui/canvas/CANVAS_SPLIT_REPORT.md](ui/canvas/CANVAS_SPLIT_REPORT.md)
+
+---
+
 ## 🆕 Recent Updates (2026-05-19)
 
 ### 🔧 Critical Bug Fixes & Enhancements
@@ -1104,26 +1219,49 @@ Toolbar → New Project → Select Folder
 BNOS/
 │
 ├── bnos_gui.py                    # Main entry point
-├── create_node.py                 # Node template generator
 ├── start_bnos_gui.bat             # Windows launcher
-├── test_and_start_bnos.bat        # Test + launcher
+├── start_bnos_gui.sh              # Linux/Mac launcher
 │
-├── ui/                            # UI modules
+├── ui/                            # UI modules (Modular Architecture)
 │   ├── __init__.py
 │   ├── main_window.py            # Main window + Toast system
-│   ├── canvas_widget.py          # Neural canvas component
+│   ├── canvas_widget.py          # Compatibility layer (Facade pattern, 15 lines)
 │   ├── node_list_panel.py        # Node list with groups
 │   ├── node_group_manager.py     # Group management logic
-│   └── property_panel.py         # Config dialog
+│   ├── node_creator_manager.py   # Node creation tool manager
+│   ├── property_panel.py         # Config dialog + Log viewer
+│   │
+│   └── canvas/                   # 🆕 Modular Canvas Architecture
+│       ├── __init__.py           # Module exports
+│       ├── canvas_view.py        # Core layer: NodeCanvas controller (1763 lines)
+│       ├── CANVAS_SPLIT_REPORT.md # Detailed refactoring documentation
+│       │
+│       └── items/                # Items layer: Pure UI rendering components
+│           ├── __init__.py       # Graphics item exports
+│           ├── anchor_item.py    # AnchorItem: Input/output ports
+│           ├── node_item.py      # NodeItem: Node container
+│           └── edge_item.py      # EdgeItem: Bezier curve connections
+│
+├── tools/                         # Development tools
+│   ├── README.md                 # Tools documentation
+│   ├── python_create_node.py     # Python node template generator
+│   └── rust_create_node.py       # Rust node template generator
 │
 ├── nodes/                         # Node instances
 │   └── (user-created nodes)
 │
 ├── app_config.json                # App settings (window state, last project)
 ├── canvas_layout.json             # Current project layout (auto-generated)
-├── color_settings.json            # Node color customization
+├── color_settings.json            # Node color customization (.gitignored)
 └── requirements_gui.txt           # Python dependencies
 ```
+
+**Architecture Highlights**:
+- ✅ **Modular Canvas**: Split into 4 layers (Items, Core, Compatibility, Exports)
+- ✅ **Separation of Concerns**: UI rendering isolated from business logic
+- ✅ **Backward Compatible**: Old import paths still work via Facade pattern
+- ✅ **Extensible**: Easy to add custom node types and interactions
+- ✅ **Maintainable**: Each module has single responsibility
 
 ### Extending BNOS
 
