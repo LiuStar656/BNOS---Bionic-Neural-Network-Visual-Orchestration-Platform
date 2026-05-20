@@ -586,10 +586,10 @@ class NodeCanvas(QGraphicsView):
                 # 启动/停止节点（根据状态动态显示）
                 if is_running:
                     stop_action = menu.addAction("⏹️ 停止节点")
-                    stop_action.triggered.connect(lambda: self.parent_window.stop_selected_node_by_name(node_name))
+                    stop_action.triggered.connect(lambda: self.stop_single_node(node_name))
                 else:
                     start_action = menu.addAction("▶️ 启动节点")
-                    start_action.triggered.connect(lambda: self.parent_window.start_selected_node_by_name(node_name))
+                    start_action.triggered.connect(lambda: self.start_single_node(node_name))
                 
                 menu.addSeparator()
             
@@ -927,7 +927,7 @@ class NodeCanvas(QGraphicsView):
             config = node_info['config']
             node_path = node_info['path']
             
-            from ui.panels.property_panel import NodeConfigDialog
+            from ui.property_panel import NodeConfigDialog
             dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
             dialog.exec()
     

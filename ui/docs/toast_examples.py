@@ -8,8 +8,7 @@ Toast 通知系统使用示例
 # 示例 1: 在 MainWindow 中使用 Toast
 # ==========================================
 
-# 导入新的 Toast 模块（使用新路径）
-from ui.core.toast.toast_notification import ToastNotification
+from ui.toast_notification import ToastNotification
 
 class MyMainWindow:
     def __init__(self):
