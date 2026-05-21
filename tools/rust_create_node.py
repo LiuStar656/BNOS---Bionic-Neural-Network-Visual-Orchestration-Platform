@@ -589,100 +589,110 @@ def create_config_json(node_name: str) -> str:
 def create_start_bat(node_name: str) -> str:
     """生成 start.bat 文件内容（增强版）"""
     return f'''@echo off
-cls
-chcp 65001 >nul
-echo ======================================
-echo        BNOS Rust Node Starter
-echo ======================================
-echo.
+setlocal enabledelayedexpansion
+if not "%1"=="--no-pause" (
+    cls
+    chcp 65001 >nul
+    echo ======================================
+    echo        BNOS Rust Node Starter
+    echo ======================================
+    echo.
+)
 cd /d "%%~dp0"
 
 REM ==================== 环境检测与自愈 ====================
-echo 🔍 检测 Rust 环境和编译产物...
+if not "%1"=="--no-pause" echo 🔍 检测 Rust 环境和编译产物...
 
 if not exist "target\\release\\{node_name}.exe" (
-    echo ⚠️ 检测到编译产物缺失
-    echo.
-    echo 🔧 开始自动构建...
-    echo.
+    if not "%1"=="--no-pause" (
+        echo ⚠️ 检测到编译产物缺失
+        echo.
+        echo 🔧 开始自动构建...
+        echo.
+    )
     
-    REM 检查 Rust 是否安装
     where rustc >nul 2>&1
     if errorlevel 1 (
-        echo ❌ Rust 未安装
-        echo 💡 请先安装 Rust: https://rustup.rs/
-        pause
+        if not "%1"=="--no-pause" (
+            echo ❌ Rust 未安装
+            echo 💡 请先安装 Rust: https://rustup.rs/
+            pause
+        )
         exit /b 1
     )
     
-    REM 构建项目
     cargo build --release
     if errorlevel 1 (
-        echo.
-        echo ❌ 构建失败
-        pause
+        if not "%1"=="--no-pause" (
+            echo.
+            echo ❌ 构建失败
+            pause
+        )
         exit /b 1
     )
-    echo.
-    echo ✅ 构建成功
+    if not "%1"=="--no-pause" (echo. && echo ✅ 构建成功)
 ) else (
-    echo ✅ 编译产物检测通过
+    if not "%1"=="--no-pause" echo ✅ 编译产物检测通过
 )
 
-echo.
-echo ✅ 启动监听程序...
-echo.
-target\\release\\{node_name}_listener.exe
-echo.
-echo ❌ 程序已退出
-pause
+REM ==================== 后台启动 + PID 记录 ====================
+if not "%1"=="--no-pause" (
+    echo.
+    echo ✅ 启动监听程序...
+    echo.
+    start /b "" target\\release\\{node_name}_listener.exe
+) else (
+    start /b "" target\\release\\{node_name}_listener.exe >nul 2>&1
+)
+
+REM 写入 PID 文件供 GUI 检测
+powershell -Command "$p=(Get-WmiObject Win32_Process -Filter \"Name='{node_name}_listener.exe'\" | Select-Object -First 1).ProcessId; if($p){{$p | Out-File -FilePath '.pid' -Encoding ASCII -NoNewline}}"
+
+if not "%1"=="--no-pause" (
+    echo.
+    echo ✅ 监听程序已在后台运行
+    pause
+)
 '''
 
 
 def create_start_sh(node_name: str) -> str:
     """生成 start.sh 文件内容（增强版）"""
     return f'''#!/bin/bash
-
 cd "$(dirname "$0")"
+NO_PAUSE=false
+[ "$1" = "--no-pause" ] && NO_PAUSE=true
 
-echo "======================================"
-echo "        BNOS Rust Node Starter"
-echo "======================================"
-echo ""
+[ "$NO_PAUSE" = false ] && echo "======================================"
+[ "$NO_PAUSE" = false ] && echo "        BNOS Rust Node Starter"
+[ "$NO_PAUSE" = false ] && echo "======================================"
+[ "$NO_PAUSE" = false ] && echo ""
 
 # ==================== 环境检测与自愈 ====================
-echo "🔍 检测 Rust 环境和编译产物..."
+[ "$NO_PAUSE" = false ] && echo "🔍 检测 Rust 环境和编译产物..."
 
 if [ ! -f "target/release/{node_name}" ]; then
-    echo "⚠️ 检测到编译产物缺失"
-    echo ""
-    echo "🔧 开始自动构建..."
-    echo ""
+    [ "$NO_PAUSE" = false ] && echo "⚠️ 检测到编译产物缺失" && echo "" && echo "🔧 开始自动构建..." && echo ""
     
-    # 检查 Rust 是否安装
     if ! command -v rustc &> /dev/null; then
-        echo "❌ Rust 未安装"
-        echo "💡 请先安装 Rust: https://rustup.rs/"
+        [ "$NO_PAUSE" = false ] && echo "❌ Rust 未安装" && echo "💡 请先安装 Rust: https://rustup.rs/"
         exit 1
     fi
     
-    # 构建项目
     cargo build --release
-    if [ $? -ne 0 ]; then
-        echo ""
-        echo "❌ 构建失败"
-        exit 1
-    fi
-    echo ""
-    echo "✅ 构建成功"
+    [ $? -ne 0 ] && [ "$NO_PAUSE" = false ] && echo "" && echo "❌ 构建失败" && exit 1
+    [ "$NO_PAUSE" = false ] && echo "" && echo "✅ 构建成功"
 else
-    echo "✅ 编译产物检测通过"
+    [ "$NO_PAUSE" = false ] && echo "✅ 编译产物检测通过"
 fi
 
-echo ""
-echo "✅ 启动监听程序..."
-echo ""
-./target/release/{node_name}_listener
+# ==================== 后台启动 + PID 记录 ====================
+[ "$NO_PAUSE" = false ] && echo "" && echo "✅ 启动监听程序（后台运行）..." && echo ""
+
+nohup ./target/release/{node_name}_listener > /dev/null 2>&1 &
+echo $! > .pid
+
+[ "$NO_PAUSE" = false ] && echo "PID: $(cat .pid)" && read -p "按回车键退出..."
 '''
 
 

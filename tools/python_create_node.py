@@ -439,120 +439,125 @@ if __name__ == "__main__":
     # ==============================
     if os.name == "nt":
         start_bat = '''@echo off
-cls
-chcp 65001 >nul
-echo ======================================
-echo        BNOS Node Starter (Windows)
-echo ======================================
-echo.
+setlocal enabledelayedexpansion
+if not "%1"=="--no-pause" (
+    cls
+    chcp 65001 >nul
+    echo ======================================
+    echo        BNOS Node Starter (Windows)
+    echo ======================================
+    echo.
+)
 cd /d "%~dp0"
 
 REM ==================== 环境检测与自愈 ====================
-echo 🔍 检测虚拟环境状态...
+if not "%1"=="--no-pause" echo 🔍 检测虚拟环境状态...
 
 if not exist "venv\\Scripts\\python.exe" (
-    echo ⚠️ 检测到虚拟环境缺失或损坏
-    echo.
-    echo 🔧 开始自动修复...
-    echo.
+    if not "%1"=="--no-pause" (
+        echo ⚠️ 检测到虚拟环境缺失或损坏
+        echo.
+        echo 🔧 开始自动修复...
+        echo.
+    )
     
-    REM 调用python_create_node.py进行修复
     if exist "..\\..\\tools\\python_create_node.py" (
         python ..\\..\\tools\\python_create_node.py --repair-only "%CD%"
         if errorlevel 1 (
-            echo.
-            echo ❌ 自动修复失败
-            echo 💡 请手动删除venv文件夹后重新创建节点
-            pause
+            if not "%1"=="--no-pause" (
+                echo.
+                echo ❌ 自动修复失败
+                echo 💡 请手动删除venv文件夹后重新创建节点
+                pause
+            )
             exit /b 1
         )
-        echo.
-        echo ✅ 虚拟环境重建成功
+        if not "%1"=="--no-pause" (echo. && echo ✅ 虚拟环境重建成功)
     ) else (
-        echo ❌ 找不到python_create_node.py，无法自动修复
-        echo 💡 请手动删除venv文件夹后重新创建节点
-        pause
+        if not "%1"=="--no-pause" (
+            echo ❌ 找不到python_create_node.py，无法自动修复
+            echo 💡 请手动删除venv文件夹后重新创建节点
+            pause
+        )
         exit /b 1
     )
+) else (
+    if not "%1"=="--no-pause" echo ✅ 虚拟环境检测通过
 )
 
-REM ==================== 启动节点 ====================
-echo 🔍 检测到虚拟环境正常
-echo.
-echo 🔧 启动节点...
-echo.
+REM ==================== 后台启动 + PID 记录 ====================
+if not "%1"=="--no-pause" (
+    echo.
+    echo 🔧 后台启动监听程序...
+    echo.
+    start /b "" venv\\Scripts\\python.exe listener.py
+) else (
+    start /b "" venv\\Scripts\\python.exe listener.py >nul 2>&1
+)
 
-python listener.py
+REM 写入 PID 文件供 GUI 检测
+powershell -Command "$p=(Get-WmiObject Win32_Process -Filter \"Name='python.exe' and CommandLine like '%%listener.py%%'\" | Select-Object -First 1).ProcessId; if($p){{$p | Out-File -FilePath '.pid' -Encoding ASCII -NoNewline}}"
 
-echo.
-echo ✅ 节点已停止
-pause
+if not "%1"=="--no-pause" (
+    echo ✅ 监听程序已在后台运行
+    pause
+)
 '''
         with open(os.path.join(node_dir, "start.bat"), "w", encoding="utf-8") as f:
             f.write(start_bat.strip())
     
     else:
         start_sh = '''#!/bin/bash
-
-echo "======================================"
-echo "       BNOS Node Starter (Linux/Mac)"
-echo "======================================"
-echo ""
-
 cd "$(dirname "$0")"
+NO_PAUSE=false
+[ "$1" = "--no-pause" ] && NO_PAUSE=true
+
+[ "$NO_PAUSE" = false ] && echo "======================================"
+[ "$NO_PAUSE" = false ] && echo "       BNOS Node Starter (Linux/Mac)"
+[ "$NO_PAUSE" = false ] && echo "======================================"
+[ "$NO_PAUSE" = false ] && echo ""
 
 # ==================== 环境检测与自愈 ====================
-echo "🔍 检测虚拟环境状态..."
+[ "$NO_PAUSE" = false ] && echo "🔍 检测虚拟环境状态..."
 
 if [ ! -f "venv/bin/python" ]; then
-    echo "⚠️ 检测到虚拟环境缺失或损坏"
-    echo ""
-    echo "🔧 开始自动修复..."
-    echo ""
+    [ "$NO_PAUSE" = false ] && echo "⚠️ 检测到虚拟环境缺失或损坏" && echo "" && echo "🔧 开始自动修复..." && echo ""
     
-    # 调用python_create_node.py进行修复
     if [ -f "../../tools/python_create_node.py" ]; then
         python3 ../../tools/python_create_node.py --repair-only "$(pwd)"
         if [ $? -ne 0 ]; then
-            echo ""
-            echo "❌ 自动修复失败"
-            echo "💡 请手动删除venv文件夹后重新创建节点"
-            read -p "按回车键退出..."
+            [ "$NO_PAUSE" = false ] && echo "" && echo "❌ 自动修复失败" && echo "💡 请手动删除venv文件夹后重新创建节点" && read -p "按回车键退出..."
             exit 1
         fi
-        echo ""
-        echo "✅ 虚拟环境重建成功"
+        [ "$NO_PAUSE" = false ] && echo "" && echo "✅ 虚拟环境重建成功"
     else
-        echo "❌ 找不到python_create_node.py，无法自动修复"
-        echo "💡 请手动删除venv文件夹后重新创建节点"
+        [ "$NO_PAUSE" = false ] && echo "❌ 找不到python_create_node.py，无法自动修复" && echo "💡 请手动删除venv文件夹后重新创建节点"
         exit 1
     fi
 else
-    echo "✅ 虚拟环境检测通过"
+    [ "$NO_PAUSE" = false ] && echo "✅ 虚拟环境检测通过"
 fi
 
-echo ""
 # ==================== 依赖安装检查 ====================
 if [ -f "requirements.txt" ]; then
     if grep -v "^#" requirements.txt | grep -q "[^[:space:]]"; then
-        echo "📦 检测到依赖项，检查安装状态..."
+        [ "$NO_PAUSE" = false ] && echo "📦 检测到依赖项，检查安装状态..."
         venv/bin/python -c "import pkg_resources; pkg_resources.working_set.require(open('requirements.txt').read().splitlines())" 2>/dev/null
         if [ $? -ne 0 ]; then
-            echo "🔧 开始安装依赖..."
+            [ "$NO_PAUSE" = false ] && echo "🔧 开始安装依赖..."
             venv/bin/python -m pip install -r requirements.txt
-            if [ $? -eq 0 ]; then
-                echo "✅ 依赖安装成功"
-            else
-                echo "⚠️ 依赖安装失败，但将继续启动"
-            fi
+            [ $? -eq 0 ] && [ "$NO_PAUSE" = false ] && echo "✅ 依赖安装成功"
         else
-            echo "✅ 依赖已安装"
+            [ "$NO_PAUSE" = false ] && echo "✅ 依赖已安装"
         fi
     fi
 fi
 
+# ==================== 后台启动 + PID 记录 ====================
 source venv/bin/activate
-python3 listener.py
+nohup python3 listener.py > /dev/null 2>&1 &
+echo $! > .pid
+[ "$NO_PAUSE" = false ] && echo "" && echo "✅ 监听程序已在后台运行 (PID: $(cat .pid))" && read -p "按回车键退出..."
 '''
         with open(os.path.join(node_dir, "start.sh"), "w", encoding="utf-8") as f:
             f.write(start_sh.strip())
