@@ -750,6 +750,16 @@ class NodeCanvas(QGraphicsView):
             self._save_timer.stop()
             self._save_timer.start(500)
     
+    def start_single_node(self, node_name):
+        """启动单个节点（委托给父窗口）"""
+        if self.parent_window:
+            self.parent_window.start_selected_node_by_name(node_name)
+    
+    def stop_single_node(self, node_name):
+        """停止单个节点（委托给父窗口）"""
+        if self.parent_window:
+            self.parent_window.stop_selected_node_by_name(node_name)
+    
     def batch_start_selected_nodes(self):
         """批量启动选中的节点"""
         if not self.box_selected_nodes:

@@ -70,12 +70,12 @@ class NodeConfigDialog(QDialog):
         config_btn_layout = QHBoxLayout()
         
         refresh_config_btn = QPushButton("刷新配置")
-        refresh_config_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 5px 15px;")
+        refresh_config_btn.setStyleSheet("background-color: #555555; color: white; padding: 5px 15px;")
         refresh_config_btn.clicked.connect(self.load_config_json)
         config_btn_layout.addWidget(refresh_config_btn)
         
         save_config_btn = QPushButton("保存配置")
-        save_config_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px 15px;")
+        save_config_btn.setStyleSheet("background-color: #333333; color: white; padding: 5px 15px;")
         save_config_btn.clicked.connect(self.save_config_from_editor)
         config_btn_layout.addWidget(save_config_btn)
         
@@ -132,12 +132,12 @@ class NodeConfigDialog(QDialog):
         log_btn_layout = QHBoxLayout()
         
         refresh_log_btn = QPushButton("刷新日志")
-        refresh_log_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 5px 15px;")
+        refresh_log_btn.setStyleSheet("background-color: #555555; color: white; padding: 5px 15px;")
         refresh_log_btn.clicked.connect(self.refresh_log_files)
         log_btn_layout.addWidget(refresh_log_btn)
         
         clear_log_btn = QPushButton("清空日志")
-        clear_log_btn.setStyleSheet("background-color: #FF5722; color: white; padding: 5px 15px;")
+        clear_log_btn.setStyleSheet("background-color: #666666; color: white; padding: 5px 15px;")
         clear_log_btn.clicked.connect(self.clear_current_log)
         log_btn_layout.addWidget(clear_log_btn)
         
@@ -172,13 +172,13 @@ class NodeConfigDialog(QDialog):
         
         # 启动按钮
         start_btn = QPushButton("启动节点")
-        start_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 12px; font-weight: bold; font-size: 13px;")
+        start_btn.setStyleSheet("background-color: #333333; color: white; padding: 12px; font-weight: bold; font-size: 13px;")
         start_btn.clicked.connect(self.start_node)
         control_layout.addWidget(start_btn)
         
         # 停止按钮
         stop_btn = QPushButton("停止节点")
-        stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 12px; font-weight: bold; font-size: 13px;")
+        stop_btn.setStyleSheet("background-color: #555555; color: white; padding: 12px; font-weight: bold; font-size: 13px;")
         stop_btn.clicked.connect(self.stop_node)
         control_layout.addWidget(stop_btn)
         
@@ -192,19 +192,19 @@ class NodeConfigDialog(QDialog):
         
         # 打开文件夹按钮
         open_folder_btn = QPushButton("打开目录")
-        open_folder_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 10px;")
+        open_folder_btn.setStyleSheet("background-color: #666666; color: white; padding: 10px;")
         open_folder_btn.clicked.connect(self.open_node_folder)
         quick_layout.addWidget(open_folder_btn)
         
         # 打开命令行按钮
         open_terminal_btn = QPushButton("打开终端")
-        open_terminal_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px;")
+        open_terminal_btn.setStyleSheet("background-color: #666666; color: white; padding: 10px;")
         open_terminal_btn.clicked.connect(self.open_terminal)
         quick_layout.addWidget(open_terminal_btn)
         
         # 打开 VSCode 工作区按钮
         open_vscode_btn = QPushButton("打开VSCode")
-        open_vscode_btn.setStyleSheet("background-color: #007ACC; color: white; padding: 10px;")
+        open_vscode_btn.setStyleSheet("background-color: #666666; color: white; padding: 10px;")
         open_vscode_btn.clicked.connect(self.open_vscode_workspace)
         quick_layout.addWidget(open_vscode_btn)
         
@@ -788,13 +788,13 @@ class PropertyPanel(QWidget):
         
         # 启动按钮
         start_btn = QPushButton("启动节点")
-        start_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; font-weight: bold;")
+        start_btn.setStyleSheet("background-color: #333333; color: white; padding: 8px; font-weight: bold;")
         start_btn.clicked.connect(self.start_node)
         btn_row_layout.addWidget(start_btn)
         
         # 停止按钮
         stop_btn = QPushButton("停止节点")
-        stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px; font-weight: bold;")
+        stop_btn.setStyleSheet("background-color: #555555; color: white; padding: 8px; font-weight: bold;")
         stop_btn.clicked.connect(self.stop_node)
         btn_row_layout.addWidget(stop_btn)
         
@@ -803,7 +803,7 @@ class PropertyPanel(QWidget):
         
         # 保存按钮
         save_btn = QPushButton("保存配置")
-        save_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
+        save_btn.setStyleSheet("background-color: #333333; color: white; padding: 10px; font-weight: bold;")
         save_btn.clicked.connect(self.save_config)
         self.content_layout.addWidget(save_btn)
         
@@ -1169,13 +1169,13 @@ class ColorSettingsDialog(QDialog):
         
         # 应用按钮
         apply_btn = QPushButton("应用更改")
-        apply_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-weight: bold;")
+        apply_btn.setStyleSheet("background-color: #333333; color: white; padding: 10px; font-weight: bold;")
         apply_btn.clicked.connect(self.apply_settings)
         button_layout.addWidget(apply_btn)
         
         # 重置按钮
         reset_btn = QPushButton("恢复默认")
-        reset_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 10px;")
+        reset_btn.setStyleSheet("background-color: #666666; color: white; padding: 10px;")
         reset_btn.clicked.connect(self.reset_to_default)
         button_layout.addWidget(reset_btn)
         
