@@ -8,114 +8,73 @@ from PyQt6.QtGui import QPen, QColor, QBrush, QFont
 from ui.core.logger import logger
 
 from ui.canvas.items.anchor_item import AnchorItem
+from ui.canvas.items.node_style import DarkNodeStyle, LightNodeStyle
 
 
 class NodeItem(QGraphicsRectItem):
     """节点项（对应VueFlow节点）"""
 
-    # QGraphicsRectItem 不继承 QObject，使用回调代替信号
-    on_expand_requested = None  # 类型: Callable[[str], None]
+    on_expand_requested = None
     
-    def __init__(self, node_name, language="Python", status="stopped", x=0, y=0, w=140, h=80, canvas=None):
-        super().__init__(x, y, w, h, None)  # parent为None
+    def __init__(self, node_name, language="Python", status="stopped", x=0, y=0, w=140, h=80, canvas=None, style=None):
+        super().__init__(x, y, w, h, None)
         self.node_name = node_name
         self.language = language
         self.status = status
-        self.canvas = canvas  # 引用画布对象
+        self.canvas = canvas
         
-        # 可视区域渲染：节点缓存，只渲染视口内可见节点
+        # 节点样式（默认深色）
+        self._style = style or DarkNodeStyle()
+        self._style.node_width = w
+        self._style.node_height = h
+        
         self.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
-        
-        # 设置可移动和可选中
         self.setFlags(
             QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
             QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable |
             QGraphicsRectItem.GraphicsItemFlag.ItemSendsGeometryChanges
         )
         
-        # 样式（使用画布的颜色配置）
-        if canvas:
-            self.setBrush(QBrush(QColor(canvas.node_bg_color)))
-            self.setPen(QPen(QColor(canvas.node_border_color), 2))
-        else:
-            self.setBrush(QBrush(QColor("#f8f9fa")))
-            self.setPen(QPen(QColor("#dee2e6"), 2))
         self.setZValue(1)
-        
-        # 加载节点的自定义颜色（如果有）
-        self._load_node_custom_colors()
-        
-        # 设置节点矩形（位置为0,0，实际位置由setPos控制）
         self.setRect(QRectF(0, 0, w, h))
         
-        # 创建锚点（相对于节点左上角的局部坐标）
-        # 输入锚点（左侧中间）- 增大到16x16，中心点在(-8, h/2)
-        self.input_anchor = AnchorItem(-8, h/2 - 8, "input", self)
+        # 锚点
+        self.input_anchor = AnchorItem(-8, h / 2 - 8, "input", self)
+        self.output_anchor = AnchorItem(w - 8, h / 2 - 8, "output", self)
         
-        # 输出锚点（右侧中间）- 增大到16x16，中心点在(w-8, h/2)
-        self.output_anchor = AnchorItem(w - 8, h/2 - 8, "output", self)
+        # IN / OUT 标签
+        self._in_label = QGraphicsTextItem("IN", self)
+        self._out_label = QGraphicsTextItem("OUT", self)
         
-        # 添加输入/输出标签
-        input_label = QGraphicsTextItem("IN", self)
-        input_label.setDefaultTextColor(QColor("#4CAF50"))
-        font_tiny = QFont("Arial", 7)  # 稍微增大字体
-        input_label.setFont(font_tiny)
-        input_label.setPos(-22, h/2 - 5)
-        
-        output_label = QGraphicsTextItem("OUT", self)
-        output_label.setDefaultTextColor(QColor("#2196F3"))
-        output_label.setFont(font_tiny)
-        output_label.setPos(w + 4, h/2 - 5)
-        
-        # 节点名称文本（居中显示）
+        # 名称
         self.name_text = QGraphicsTextItem(node_name, self)
-        text_color = QColor(canvas.node_text_color) if canvas else QColor("#333")
-        self.name_text.setDefaultTextColor(text_color)
-        font = QFont("Arial", 10, QFont.Weight.Bold)
-        self.name_text.setFont(font)
-        name_rect = self.name_text.boundingRect()
-        self.name_text.setPos((w - name_rect.width()) / 2, 15)
         
-        # 状态指示灯（左上角）
+        # 状态灯
         self.status_indicator = QGraphicsEllipseItem(8, 8, 10, 10, self)
-        self.update_status(status)
         
-        # 语言标签（底部居中）
+        # 语言标签
         self.lang_text = QGraphicsTextItem(language, self)
-        self.lang_text.setDefaultTextColor(QColor("#666"))
-        font_small = QFont("Arial", 8)
-        self.lang_text.setFont(font_small)
-        lang_rect = self.lang_text.boundingRect()
-        self.lang_text.setPos((w - lang_rect.width()) / 2, h - 18)
-
-        # 展开按钮（右上角，14x14 小方块 + ">>" 文字）
-        expand_x = w - 20
-        expand_y = 4
-        self._expand_btn = QGraphicsRectItem(expand_x, expand_y, 14, 14, self)
-        self._expand_btn.setBrush(QBrush(QColor("#555555")))
-        self._expand_btn.setPen(QPen(QColor("#444444"), 1))
+        
+        # 展开按钮
+        self._expand_btn = QGraphicsRectItem(0, 0, 14, 14, self)
         self._expand_btn.setZValue(2)
         self._expand_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        # 标记，用于 mousePressEvent 中识别
-        self._expand_btn_rect = QRectF(expand_x, expand_y, 14, 14)
-
+        self._expand_btn_rect = QRectF(0, 0, 14, 14)
+        
         self._expand_label = QGraphicsTextItem(">>", self)
-        self._expand_label.setDefaultTextColor(QColor("#cccccc"))
-        font_tiny2 = QFont("Arial", 7, QFont.Weight.Bold)
-        self._expand_label.setFont(font_tiny2)
-        self._expand_label.setPos(expand_x - 1, expand_y - 1)
         self._expand_label.setZValue(3)
+        
+        # 应用样式
+        self._style.apply(self)
+        self._style.apply_status(self, status)
+        
+        # 加载自定义颜色
+        self._load_node_custom_colors()
         
     def update_status(self, status):
         """更新节点状态"""
         self.status = status
-        # 启动时为红色，关闭时为绿色
-        color = QColor("#FF0000") if status == "running" else QColor("#00FF00")
-        self.status_indicator.setBrush(QBrush(color))
-        
-        # 添加边框以增强可见性
-        border_color = QColor("#CC0000") if status == "running" else QColor("#00CC00")
-        self.status_indicator.setPen(QPen(border_color, 1.5))
+        self._style.apply_status(self, status)
     
     def _load_node_custom_colors(self):
         """加载节点的自定义颜色配置"""
