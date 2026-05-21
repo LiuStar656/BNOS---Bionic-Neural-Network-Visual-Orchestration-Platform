@@ -220,9 +220,8 @@ class NodeItem(QGraphicsRectItem):
             pen.setStyle(Qt.PenStyle.DashLine)
             painter.setPen(pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            if is_dot and self._body:
-                br = self._body.rect()
-                painter.drawEllipse(br)
+            if is_dot:
+                painter.drawEllipse(self.rect())
             else:
                 painter.drawRect(self.rect())
     

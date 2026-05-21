@@ -3,6 +3,8 @@
 """
 from PyQt6.QtWidgets import QMenu
 from PyQt6.QtGui import QAction
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QGraphicsItem
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.node_style import STYLES
 
@@ -99,6 +101,9 @@ class CanvasMenusMixin:
         node_item._style = new_style
         new_style.node_width = node_item.rect().width()
         new_style.node_height = node_item.rect().height()
+        # 清除缓存以正确重绘
+        node_item.setCacheMode(QGraphicsItem.CacheMode.NoCache)
         new_style.apply(node_item)
         new_style.apply_status(node_item, node_item.status)
-        node_item.setCacheMode(node_item.cacheMode())  # 刷新缓存
+        node_item.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
+        node_item.update()
