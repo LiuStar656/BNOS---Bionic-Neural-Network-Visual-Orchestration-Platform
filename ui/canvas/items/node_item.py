@@ -189,20 +189,60 @@ class NodeItem(QGraphicsRectItem):
             self.update_display(status=node_data['status'])
             
     def itemChange(self, change, value):
-        """监听节点位置变化，自动保存布局并更新连线"""
+        """监听节点位置变化，防止重叠、保存布局、更新连线"""
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange:
+            # 防止节点重叠
+            value = self._avoid_overlap(value)
+        
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
-            # 1. 更新所有相关连线的路径
             if self.canvas:
+                # 1. 更新连线的路径
                 for edge in self.canvas.edges:
                     if edge.start_node == self or edge.end_node == self:
                         edge.update_path()
-            
-            # 2. 节点位置改变后，自动保存布局（防抖500ms）
-            if self.canvas and hasattr(self.canvas, '_save_timer'):
-                self.canvas._save_timer.stop()
-                self.canvas._save_timer.start(500)
+                
+                # 2. 自动保存布局（防抖500ms）
+                if hasattr(self.canvas, '_save_timer'):
+                    self.canvas._save_timer.stop()
+                    self.canvas._save_timer.start(500)
         
         return super().itemChange(change, value)
+    
+    def _avoid_overlap(self, new_pos):
+        """检测并避免节点重叠"""
+        if not self.canvas:
+            return new_pos
+        
+        rect = self.boundingRect()
+        r1 = rect.translated(new_pos)
+        
+        for other in self.canvas.nodes.values():
+            if other is self:
+                continue
+            r2 = other.boundingRect().translated(other.pos())
+            if r1.intersects(r2):
+                # 计算推开方向（从other中心指向self中心）
+                cx1, cy1 = r1.center().x(), r1.center().y()
+                cx2, cy2 = r2.center().x(), r2.center().y()
+                dx = cx1 - cx2
+                dy = cy1 - cy2
+                # 如果中心重合，随机推开
+                if dx == 0 and dy == 0:
+                    dx, dy = 1, 0
+                dist = (dx * dx + dy * dy) ** 0.5
+                # 推开到不重叠的最小距离
+                overlap_x = (r1.width() + r2.width()) / 2 - abs(dx)
+                overlap_y = (r1.height() + r2.height()) / 2 - abs(dy)
+                if overlap_x > 0 and overlap_y > 0:
+                    nx = dx / dist
+                    ny = dy / dist
+                    # 优先横向推开
+                    if overlap_x < overlap_y:
+                        new_pos.setX(new_pos.x() + nx * overlap_x)
+                    else:
+                        new_pos.setY(new_pos.y() + ny * overlap_y)
+        
+        return new_pos
         
     def mousePressEvent(self, event):
         """鼠标按下事件"""
