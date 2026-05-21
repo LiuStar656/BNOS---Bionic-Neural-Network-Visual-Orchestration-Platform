@@ -1129,25 +1129,15 @@ class ColorSettingsDialog(QDialog):
         
         theme_btn_layout = QVBoxLayout()
         
+        # 深色主题（VSCode 默认）
+        dark_theme_btn = QPushButton("深色主题（默认）")
+        dark_theme_btn.clicked.connect(lambda: self.apply_preset_theme('dark'))
+        theme_btn_layout.addWidget(dark_theme_btn)
+        
         # 浅色主题
         light_theme_btn = QPushButton("浅色主题")
         light_theme_btn.clicked.connect(lambda: self.apply_preset_theme('light'))
         theme_btn_layout.addWidget(light_theme_btn)
-        
-        # 深色主题
-        dark_theme_btn = QPushButton("深色主题")
-        dark_theme_btn.clicked.connect(lambda: self.apply_preset_theme('dark'))
-        theme_btn_layout.addWidget(dark_theme_btn)
-        
-        # 蓝色科技主题
-        blue_theme_btn = QPushButton("蓝色科技")
-        blue_theme_btn.clicked.connect(lambda: self.apply_preset_theme('blue'))
-        theme_btn_layout.addWidget(blue_theme_btn)
-        
-        # 绿色自然主题
-        green_theme_btn = QPushButton("绿色自然")
-        green_theme_btn.clicked.connect(lambda: self.apply_preset_theme('green'))
-        theme_btn_layout.addWidget(green_theme_btn)
         
         theme_layout.addLayout(theme_btn_layout)
         
@@ -1223,56 +1213,30 @@ class ColorSettingsDialog(QDialog):
     def apply_preset_theme(self, theme_name):
         """应用预设主题"""
         themes = {
-            'light': {
-                'canvas_bg_color': '#ffffff',
-                'grid_color': '#e0e0e0',
-                'grid_opacity': 0.5,
-                'node_bg_color': '#f8f9fa',
-                'node_border_color': '#dee2e6',
-                'node_text_color': '#333333',
-                'node_selected_color': '#2196F3',
-                'input_anchor_color': '#4CAF50',
-                'output_anchor_color': '#2196F3',
-                'edge_color': '#666666',
-                'edge_width': 2
-            },
             'dark': {
                 'canvas_bg_color': '#1e1e1e',
-                'grid_color': '#3c3c3c',
+                'grid_color': '#2a2a2a',
                 'grid_opacity': 0.3,
-                'node_bg_color': '#2d2d2d',
-                'node_border_color': '#404040',
+                'node_bg_color': '#2d2d30',
+                'node_border_color': '#454545',
                 'node_text_color': '#d4d4d4',
-                'node_selected_color': '#4FC3F7',
-                'input_anchor_color': '#66BB6A',
-                'output_anchor_color': '#42A5F5',
-                'edge_color': '#888888',
+                'node_selected_color': '#007acc',
+                'input_anchor_color': '#6a9955',
+                'output_anchor_color': '#007acc',
+                'edge_color': '#007acc',
                 'edge_width': 2
             },
-            'blue': {
-                'canvas_bg_color': '#0a1929',
-                'grid_color': '#1e3a5f',
+            'light': {
+                'canvas_bg_color': '#f3f3f3',
+                'grid_color': '#e5e5e5',
                 'grid_opacity': 0.4,
-                'node_bg_color': '#1a3a5c',
-                'node_border_color': '#2e5a7c',
-                'node_text_color': '#e0f0ff',
-                'node_selected_color': '#00bcd4',
-                'input_anchor_color': '#00e676',
-                'output_anchor_color': '#00bcd4',
-                'edge_color': '#4fc3f7',
-                'edge_width': 2
-            },
-            'green': {
-                'canvas_bg_color': '#f1f8e9',
-                'grid_color': '#c5e1a5',
-                'grid_opacity': 0.5,
                 'node_bg_color': '#ffffff',
-                'node_border_color': '#aed581',
-                'node_text_color': '#33691e',
-                'node_selected_color': '#4CAF50',
-                'input_anchor_color': '#66BB6A',
-                'output_anchor_color': '#8BC34A',
-                'edge_color': '#7CB342',
+                'node_border_color': '#d4d4d4',
+                'node_text_color': '#333333',
+                'node_selected_color': '#007acc',
+                'input_anchor_color': '#388a34',
+                'output_anchor_color': '#007acc',
+                'edge_color': '#007acc',
                 'edge_width': 2
             }
         }
@@ -1328,37 +1292,6 @@ class ColorSettingsDialog(QDialog):
             QMessageBox.critical(self, "错误", f"应用设置失败: {str(e)}")
             
     def reset_to_default(self):
-        """恢复到默认颜色（VSCode 深色主题）"""
-        default_settings = {
-            'canvas_bg_color': '#1e1e1e',
-            'grid_color': '#2a2a2a',
-            'grid_opacity': 0.3,
-            'node_bg_color': '#2d2d30',
-            'node_border_color': '#454545',
-            'node_text_color': '#d4d4d4',
-            'node_selected_color': '#007acc',
-            'input_anchor_color': '#6a9955',
-            'output_anchor_color': '#007acc',
-            'edge_color': '#007acc',
-            'edge_width': 2
-        }
-        
-        # 应用默认设置
-        for key, value in default_settings.items():
-            setattr(self, f'temp_{key}', value)
-        
-        # 更新UI显示
-        self.canvas_color_btn.setStyleSheet(f"background-color: {default_settings['canvas_bg_color']}; min-height: 30px;")
-        self.grid_color_btn.setStyleSheet(f"background-color: {default_settings['grid_color']}; min-height: 30px;")
-        self.grid_opacity_slider.setValue(int(default_settings['grid_opacity'] * 100))
-        self.grid_opacity_label.setText(f"{int(default_settings['grid_opacity'] * 100)}%")
-        self.node_bg_btn.setStyleSheet(f"background-color: {default_settings['node_bg_color']}; min-height: 30px;")
-        self.node_border_btn.setStyleSheet(f"background-color: {default_settings['node_border_color']}; min-height: 30px;")
-        self.node_text_btn.setStyleSheet(f"background-color: {default_settings['node_text_color']}; min-height: 30px;")
-        self.node_selected_btn.setStyleSheet(f"background-color: {default_settings['node_selected_color']}; min-height: 30px;")
-        self.input_anchor_btn.setStyleSheet(f"background-color: {default_settings['input_anchor_color']}; min-height: 30px;")
-        self.output_anchor_btn.setStyleSheet(f"background-color: {default_settings['output_anchor_color']}; min-height: 30px;")
-        self.edge_color_btn.setStyleSheet(f"background-color: {default_settings['edge_color']}; min-height: 30px;")
-        self.edge_width_spinbox.setValue(default_settings['edge_width'])
-        
-        QMessageBox.information(self, "提示", "已恢复默认颜色设置")
+        """恢复到默认颜色"""
+        self.apply_preset_theme('dark')
+        QMessageBox.information(self, "提示", "已恢复默认颜色设置（深色主题）")

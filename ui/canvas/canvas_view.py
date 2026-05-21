@@ -1152,7 +1152,6 @@ class NodeCanvas(QGraphicsView):
             return
         
         color_settings = {
-            '_version': 2,
             'canvas_bg_color': self.canvas_bg_color,
             'grid_color': self.grid_color,
             'edge_color': self.edge_color,
@@ -1174,45 +1173,18 @@ class NodeCanvas(QGraphicsView):
         if not project_path:
             return
         
-        # 加载根目录默认配色
-        root_file = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "color_settings.json"
-        )
-        root_defaults = {}
-        current_version = 0
-        if os.path.exists(root_file):
-            try:
-                with open(root_file, 'r', encoding='utf-8') as f:
-                    root_defaults = json.load(f)
-                current_version = root_defaults.get('_version', 1)
-            except Exception:
-                pass
-        
-        # 加载项目级配色
         settings_file = os.path.join(project_path, "color_settings.json")
-        project_settings = {}
-        if os.path.exists(settings_file):
-            try:
-                with open(settings_file, 'r', encoding='utf-8') as f:
-                    project_settings = json.load(f)
-            except Exception:
-                pass
+        if not os.path.exists(settings_file):
+            return
         
-        # 版本检测：旧版（无 _version 或 < 2）直接使用根默认配色并更新项目文件
-        proj_version = project_settings.get('_version', 1)
-        if proj_version < current_version and root_defaults:
-            logger.info("项目配色版本 %d < %d，自动升级到 VSCode 深色主题", proj_version, current_version)
-            self.apply_color_settings(root_defaults)
-            # 更新项目文件
-            try:
-                with open(settings_file, 'w', encoding='utf-8') as f:
-                    json.dump(root_defaults, f, indent=2, ensure_ascii=False)
-            except Exception:
-                pass
-        elif project_settings:
-            self.apply_color_settings(project_settings)
+        try:
+            with open(settings_file, 'r', encoding='utf-8') as f:
+                color_settings = json.load(f)
+            
+            self.apply_color_settings(color_settings)
             logger.info("颜色设置已从 %s 加载", settings_file)
+        except Exception as e:
+            logger.info(f"⚠️ 加载颜色设置失败: {e}")
 
     def update_node_status(self, node_name, status):
         """更新节点状态"""
