@@ -212,44 +212,35 @@ class DotNodeStyle(NodeStyle):
         from PyQt6.QtCore import Qt
         w, h = self.node_width, self.node_height
 
-        # 方块透明
+        # 方块透明（不可见）
         node_item.setBrush(QBrush(Qt.GlobalColor.transparent))
         node_item.setPen(QPen(Qt.PenStyle.NoPen))
         node_item.setRect(0, 0, w, h)
 
-        # 圆点本体（不拦截鼠标事件，让NodeItem处理）
+        # 圆点本体
         r = self.dot_radius
         cx, cy = w // 2 - r, h // 2 - r - 5
         if not hasattr(node_item, '_body') or node_item._body is None:
             node_item._body = QGraphicsEllipseItem(cx, cy, r * 2, r * 2, node_item)
             node_item._body.setZValue(5)
-            node_item._body.setAcceptHoverEvents(False)
         else:
             node_item._body.setRect(cx, cy, r * 2, r * 2)
         node_item._body.setVisible(True)
-        # 不拦截鼠标，事件穿透到 NodeItem
         node_item._body.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
 
         # 状态颜色
         self.apply_status(node_item, node_item.status)
 
-        # 输入锚点移到圆心（覆盖圆点）
-        if hasattr(node_item, 'input_anchor'):
-            node_item.input_anchor.setPos(cx, cy)
-        # 输出锚点在右侧
-        if hasattr(node_item, 'output_anchor'):
-            node_item.output_anchor.setPos(w - 16, cy - 4)
-
-        # 隐藏 IN/OUT 文字标签（圆点自明）
-        if hasattr(node_item, '_in_label') and node_item._in_label:
-            node_item._in_label.setVisible(False)
-        if hasattr(node_item, '_out_label') and node_item._out_label:
-            node_item._out_label.setVisible(False)
-        # 隐藏独立状态灯（圆点就是）
+        # 隐藏所有附属组件
+        for attr in ('input_anchor', 'output_anchor', '_in_label', '_out_label',
+                     '_expand_btn', '_expand_label'):
+            if hasattr(node_item, attr) and getattr(node_item, attr, None):
+                getattr(node_item, attr).setVisible(False)
         node_item.status_indicator.setVisible(False)
+        # 展开按钮检测矩形移到负坐标（失效）
+        node_item._expand_btn_rect.setRect(-100, -100, 1, 1)
 
         self._apply_texts(node_item, w, h)
-        self._apply_expand(node_item, w)
 
     def apply_status(self, node_item, status):
         from PyQt6.QtGui import QColor, QBrush, QPen

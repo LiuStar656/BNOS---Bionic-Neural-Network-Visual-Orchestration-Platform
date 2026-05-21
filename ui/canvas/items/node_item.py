@@ -207,9 +207,25 @@ class NodeItem(QGraphicsRectItem):
         """鼠标按下事件"""
         if event.button() == Qt.MouseButton.LeftButton:
             pos_in_item = self.mapFromScene(event.scenePos())
+            is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
 
-            # 展开按钮
-            if self._expand_btn_rect.contains(pos_in_item):
+            # 圆点节点：点击圆点本体 = 输入锚点（连线完成）/ 选中
+            if is_dot:
+                body_rect = self._body.rect()
+                body_scene_rect = body_rect.translated(self._body.pos())
+                if body_scene_rect.contains(pos_in_item):
+                    if self.canvas and self.canvas.is_connecting:
+                        self.canvas.complete_connection_to_input(self)
+                        return
+                    if self.canvas:
+                        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                            self.canvas._toggle_node_selection(self.node_name)
+                        else:
+                            self.canvas.on_node_selected(self)
+                    return
+
+            # 方块节点：展开按钮
+            if not is_dot and self._expand_btn_rect.contains(pos_in_item):
                 if self.on_expand_requested:
                     self.on_expand_requested(self.node_name)
                 event.accept()
@@ -218,43 +234,28 @@ class NodeItem(QGraphicsRectItem):
             w = self.rect().width()
             h = self.rect().height()
 
-            # 输出锚点
-            output_anchor_rect = QRectF(w - 8, h / 2 - 8, 16, 16)
-            if output_anchor_rect.contains(pos_in_item):
-                if self.canvas:
-                    self.canvas.start_connection_from_output(self)
-                return
-
-            # 输入锚点
-            input_anchor_rect = QRectF(-8, h / 2 - 8, 16, 16)
-            if input_anchor_rect.contains(pos_in_item):
-                if self.canvas and self.canvas.is_connecting:
-                    self.canvas.complete_connection_to_input(self)
-                return
-
-            # 圆点本体（圆形节点）：点击圆点 = 输入锚点，连线时完成连接
-            if hasattr(self, '_body') and self._body and self._body.isVisible():
-                body_rect = self._body.rect()
-                body_scene_rect = body_rect.translated(self._body.pos())
-                if body_scene_rect.contains(pos_in_item):
-                    if self.canvas and self.canvas.is_connecting:
-                        self.canvas.complete_connection_to_input(self)
-                        return
-                    # 非连线时：选中节点
+            # 方块节点：输出锚点（开始连线）
+            if not is_dot:
+                output_anchor_rect = QRectF(w - 8, h / 2 - 8, 16, 16)
+                if output_anchor_rect.contains(pos_in_item):
                     if self.canvas:
-                        if (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
-                            self.canvas._toggle_node_selection(self.node_name)
-                        else:
-                            self.canvas.on_node_selected(self)
+                        self.canvas.start_connection_from_output(self)
                     return
 
-            # Ctrl+单击切换选中
+                # 方块节点：输入锚点（完成连线）
+                input_anchor_rect = QRectF(-8, h / 2 - 8, 16, 16)
+                if input_anchor_rect.contains(pos_in_item):
+                    if self.canvas and self.canvas.is_connecting:
+                        self.canvas.complete_connection_to_input(self)
+                    return
+
+            # Ctrl+单击
             if (event.modifiers() & Qt.KeyboardModifier.ControlModifier) and self.canvas:
                 self.canvas._toggle_node_selection(self.node_name)
                 event.accept()
                 return
 
-            # 普通单击选中
+            # 普通单击
             if self.canvas:
                 self.canvas.on_node_selected(self)
         
