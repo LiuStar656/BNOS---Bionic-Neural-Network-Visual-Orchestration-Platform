@@ -4,7 +4,7 @@
 """
 from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem, QGraphicsEllipseItem, QGraphicsItem
 from PyQt6.QtCore import Qt, QPointF, QRectF
-from PyQt6.QtGui import QPen, QColor, QBrush, QFont
+from PyQt6.QtGui import QPen, QColor, QBrush, QFont, QPainterPath
 from ui.core.logger import logger
 
 from ui.canvas.items.anchor_item import AnchorItem
@@ -203,6 +203,29 @@ class NodeItem(QGraphicsRectItem):
         
         return new_pos
         
+    def paint(self, painter, option, widget=None):
+        """绘制节点 — 圆点样式画圆形选中框"""
+        from PyQt6.QtGui import QPen, QPainterPath
+        is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
+        if is_dot:
+            # 圆点样式：不画 QGraphicsRectItem 的默认方框
+            pass
+        else:
+            # 方框样式：正常绘制
+            super().paint(painter, option, widget)
+
+        # 选中时画圆形选中框（圆点用圆，方框用方）
+        if self.isSelected():
+            pen = QPen(QColor(self._style.selected_color), self._style.selected_border_width)
+            pen.setStyle(Qt.PenStyle.DashLine)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            if is_dot and self._body:
+                br = self._body.rect()
+                painter.drawEllipse(br)
+            else:
+                painter.drawRect(self.rect())
+    
     def mousePressEvent(self, event):
         """鼠标按下事件"""
         if event.button() == Qt.MouseButton.LeftButton:
