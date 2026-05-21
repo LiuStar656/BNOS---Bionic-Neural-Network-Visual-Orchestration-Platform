@@ -990,6 +990,9 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         self.is_connecting = True
         self.connect_source = source_node
         
+        # 视觉反馈
+        self.viewport().setCursor(Qt.CursorShape.CrossCursor)
+        
         # 创建临时连线
         self.temp_edge = QGraphicsPathItem()
         pen = QPen(QColor("#4A90E2"), 2, Qt.PenStyle.DashLine)
@@ -1001,13 +1004,14 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         if self.connect_source and self.connect_source != target_node:
             self.create_edge(self.connect_source, target_node)
         
-        # 清理临时连线
         if self.temp_edge:
             self.scene.removeItem(self.temp_edge)
             self.temp_edge = None
         
         self.is_connecting = False
         self.connect_source = None
+        self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+        self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
     
     def create_edge(self, source_node, target_node):
         """创建连线并配置上下游关系"""
@@ -1110,24 +1114,24 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         if self.connect_source and self.connect_source != target_node:
             self.create_edge(self.connect_source, target_node)
         
-        # 清理临时连线
         if self.temp_edge:
             self.scene.removeItem(self.temp_edge)
             self.temp_edge = None
         
         self.is_connecting = False
         self.connect_source = None
+        self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+        self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
     
     def cancel_connection(self):
-        """取消连线（点击空白区域时调用）"""
-        # 清理临时连线
+        """取消连线"""
         if self.temp_edge:
             self.scene.removeItem(self.temp_edge)
             self.temp_edge = None
         
-        # 重置连线状态
         self.is_connecting = False
         self.connect_source = None
+        self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
 
     def clear_edges(self):
         """清空所有连线"""
