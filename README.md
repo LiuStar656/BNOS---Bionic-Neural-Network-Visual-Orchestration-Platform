@@ -210,6 +210,7 @@ This documentation provides deep technical insights beyond what's covered in thi
 - **Complete Recovery**: Restore positions, connections, zoom level, scroll position
 - **Exception Handling**: Auto-backup corrupted JSON as `.bak` files
 - **Color Settings**: Customizable node colors persisted per project
+- **Config Validation**: `canvas_layout.json` loading cross-validates against each node's `config.json` `listen_upper_file`, auto-repairing missing edges — config is the source of truth
 
 
 ---

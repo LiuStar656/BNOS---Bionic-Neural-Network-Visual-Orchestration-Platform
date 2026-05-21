@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import QGraphicsScene
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.core.logger import logger
+from ui.core.connection_inferrer import ConnectionInferrer
 
 
 class CanvasLayoutMixin:
@@ -194,6 +195,57 @@ class CanvasLayoutMixin:
                     self.scene.addItem(edge)
                     self.edges.append(edge)
                     edge.update_path()
+
+            # ---- config.json 兜底校验 ----
+            if self.parent_window and self.parent_window.nodes_data:
+                try:
+                    inferrer = ConnectionInferrer(project_path, self.parent_window.nodes_data)
+                    config_edges = inferrer.infer_all_edges()
+                    config_set = {(e["source"], e["target"]) for e in config_edges}
+
+                    # 重建画布当前连线集合
+                    canvas_set = set()
+                    for e in self.edges:
+                        sn = tn = None
+                        for n, nd in self.nodes.items():
+                            if nd == e.start_node: sn = n
+                            if nd == e.end_node: tn = n
+                        if sn and tn: canvas_set.add((sn, tn))
+
+                    # config 有但画布没有 → 自动补充
+                    added = 0
+                    for src, tgt in (config_set - canvas_set):
+                        if src in self.nodes and tgt in self.nodes:
+                            # 避免重复
+                            already = False
+                            for e in self.edges:
+                                if e.start_node == self.nodes[src] and e.end_node == self.nodes[tgt]:
+                                    already = True
+                                    break
+                            if not already:
+                                edge = EdgeItem(self.nodes[src], self.nodes[tgt])
+                                self.scene.addItem(edge)
+                                self.edges.append(edge)
+                                edge.update_path()
+                                added += 1
+                                logger.info("[Config兜底] 补充缺失连线: %s → %s", src, tgt)
+
+                    # 画布有但 config 没有 → 警告（不自动删除，避免误删手动连线）
+                    stale = canvas_set - config_set
+                    if stale:
+                        stale_list = ", ".join(f"{s}→{t}" for s, t in stale)
+                        logger.warning(
+                            "[Config兜底] 画布存在但config中无listen_upper_file对应的连线: %s",
+                            stale_list
+                        )
+
+                    if added > 0 or stale:
+                        logger.info(
+                            "[Config兜底] 校验完成: 补充%d条, 可疑%d条",
+                            added, len(stale)
+                        )
+                except Exception as e:
+                    logger.warning("[Config兜底] 校验失败: %s", e)
 
             logger.info("加载完成: %d个节点, %d条连线", len(self.nodes), len(self.edges))
 

@@ -7,6 +7,7 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QGraphicsItem
 from ui.canvas.items.node_item import NodeItem
+from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.node_style import STYLES
 
 
@@ -20,7 +21,17 @@ class CanvasMenusMixin:
             if isinstance(probe, NodeItem):
                 item = probe
                 break
+            if isinstance(probe, EdgeItem):
+                item = probe
+                break
             probe = probe.parentItem()
+
+        # 检查是否有选中的连线（EdgeItem 右键时已自动选中）
+        selected_edge = None
+        for sel in self.scene.selectedItems():
+            if isinstance(sel, EdgeItem):
+                selected_edge = sel
+                break
 
         if len(self.box_selected_nodes) > 1:
             menu = QMenu(self)
@@ -73,6 +84,29 @@ class CanvasMenusMixin:
             menu.addSeparator()
             a = QAction("从画布删除", menu); a.triggered.connect(partial(self.remove_node_with_cleanup, node_name)); menu.addAction(a)
             menu.exec(event.globalPos())
+
+        elif selected_edge is not None or isinstance(item, EdgeItem):
+            # 右键连线菜单
+            edge = selected_edge if selected_edge else item
+            menu = QMenu(self)
+
+            a = QAction("删除连线", menu)
+            a.triggered.connect(lambda: self.remove_edge(edge))
+            menu.addAction(a)
+
+            menu.addSeparator()
+
+            a = QAction("修改连线颜色", menu)
+            a.triggered.connect(lambda: edge.change_edge_color())
+            menu.addAction(a)
+
+            menu.addSeparator()
+            a = QAction("清除选择", menu)
+            a.triggered.connect(lambda: self.scene.clearSelection())
+            menu.addAction(a)
+
+            menu.exec(event.globalPos())
+
         else:
             menu = QMenu(self)
             new_menu = menu.addMenu("新建节点")
