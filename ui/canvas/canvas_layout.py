@@ -50,11 +50,15 @@ class CanvasLayoutMixin:
                 if "custom_text_color" in config:
                     custom_colors["text"] = config["custom_text_color"]
 
+            style_key = "rect"
+            if hasattr(node, '_style') and hasattr(node._style, 'style_key'):
+                style_key = node._style.style_key
             layout_data["nodes"][node_name] = {
                 "x": pos.x(),
                 "y": pos.y(),
                 "width": node.rect().width(),
                 "height": node.rect().height(),
+                "style": style_key,
                 "custom_colors": custom_colors if custom_colors else None,
             }
 
@@ -126,6 +130,17 @@ class CanvasLayoutMixin:
                 if node_name in self.nodes:
                     node = self.nodes[node_name]
                     node.setPos(pos_data["x"], pos_data["y"])
+                    # 恢复节点样式
+                    sk = pos_data.get("style", "rect")
+                    from ui.canvas.items.node_style import STYLES
+                    st_cls = STYLES.get(sk, STYLES["rect"])
+                    if type(node._style).__name__ != st_cls.__name__:
+                        ns = st_cls()
+                        node._style = ns
+                        ns.node_width = node.rect().width()
+                        ns.node_height = node.rect().height()
+                        ns.apply(node)
+                        ns.apply_status(node, node.status)
                     cc = pos_data.get("custom_colors")
                     if cc and self.parent_window and node_name in self.parent_window.nodes_data:
                         config = self.parent_window.nodes_data[node_name].get("config", {})
@@ -152,7 +167,10 @@ class CanvasLayoutMixin:
                     status = info.get("status", "stopped")
                     x, y = pos_data.get("x", 200), pos_data.get("y", 150)
                     w, h = pos_data.get("width", 140), pos_data.get("height", 80)
-                    node = NodeItem(node_name, lang, status, 0, 0, w, h, self)
+                    sk = pos_data.get("style", "rect")
+                    from ui.canvas.items.node_style import STYLES
+                    st_cls = STYLES.get(sk, STYLES["rect"])
+                    node = NodeItem(node_name, lang, status, 0, 0, w, h, self, style=st_cls())
                     node.on_expand_requested = self.on_node_expand_requested
                     node.setPos(x, y)
                     self.scene.addItem(node)

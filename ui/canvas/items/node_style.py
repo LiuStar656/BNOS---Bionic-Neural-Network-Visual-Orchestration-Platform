@@ -50,7 +50,8 @@ class NodeStyle:
 
 class RectNodeStyle(NodeStyle):
     """方框节点样式基类"""
-    style_name: str = "深色方块"
+    style_key: str = "rect"
+    style_name: str = "方形"
     is_dot: bool = False
 
     # 几何
@@ -171,7 +172,6 @@ class RectNodeStyle(NodeStyle):
 
 class DarkRectNodeStyle(RectNodeStyle):
     """VSCode 深色方框（默认）"""
-    style_name: str = "深色方块"
     pass
 
 
@@ -198,8 +198,9 @@ class LightRectNodeStyle(RectNodeStyle):
 # ============================================================
 
 class DotNodeStyle(NodeStyle):
-    """圆形节点 — 圆点即状态灯/输入锚点，名称在左下角相切"""
-    style_name: str = "圆形节点"
+    """圆形节点"""
+    style_key: str = "dot"
+    style_name: str = "圆形"
     is_dot: bool = True
 
     node_width: int = 80
@@ -290,7 +291,7 @@ class DotNodeStyle(NodeStyle):
 # ============================================================
 
 STYLES = {
-    "dark_rect": DarkRectNodeStyle,
-    "light_rect": LightRectNodeStyle,
+    "rect": DarkRectNodeStyle,
     "dot": DotNodeStyle,
 }
+DEFAULT_STYLE = "rect"
