@@ -14,6 +14,13 @@ class CanvasMenusMixin:
 
     def contextMenuEvent(self, event):
         item = self.itemAt(event.pos())
+        # 向上查找是否为 NodeItem 的子项（覆盖节点文字等区域）
+        probe = item
+        while probe is not None:
+            if isinstance(probe, NodeItem):
+                item = probe
+                break
+            probe = probe.parentItem()
 
         if len(self.box_selected_nodes) > 1:
             menu = QMenu(self)
