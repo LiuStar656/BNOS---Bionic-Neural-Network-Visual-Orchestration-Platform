@@ -49,16 +49,16 @@ cd /d "%GUI_DIR%"
 
 :: ==================== CHECK DEPENDENCIES ====================
 echo [INFO] Checking dependencies...
-python -c "import PyQt6" >nul 2>&1
+python -c "import PyQt6, PyInstaller, virtualenv" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [WARN] PyQt6 not found. Installing dependencies...
+    echo [WARN] Missing dependencies. Installing...
     if exist "%REQUIREMENTS%" (
         pip install -r %REQUIREMENTS%
     ) else (
-        pip install pyqt6
+        pip install pyqt6 pyinstaller virtualenv
     )
 ) else (
-    echo [OK] PyQt6 already installed. Skipping dependency installation.
+    echo [OK] All dependencies installed. Skipping.
 )
 
 :: ==================== START GUI ====================
