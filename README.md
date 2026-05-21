@@ -116,6 +116,12 @@ This documentation provides deep technical insights beyond what's covered in thi
 - **Bezier Curves**: Elegant neural pathways clearly showing signal flow direction
 - **Multi-select Support**: Hold Ctrl to select multiple neurons for batch operations
 
+### 🖥️ VSCode-Style Dark Interface
+
+- **Black Frameless Window**: VSCode-inspired dark theme (`#1e1e1e`), menu bar inline with title bar
+- **Custom Title Bar**: Minimize/maximize/close buttons, double-click to maximize, drag to move
+- **Global Dark Theme**: Menus, scrollbars, inputs, tables, dialogs all in dark style
+
 ### 📂 Project Management
 
 - **VSCode-like Workflow**: Open folder as project, auto-detect `nodes/` directory
