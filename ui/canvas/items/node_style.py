@@ -69,9 +69,20 @@ class NodeStyle:
         from PyQt6.QtGui import QPen, QBrush, QFont
         w, h = self.node_width, self.node_height
 
+        # 隐藏圆点组件（方块样式默认无）
+        if hasattr(node_item, '_body') and node_item._body:
+            node_item._body.setVisible(False)
+
         node_item.setBrush(QBrush(QColor(self.bg_color)))
         node_item.setPen(QPen(QColor(self.border_color), self.border_width))
         node_item.setRect(0, 0, w, h)
+
+        # 恢复可见性（从圆点切换回来时）
+        if hasattr(node_item, '_in_label') and node_item._in_label:
+            node_item._in_label.setVisible(True)
+        if hasattr(node_item, '_out_label') and node_item._out_label:
+            node_item._out_label.setVisible(True)
+        node_item.status_indicator.setVisible(True)
 
         self._apply_texts(node_item, w, h)
         self._apply_anchors(node_item, w, h)
@@ -111,6 +122,11 @@ class NodeStyle:
         from PyQt6.QtGui import QFont
         ft = QFont(self.anchor_font_family, self.anchor_font_size)
         if self.anchor_font_bold: ft.setBold(True)
+        # 恢复锚点默认位置（方块样式）
+        if hasattr(node_item, 'input_anchor'):
+            node_item.input_anchor.setPos(self.anchor_in_x, h / 2 - 8)
+        if hasattr(node_item, 'output_anchor'):
+            node_item.output_anchor.setPos(w - 8, h / 2 - 8)
         if hasattr(node_item, '_in_label') and node_item._in_label:
             node_item._in_label.setDefaultTextColor(QColor(self.in_label_color))
             node_item._in_label.setFont(ft)
@@ -201,21 +217,36 @@ class DotNodeStyle(NodeStyle):
         node_item.setPen(QPen(Qt.PenStyle.NoPen))
         node_item.setRect(0, 0, w, h)
 
-        # 圆点本体
+        # 圆点本体（不拦截鼠标事件，让NodeItem处理）
         r = self.dot_radius
         cx, cy = w // 2 - r, h // 2 - r - 5
         if not hasattr(node_item, '_body') or node_item._body is None:
             node_item._body = QGraphicsEllipseItem(cx, cy, r * 2, r * 2, node_item)
             node_item._body.setZValue(5)
+            node_item._body.setAcceptHoverEvents(False)
         else:
             node_item._body.setRect(cx, cy, r * 2, r * 2)
+        node_item._body.setVisible(True)
+        # 不拦截鼠标，事件穿透到 NodeItem
+        node_item._body.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
 
         # 状态颜色
         self.apply_status(node_item, node_item.status)
 
-        # 输入锚点移到圆心
+        # 输入锚点移到圆心（覆盖圆点）
         if hasattr(node_item, 'input_anchor'):
-            node_item.input_anchor.setPos(w // 2 - 8, cy + r - 8)
+            node_item.input_anchor.setPos(cx, cy)
+        # 输出锚点在右侧
+        if hasattr(node_item, 'output_anchor'):
+            node_item.output_anchor.setPos(w - 16, cy - 4)
+
+        # 隐藏 IN/OUT 文字标签（圆点自明）
+        if hasattr(node_item, '_in_label') and node_item._in_label:
+            node_item._in_label.setVisible(False)
+        if hasattr(node_item, '_out_label') and node_item._out_label:
+            node_item._out_label.setVisible(False)
+        # 隐藏独立状态灯（圆点就是）
+        node_item.status_indicator.setVisible(False)
 
         self._apply_texts(node_item, w, h)
         self._apply_expand(node_item, w)

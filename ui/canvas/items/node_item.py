@@ -206,44 +206,55 @@ class NodeItem(QGraphicsRectItem):
     def mousePressEvent(self, event):
         """鼠标按下事件"""
         if event.button() == Qt.MouseButton.LeftButton:
-            # 获取点击位置相对于节点的坐标
             pos_in_item = self.mapFromScene(event.scenePos())
 
-            # 检查是否点击了展开按钮（右上角）
+            # 展开按钮
             if self._expand_btn_rect.contains(pos_in_item):
                 if self.on_expand_requested:
                     self.on_expand_requested(self.node_name)
                 event.accept()
                 return
 
-            # 检查是否点击了输出锚点（开始连线）
-            # 输出锚点在右侧中间，现在是16x16，中心点在(w-8, h/2)
             w = self.rect().width()
             h = self.rect().height()
-            output_anchor_rect = QRectF(w - 8, h/2 - 8, 16, 16)
-            
+
+            # 输出锚点
+            output_anchor_rect = QRectF(w - 8, h / 2 - 8, 16, 16)
             if output_anchor_rect.contains(pos_in_item):
                 if self.canvas:
                     self.canvas.start_connection_from_output(self)
-                    logger.debug("开始从 %s 的输出锚点连线", self.node_name)
-                return  # 不继续处理，避免触发拖拽
-            
-            # 检查是否点击了输入锚点（左侧中间）
-            input_anchor_rect = QRectF(-8, h/2 - 8, 16, 16)
+                return
+
+            # 输入锚点
+            input_anchor_rect = QRectF(-8, h / 2 - 8, 16, 16)
             if input_anchor_rect.contains(pos_in_item):
-                # 如果正在连线中，完成连线
                 if self.canvas and self.canvas.is_connecting:
                     self.canvas.complete_connection_to_input(self)
-                    logger.debug("完成到 %s 的输入锚点连线", self.node_name)
                 return
-            
-            # ✅ 检测Ctrl+左键：切换节点选中状态（多选）
+
+            # 圆点本体（圆形节点）：点击圆点 = 输入锚点，连线时完成连接
+            if hasattr(self, '_body') and self._body and self._body.isVisible():
+                body_rect = self._body.rect()
+                body_scene_rect = body_rect.translated(self._body.pos())
+                if body_scene_rect.contains(pos_in_item):
+                    if self.canvas and self.canvas.is_connecting:
+                        self.canvas.complete_connection_to_input(self)
+                        return
+                    # 非连线时：选中节点
+                    if self.canvas:
+                        if (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+                            self.canvas._toggle_node_selection(self.node_name)
+                        else:
+                            self.canvas.on_node_selected(self)
+                    return
+
+            # Ctrl+单击切换选中
             if (event.modifiers() & Qt.KeyboardModifier.ControlModifier) and self.canvas:
                 self.canvas._toggle_node_selection(self.node_name)
                 event.accept()
-                return  # ✅ 关键：立即返回，不调用 super()，防止事件传播到父项
-            
-            # 其他区域：正常拖拽和选中
+                return
+
+            # 普通单击选中
             if self.canvas:
                 self.canvas.on_node_selected(self)
         
