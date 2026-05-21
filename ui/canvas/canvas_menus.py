@@ -29,23 +29,24 @@ class CanvasMenusMixin:
             return
 
         if isinstance(item, NodeItem):
+            node_item = item
             menu = QMenu(self)
-            node_name = item.node_name
+            node_name = node_item.node_name
             if self.parent_window and node_name in self.parent_window.nodes_data:
                 if self.parent_window.nodes_data[node_name].get('status') == 'running':
-                    a = menu.addAction("停止节点"); a.triggered.connect(lambda: self.stop_single_node(node_name))
+                    a = menu.addAction("停止节点"); a.triggered.connect(lambda n=node_name: self.stop_single_node(n))
                 else:
-                    a = menu.addAction("启动节点"); a.triggered.connect(lambda: self.start_single_node(node_name))
+                    a = menu.addAction("启动节点"); a.triggered.connect(lambda n=node_name: self.start_single_node(n))
                 menu.addSeparator()
-            a = menu.addAction("从画布删除"); a.triggered.connect(lambda: self.remove_node_with_cleanup(node_name))
+            a = menu.addAction("从画布删除"); a.triggered.connect(lambda n=node_name: self.remove_node_with_cleanup(n))
             menu.addSeparator()
-            a = menu.addAction("节点配置"); a.triggered.connect(lambda: self.open_node_config(node_name))
-            a = menu.addAction("展开节点"); a.triggered.connect(lambda: self.on_node_expand_requested(node_name))
+            a = menu.addAction("节点配置"); a.triggered.connect(lambda n=node_name: self.open_node_config(n))
+            a = menu.addAction("展开节点"); a.triggered.connect(lambda n=node_name: self.on_node_expand_requested(n))
             menu.addSeparator()
             color_menu = menu.addMenu("节点颜色")
-            a = color_menu.addAction("背景颜色"); a.triggered.connect(lambda: self.change_node_background_color(item))
-            a = color_menu.addAction("边框颜色"); a.triggered.connect(lambda: self.change_node_border_color(item))
-            a = color_menu.addAction("文字颜色"); a.triggered.connect(lambda: self.change_node_text_color(item))
+            a = color_menu.addAction("背景颜色"); a.triggered.connect(lambda nd=node_item: self.change_node_background_color(nd))
+            a = color_menu.addAction("边框颜色"); a.triggered.connect(lambda nd=node_item: self.change_node_border_color(nd))
+            a = color_menu.addAction("文字颜色"); a.triggered.connect(lambda nd=node_item: self.change_node_text_color(nd))
             menu.exec(event.globalPos())
         else:
             menu = QMenu(self)
