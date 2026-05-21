@@ -11,6 +11,9 @@ from ui.canvas.items.anchor_item import AnchorItem
 
 class NodeItem(QGraphicsRectItem):
     """节点项（对应VueFlow节点）"""
+
+    # QGraphicsRectItem 不继承 QObject，使用回调代替信号
+    on_expand_requested = None  # 类型: Callable[[str], None]
     
     def __init__(self, node_name, language="Python", status="stopped", x=0, y=0, w=140, h=80, canvas=None):
         super().__init__(x, y, w, h, None)  # parent为None
@@ -80,6 +83,24 @@ class NodeItem(QGraphicsRectItem):
         self.lang_text.setFont(font_small)
         lang_rect = self.lang_text.boundingRect()
         self.lang_text.setPos((w - lang_rect.width()) / 2, h - 18)
+
+        # 展开按钮（右上角，14x14 小方块 + ">>" 文字）
+        expand_x = w - 20
+        expand_y = 4
+        self._expand_btn = QGraphicsRectItem(expand_x, expand_y, 14, 14, self)
+        self._expand_btn.setBrush(QBrush(QColor("#555555")))
+        self._expand_btn.setPen(QPen(QColor("#444444"), 1))
+        self._expand_btn.setZValue(2)
+        self._expand_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        # 标记，用于 mousePressEvent 中识别
+        self._expand_btn_rect = QRectF(expand_x, expand_y, 14, 14)
+
+        self._expand_label = QGraphicsTextItem(">>", self)
+        self._expand_label.setDefaultTextColor(QColor("#cccccc"))
+        font_tiny2 = QFont("Arial", 7, QFont.Weight.Bold)
+        self._expand_label.setFont(font_tiny2)
+        self._expand_label.setPos(expand_x + 1, expand_y - 1)
+        self._expand_label.setZValue(3)
         
     def update_status(self, status):
         """更新节点状态"""
@@ -184,7 +205,14 @@ class NodeItem(QGraphicsRectItem):
         if event.button() == Qt.MouseButton.LeftButton:
             # 获取点击位置相对于节点的坐标
             pos_in_item = self.mapFromScene(event.scenePos())
-            
+
+            # 检查是否点击了展开按钮（右上角）
+            if self._expand_btn_rect.contains(pos_in_item):
+                if self.on_expand_requested:
+                    self.on_expand_requested(self.node_name)
+                event.accept()
+                return
+
             # 检查是否点击了输出锚点（开始连线）
             # 输出锚点在右侧中间，现在是16x16，中心点在(w-8, h/2)
             w = self.rect().width()

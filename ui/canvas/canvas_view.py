@@ -320,8 +320,16 @@ class NodeCanvas(QGraphicsView):
         
         # 左键：检查是否点击空白区域（准备框选）- 仅在未按空格时
         if event.button() == Qt.MouseButton.LeftButton and not self.is_space_pressed:
-            # 如果点击的是空白区域（不是节点、连线、锚点等），准备框选
-            if item is None or (not isinstance(item, NodeItem) and not isinstance(item, EdgeItem) and not isinstance(item, AnchorItem)):
+            # 沿 parentItem 链上溯，排除所有交互项及其子元素
+            is_interactive = False
+            probe = item
+            while probe is not None:
+                if isinstance(probe, (NodeItem, EdgeItem, AnchorItem)):
+                    is_interactive = True
+                    break
+                probe = probe.parentItem()
+
+            if not is_interactive:
                 # 先清除之前的框选状态
                 self.clear_box_selection()
                 
@@ -501,6 +509,7 @@ class NodeCanvas(QGraphicsView):
         
         # 创建节点
         node = NodeItem(node_name, language, status, x, y, 140, 80, self)
+        node.on_expand_requested = self.on_node_expand_requested  # 连接展开回调
         self.scene.addItem(node)
         self.nodes[node_name] = node  # 添加到nodes字典
         
@@ -602,6 +611,10 @@ class NodeCanvas(QGraphicsView):
             # 打开配置对话框
             config_action = menu.addAction("节点配置")
             config_action.triggered.connect(lambda: self.open_node_config(item.node_name))
+
+            # 展开节点
+            expand_action = menu.addAction("展开节点")
+            expand_action.triggered.connect(lambda: self.on_node_expand_requested(item.node_name))
             
             menu.addSeparator()
             
@@ -953,6 +966,34 @@ class NodeCanvas(QGraphicsView):
             from ui.panels.property_panel import NodeConfigDialog
             dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
             dialog.exec()
+    
+    def on_node_expand_requested(self, node_name):
+        """节点展开按钮回调 — 以节点中心为基准展开浮动面板"""
+        from ui.panels.node_expand_panel import NodeExpandPanel
+
+        # 如果同节点已有展开面板，关闭旧的
+        if hasattr(self, '_expand_panel') and self._expand_panel is not None:
+            try:
+                if self._expand_panel.isVisible() and self._expand_panel.node_name == node_name:
+                    self._expand_panel._close()
+            except RuntimeError:
+                pass  # 面板已被销毁
+
+        # 以节点中心坐标为基准，转换到屏幕坐标
+        if node_name in self.nodes:
+            node = self.nodes[node_name]
+            scene_pos = node.pos() + node.rect().center()  # 节点中心
+            view_pos = self.mapFromScene(scene_pos)
+            global_pos = self.viewport().mapToGlobal(view_pos)
+            x = global_pos.x() + 20   # 节点右侧偏移
+            y = global_pos.y() - 190  # 面板半高，垂直居中
+        else:
+            x, y = 300, 200
+
+        panel = NodeExpandPanel(node_name, self.parent_window)
+        panel.move(x, y)
+        panel.show()
+        self._expand_panel = panel
     
     def reset_view(self):
         """重置视图到默认状态"""
@@ -1659,6 +1700,7 @@ class NodeCanvas(QGraphicsView):
                         
                         # 创建节点（位置参数会被构造函数忽略，需要后续setPos）
                         node = NodeItem(node_name, language, status, 0, 0, w, h, self)
+                        node.on_expand_requested = self.on_node_expand_requested
                         node.setPos(x, y)  # 显式设置位置
                         
                         # 恢复自定义颜色（如果有保存）
