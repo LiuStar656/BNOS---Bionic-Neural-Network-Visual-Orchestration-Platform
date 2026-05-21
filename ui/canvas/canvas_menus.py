@@ -15,7 +15,7 @@ class CanvasMenusMixin:
     def contextMenuEvent(self, event):
         item = self.itemAt(event.pos())
 
-        if len(self.box_selected_nodes) > 0:
+        if len(self.box_selected_nodes) > 1:
             menu = QMenu(self)
             count = len(self.box_selected_nodes)
             menu.addAction(f"已选 {count} 个节点").setEnabled(False)
