@@ -217,10 +217,11 @@ class DotNodeStyle(NodeStyle):
         r = self.dot_radius
         cx, cy = w // 2 - r, h // 4 - r
 
-        # 方框与圆点一致
+        # 方框覆盖整个节点区域（圆点+文字），避免移动时网格残影
+        node_item.prepareGeometryChange()
         node_item.setBrush(QBrush(Qt.GlobalColor.transparent))
         node_item.setPen(QPen(Qt.PenStyle.NoPen))
-        node_item.setRect(cx, cy, r * 2, r * 2)
+        node_item.setRect(0, 0, w, h)
 
         # 隐藏方框专属组件
         for attr in ('_in_label', '_out_label', '_expand_btn', '_expand_label'):
