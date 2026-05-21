@@ -91,8 +91,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         self.connect_source = None
         self.temp_edge = None
         
-        # 选中的节点
-        self.selected_node = None  # 当前选中的节点名称
+        # 选中节点统一由 box_selected_nodes 管理（单选=列表仅1项）
         
         # 启用鼠标追踪
         self.setMouseTracking(True)
@@ -928,21 +927,17 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
             self.sync_node_display(node_name)
             
     def on_node_selected(self, node):
-        """节点被选中时调用"""
-        # 清除之前选中节点的边框高亮
-        if self.selected_node and self.selected_node in self.nodes:
-            prev_node = self.nodes[self.selected_node]
-            border_color = QColor(self.node_border_color)
-            prev_node.setPen(QPen(border_color, 2))
+        """普通单击选中节点（单选，清除之前的多选）"""
+        # 清除之前所有选中节点的高亮
+        for name in self.box_selected_nodes:
+            if name in self.nodes:
+                self.nodes[name].setPen(QPen(QColor(self.node_border_color), 2))
+        self.box_selected_nodes = []
         
-        # 更新选中的节点
-        self.selected_node = node.node_name
-        
-        # 高亮当前选中节点的边框
-        selected_color = QColor(self.node_selected_color)
-        node.setPen(QPen(selected_color, 3))
-        
-        logger.info("选中节点: %s", self.selected_node)
+        # 选中当前节点
+        self.box_selected_nodes.append(node.node_name)
+        node.setPen(QPen(QColor(self.node_selected_color), 3))
+        logger.info("选中节点: %s", node.node_name)
     
     def _toggle_node_selection(self, node_name):
         """切换节点选中状态（用于Ctrl+单击多选）"""
@@ -966,17 +961,12 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
             logger.info("选中节点: %s (共%d个)", node_name, len(self.box_selected_nodes))
     
     def get_selected_node(self):
-        """获取当前选中的节点名称"""
-        return self.selected_node
+        """获取当前选中的节点名称（单选优先取第一个）"""
+        return self.box_selected_nodes[0] if self.box_selected_nodes else None
     
     def clear_selection(self):
         """清除节点选择"""
-        if self.selected_node and self.selected_node in self.nodes:
-            node = self.nodes[self.selected_node]
-            border_color = QColor(self.node_border_color)
-            node.setPen(QPen(border_color, 2))
-        
-        self.selected_node = None
+        self.clear_box_selection()
     
     def clear_box_selection(self):
         """清除框选状态"""
