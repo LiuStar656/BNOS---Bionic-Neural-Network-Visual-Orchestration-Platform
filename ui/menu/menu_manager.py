@@ -5,6 +5,7 @@ BNOS 菜单管理器 - 纯菜单栏设计（无工具栏）
 from PyQt6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
+from ui.core.logger import logger
 
 
 class MenuManager:
@@ -165,8 +166,8 @@ class MenuManager:
         # 检查是否支持该语言
         if not main_window.node_creator.has_creator(lang_key):
             main_window.show_toast(f"暂不支持创建 {language} 节点", "warning")
-            print(f"未注册的语言创建器: {lang_key}")
-            print(f"   当前支持: {main_window.node_creator.get_supported_languages()}")
+            logger.warning("未注册的语言创建器: %s", lang_key)
+            logger.info("   当前支持: %s", main_window.node_creator.get_supported_languages())
             return
         
         # 启动异步创建流程

@@ -29,6 +29,7 @@ from PyQt6.QtGui import (
     QPolygonF, QAction
 )
 
+from ui.core.logger import logger
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.anchor_item import AnchorItem

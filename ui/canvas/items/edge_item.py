@@ -6,6 +6,7 @@ import math
 from PyQt6.QtWidgets import QGraphicsPathItem, QGraphicsPolygonItem, QMenu
 from PyQt6.QtCore import Qt, QPointF
 from PyQt6.QtGui import QPen, QColor, QPainterPath, QPolygonF
+from ui.core.logger import logger
 
 
 class EdgeItem(QGraphicsPathItem):
@@ -93,7 +94,7 @@ class EdgeItem(QGraphicsPathItem):
             if hasattr(self, 'arrow_item') and self.arrow_item:
                 self.arrow_item.setBrush(color)
             
-            print(f"✅ 连线颜色已更改为: {color.name()}")
+            logger.debug("连线颜色已更改为: %s", color.name())
 
     def update_path(self):
         """更新连线路径"""
@@ -105,14 +106,14 @@ class EdgeItem(QGraphicsPathItem):
         start_center = self.start_node.output_anchor.sceneBoundingRect().center()
         end_center = self.end_node.input_anchor.sceneBoundingRect().center()
         
-        # 🔍 调试信息：打印锚点和状态指示灯的位置
-        print(f"🔗 更新连线: {self.start_node.node_name} -> {self.end_node.node_name}")
-        print(f"   输出锚点中心: ({start_center.x():.1f}, {start_center.y():.1f})")
-        print(f"   输入锚点中心: ({end_center.x():.1f}, {end_center.y():.1f})")
+        # 调试信息：锚点和状态指示灯的位置
+        logger.debug("更新连线: %s -> %s", self.start_node.node_name, self.end_node.node_name)
+        logger.debug("   输出锚点中心: (%.1f, %.1f)", start_center.x(), start_center.y())
+        logger.debug("   输入锚点中心: (%.1f, %.1f)", end_center.x(), end_center.y())
         
         # 检查状态指示灯位置（用于对比）
         status_indicator_pos = self.start_node.status_indicator.scenePos()
-        print(f"   状态指示灯 scenePos: ({status_indicator_pos.x():.1f}, {status_indicator_pos.y():.1f})")
+        logger.debug("   状态指示灯 scenePos: (%.1f, %.1f)", status_indicator_pos.x(), status_indicator_pos.y())
         
         # 创建贝塞尔曲线路径
         path = QPainterPath()

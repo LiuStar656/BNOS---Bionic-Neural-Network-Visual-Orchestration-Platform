@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
+from ui.core.logger import logger
 
 
 class NodeConfigDialog(QDialog):
@@ -260,39 +261,35 @@ class NodeConfigDialog(QDialog):
             import platform
             
             # 详细调试：打印所有路径相关信息
-            print(f"\n{'='*60}")
-            print(f"🔍 [NodeConfigDialog] 打开节点文件夹")
-            print(f"🔍 节点名称: {self.node_name}")
-            print(f"🔍 原始节点路径: {self.node_path}")
-            print(f"🔍 路径类型: {type(self.node_path)}")
+            logger.debug("[NodeConfigDialog] 打开节点文件夹")
+            logger.debug("节点名称: %s", self.node_name)
+            logger.debug("原始节点路径: %s", self.node_path)
+            logger.debug("路径类型: %s", type(self.node_path))
             
-            # ✅ 关键修复：确保路径是绝对路径且规范化
+            # 关键修复：确保路径是绝对路径且规范化
             original_path = self.node_path
             corrected_path = os.path.abspath(original_path)
             corrected_path = os.path.normpath(corrected_path)
             
             if original_path != corrected_path:
-                print(f"⚠️  路径已修正:")
-                print(f"   原始: {original_path}")
-                print(f"   修正: {corrected_path}")
+                logger.debug("路径已修正: 原始=%s, 修正=%s", original_path, corrected_path)
                 self.node_path = corrected_path
             
-            print(f"🔍 最终节点路径: {self.node_path}")
-            print(f"🔍 路径是否存在: {os.path.exists(self.node_path)}")
-            print(f"🔍 是否为目录: {os.path.isdir(self.node_path) if os.path.exists(self.node_path) else 'N/A'}")
-            print(f"🔍 父目录: {os.path.dirname(self.node_path)}")
-            print(f"🔍 文件夹名称: {os.path.basename(self.node_path)}")
-            print(f"🔍 当前工作目录: {os.getcwd()}")
+            logger.debug("最终节点路径: %s", self.node_path)
+            logger.debug("路径是否存在: %s", os.path.exists(self.node_path))
+            logger.debug("是否为目录: %s", os.path.isdir(self.node_path) if os.path.exists(self.node_path) else 'N/A')
+            logger.debug("父目录: %s", os.path.dirname(self.node_path))
+            logger.debug("文件夹名称: %s", os.path.basename(self.node_path))
+            logger.debug("当前工作目录: %s", os.getcwd())
             
             # 检查路径是否包含预期的节点名称
             expected_folder = self.node_name
             actual_folder = os.path.basename(self.node_path)
-            print(f"🔍 期望的文件夹名: {expected_folder}")
-            print(f"🔍 实际的文件夹名: {actual_folder}")
-            print(f"🔍 名称匹配: {expected_folder == actual_folder}")
+            logger.debug("期望的文件夹名: %s, 实际的文件夹名: %s, 匹配: %s",
+                         expected_folder, actual_folder, expected_folder == actual_folder)
             
             if not os.path.exists(self.node_path):
-                print(f"❌ 路径不存在！")
+                logger.warning("路径不存在: %s", self.node_path)
                 
                 # 尝试从父窗口获取正确路径
                 if self.parent_window and hasattr(self.parent_window, 'nodes_data'):
@@ -302,13 +299,13 @@ class NodeConfigDialog(QDialog):
                         correct_path = os.path.abspath(correct_path)
                         correct_path = os.path.normpath(correct_path)
                         
-                        print(f"💡 尝试从 nodes_data 获取路径: {correct_path}")
+                        logger.debug("尝试从 nodes_data 获取路径: %s", correct_path)
                         
                         if os.path.exists(correct_path):
-                            print(f"✅ 找到正确路径，使用此路径")
+                            logger.debug("找到正确路径，使用此路径")
                             self.node_path = correct_path
                         else:
-                            print(f"❌ 备用路径也不存在")
+                            logger.warning("备用路径也不存在: %s", correct_path)
                 
                 if not os.path.exists(self.node_path):
                     QMessageBox.warning(
@@ -331,10 +328,9 @@ class NodeConfigDialog(QDialog):
             else:  # Linux
                 subprocess.Popen(['xdg-open', self.node_path])
                 
-            print(f"✅ 已打开节点文件夹: {self.node_path}")
-            print(f"{'='*60}\n")
+            logger.debug("已打开节点文件夹: %s", self.node_path)
         except Exception as e:
-            print(f"❌ 打开文件夹异常: {e}")
+            logger.error("打开文件夹异常: %s", e)
             QMessageBox.critical(self, "错误", f"打开文件夹失败: {str(e)}")
             import traceback
             traceback.print_exc()
@@ -887,7 +883,7 @@ class PropertyPanel(QWidget):
                     process.kill()
                     process.wait(timeout=3)
                 except Exception as e:
-                    print(f"强制终止进程时出错: {e}")
+                    logger.error("强制终止进程时出错: %s", e)
                     # 如果 kill 失败，尝试 terminate
                     try:
                         process.terminate()

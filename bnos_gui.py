@@ -6,6 +6,7 @@ import sys
 import os
 from PyQt6.QtWidgets import QApplication
 from ui.main_window import BNOSMainWindow
+from ui.core.logger import logger
 
 
 def main():
@@ -22,15 +23,11 @@ def main():
         sys.exit(app.exec())
     
     except KeyboardInterrupt:
-        # 用户按下 Ctrl+C，优雅退出
-        print("\n\nBNOS 已安全关闭")
+        logger.info("BNOS 已安全关闭")
         sys.exit(0)
     
     except Exception as e:
-        # 其他未预期异常
-        print(f"\nBNOS 发生错误: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.critical("BNOS 发生错误: %s", e, exc_info=True)
         sys.exit(1)
 
 

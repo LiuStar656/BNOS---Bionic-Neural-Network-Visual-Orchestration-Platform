@@ -5,6 +5,7 @@
 from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem, QGraphicsEllipseItem, QGraphicsItem
 from PyQt6.QtCore import Qt, QPointF, QRectF
 from PyQt6.QtGui import QPen, QColor, QBrush, QFont
+from ui.core.logger import logger
 
 from ui.canvas.items.anchor_item import AnchorItem
 
@@ -222,7 +223,7 @@ class NodeItem(QGraphicsRectItem):
             if output_anchor_rect.contains(pos_in_item):
                 if self.canvas:
                     self.canvas.start_connection_from_output(self)
-                    print(f"🔗 开始从 {self.node_name} 的输出锚点连线")
+                    logger.debug("开始从 %s 的输出锚点连线", self.node_name)
                 return  # 不继续处理，避免触发拖拽
             
             # 检查是否点击了输入锚点（左侧中间）
@@ -231,7 +232,7 @@ class NodeItem(QGraphicsRectItem):
                 # 如果正在连线中，完成连线
                 if self.canvas and self.canvas.is_connecting:
                     self.canvas.complete_connection_to_input(self)
-                    print(f"✅ 完成到 {self.node_name} 的输入锚点连线")
+                    logger.debug("完成到 %s 的输入锚点连线", self.node_name)
                 return
             
             # ✅ 检测Ctrl+左键：切换节点选中状态（多选）

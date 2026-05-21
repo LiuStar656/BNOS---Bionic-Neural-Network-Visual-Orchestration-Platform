@@ -5,6 +5,7 @@
 import json
 import os
 from typing import Dict, List, Optional
+from ui.core.logger import logger
 
 
 class NodeGroupManager:
@@ -58,13 +59,13 @@ class NodeGroupManager:
         """
         path = project_path or self.project_path
         if not path:
-            print("⚠️  未设置项目路径，无法加载节点组配置")
+            logger.warning("未设置项目路径，无法加载节点组配置")
             return
         
         config_file = os.path.join(path, "node_groups.json")
         
         if not os.path.exists(config_file):
-            print(f"ℹ️  未找到节点组配置文件: {config_file}")
+            logger.info("未找到节点组配置文件: %s", config_file)
             self.groups.clear()
             self.node_to_group.clear()
             return
@@ -76,16 +77,16 @@ class NodeGroupManager:
             self.groups = data.get('groups', {})
             self.node_to_group = data.get('node_to_group', {})
             
-            print(f"✅ 已加载 {len(self.groups)} 个节点组")
+            logger.info("已加载 %d 个节点组", len(self.groups))
             
         except (json.JSONDecodeError, IOError) as e:
-            print(f"⚠️  加载节点组配置失败: {e}")
+            logger.warning("加载节点组配置失败: %s", e)
             # 备份损坏的文件
             try:
                 import shutil
                 backup_file = config_file + ".bak"
                 shutil.copy2(config_file, backup_file)
-                print(f"📦 已备份损坏的配置文件: {backup_file}")
+                logger.info("已备份损坏的配置文件: %s", backup_file)
             except:
                 pass
             
@@ -95,7 +96,7 @@ class NodeGroupManager:
     def save_groups(self):
         """保存节点组信息到配置文件"""
         if not self.project_path:
-            print("⚠️  未设置项目路径，无法保存节点组配置")
+            logger.warning("未设置项目路径，无法保存节点组配置")
             return False
         
         config_file = self.get_config_file_path()
@@ -109,11 +110,11 @@ class NodeGroupManager:
             with open(config_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             
-            print(f"✅ 节点组配置已保存到: {config_file}")
+            logger.info("节点组配置已保存到: %s", config_file)
             return True
             
         except Exception as e:
-            print(f"❌ 保存节点组配置失败: {e}")
+            logger.error("保存节点组配置失败: %s", e)
             return False
     
     def create_group(self, group_name: str, color: str = "#4A90E2") -> bool:
@@ -135,57 +136,30 @@ class NodeGroupManager:
         }
         
         self.save_groups()
-        print(f"✅ 创建节点组: {group_name}")
+        logger.info("创建节点组: %s", group_name)
         return True
     
     def delete_group(self, group_name: str) -> bool:
-        """删除节点组（不删除组内节点）
-        
-        Args:
-            group_name: 组名称
-            
-        Returns:
-            是否删除成功
-        """
         if group_name not in self.groups:
             return False
-        
-        # 清除组内节点的组归属
         for node_name in self.groups[group_name]['nodes']:
             if node_name in self.node_to_group:
                 del self.node_to_group[node_name]
-        
-        # 删除组
         del self.groups[group_name]
-        
         self.save_groups()
-        print(f"✅ 删除节点组: {group_name}")
+        logger.info("删除节点组: %s", group_name)
         return True
     
     def rename_group(self, old_name: str, new_name: str) -> bool:
-        """重命名节点组
-        
-        Args:
-            old_name: 原组名
-            new_name: 新组名
-            
-        Returns:
-            是否重命名成功
-        """
         if old_name not in self.groups or new_name in self.groups:
             return False
-        
-        # 复制组数据
         self.groups[new_name] = self.groups[old_name]
         del self.groups[old_name]
-        
-        # 更新节点归属
         for node_name in self.groups[new_name]['nodes']:
             if node_name in self.node_to_group:
                 self.node_to_group[node_name] = new_name
-        
         self.save_groups()
-        print(f"✅ 重命名节点组: {old_name} -> {new_name}")
+        logger.info("重命名节点组: %s -> %s", old_name, new_name)
         return True
     
     def add_nodes_to_group(self, group_name: str, node_names: List[str]) -> bool:
@@ -218,7 +192,7 @@ class NodeGroupManager:
         
         if added_count > 0:
             self.save_groups()
-            print(f"✅ 添加 {added_count} 个节点到组: {group_name}")
+            logger.info("添加 %d 个节点到组: %s", added_count, group_name)
         
         return added_count > 0
     
@@ -247,7 +221,7 @@ class NodeGroupManager:
         
         if removed_count > 0:
             self.save_groups()
-            print(f"✅ 从组 {group_name} 移除 {removed_count} 个节点")
+            logger.info("从组 %s 移除 %d 个节点", group_name, removed_count)
         
         return removed_count > 0
     
@@ -300,4 +274,4 @@ class NodeGroupManager:
         self.groups.clear()
         self.node_to_group.clear()
         self.save_groups()
-        print("✅ 已清空所有节点组")
+        logger.info("已清空所有节点组")
