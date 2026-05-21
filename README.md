@@ -128,6 +128,19 @@ This documentation provides deep technical insights beyond what's covered in thi
 - **Background Caching**: Grid background cached, no redraw during pan/zoom
 - **Smart Refresh**: Only repaints changed regions, smooth panning and zooming without lag
 
+### 🩺 Process Health Detection
+
+- **PID File Persistence**: Writes `.pid` on start, deletes on stop for traceable node status
+- **Cross-Session Recovery**: GUI restart auto-scans `.pid` to detect background processes, restores ● running state
+- **Periodic Health Check**: Polls running processes every 3s, crashed nodes auto-marked ○ stopped
+
+### 🖱️ Unified Selection System
+
+- **Single/Box/Ctrl+Click** all use unified `box_selected_nodes`
+- Box-selected nodes support **group dragging**, right-click menu adapts to single/multi selection
+- Dragging nodes **auto-pushes** away adjacent nodes to prevent overlap
+- Node expand button `>>` for quick output/config access
+
 ### 📂 Project Management
 
 - **VSCode-like Workflow**: Open folder as project, auto-detect `nodes/` directory
