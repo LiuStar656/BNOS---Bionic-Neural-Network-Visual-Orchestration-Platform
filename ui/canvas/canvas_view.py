@@ -988,14 +988,15 @@ class NodeCanvas(QGraphicsView):
             except RuntimeError:
                 pass  # 面板已被销毁
 
-        # 以节点中心坐标为基准，转换到屏幕坐标
+        # 窗口中心与节点中心重合
         if node_name in self.nodes:
             node = self.nodes[node_name]
-            scene_pos = node.pos() + node.rect().center()  # 节点中心
+            scene_pos = node.pos() + node.rect().center()
             view_pos = self.mapFromScene(scene_pos)
             global_pos = self.viewport().mapToGlobal(view_pos)
-            x = global_pos.x() + 20   # 节点右侧偏移
-            y = global_pos.y() - 190  # 面板半高，垂直居中
+            panel_w, panel_h = 620, 380  # 与 NodeExpandPanel.__init__ 一致
+            x = global_pos.x() - panel_w // 2
+            y = global_pos.y() - panel_h // 2
         else:
             x, y = 300, 200
 
