@@ -108,3 +108,7 @@ class CanvasMenusMixin:
         node_item._update_selection_ring(node_item.isSelected())
         node_item.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
         node_item.update()
+        # 触发自动保存，持久化样式变更
+        if hasattr(self, '_save_timer'):
+            self._save_timer.stop()
+            self._save_timer.start(500)
