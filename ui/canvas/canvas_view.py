@@ -59,7 +59,6 @@ class NodeCanvas(QGraphicsView):
         # 可视区域渲染优化：只更新变化区域 + 缓存网格背景
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontSavePainterState, True)
-        self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontClipPainter, True)
         self.setCacheMode(QGraphicsView.CacheModeFlag.CacheBackground)
         
         # ===== 颜色配置（支持自定义）=====
