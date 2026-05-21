@@ -77,28 +77,23 @@ class NodeItem(QGraphicsRectItem):
         self._load_node_custom_colors()
         
     def _update_selection_ring(self, selected):
-        """更新选中环 — 圆点画圆，方框画方，z=10 浮于节点之上"""
+        """更新选中环 — 仅圆点节点使用，方框节点走 paint()"""
         is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
-        if not selected:
+        if not is_dot:
             self._selection_ring.setVisible(False)
             return
         
-        if is_dot and self._body:
-            r = self._body.rect().adjusted(-3, -3, 3, 3)
-            self._selection_ring.setRect(r)
-            self._selection_ring.setVisible(True)
-            self._selection_ring.setPen(QPen(QColor(self._style.selected_color), 
-                                             self._style.selected_border_width,
-                                             Qt.PenStyle.DashLine))
-            self._selection_ring.setBrush(QBrush())
-        else:
-            rect = self.rect()
-            self._selection_ring.setRect(rect)
-            self._selection_ring.setVisible(True)
-            self._selection_ring.setPen(QPen(QColor(self._style.selected_color),
-                                             self._style.selected_border_width,
-                                             Qt.PenStyle.DashLine))
-            self._selection_ring.setBrush(QBrush())
+        if not selected or not self._body:
+            self._selection_ring.setVisible(False)
+            return
+        
+        r = self._body.rect().adjusted(-3, -3, 3, 3)
+        self._selection_ring.setRect(r)
+        self._selection_ring.setVisible(True)
+        self._selection_ring.setPen(QPen(QColor(self._style.selected_color), 
+                                         self._style.selected_border_width,
+                                         Qt.PenStyle.DashLine))
+        self._selection_ring.setBrush(QBrush())
     
     def update_status(self, status):
         """更新节点状态"""
