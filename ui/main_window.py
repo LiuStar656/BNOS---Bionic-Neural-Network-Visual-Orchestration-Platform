@@ -27,7 +27,7 @@ from ui.panels.property_panel import ColorSettingsDialog
 from ui.creators.node_creator_manager import NodeCreatorManager
 from ui.menu.menu_manager import MenuManager
 from ui.core.toast.toast_notification import ToastNotification
-from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node, check_running_processes
+from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node, check_running_processes, detect_running_nodes
 from ui.core.app_config import AppConfig
 from ui.core.theme import DARK_QSS
 
@@ -383,6 +383,14 @@ class BNOSMainWindow(QMainWindow):
         
         # 同步更新画布上的所有节点显示
         self.canvas.sync_all_nodes_display()
+        
+        # 检测后台运行的进程（跨会话恢复）
+        running = detect_running_nodes(self.nodes_data)
+        if running:
+            for name, pid in running:
+                self.node_list_panel.update_node_status(name, 'running')
+                self.canvas.update_node_status(name, 'running')
+            self.show_toast(f"检测到 {len(running)} 个节点在后台运行", "info")
         
     def create_new_node(self):
         """创建新节点（默认Python）"""
