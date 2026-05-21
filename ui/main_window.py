@@ -27,7 +27,7 @@ from ui.panels.property_panel import ColorSettingsDialog
 from ui.creators.node_creator_manager import NodeCreatorManager
 from ui.menu.menu_manager import MenuManager
 from ui.core.toast.toast_notification import ToastNotification
-from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node
+from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node, check_running_processes
 from ui.core.app_config import AppConfig
 from ui.core.theme import DARK_QSS
 
@@ -67,6 +67,12 @@ class BNOSMainWindow(QMainWindow):
         self.restore_window_state()
         
         self.setWindowTitle("BnosGui")
+        
+        # 进程健康检测定时器（每3秒检查运行中的节点是否仍存活）
+        self._health_timer = QTimer(self)
+        self._health_timer.setInterval(3000)
+        self._health_timer.timeout.connect(self._check_node_health)
+        self._health_timer.start()
         
         self.auto_open_last_project()
         
@@ -652,6 +658,14 @@ class BNOSMainWindow(QMainWindow):
         self.node_list_panel.update_node_status(node_name, 'stopped')
         self.canvas.update_node_status(node_name, 'stopped')
         self.show_toast(f"节点 {node_name} 已停止", "success")
+
+    def _check_node_health(self):
+        """定时检测运行中节点的进程是否仍存活"""
+        dead = check_running_processes(self.nodes_data)
+        for name, code in dead:
+            self.node_list_panel.update_node_status(name, 'stopped')
+            self.canvas.update_node_status(name, 'stopped')
+            self.show_toast(f"节点 {name} 已意外退出 (code: {code})", "warning")
 
     def clear_connections(self):
         """清空所有连线"""

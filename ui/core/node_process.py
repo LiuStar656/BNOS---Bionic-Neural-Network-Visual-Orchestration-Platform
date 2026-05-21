@@ -28,8 +28,8 @@ def start_node_process(node_info):
                 [start_script, "--no-pause"],
                 cwd=node_path,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
             )
         else:
             os.chmod(start_script, 0o755)
@@ -37,8 +37,8 @@ def start_node_process(node_info):
                 ["/bin/bash", start_script, "--no-pause"],
                 cwd=node_path,
                 start_new_session=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
             )
         
         node_info['process'] = process
@@ -101,3 +101,29 @@ def resolve_selected_node(main_window):
         from_list = main_window.node_list_panel.get_selected_nodes()
         selected = from_list[0] if from_list else None
     return selected
+
+
+def check_running_processes(nodes_data):
+    """检测所有运行中节点的进程是否仍在运行
+    
+    对每个 status='running' 且有 process 对象的节点调用 poll()，
+    如果进程已退出（poll() 返回非 None），自动标记为 'stopped'。
+    
+    Returns: list of (node_name, exit_code) for nodes that exited
+    """
+    dead_nodes = []
+    for name, info in nodes_data.items():
+        if info.get('status') != 'running':
+            continue
+        process = info.get('process')
+        if not process:
+            info['status'] = 'stopped'
+            continue
+        exit_code = process.poll()
+        if exit_code is not None:
+            info['process'] = None
+            info['status'] = 'stopped'
+            dead_nodes.append((name, exit_code))
+            logger.info("节点 %s 进程已退出 (exit code: %s)", name, exit_code)
+    return dead_nodes
+
