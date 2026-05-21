@@ -122,6 +122,12 @@ This documentation provides deep technical insights beyond what's covered in thi
 - **Custom Title Bar**: Minimize/maximize/close buttons, double-click to maximize, drag to move
 - **Global Dark Theme**: Menus, scrollbars, inputs, tables, dialogs all in dark style
 
+### ⚡ High-Performance Canvas Rendering
+
+- **Viewport Culling**: Only renders elements within visible area, minimizing wasted draws
+- **Background Caching**: Grid background cached, no redraw during pan/zoom
+- **Smart Refresh**: Only repaints changed regions, smooth panning and zooming without lag
+
 ### 📂 Project Management
 
 - **VSCode-like Workflow**: Open folder as project, auto-detect `nodes/` directory
