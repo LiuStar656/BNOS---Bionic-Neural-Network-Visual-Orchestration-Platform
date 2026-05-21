@@ -35,8 +35,9 @@ from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.anchor_item import AnchorItem
 from ui.canvas.canvas_colors import CanvasColorsMixin
 from ui.canvas.canvas_layout import CanvasLayoutMixin
+from ui.canvas.canvas_menus import CanvasMenusMixin
 
-class NodeCanvas(CanvasLayoutMixin, CanvasColorsMixin, QGraphicsView):
+class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphicsView):
     """节点画布（VueFlow风格）"""
     
     def __init__(self, parent=None):
@@ -541,153 +542,8 @@ class NodeCanvas(CanvasLayoutMixin, CanvasColorsMixin, QGraphicsView):
         self.scene.removeItem(node)
         del self.nodes[node_name]
         
-    def contextMenuEvent(self, event):
-        """画布右键菜单 - 上下文感知"""
-        # 获取点击位置的项
-        item = self.itemAt(event.pos())
-        
-        # 检查是否有选中的节点（框选或Ctrl+单击）
-        has_selected_nodes = len(self.box_selected_nodes) > 0
-        
-        # 如果有选中节点，显示批量操作菜单
-        if has_selected_nodes:
-            menu = QMenu(self)
-            
-            # 显示选中数量
-            count = len(self.box_selected_nodes)
-            menu_title = menu.addAction(f"已选 {count} 个节点")
-            menu_title.setEnabled(False)  # 禁用标题
-            menu.addSeparator()
-            
-            # 批量启动
-            start_action = menu.addAction(f"启动已选节点 ({count})")
-            start_action.triggered.connect(self.batch_start_selected_nodes)
-            
-            # 批量停止
-            stop_action = menu.addAction(f"停止已选节点 ({count})")
-            stop_action.triggered.connect(self.batch_stop_selected_nodes)
-            
-            menu.addSeparator()
-            
-            # 批量从画布移除（不删除文件）
-            remove_action = menu.addAction(f"移除已选节点 ({count})")
-            remove_action.triggered.connect(self.batch_remove_nodes_from_canvas)
-            
-            menu.addSeparator()
-            
-            # 清除连线配置
-            clear_config_action = menu.addAction("清除连线配置")
-            clear_config_action.triggered.connect(self.batch_clear_listen_config)
-            
-            menu.addSeparator()
-            
-            # 清除选择
-            clear_selection_action = menu.addAction("清除选择")
-            clear_selection_action.triggered.connect(self.clear_box_selection)
-            
-            menu.exec(event.globalPos())
-            return
-        
-        # 如果点击的是节点，显示节点菜单
-        if isinstance(item, NodeItem):
-            menu = QMenu(self)
-            
-            # 获取节点信息
-            node_name = item.node_name
-            if self.parent_window and node_name in self.parent_window.nodes_data:
-                node_info = self.parent_window.nodes_data[node_name]
-                is_running = node_info.get('status') == 'running'
-                
-                # 启动/停止节点（根据状态动态显示）
-                if is_running:
-                    stop_action = menu.addAction("停止节点")
-                    stop_action.triggered.connect(lambda: self.stop_single_node(node_name))
-                else:
-                    start_action = menu.addAction("启动节点")
-                    start_action.triggered.connect(lambda: self.start_single_node(node_name))
-                
-                menu.addSeparator()
-            
-            # 删除节点
-            delete_action = menu.addAction("从画布删除")
-            delete_action.triggered.connect(lambda: self.remove_node_with_cleanup(item.node_name))
-            
-            menu.addSeparator()
-            
-            # 打开配置对话框
-            config_action = menu.addAction("节点配置")
-            config_action.triggered.connect(lambda: self.open_node_config(item.node_name))
+    # contextMenuEvent 已移至 CanvasMenusMixin（canvas_menus.py）
 
-            # 展开节点
-            expand_action = menu.addAction("展开节点")
-            expand_action.triggered.connect(lambda: self.on_node_expand_requested(item.node_name))
-            
-            menu.addSeparator()
-            
-            # 节点颜色设置子菜单
-            color_menu = menu.addMenu("节点颜色")
-            
-            bg_color_action = color_menu.addAction("背景颜色")
-            bg_color_action.triggered.connect(lambda: self.change_node_background_color(item))
-            
-            border_color_action = color_menu.addAction("边框颜色")
-            border_color_action.triggered.connect(lambda: self.change_node_border_color(item))
-            
-            text_color_action = color_menu.addAction("文字颜色")
-            text_color_action.triggered.connect(lambda: self.change_node_text_color(item))
-            
-            menu.exec(event.globalPos())
-        else:
-            # 点击空白区域，显示画布菜单
-            menu = QMenu(self)
-            
-            # 新建节点子菜单
-            new_node_menu = menu.addMenu("新建节点")
-            
-            languages = ["Python", "Node.js", "Go", "Java", "C++", "Rust", "Shell"]
-            for lang in languages:
-                action = QAction(lang, self)
-                action.triggered.connect(
-                    lambda checked=None, language=lang: self.parent_window.create_new_node_with_language(language)
-                )
-                new_node_menu.addAction(action)
-            
-            menu.addSeparator()
-
-            # 节点监测
-            monitor_action = menu.addAction("节点监测")
-            monitor_action.triggered.connect(
-                lambda: self.parent_window.show_node_monitor() if self.parent_window else None
-            )
-            
-            menu.addSeparator()
-            
-            # 清空所有连线
-            clear_edges_action = menu.addAction("清空连线")
-            clear_edges_action.triggered.connect(self.clear_edges)
-            
-            menu.addSeparator()
-            
-            # 重置视图
-            reset_view_action = menu.addAction("重置视图")
-            reset_view_action.triggered.connect(self.reset_view)
-            
-            menu.addSeparator()
-            
-            # 画布颜色设置子菜单
-            color_menu = menu.addMenu("画布颜色")
-            
-            canvas_bg_action = color_menu.addAction("背景颜色")
-            canvas_bg_action.triggered.connect(self.change_canvas_background_color)
-            
-            grid_color_action = color_menu.addAction("网格颜色")
-            grid_color_action.triggered.connect(self.change_grid_color)
-            
-            edge_color_action = color_menu.addAction("连线颜色")
-            edge_color_action.triggered.connect(self.change_edge_color)
-            
-            menu.exec(event.globalPos())
-    
     def remove_node_with_cleanup(self, node_name):
         """从画布删除节点并清理上下游配置"""
         if node_name not in self.nodes:
