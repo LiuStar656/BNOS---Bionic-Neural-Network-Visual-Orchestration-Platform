@@ -88,7 +88,7 @@ class ToastNotification(QLabel):
             
             # 计算相对于窗口的右上角位置（使用绝对屏幕坐标）
             x = window_pos.x() + window_size.width() - self.width() - 20
-            y = window_pos.y() + 100 + (self.stack_index * 60)  # 留出两层工具栏空间
+            y = window_pos.y() + 40 + (self.stack_index * 60)
             
             # 边界检测：确保Toast不会超出屏幕底部
             screen = QApplication.primaryScreen().geometry()
@@ -99,7 +99,7 @@ class ToastNotification(QLabel):
             # 如果没有父窗口，使用屏幕右上角
             screen = QApplication.primaryScreen().geometry()
             x = screen.right() - self.width() - 20
-            y = screen.top() + 100 + (self.stack_index * 60)
+            y = screen.top() + 40 + (self.stack_index * 60)
         
         self.move(x, y)
         self.show()
@@ -158,7 +158,7 @@ class ToastNotification(QLabel):
             
             # 计算相对于窗口的右上角位置（使用绝对屏幕坐标）
             x = window_pos.x() + window_size.width() - self.width() - 20
-            y = window_pos.y() + 100 + (self.stack_index * 60)  # 留出两层工具栏空间
+            y = window_pos.y() + 40 + (self.stack_index * 60)
             
             # 边界检测：确保Toast不会超出屏幕底部
             screen = QApplication.primaryScreen().geometry()
@@ -168,9 +168,8 @@ class ToastNotification(QLabel):
         else:
             screen = QApplication.primaryScreen().geometry()
             x = screen.right() - self.width() - 20
-            y = screen.top() + 100 + (self.stack_index * 60)
+            y = screen.top() + 40 + (self.stack_index * 60)
         
-        # 平滑移动到新位置
         self.move(x, y)
     
     def start_fade_out(self):
