@@ -198,21 +198,19 @@ class LightRectNodeStyle(RectNodeStyle):
 # ============================================================
 
 class DotNodeStyle(NodeStyle):
-    """圆形节点 — 圆点即状态灯/输入锚点，名称浮在下方"""
+    """圆形节点 — 圆点即状态灯/输入锚点，名称在左下角相切"""
     style_name: str = "圆形节点"
     is_dot: bool = True
 
-    node_width: int = 60
-    node_height: int = 60
+    node_width: int = 80
+    node_height: int = 80
     dot_radius: int = 20
-    name_y: int = 40
-    lang_y: int = 22
     name_font_size: int = 9
     lang_font_size: int = 7
 
     def apply(self, node_item):
         from PyQt6.QtWidgets import QGraphicsEllipseItem
-        from PyQt6.QtGui import QPen, QBrush
+        from PyQt6.QtGui import QPen, QBrush, QFont
         from PyQt6.QtCore import Qt
         w, h = self.node_width, self.node_height
 
@@ -229,9 +227,9 @@ class DotNodeStyle(NodeStyle):
         node_item.status_indicator.setVisible(False)
         node_item._expand_btn_rect.setRect(-100, -100, 1, 1)
 
-        # 圆点本体
+        # 圆点本体（放在左上区域）
         r = self.dot_radius
-        cx, cy = w // 2 - r, h // 2 - r - 5
+        cx, cy = w // 2 - r, h // 4 - r
         if not hasattr(node_item, '_body') or node_item._body is None:
             node_item._body = QGraphicsEllipseItem(cx, cy, r * 2, r * 2, node_item)
             node_item._body.setZValue(5)
@@ -242,24 +240,26 @@ class DotNodeStyle(NodeStyle):
 
         self.apply_status(node_item, node_item.status)
 
+        # 圆底 y，文字从这里开始（相切）
+        dot_bottom = cy + 2 * r
+        text_x = cx  # 左对齐
+
         # 名称
-        from PyQt6.QtGui import QFont
         f = QFont(self.name_font_family, self.name_font_size)
         if self.name_font_bold: f.setBold(True)
         node_item.name_text.setDefaultTextColor(QColor(self.text_color))
         node_item.name_text.setFont(f)
         node_item.name_text.setVisible(True)
-        nr = node_item.name_text.boundingRect()
-        node_item.name_text.setPos((w - nr.width()) / 2, self.name_y)
+        node_item.name_text.setPos(text_x, dot_bottom + 2)
 
-        # 语言标签
+        # 语言标签（名称下方）
         f2 = QFont(self.lang_font_family, self.lang_font_size)
         if self.lang_font_bold: f2.setBold(True)
         node_item.lang_text.setDefaultTextColor(QColor(self.lang_color))
         node_item.lang_text.setFont(f2)
         node_item.lang_text.setVisible(True)
-        lr = node_item.lang_text.boundingRect()
-        node_item.lang_text.setPos((w - lr.width()) / 2, h + self.lang_y)
+        nr = node_item.name_text.boundingRect()
+        node_item.lang_text.setPos(text_x, dot_bottom + 2 + nr.height() + 1)
 
     def apply_status(self, node_item, status):
         from PyQt6.QtGui import QColor, QBrush, QPen
