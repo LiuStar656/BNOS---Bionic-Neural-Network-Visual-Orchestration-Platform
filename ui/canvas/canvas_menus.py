@@ -4,6 +4,7 @@
 from PyQt6.QtWidgets import QMenu
 from PyQt6.QtGui import QAction
 from ui.canvas.items.node_item import NodeItem
+from ui.canvas.items.node_style import STYLES
 
 
 class CanvasMenusMixin:
@@ -11,7 +12,7 @@ class CanvasMenusMixin:
 
     def contextMenuEvent(self, event):
         item = self.itemAt(event.pos())
-        
+
         if len(self.box_selected_nodes) > 0:
             menu = QMenu(self)
             count = len(self.box_selected_nodes)
@@ -32,21 +33,41 @@ class CanvasMenusMixin:
             node_item = item
             menu = QMenu(self)
             node_name = node_item.node_name
+
+            # 启动/停止
             if self.parent_window and node_name in self.parent_window.nodes_data:
                 if self.parent_window.nodes_data[node_name].get('status') == 'running':
                     a = menu.addAction("停止节点"); a.triggered.connect(lambda n=node_name: self.stop_single_node(n))
                 else:
                     a = menu.addAction("启动节点"); a.triggered.connect(lambda n=node_name: self.start_single_node(n))
                 menu.addSeparator()
-            a = menu.addAction("从画布删除"); a.triggered.connect(lambda n=node_name: self.remove_node_with_cleanup(n))
+
+            # 开始连线（圆形节点从菜单连线）
+            a = menu.addAction("开始连线"); a.triggered.connect(lambda nd=node_item: self.start_connection_from_output(nd))
             menu.addSeparator()
+
+            # 节点详情 + 展开
             a = menu.addAction("节点配置"); a.triggered.connect(lambda n=node_name: self.open_node_config(n))
             a = menu.addAction("展开节点"); a.triggered.connect(lambda n=node_name: self.on_node_expand_requested(n))
             menu.addSeparator()
+
+            # 样式切换
+            style_menu = menu.addMenu("样式")
+            for key, cls in STYLES.items():
+                st = cls()
+                a = style_menu.addAction(st.style_name)
+                a.triggered.connect(lambda checked=None, k=key, nd=node_item: self._switch_node_style(k, nd))
+
+            menu.addSeparator()
+
+            # 节点颜色
             color_menu = menu.addMenu("节点颜色")
             a = color_menu.addAction("背景颜色"); a.triggered.connect(lambda nd=node_item: self.change_node_background_color(nd))
             a = color_menu.addAction("边框颜色"); a.triggered.connect(lambda nd=node_item: self.change_node_border_color(nd))
             a = color_menu.addAction("文字颜色"); a.triggered.connect(lambda nd=node_item: self.change_node_text_color(nd))
+
+            menu.addSeparator()
+            a = menu.addAction("从画布删除"); a.triggered.connect(lambda n=node_name: self.remove_node_with_cleanup(n))
             menu.exec(event.globalPos())
         else:
             menu = QMenu(self)
@@ -67,3 +88,17 @@ class CanvasMenusMixin:
             a = color_menu.addAction("网格颜色"); a.triggered.connect(self.change_grid_color)
             a = color_menu.addAction("连线颜色"); a.triggered.connect(self.change_edge_color)
             menu.exec(event.globalPos())
+
+    def _switch_node_style(self, style_key, node_item):
+        """切换节点样式"""
+        from ui.canvas.items.node_style import STYLES
+        cls = STYLES.get(style_key)
+        if not cls:
+            return
+        new_style = cls()
+        node_item._style = new_style
+        new_style.node_width = node_item.rect().width()
+        new_style.node_height = node_item.rect().height()
+        new_style.apply(node_item)
+        new_style.apply_status(node_item, node_item.status)
+        node_item.setCacheMode(node_item.cacheMode())  # 刷新缓存
