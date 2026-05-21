@@ -141,6 +141,13 @@ This documentation provides deep technical insights beyond what's covered in thi
 - Dragging nodes **auto-pushes** away adjacent nodes to prevent overlap
 - Node expand button `>>` for quick output/config access
 
+### 🎯 Node Style System
+
+- **Rect Nodes** (default): Standard rectangular style with full anchors, expand button, status indicators
+- **Dot Nodes**: Compact circular style with three-layer z-architecture (indicator > input > output), text below left-aligned
+- **Style Persistence**: Each node's style auto-saved to `canvas_layout.json`, fully restored on restart
+- **Selection Ring**: Dot nodes display a floating selection ring (z=10) on selection
+
 ### 📂 Project Management
 
 - **VSCode-like Workflow**: Open folder as project, auto-detect `nodes/` directory
@@ -239,6 +246,7 @@ This documentation provides deep technical insights beyond what's covered in thi
 | **Entry Point** | `bnos_gui.py` | Initialize QApplication, launch MainWindow |
 | **Main Window** | `ui/main_window.py` | Integrate UI components, AppConfig, Toast, node data |
 | **Canvas** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
+| **Node Styles** | `ui/canvas/items/node_style.py` | Node style system (rect/dot), 3-layer z-architecture |
 | **Node List** | `ui/panels/node_list_panel.py` | Tree view, groups, drag-drop, multi-select |
 | **Property Panel** | `ui/panels/property_panel.py` | Config editor, log viewer, process control, colors |
 | **Expand Panel** | `ui/panels/node_expand_panel.py` | output.json viewer/editor with live refresh |
@@ -499,6 +507,10 @@ BNOS/
 │   ├── canvas_widget.py          # Compatibility layer (Facade, 15 lines)
 │   │
 │   ├── core/                      # Core components
+│   │   ├── app_config.py         # App config persistence
+│   │   ├── theme.py              # Dark QSS theme
+│   │   ├── node_process.py       # Node process management
+│   │   ├── dark_title_bar.py     # VSCode-style title bar
 │   │   ├── floating_panel.py     # Floating panel base class
 │   │   ├── logger.py             # Global logger (console + file)
 │   │   └── toast/                # Toast notification system
@@ -510,10 +522,14 @@ BNOS/
 │   ├── canvas/                    # Canvas engine
 │   │   ├── __init__.py
 │   │   ├── canvas_view.py        # NodeCanvas controller
+│   │   ├── canvas_colors.py      # Color management Mixin
+│   │   ├── canvas_layout.py      # Layout persistence Mixin
+│   │   ├── canvas_menus.py       # Context menu Mixin
 │   │   └── items/                # Graphics items
 │   │       ├── __init__.py
 │   │       ├── anchor_item.py    # Anchor (I/O port)
 │   │       ├── node_item.py      # Node container
+│   │       ├── node_style.py     # Node style system (rect/dot)
 │   │       └── edge_item.py      # Bezier curve edge
 │   │
 │   ├── panels/                    # Panels
@@ -541,11 +557,13 @@ BNOS/
 
 **Architecture Highlights**:
 - ✅ **Unified Floating Panels**: All windows share `FloatingPanel` base class
-- ✅ **Modular Canvas**: Split into items layer (UI) and core layer (business logic)
+- ✅ **Modular Canvas**: Split into Items/Core/Mixin multi-layer architecture
+- ✅ **Node Style System**: Abstract base class + implementations, rect/dot styles switchable
 - ✅ **Separation of Concerns**: UI rendering isolated from business logic
 - ✅ **Backward Compatible**: Old import paths still work via Facade pattern
 - ✅ **Extensible**: Easy to add custom node types and interactions
 - ✅ **Global Logger**: All print() migrated to logger (console + file)
+- ✅ **Lean Codebase**: `main_window.py` 935 lines, `canvas_view.py` ~1200 lines
 
 ### Extending BNOS
 
@@ -744,7 +762,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-05-17
+- **Last Updated**: 2026-05-21
 
 
 ---
