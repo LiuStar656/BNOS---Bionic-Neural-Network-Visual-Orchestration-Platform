@@ -55,7 +55,12 @@ class NodeCanvas(QGraphicsView):
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)  # 右键拖拽平移
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
-        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
+        
+        # 可视区域渲染优化：只更新变化区域 + 缓存网格背景
+        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
+        self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontSavePainterState, True)
+        self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontClipPainter, True)
+        self.setCacheMode(QGraphicsView.CacheModeFlag.CacheBackground)
         
         # ===== 颜色配置（支持自定义）=====
         self.canvas_bg_color = '#ffffff'          # 画布背景色
