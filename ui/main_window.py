@@ -265,23 +265,23 @@ class AppConfig:
                                 # 其他类型：直接覆盖
                                 self.config[key] = loaded[key]
                                 
-                print(f"✅ 配置已加载: {self.config_file}")
+                print(f"配置已加载: {self.config_file}")
             else:
-                print(f"ℹ️  配置文件不存在，使用默认配置")
+                print(f"配置文件不存在，使用默认配置")
                 
         except (json.JSONDecodeError, IOError) as e:
-            print(f"⚠️  配置文件损坏，重置为默认配置: {e}")
+            print(f"配置文件损坏，重置为默认配置: {e}")
             # 备份损坏的文件
             if os.path.exists(self.config_file):
                 backup_file = self.config_file + ".bak"
                 try:
                     import shutil
                     shutil.copy2(self.config_file, backup_file)
-                    print(f"📦 已备份损坏的配置: {backup_file}")
+                    print(f"已备份损坏的配置: {backup_file}")
                 except:
                     pass
         except Exception as e:
-            print(f"❌ 加载配置失败: {e}")
+            print(f"加载配置失败: {e}")
     
     def save(self):
         """保存配置 - 带异常处理"""
@@ -294,10 +294,10 @@ class AppConfig:
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=2, ensure_ascii=False)
                 
-            print(f"✅ 配置已保存: {self.config_file}")
+            print(f"配置已保存: {self.config_file}")
             
         except Exception as e:
-            print(f"❌ 保存配置失败: {e}")
+            print(f"保存配置失败: {e}")
     
     def get(self, key, default=None):
         """获取配置项"""
@@ -574,9 +574,9 @@ class BNOSMainWindow(QMainWindow):
             return
         
         print(f"\n{'='*60}")
-        print(f"🔄 刷新节点列表")
-        print(f"📁 项目路径: {project_path}")
-        print(f"📁 Nodes 目录: {nodes_dir}")
+        print(f"刷新节点列表")
+        print(f"项目路径: {project_path}")
+        print(f"Nodes 目录: {nodes_dir}")
         print(f"{'='*60}\n")
         
         # 扫描节点
@@ -619,17 +619,17 @@ class BNOSMainWindow(QMainWindow):
                     'status': 'stopped'
                 }
                 
-                print(f"✅ 加载节点: {node_name}")
+                print(f"加载节点: {node_name}")
                 print(f"   文件夹: {item}")
                 print(f"   路径: {node_path}")
                 print(f"   存在: {os.path.exists(node_path)}")
                 
             except Exception as e:
-                print(f"❌ 加载节点 {item} 失败: {e}")
+                print(f"加载节点 {item} 失败: {e}")
                 import traceback
                 traceback.print_exc()
         
-        print(f"\n✅ 共加载 {len(self.nodes_data)} 个节点\n")
+        print(f"\n共加载 {len(self.nodes_data)} 个节点\n")
         
         # 更新节点组管理器的项目路径（自动加载配置）
         self.node_list_panel.set_project_path(self.current_project_path)
@@ -676,7 +676,7 @@ class BNOSMainWindow(QMainWindow):
         # 检查是否支持该语言
         if not self.node_creator.has_creator(lang_key):
             self.show_toast(f"暂不支持创建 {language} 节点", "warning")
-            print(f"⚠️ 未注册的语言创建器: {lang_key}")
+            print(f"未注册的语言创建器: {lang_key}")
             print(f"   当前支持: {self.node_creator.get_supported_languages()}")
             return
         
@@ -710,7 +710,7 @@ class BNOSMainWindow(QMainWindow):
                     
                     try:
                         # 发送开始消息
-                        self.progress_signal.emit(f"🚀 开始创建 {self.display_language} 节点...")
+                        self.progress_signal.emit(f"开始创建 {self.display_language} 节点...")
                         
                         # 获取节点创建管理器实例
                         manager = NodeCreatorManager.get_instance()
@@ -752,7 +752,7 @@ class BNOSMainWindow(QMainWindow):
                 layout.setContentsMargins(15, 10, 15, 10)
                 
                 # 标题标签
-                self.title_label = QLabel("🔧 创建节点")
+                self.title_label = QLabel("创建节点")
                 self.title_label.setStyleSheet("""
                     QLabel {
                         color: white;
@@ -1144,16 +1144,16 @@ class BNOSMainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """窗口关闭事件，保存所有状态"""
-        print(f"🔍 开始关闭窗口检测...")
+        print(f"开始关闭窗口检测...")
         print(f"   当前项目: {self.current_project_path}")
         print(f"   节点总数: {len(self.nodes_data)}")
         
         # 等待节点创建线程完成（如果正在运行）
         if hasattr(self, 'node_creation_worker') and self.node_creation_worker.isRunning():
-            print("⏳ 等待节点创建线程完成...")
+            print("等待节点创建线程完成...")
             self.node_creation_worker.wait(5000)  # 最多等待5秒
             if self.node_creation_worker.isRunning():
-                print("⚠️ 节点创建线程超时，强制终止")
+                print("节点创建线程超时，强制终止")
                 self.node_creation_worker.terminate()
         
         # 检查是否有运行中的节点
@@ -1161,12 +1161,12 @@ class BNOSMainWindow(QMainWindow):
         for node_name, node_info in self.nodes_data.items():
             status = node_info.get('status', 'unknown')
             process = node_info.get('process', None)
-            print(f"   📌 节点 {node_name}: status={status}, process={'存在' if process else 'None'}")
+            print(f"   节点 {node_name}: status={status}, process={'存在' if process else 'None'}")
             
             if status == 'running' and process:
                 running_nodes.append(node_name)
         
-        print(f"   🔴 检测到 {len(running_nodes)} 个运行中的节点: {running_nodes}")
+        print(f"检测到 {len(running_nodes)} 个运行中的节点: {running_nodes}")
         
         # 如果有运行中的节点，提示用户
         if running_nodes:
@@ -1184,18 +1184,18 @@ class BNOSMainWindow(QMainWindow):
             
             if reply == QMessageBox.StandardButton.Yes:
                 # 用户选择关闭所有进程
-                print(f"🛑 正在关闭 {len(running_nodes)} 个运行中的节点...")
+                print(f"正在关闭 {len(running_nodes)} 个运行中的节点...")
                 self._force_stop_all_nodes(running_nodes)
                 self.show_toast(f"已关闭 {len(running_nodes)} 个节点", "success")
                 # 继续执行后续的保存和关闭逻辑
             elif reply == QMessageBox.StandardButton.No:
                 # 用户选择不关闭，让进程继续运行
-                print(f"ℹ️  {len(running_nodes)} 个节点将继续在后台运行")
+                print(f"{len(running_nodes)} 个节点将继续在后台运行")
                 self.show_toast(f"{len(running_nodes)} 个节点将在后台继续运行", "info")
                 # 继续执行后续的保存和关闭逻辑
             else:
                 # 用户选择取消，中止关闭操作
-                print("❌ 用户取消了关闭操作")
+                print("用户取消了关闭操作")
                 event.ignore()  # 忽略关闭事件，保持窗口打开
                 return
         
@@ -1208,7 +1208,7 @@ class BNOSMainWindow(QMainWindow):
         self.app_config.set("last_project", self.current_project_path)
         self.app_config.save()
         
-        print(f"✅ 窗口关闭流程完成")
+        print(f"窗口关闭流程完成")
         event.accept()
     
     def _force_stop_all_nodes(self, node_names):
@@ -1262,10 +1262,10 @@ class BNOSMainWindow(QMainWindow):
                 node_info['process'] = None
                 node_info['status'] = 'stopped'
                 
-                print(f"✅ 节点 {node_name} 已停止")
+                print(f"节点 {node_name} 已停止")
                 
             except Exception as e:
-                print(f"⚠️ 停止节点 {node_name} 时出错: {e}")
+                print(f"停止节点 {node_name} 时出错: {e}")
                 # 即使出错也清理引用
                 node_info['process'] = None
                 node_info['status'] = 'stopped'
@@ -1315,10 +1315,10 @@ class BNOSMainWindow(QMainWindow):
             # 7. 保存到文件
             self.app_config.save()
             
-            print("✅ 窗口状态已保存")
+            print("窗口状态已保存")
             
         except Exception as e:
-            print(f"⚠️  保存窗口状态失败: {e}")
+            print(f"保存窗口状态失败: {e}")
     
     def restore_window_state(self):
         """恢复窗口状态 - 完整布局还原"""
@@ -1356,10 +1356,10 @@ class BNOSMainWindow(QMainWindow):
                         self.node_list_panel.hide()
                         self.toggle_nodes_action.setChecked(False)
             
-            print("✅ 窗口状态已恢复")
+            print("窗口状态已恢复")
             
         except Exception as e:
-            print(f"⚠️  恢复窗口状态失败，使用默认布局: {e}")
+            print(f"恢复窗口状态失败，使用默认布局: {e}")
     
     def auto_open_last_project(self):
         """自动打开最后的项目 - 只加载数据，不自动添加节点到画布"""
@@ -1369,7 +1369,7 @@ class BNOSMainWindow(QMainWindow):
             if os.path.exists(nodes_dir):
                 self.current_project_path = last_project
                 
-                print(f"📂 自动打开项目: {last_project}")
+                print(f"自动打开项目: {last_project}")
                 
                 # 1. 刷新节点列表（加载所有节点数据）
                 self.refresh_nodes()

@@ -45,7 +45,7 @@ class NodeConfigDialog(QDialog):
         left_layout.setSpacing(10)
         
         # 上半部分：config.json 编辑器
-        config_group = QGroupBox("📋 config.json 配置")
+        config_group = QGroupBox("配置编辑")
         config_layout = QVBoxLayout(config_group)
         
         self.config_text = QTextEdit()
@@ -69,12 +69,12 @@ class NodeConfigDialog(QDialog):
         # config.json 操作按钮
         config_btn_layout = QHBoxLayout()
         
-        refresh_config_btn = QPushButton("🔄 刷新配置")
+        refresh_config_btn = QPushButton("刷新配置")
         refresh_config_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 5px 15px;")
         refresh_config_btn.clicked.connect(self.load_config_json)
         config_btn_layout.addWidget(refresh_config_btn)
         
-        save_config_btn = QPushButton("💾 保存配置")
+        save_config_btn = QPushButton("保存配置")
         save_config_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 5px 15px;")
         save_config_btn.clicked.connect(self.save_config_from_editor)
         config_btn_layout.addWidget(save_config_btn)
@@ -84,7 +84,7 @@ class NodeConfigDialog(QDialog):
         left_layout.addWidget(config_group, 1)  # 上半部分占据更多空间
         
         # 下半部分：logs 日志查看器
-        log_group = QGroupBox("📄 节点日志 (logs/)")
+        log_group = QGroupBox("节点日志")
         log_layout = QVBoxLayout(log_group)
         
         # 日志文件选择下拉框
@@ -131,12 +131,12 @@ class NodeConfigDialog(QDialog):
         # 日志操作按钮
         log_btn_layout = QHBoxLayout()
         
-        refresh_log_btn = QPushButton("🔄 刷新日志")
+        refresh_log_btn = QPushButton("刷新日志")
         refresh_log_btn.setStyleSheet("background-color: #9C27B0; color: white; padding: 5px 15px;")
         refresh_log_btn.clicked.connect(self.refresh_log_files)
         log_btn_layout.addWidget(refresh_log_btn)
         
-        clear_log_btn = QPushButton("🗑️ 清空日志")
+        clear_log_btn = QPushButton("清空日志")
         clear_log_btn.setStyleSheet("background-color: #FF5722; color: white; padding: 5px 15px;")
         clear_log_btn.clicked.connect(self.clear_current_log)
         log_btn_layout.addWidget(clear_log_btn)
@@ -152,7 +152,7 @@ class NodeConfigDialog(QDialog):
         right_layout.setSpacing(10)
         
         # 节点信息卡片
-        info_group = QGroupBox("ℹ️ 节点信息")
+        info_group = QGroupBox("节点信息")
         info_layout = QVBoxLayout(info_group)
         
         node_name_label = QLabel(f"名称: {self.node_name}")
@@ -167,17 +167,17 @@ class NodeConfigDialog(QDialog):
         right_layout.addWidget(info_group)
         
         # 节点控制按钮组
-        control_group = QGroupBox("🎮 节点控制")
+        control_group = QGroupBox("节点控制")
         control_layout = QVBoxLayout(control_group)
         
         # 启动按钮
-        start_btn = QPushButton("▶ 启动节点")
+        start_btn = QPushButton("启动节点")
         start_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 12px; font-weight: bold; font-size: 13px;")
         start_btn.clicked.connect(self.start_node)
         control_layout.addWidget(start_btn)
         
         # 停止按钮
-        stop_btn = QPushButton("⏹ 停止节点")
+        stop_btn = QPushButton("停止节点")
         stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 12px; font-weight: bold; font-size: 13px;")
         stop_btn.clicked.connect(self.stop_node)
         control_layout.addWidget(stop_btn)
@@ -187,23 +187,23 @@ class NodeConfigDialog(QDialog):
         right_layout.addWidget(control_group)
         
         # 快捷操作按钮组
-        quick_group = QGroupBox("🔧 快捷操作")
+        quick_group = QGroupBox("快捷操作")
         quick_layout = QVBoxLayout(quick_group)
         
         # 打开文件夹按钮
-        open_folder_btn = QPushButton("📁 打开节点文件夹")
+        open_folder_btn = QPushButton("打开目录")
         open_folder_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 10px;")
         open_folder_btn.clicked.connect(self.open_node_folder)
         quick_layout.addWidget(open_folder_btn)
         
         # 打开命令行按钮
-        open_terminal_btn = QPushButton("💻 打开命令行")
+        open_terminal_btn = QPushButton("打开终端")
         open_terminal_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px;")
         open_terminal_btn.clicked.connect(self.open_terminal)
         quick_layout.addWidget(open_terminal_btn)
         
         # 打开 VSCode 工作区按钮
-        open_vscode_btn = QPushButton("🔧 打开 VSCode")
+        open_vscode_btn = QPushButton("打开VSCode")
         open_vscode_btn.setStyleSheet("background-color: #007ACC; color: white; padding: 10px;")
         open_vscode_btn.clicked.connect(self.open_vscode_workspace)
         quick_layout.addWidget(open_vscode_btn)
@@ -453,11 +453,11 @@ class NodeConfigDialog(QDialog):
             # 打开命令行
             system = platform.system()
             if system == "Windows":
-                cmd = f'start cmd /k "cd /d {self.node_path} && call venv\\Scripts\\activate.bat && echo ✅ 已激活虚拟环境 && echo 📍 当前目录: %CD% && echo 🐍 Python路径: where python"'
+                cmd = f'start cmd /k "cd /d {self.node_path} && call venv\\Scripts\\activate.bat && echo 已激活虚拟环境 && echo 当前目录: %CD% && echo Python路径: where python"'
                 subprocess.Popen(cmd, shell=True)
             elif system == "Darwin":  # macOS
                 script = f'''tell application "Terminal"
-                    do script "cd '{self.node_path}' && source venv/bin/activate && echo '✅ 已激活虚拟环境' && echo '📍 当前目录: $PWD' && echo '🐍 Python路径: $(which python)'"
+                    do script "cd '{self.node_path}' && source venv/bin/activate && echo '已激活虚拟环境' && echo '当前目录: $PWD' && echo 'Python路径: $(which python)'"
                 end tell'''
                 subprocess.Popen(['osascript', '-e', script])
             else:  # Linux
@@ -465,7 +465,7 @@ class NodeConfigDialog(QDialog):
                 terminals = ['gnome-terminal', 'konsole', 'xterm']
                 for terminal in terminals:
                     try:
-                        cmd = f"cd '{self.node_path}' && source venv/bin/activate && echo '✅ 已激活虚拟环境' && exec bash"
+                        cmd = f"cd '{self.node_path}' && source venv/bin/activate && echo '已激活虚拟环境' && exec bash"
                         subprocess.Popen([terminal, '-e', f'bash -c "{cmd}"'])
                         break
                     except:
@@ -787,13 +787,13 @@ class PropertyPanel(QWidget):
         btn_row_layout = QVBoxLayout()
         
         # 启动按钮
-        start_btn = QPushButton("▶ 启动节点")
+        start_btn = QPushButton("启动节点")
         start_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px; font-weight: bold;")
         start_btn.clicked.connect(self.start_node)
         btn_row_layout.addWidget(start_btn)
         
         # 停止按钮
-        stop_btn = QPushButton("⏹ 停止节点")
+        stop_btn = QPushButton("停止节点")
         stop_btn.setStyleSheet("background-color: #f44336; color: white; padding: 8px; font-weight: bold;")
         stop_btn.clicked.connect(self.stop_node)
         btn_row_layout.addWidget(stop_btn)
@@ -802,7 +802,7 @@ class PropertyPanel(QWidget):
         self.content_layout.addWidget(control_group)
         
         # 保存按钮
-        save_btn = QPushButton("💾 保存配置")
+        save_btn = QPushButton("保存配置")
         save_btn.setStyleSheet("background-color: #2196F3; color: white; padding: 10px; font-weight: bold;")
         save_btn.clicked.connect(self.save_config)
         self.content_layout.addWidget(save_btn)
@@ -1011,7 +1011,7 @@ class ColorSettingsDialog(QDialog):
     def __init__(self, canvas, parent=None):
         super().__init__(parent)
         self.canvas = canvas
-        self.setWindowTitle("🎨 画布与节点颜色设置")
+        self.setWindowTitle("颜色设置")
         self.setGeometry(300, 200, 500, 600)
         
         self.init_ui()
@@ -1022,7 +1022,7 @@ class ColorSettingsDialog(QDialog):
         layout.setSpacing(15)
         
         # 标题
-        title = QLabel("🎨 自定义画布和节点外观")
+        title = QLabel("自定义外观")
         title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
@@ -1040,7 +1040,7 @@ class ColorSettingsDialog(QDialog):
         layout.addWidget(scroll)
         
         # ===== 画布背景色设置 =====
-        canvas_group = QGroupBox("🖼️ 画布背景")
+        canvas_group = QGroupBox("画布背景")
         canvas_layout = QFormLayout(canvas_group)
         
         # 画布背景色
@@ -1069,7 +1069,7 @@ class ColorSettingsDialog(QDialog):
         content_layout.addWidget(canvas_group)
         
         # ===== 节点样式设置 =====
-        node_group = QGroupBox("📦 节点样式")
+        node_group = QGroupBox("节点样式")
         node_layout = QFormLayout(node_group)
         
         # 节点背景色
@@ -1099,7 +1099,7 @@ class ColorSettingsDialog(QDialog):
         content_layout.addWidget(node_group)
         
         # ===== 锚点样式设置 =====
-        anchor_group = QGroupBox("🔘 锚点样式")
+        anchor_group = QGroupBox("锚点样式")
         anchor_layout = QFormLayout(anchor_group)
         
         # 输入锚点颜色
@@ -1117,7 +1117,7 @@ class ColorSettingsDialog(QDialog):
         content_layout.addWidget(anchor_group)
         
         # ===== 连线样式设置 =====
-        edge_group = QGroupBox("🔗 连线样式")
+        edge_group = QGroupBox("连线样式")
         edge_layout = QFormLayout(edge_group)
         
         # 连线颜色
@@ -1135,28 +1135,28 @@ class ColorSettingsDialog(QDialog):
         content_layout.addWidget(edge_group)
         
         # ===== 预设主题 =====
-        theme_group = QGroupBox("🎭 快速主题")
+        theme_group = QGroupBox("快速主题")
         theme_layout = QVBoxLayout(theme_group)
         
         theme_btn_layout = QVBoxLayout()
         
         # 浅色主题
-        light_theme_btn = QPushButton("☀️ 浅色主题")
+        light_theme_btn = QPushButton("浅色主题")
         light_theme_btn.clicked.connect(lambda: self.apply_preset_theme('light'))
         theme_btn_layout.addWidget(light_theme_btn)
         
         # 深色主题
-        dark_theme_btn = QPushButton("🌙 深色主题")
+        dark_theme_btn = QPushButton("深色主题")
         dark_theme_btn.clicked.connect(lambda: self.apply_preset_theme('dark'))
         theme_btn_layout.addWidget(dark_theme_btn)
         
         # 蓝色科技主题
-        blue_theme_btn = QPushButton("💙 蓝色科技")
+        blue_theme_btn = QPushButton("蓝色科技")
         blue_theme_btn.clicked.connect(lambda: self.apply_preset_theme('blue'))
         theme_btn_layout.addWidget(blue_theme_btn)
         
         # 绿色自然主题
-        green_theme_btn = QPushButton("💚 绿色自然")
+        green_theme_btn = QPushButton("绿色自然")
         green_theme_btn.clicked.connect(lambda: self.apply_preset_theme('green'))
         theme_btn_layout.addWidget(green_theme_btn)
         
@@ -1168,13 +1168,13 @@ class ColorSettingsDialog(QDialog):
         button_layout = QVBoxLayout()
         
         # 应用按钮
-        apply_btn = QPushButton("✅ 应用更改")
+        apply_btn = QPushButton("应用更改")
         apply_btn.setStyleSheet("background-color: #4CAF50; color: white; padding: 10px; font-weight: bold;")
         apply_btn.clicked.connect(self.apply_settings)
         button_layout.addWidget(apply_btn)
         
         # 重置按钮
-        reset_btn = QPushButton("🔄 恢复默认")
+        reset_btn = QPushButton("恢复默认")
         reset_btn.setStyleSheet("background-color: #FF9800; color: white; padding: 10px;")
         reset_btn.clicked.connect(self.reset_to_default)
         button_layout.addWidget(reset_btn)
@@ -1329,7 +1329,7 @@ class ColorSettingsDialog(QDialog):
             # 应用到画布
             self.canvas.apply_color_settings(settings)
             
-            QMessageBox.information(self, "成功", "✅ 颜色设置已应用")
+            QMessageBox.information(self, "成功", "颜色设置已应用")
             self.accept()
             
         except Exception as e:
@@ -1369,4 +1369,4 @@ class ColorSettingsDialog(QDialog):
         self.edge_color_btn.setStyleSheet(f"background-color: {default_settings['edge_color']}; min-height: 30px;")
         self.edge_width_spinbox.setValue(default_settings['edge_width'])
         
-        QMessageBox.information(self, "提示", "🔄 已恢复默认颜色设置")
+        QMessageBox.information(self, "提示", "已恢复默认颜色设置")

@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QPointF, QRectF, QTimer
 from PyQt6.QtGui import (
     QPainter, QPen, QColor, QBrush, QFont, QPainterPath,
-    QPolygonF
+    QPolygonF, QAction
 )
 
 from ui.canvas.items.node_item import NodeItem
@@ -289,7 +289,7 @@ class NodeCanvas(QGraphicsView):
             # 如果点击的不是锚点，取消连线
             if not isinstance(item, AnchorItem):
                 self.cancel_connection()
-                print("❌ 取消连线")
+                print("取消连线")
                 event.accept()
                 return
         
@@ -301,7 +301,7 @@ class NodeCanvas(QGraphicsView):
             # 如果点击的是节点、连线或锚点，不进入平移模式，让NodeItem自己处理Ctrl+Click多选
             if item is not None and (isinstance(item, NodeItem) or isinstance(item, EdgeItem) or isinstance(item, AnchorItem)):
                 # 不调用 super()，直接返回，让子项处理
-                print(f"🎯 点击了交互项，交给子项处理")
+                print("点击了交互项，交给子项处理")
                 return
             
             # 点击空白区域，进入平移模式（第二阶段）
@@ -314,7 +314,7 @@ class NodeCanvas(QGraphicsView):
             for node in self.nodes.values():
                 node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
             
-            print(f"🖐️ 进入平移模式（空格模式+左键）")
+            print("进入平移模式（空格模式+左键）")
             event.accept()
             return
         
@@ -340,7 +340,7 @@ class NodeCanvas(QGraphicsView):
                 # 清除当前单选
                 self.clear_selection()
                 
-                print(f"📦 开始框选")
+                print("开始框选")
                 event.accept()
                 return
 
@@ -365,7 +365,7 @@ class NodeCanvas(QGraphicsView):
             for node in self.nodes.values():
                 node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
             
-            print("✋ 退出平移模式")
+            print("退出平移模式")
             
             # 自动保存布局（包含视图状态）
             if self.parent_window and self.parent_window.current_project_path:
@@ -387,9 +387,9 @@ class NodeCanvas(QGraphicsView):
             self.box_select_start_pos = None
             
             if self.box_selected_nodes:
-                print(f"✅ 结束框选，选中 {len(self.box_selected_nodes)} 个节点: {self.box_selected_nodes}")
+                print(f"结束框选，选中 {len(self.box_selected_nodes)} 个节点: {self.box_selected_nodes}")
             else:
-                print("✅ 结束框选，未选中节点")
+                print("结束框选，未选中节点")
             
             event.accept()
             return
@@ -404,7 +404,7 @@ class NodeCanvas(QGraphicsView):
         # 如果双击的是节点，打开配置对话框
         if isinstance(item, NodeItem):
             node_name = item.node_name
-            print(f"🖱️ 双击节点: {node_name}，打开配置对话框")
+            print(f"双击节点: {node_name}，打开配置对话框")
             
             # 调用打开配置的方法
             self.open_node_config(node_name)
@@ -428,7 +428,7 @@ class NodeCanvas(QGraphicsView):
             # 首次按下空格（非自动重复），进入空格快捷键模式
             self.is_space_pressed = True
             self.space_mode_active = True
-            print("⌨️ 进入空格快捷键模式")
+            print("进入空格快捷键模式")
             
             # 显示手型光标提示
             if not self.is_pan_mode:
@@ -461,11 +461,11 @@ class NodeCanvas(QGraphicsView):
                 for node in self.nodes.values():
                     node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
                 
-                print("✋ 退出平移模式（空格键释放）")
+                print("退出平移模式（空格键释放）")
             else:
                 self.setCursor(Qt.CursorShape.ArrowCursor)
             
-            print("⌨️ 退出空格快捷键模式")
+            print("退出空格快捷键模式")
             
             event.accept()
             return
@@ -504,7 +504,7 @@ class NodeCanvas(QGraphicsView):
         self.scene.addItem(node)
         self.nodes[node_name] = node  # 添加到nodes字典
         
-        print(f"✅ 节点 '{node_name}' 已添加到画布 (位置: {x}, {y})")
+        print(f"节点 '{node_name}' 已添加到画布 (位置: {x}, {y})")
         
     def remove_node_from_canvas(self, node_name):
         """从画布移除节点"""
@@ -540,34 +540,34 @@ class NodeCanvas(QGraphicsView):
             
             # 显示选中数量
             count = len(self.box_selected_nodes)
-            menu_title = menu.addAction(f"📦 已选中 {count} 个节点")
+            menu_title = menu.addAction(f"已选 {count} 个节点")
             menu_title.setEnabled(False)  # 禁用标题
             menu.addSeparator()
             
             # 批量启动
-            start_action = menu.addAction(f"▶️ 启动已选节点 ({count})")
+            start_action = menu.addAction(f"启动已选节点 ({count})")
             start_action.triggered.connect(self.batch_start_selected_nodes)
             
             # 批量停止
-            stop_action = menu.addAction(f"⏹️ 停止已选节点 ({count})")
+            stop_action = menu.addAction(f"停止已选节点 ({count})")
             stop_action.triggered.connect(self.batch_stop_selected_nodes)
             
             menu.addSeparator()
             
             # 批量从画布移除（不删除文件）
-            remove_action = menu.addAction(f"🗑️ 从画布移除已选节点 ({count})")
+            remove_action = menu.addAction(f"移除已选节点 ({count})")
             remove_action.triggered.connect(self.batch_remove_nodes_from_canvas)
             
             menu.addSeparator()
             
             # 清除连线配置
-            clear_config_action = menu.addAction("🔗 清除已选节点的连线配置")
+            clear_config_action = menu.addAction("清除连线配置")
             clear_config_action.triggered.connect(self.batch_clear_listen_config)
             
             menu.addSeparator()
             
             # 清除选择
-            clear_selection_action = menu.addAction("❌ 清除选择")
+            clear_selection_action = menu.addAction("清除选择")
             clear_selection_action.triggered.connect(self.clear_box_selection)
             
             menu.exec(event.globalPos())
@@ -585,28 +585,28 @@ class NodeCanvas(QGraphicsView):
                 
                 # 启动/停止节点（根据状态动态显示）
                 if is_running:
-                    stop_action = menu.addAction("⏹️ 停止节点")
+                    stop_action = menu.addAction("停止节点")
                     stop_action.triggered.connect(lambda: self.stop_single_node(node_name))
                 else:
-                    start_action = menu.addAction("▶️ 启动节点")
+                    start_action = menu.addAction("启动节点")
                     start_action.triggered.connect(lambda: self.start_single_node(node_name))
                 
                 menu.addSeparator()
             
             # 删除节点
-            delete_action = menu.addAction("🗑️ 从画布删除节点")
+            delete_action = menu.addAction("从画布删除")
             delete_action.triggered.connect(lambda: self.remove_node_with_cleanup(item.node_name))
             
             menu.addSeparator()
             
             # 打开配置对话框
-            config_action = menu.addAction("⚙️ 打开配置")
+            config_action = menu.addAction("节点配置")
             config_action.triggered.connect(lambda: self.open_node_config(item.node_name))
             
             menu.addSeparator()
             
             # 节点颜色设置子菜单
-            color_menu = menu.addMenu("🎨 节点颜色")
+            color_menu = menu.addMenu("节点颜色")
             
             bg_color_action = color_menu.addAction("背景颜色")
             bg_color_action.triggered.connect(lambda: self.change_node_background_color(item))
@@ -622,25 +622,38 @@ class NodeCanvas(QGraphicsView):
             # 点击空白区域，显示画布菜单
             menu = QMenu(self)
             
+            # 新建节点子菜单
+            new_node_menu = menu.addMenu("新建节点")
+            
+            languages = ["Python", "Node.js", "Go", "Java", "C++", "Rust", "Shell"]
+            for lang in languages:
+                action = QAction(lang, self)
+                action.triggered.connect(
+                    lambda checked=None, language=lang: self.parent_window.create_new_node_with_language(language)
+                )
+                new_node_menu.addAction(action)
+            
+            menu.addSeparator()
+            
             # 清空所有连线
-            clear_edges_action = menu.addAction("🧹 清空所有连线")
+            clear_edges_action = menu.addAction("清空连线")
             clear_edges_action.triggered.connect(self.clear_edges)
             
             menu.addSeparator()
             
             # 重置视图
-            reset_view_action = menu.addAction("🔍 重置视图")
+            reset_view_action = menu.addAction("重置视图")
             reset_view_action.triggered.connect(self.reset_view)
             
             menu.addSeparator()
             
             # 画布颜色设置子菜单
-            color_menu = menu.addMenu("🎨 画布颜色")
+            color_menu = menu.addMenu("画布颜色")
             
-            canvas_bg_action = color_menu.addAction("画布背景色")
+            canvas_bg_action = color_menu.addAction("背景颜色")
             canvas_bg_action.triggered.connect(self.change_canvas_background_color)
             
-            grid_color_action = color_menu.addAction("网格线颜色")
+            grid_color_action = color_menu.addAction("网格颜色")
             grid_color_action.triggered.connect(self.change_grid_color)
             
             edge_color_action = color_menu.addAction("连线颜色")
@@ -1400,7 +1413,7 @@ class NodeCanvas(QGraphicsView):
             self.scene.removeItem(self.temp_edge)
             self.temp_edge = None
             
-        print("🗑️ 画布已清空")
+        print("画布已清空")
 
     def rename_node_in_canvas(self, old_name, new_name):
         """在画布中重命名节点"""

@@ -67,7 +67,6 @@ class MenuManager:
         # ========== 编辑菜单 ==========
         edit_menu = menubar.addMenu("编辑(&E)")
         
-        # 新建节点子菜单
         new_node_menu = edit_menu.addMenu("新建节点")
         
         # 为每种语言添加子菜单项
@@ -157,7 +156,7 @@ class MenuManager:
         # 检查是否支持该语言
         if not main_window.node_creator.has_creator(lang_key):
             main_window.show_toast(f"暂不支持创建 {language} 节点", "warning")
-            print(f"⚠️ 未注册的语言创建器: {lang_key}")
+            print(f"未注册的语言创建器: {lang_key}")
             print(f"   当前支持: {main_window.node_creator.get_supported_languages()}")
             return
         

@@ -23,12 +23,12 @@ def main():
     
     except KeyboardInterrupt:
         # 用户按下 Ctrl+C，优雅退出
-        print("\n\n👋 BNOS 已安全关闭")
+        print("\n\nBNOS 已安全关闭")
         sys.exit(0)
     
     except Exception as e:
         # 其他未预期异常
-        print(f"\n❌ BNOS 发生错误: {e}")
+        print(f"\nBNOS 发生错误: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

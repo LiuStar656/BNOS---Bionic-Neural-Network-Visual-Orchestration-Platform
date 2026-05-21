@@ -53,7 +53,7 @@ class NodeCreatorManager:
         # 自动注册内置的创建器
         self._register_builtin_creators()
         
-        print(f"✅ 节点创建管理器已初始化，支持的语言: {list(self._creators.keys())}")
+        print(f"节点创建管理器已初始化，支持的语言: {list(self._creators.keys())}")
     
     @classmethod
     def get_instance(cls) -> 'NodeCreatorManager':
@@ -80,9 +80,9 @@ class NodeCreatorManager:
                 # 注册创建函数
                 if hasattr(module, 'create_clean_node_with_empty_venv'):
                     self.register_creator("python", module.create_clean_node_with_empty_venv)
-                    print(f"✅ 已注册 Python 节点创建器")
+                    print(f"已注册 Python 节点创建器")
             except Exception as e:
-                print(f"⚠️ 注册 Python 创建器失败: {e}")
+                print(f"注册 Python 创建器失败: {e}")
         
         # 注册 Rust 节点创建器
         rust_creator_path = os.path.join(base_dir, "tools", "rust_create_node.py")
@@ -102,13 +102,13 @@ class NodeCreatorManager:
                         module.generate_node(node_name)
                     
                     self.register_creator("rust", rust_creator_wrapper)
-                    print(f"✅ 已注册 Rust 节点创建器")
+                    print(f"已注册 Rust 节点创建器")
                 elif hasattr(module, 'main'):
                     # 如果没有专门的创建函数，尝试适配 main 函数
                     self.register_creator("rust", lambda name: self._adapt_rust_main(module, name))
-                    print(f"✅ 已注册 Rust 节点创建器（适配器模式）")
+                    print(f"已注册 Rust 节点创建器（适配器模式）")
             except Exception as e:
-                print(f"⚠️ 注册 Rust 创建器失败: {e}")
+                print(f"注册 Rust 创建器失败: {e}")
     
     def _adapt_rust_main(self, module, node_name: str):
         """适配器：将 rust_create_node.py 的 main 函数适配为标准接口"""
@@ -137,14 +137,14 @@ class NodeCreatorManager:
             creator_func: 创建函数，签名为 func(node_name: str)
         """
         self._creators[language.lower()] = creator_func
-        print(f"📝 注册节点创建器: {language}")
+        print(f"注册节点创建器: {language}")
     
     def unregister_creator(self, language: str):
         """注销节点创建器"""
         lang = language.lower()
         if lang in self._creators:
             del self._creators[lang]
-            print(f"❌ 注销节点创建器: {language}")
+            print(f"注销节点创建器: {language}")
     
     def create_node(self, language: str, node_name: str) -> bool:
         """
@@ -161,28 +161,28 @@ class NodeCreatorManager:
         
         # 检查是否支持该语言
         if lang not in self._creators:
-            print(f"❌ 不支持的语言类型: {language}")
+            print(f"不支持的语言类型: {language}")
             print(f"   支持的语言: {list(self._creators.keys())}")
             return False
         
         # 验证节点名称
         if not node_name or not node_name.strip():
-            print("❌ 节点名称不能为空")
+            print("节点名称不能为空")
             return False
         
         import re
         if not re.match(r'^[a-zA-Z0-9_-]+$', node_name):
-            print("❌ 节点名称只能包含字母、数字、下划线和连字符")
+            print("节点名称只能包含字母、数字、下划线和连字符")
             return False
         
         try:
-            print(f"🚀 开始创建 {lang.upper()} 节点: {node_name}")
+            print(f"开始创建 {lang.upper()} 节点: {node_name}")
             creator_func = self._creators[lang]
             creator_func(node_name)
-            print(f"✅ {lang.upper()} 节点创建成功: {node_name}")
+            print(f"{lang.upper()} 节点创建成功: {node_name}")
             return True
         except Exception as e:
-            print(f"❌ 创建节点失败: {e}")
+            print(f"创建节点失败: {e}")
             import traceback
             traceback.print_exc()
             return False

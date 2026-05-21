@@ -68,7 +68,7 @@ class NodeListPanel(QDialog):
         
         # 标题栏（可拖动）
         title_layout = QHBoxLayout()
-        title_label = QLabel("📋 节点列表")
+        title_label = QLabel("节点列表")
         title_label.setFont(QFont("Arial", 11, QFont.Weight.Bold))
         title_label.setStyleSheet("color: white;")
         title_layout.addWidget(title_label)
@@ -100,7 +100,7 @@ class NodeListPanel(QDialog):
         layout.addWidget(self.path_label)
         
         # 提示文本
-        hint_label = QLabel("💡 右键查看更多操作")
+        hint_label = QLabel("右键查看操作")
         hint_label.setStyleSheet("color: rgba(255, 255, 255, 100); font-size: 10px; font-style: italic; padding: 2px 0;")
         layout.addWidget(hint_label)
         
@@ -323,7 +323,7 @@ class NodeListPanel(QDialog):
         # 添加各个组（平行关系，无嵌套）
         for group_name, group_info in sorted(groups.items()):
             group_item = QTreeWidgetItem(self.node_tree)
-            group_item.setText(0, f"📁 {group_name} ({len(group_info['nodes'])})")
+            group_item.setText(0, f"{group_name} ({len(group_info['nodes'])})")
             group_item.setForeground(0, QColor(group_info.get('color', '#4A90E2')))
             group_item.setFont(0, QFont("Arial", 10, QFont.Weight.Bold))
             
@@ -606,23 +606,23 @@ class NodeListPanel(QDialog):
         menu = QMenu(self)
         
         # 创建新组
-        create_group_action = menu.addAction("➕ 创建新组")
+        create_group_action = menu.addAction("创建分组")
         create_group_action.triggered.connect(self.create_node_group)
         
         menu.addSeparator()
         
         # 全选
-        select_all_action = menu.addAction("☑️ 全选节点")
+        select_all_action = menu.addAction("全选节点")
         select_all_action.triggered.connect(self.select_all_nodes)
         
         # 取消选择
-        deselect_all_action = menu.addAction("⬜ 取消选择")
+        deselect_all_action = menu.addAction("取消选择")
         deselect_all_action.triggered.connect(self.deselect_all_nodes)
         
         menu.addSeparator()
         
         # 刷新列表
-        refresh_action = menu.addAction("🔄 刷新列表")
+        refresh_action = menu.addAction("刷新列表")
         refresh_action.triggered.connect(lambda: self.update_node_list(self.nodes_data))
         
         menu.exec(self.node_tree.mapToGlobal(position))
@@ -633,17 +633,17 @@ class NodeListPanel(QDialog):
         
         # 如果选中了多个节点，只显示批量操作菜单
         if len(selected_nodes) > 1 and node_name in selected_nodes:
-            menu.addAction(f"📌 已选中 {len(selected_nodes)} 个节点").setEnabled(False)
+            menu.addAction(f"已选 {len(selected_nodes)} 个节点").setEnabled(False)
             menu.addSeparator()
             
             # 批量添加到画布
-            batch_add_action = menu.addAction(f"➕ 添加选中的 {len(selected_nodes)} 个节点到画布")
+            batch_add_action = menu.addAction(f"添加 {len(selected_nodes)} 个节点到画布")
             batch_add_action.triggered.connect(self.batch_add_nodes_to_canvas)
             
             menu.addSeparator()
             
             # 批量移动到组
-            move_to_group_menu = menu.addMenu("📁 批量移动到组")
+            move_to_group_menu = menu.addMenu("移动分组")
             groups = self.group_manager.get_all_groups()
             if groups:
                 for group_name in sorted(groups.keys()):
@@ -655,50 +655,50 @@ class NodeListPanel(QDialog):
             # 从组移除（如果选中的节点都在同一个组）
             common_group = self._get_common_group(selected_nodes)
             if common_group:
-                remove_from_group_action = menu.addAction(f"❌ 从组 '{common_group}' 移除所有选中节点")
+                remove_from_group_action = menu.addAction(f"从组 '{common_group}' 移除选中节点")
                 remove_from_group_action.triggered.connect(lambda: self.batch_remove_nodes_from_group(common_group))
             
             menu.addSeparator()
             
             # 批量启动
-            batch_start_action = menu.addAction(f"▶️ 启动选中的 {len(selected_nodes)} 个节点")
+            batch_start_action = menu.addAction(f"启动 {len(selected_nodes)} 个节点")
             batch_start_action.triggered.connect(self.batch_start_nodes)
             
             # 批量停止
-            batch_stop_action = menu.addAction(f"⏹️ 停止选中的 {len(selected_nodes)} 个节点")
+            batch_stop_action = menu.addAction(f"停止 {len(selected_nodes)} 个节点")
             batch_stop_action.triggered.connect(self.batch_stop_nodes)
             
             menu.addSeparator()
             
             # 批量打开文件夹
-            batch_open_folder_action = menu.addAction(f"📁 打开选中的 {len(selected_nodes)} 个节点文件夹")
+            batch_open_folder_action = menu.addAction(f"打开 {len(selected_nodes)} 个节点目录")
             batch_open_folder_action.triggered.connect(self.batch_open_node_folders)
             
             # 批量查看日志
-            batch_view_log_action = menu.addAction(f"📄 查看选中的 {len(selected_nodes)} 个节点日志")
+            batch_view_log_action = menu.addAction(f"查看 {len(selected_nodes)} 个节点日志")
             batch_view_log_action.triggered.connect(self.batch_view_node_logs)
             
             menu.addSeparator()
             
             # 批量编辑配置
-            batch_edit_config_action = menu.addAction(f"⚙️ 编辑选中的 {len(selected_nodes)} 个节点配置")
+            batch_edit_config_action = menu.addAction(f"编辑 {len(selected_nodes)} 个节点配置")
             batch_edit_config_action.triggered.connect(self.batch_edit_node_configs)
             
             menu.addSeparator()
             
             # 批量删除
-            batch_delete_action = menu.addAction(f"🗑️ 删除选中的 {len(selected_nodes)} 个节点")
+            batch_delete_action = menu.addAction(f"删除 {len(selected_nodes)} 个节点")
             batch_delete_action.triggered.connect(self.batch_delete_nodes)
         
         else:
             # 单个节点操作
-            add_to_canvas_action = menu.addAction("➕ 添加到画布")
+            add_to_canvas_action = menu.addAction("添加画布")
             add_to_canvas_action.triggered.connect(lambda: self.add_node_to_canvas(node_name))
             
             menu.addSeparator()
             
             # 移动到组
-            move_to_group_menu = menu.addMenu("📁 移动到组")
+            move_to_group_menu = menu.addMenu("移动分组")
             groups = self.group_manager.get_all_groups()
             if groups:
                 for group_name in sorted(groups.keys()):
@@ -710,7 +710,7 @@ class NodeListPanel(QDialog):
             # 从组移除
             current_group = self.group_manager.get_node_group(node_name)
             if current_group:
-                remove_from_group_action = menu.addAction(f"❌ 从组 '{current_group}' 移除")
+                remove_from_group_action = menu.addAction(f"从组 '{current_group}' 移除")
                 remove_from_group_action.triggered.connect(lambda: self.remove_node_from_group(node_name))
             
             menu.addSeparator()
@@ -718,36 +718,36 @@ class NodeListPanel(QDialog):
             # 启动/停止
             node_info = self.nodes_data.get(node_name, {})
             if node_info.get('status') == 'running':
-                stop_action = menu.addAction("⏹️ 停止节点")
+                stop_action = menu.addAction("停止节点")
                 stop_action.triggered.connect(lambda: self._stop_single_node(node_name))
             else:
-                start_action = menu.addAction("▶️ 启动节点")
+                start_action = menu.addAction("启动节点")
                 start_action.triggered.connect(lambda: self._start_single_node(node_name))
             
             menu.addSeparator()
             
             # 重命名节点
-            rename_action = menu.addAction("✏️ 重命名节点")
+            rename_action = menu.addAction("重命名节点")
             rename_action.triggered.connect(lambda: self.rename_node(node_name))
             
             menu.addSeparator()
             
             # 打开节点文件夹
-            open_folder_action = menu.addAction("📁 打开节点文件夹")
+            open_folder_action = menu.addAction("打开目录")
             open_folder_action.triggered.connect(lambda: self.open_node_folder(node_name))
             
             # 查看日志
-            view_log_action = menu.addAction("📄 查看日志")
+            view_log_action = menu.addAction("查看日志")
             view_log_action.triggered.connect(lambda: self.view_node_log(node_name))
             
             menu.addSeparator()
             
             # 编辑配置
-            edit_config_action = menu.addAction("⚙️ 编辑配置")
+            edit_config_action = menu.addAction("编辑配置")
             edit_config_action.triggered.connect(lambda: self.edit_node_config(node_name))
             
             # 删除节点
-            delete_action = menu.addAction("🗑️ 删除节点")
+            delete_action = menu.addAction("删除节点")
             delete_action.triggered.connect(lambda: self.delete_node(node_name))
     
     def _show_group_context_menu(self, menu, group_name):
@@ -755,7 +755,7 @@ class NodeListPanel(QDialog):
         group_nodes = self.group_manager.get_group_nodes(group_name)
         
         # 组信息
-        menu.addAction(f"📁 组: {group_name}").setEnabled(False)
+        menu.addAction(f"组: {group_name}").setEnabled(False)
         menu.addAction(f"   节点数: {len(group_nodes)}").setEnabled(False)
         menu.addSeparator()
         
@@ -764,27 +764,27 @@ class NodeListPanel(QDialog):
         stopped_count = len(group_nodes) - running_count
         
         if stopped_count > 0:
-            start_group_action = menu.addAction(f"▶️ 启动组内所有节点 ({stopped_count}个)")
+            start_group_action = menu.addAction(f"启动组内所有节点 ({stopped_count}个)")
             start_group_action.triggered.connect(lambda: self.start_group_nodes(group_name))
         
         if running_count > 0:
-            stop_group_action = menu.addAction(f"⏹️ 停止组内所有节点 ({running_count}个)")
+            stop_group_action = menu.addAction(f"停止组内所有节点 ({running_count}个)")
             stop_group_action.triggered.connect(lambda: self.stop_group_nodes(group_name))
         
         menu.addSeparator()
         
         # 重命名组
-        rename_group_action = menu.addAction("✏️ 重命名组")
+        rename_group_action = menu.addAction("重命名组")
         rename_group_action.triggered.connect(lambda: self.rename_group(group_name))
         
         # 删除组
-        delete_group_action = menu.addAction("🗑️ 删除组（保留节点）")
+        delete_group_action = menu.addAction("删除组")
         delete_group_action.triggered.connect(lambda: self.delete_group(group_name))
         
         menu.addSeparator()
         
         # 展开/折叠
-        expand_action = menu.addAction("📂 展开/折叠")
+        expand_action = menu.addAction("展开折叠")
         expand_action.triggered.connect(lambda: self.toggle_group_expansion(group_name))
     
     def _show_ungrouped_category_menu(self, menu):
@@ -792,26 +792,26 @@ class NodeListPanel(QDialog):
         all_nodes = list(self.nodes_data.keys())
         ungrouped_nodes = self.group_manager.get_ungrouped_nodes(all_nodes)
         
-        menu.addAction(f"📄 未分组节点").setEnabled(False)
+        menu.addAction(f"未分组节点").setEnabled(False)
         menu.addAction(f"   数量: {len(ungrouped_nodes)}").setEnabled(False)
         menu.addSeparator()
         
         # 批量启动未分组节点
         stopped_count = sum(1 for n in ungrouped_nodes if self.nodes_data.get(n, {}).get('status') == 'stopped')
         if stopped_count > 0:
-            start_ungrouped_action = menu.addAction(f"▶️ 启动所有未分组节点 ({stopped_count}个)")
+            start_ungrouped_action = menu.addAction(f"启动所有未分组节点 ({stopped_count}个)")
             start_ungrouped_action.triggered.connect(self.start_ungrouped_nodes)
         
         # 批量停止未分组节点
         running_count = sum(1 for n in ungrouped_nodes if self.nodes_data.get(n, {}).get('status') == 'running')
         if running_count > 0:
-            stop_ungrouped_action = menu.addAction(f"⏹️ 停止所有未分组节点 ({running_count}个)")
+            stop_ungrouped_action = menu.addAction(f"停止所有未分组节点 ({running_count}个)")
             stop_ungrouped_action.triggered.connect(self.stop_ungrouped_nodes)
         
         menu.addSeparator()
         
         # 创建新组并移动
-        create_and_move_action = menu.addAction("➕ 创建新组并移动这些节点")
+        create_and_move_action = menu.addAction("新建分组并移入")
         create_and_move_action.triggered.connect(lambda: self.create_group_from_ungrouped(ungrouped_nodes))
     
     def add_node_to_canvas(self, node_name):
