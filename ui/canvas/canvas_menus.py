@@ -112,5 +112,6 @@ class CanvasMenusMixin:
         node_item.setCacheMode(QGraphicsItem.CacheMode.NoCache)
         new_style.apply(node_item)
         new_style.apply_status(node_item, node_item.status)
+        node_item._update_selection_ring(node_item.isSelected())
         node_item.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
         node_item.update()

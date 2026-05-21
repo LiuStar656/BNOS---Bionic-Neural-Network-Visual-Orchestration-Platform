@@ -64,6 +64,11 @@ class NodeItem(QGraphicsRectItem):
         self._expand_label = QGraphicsTextItem(">>", self)
         self._expand_label.setZValue(3)
         
+        # 选中环（z=10，浮于节点本体之上）
+        self._selection_ring = QGraphicsEllipseItem(self)
+        self._selection_ring.setZValue(10)
+        self._selection_ring.setVisible(False)
+        
         # 应用样式
         self._style.apply(self)
         self._style.apply_status(self, status)
@@ -71,6 +76,30 @@ class NodeItem(QGraphicsRectItem):
         # 加载自定义颜色
         self._load_node_custom_colors()
         
+    def _update_selection_ring(self, selected):
+        """更新选中环 — 圆点画圆，方框画方，z=10 浮于节点之上"""
+        is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
+        if not selected:
+            self._selection_ring.setVisible(False)
+            return
+        
+        if is_dot and self._body:
+            r = self._body.rect().adjusted(-3, -3, 3, 3)
+            self._selection_ring.setRect(r)
+            self._selection_ring.setVisible(True)
+            self._selection_ring.setPen(QPen(QColor(self._style.selected_color), 
+                                             self._style.selected_border_width,
+                                             Qt.PenStyle.DashLine))
+            self._selection_ring.setBrush(Qt.BrushStyle.NoBrush)
+        else:
+            rect = self.rect()
+            self._selection_ring.setRect(rect)
+            self._selection_ring.setVisible(True)
+            self._selection_ring.setPen(QPen(QColor(self._style.selected_color),
+                                             self._style.selected_border_width,
+                                             Qt.PenStyle.DashLine))
+            self._selection_ring.setBrush(Qt.BrushStyle.NoBrush)
+    
     def update_status(self, status):
         """更新节点状态"""
         self.status = status
@@ -148,9 +177,11 @@ class NodeItem(QGraphicsRectItem):
             self.update_display(status=node_data['status'])
             
     def itemChange(self, change, value):
-        """监听节点位置变化，防止重叠、保存布局、更新连线"""
+        """监听节点变化：选中环显隐、防重叠、保存布局、更新连线"""
+        if change == QGraphicsItem.GraphicsItemChange.ItemSelectedChange:
+            self._update_selection_ring(value)
+        
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange:
-            # 防止节点重叠
             value = self._avoid_overlap(value)
         
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
@@ -204,27 +235,19 @@ class NodeItem(QGraphicsRectItem):
         return new_pos
         
     def paint(self, painter, option, widget=None):
-        """绘制节点 — 圆点样式画圆形选中框"""
-        from PyQt6.QtGui import QPen, QPainterPath
+        """绘制节点 — 选中环由 _selection_ring 处理（z=10 浮于节点之上）"""
         is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
         if is_dot:
-            # 圆点样式：不画 QGraphicsRectItem 的默认方框
+            # 圆点样式不画默认方框
+            # 选中环由 itemChange 控制 _selection_ring
             pass
         else:
-            # 方框样式：正常绘制
             super().paint(painter, option, widget)
-
-        # 选中时画圆形选中框（圆点用圆，方框用方）
-        if self.isSelected():
-            pen = QPen(QColor(self._style.selected_color), self._style.selected_border_width)
-            pen.setStyle(Qt.PenStyle.DashLine)
-            painter.setPen(pen)
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            if is_dot:
-                # 往外扩 3px，避免被圆点本体遮挡
-                r = self.rect().adjusted(-3, -3, 3, 3)
-                painter.drawEllipse(r)
-            else:
+            if self.isSelected():
+                pen = QPen(QColor(self._style.selected_color), self._style.selected_border_width)
+                pen.setStyle(Qt.PenStyle.DashLine)
+                painter.setPen(pen)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
                 painter.drawRect(self.rect())
     
     def mousePressEvent(self, event):
