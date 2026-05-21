@@ -221,7 +221,9 @@ class NodeItem(QGraphicsRectItem):
             painter.setPen(pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             if is_dot:
-                painter.drawEllipse(self.rect())
+                # 往外扩 3px，避免被圆点本体遮挡
+                r = self.rect().adjusted(-3, -3, 3, 3)
+                painter.drawEllipse(r)
             else:
                 painter.drawRect(self.rect())
     
