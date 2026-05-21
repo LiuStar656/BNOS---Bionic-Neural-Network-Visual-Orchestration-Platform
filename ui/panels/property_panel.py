@@ -10,32 +10,30 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout, QLineEdit, 
     QPushButton, QTextEdit, QGroupBox, QScrollArea, QMessageBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QDialog,
-    QDialogButtonBox, QColorDialog, QSlider, QSpinBox, QComboBox
+    QColorDialog, QSlider, QSpinBox, QComboBox,
+    QDialogButtonBox
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
 from ui.core.logger import logger
+from ui.core.floating_panel import FloatingPanel
 
 
-class NodeConfigDialog(QDialog):
+class NodeConfigDialog(FloatingPanel):
     """节点配置对话框（双击节点打开）"""
     
     def __init__(self, node_name, config, node_path, parent_window=None):
-        super().__init__(parent_window)
+        super().__init__(parent_window, title=f"节点配置: {node_name}")
         self.node_name = node_name
         self.config = config
         self.node_path = node_path
-        self.parent_window = parent_window
         
-        self.setWindowTitle(f"节点配置: {node_name}")
-        self.setGeometry(150, 150, 1200, 700)  # 横向矩形窗口
+        self.resize(950, 550)
+        self.setMinimumSize(700, 400)
+        self._init_ui()
         
-        self.init_ui()
-        
-    def init_ui(self):
+    def _init_ui(self):
         """初始化UI"""
-        layout = QVBoxLayout(self)
-        layout.setSpacing(10)
         
         # 主水平布局：左侧JSON编辑区 + 右侧控制区
         main_h_layout = QHBoxLayout()
@@ -215,12 +213,7 @@ class NodeConfigDialog(QDialog):
         
         main_h_layout.addLayout(right_layout, 1)  # 右侧占1份空间
         
-        layout.addLayout(main_h_layout)
-        
-        # 底部关闭按钮
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
+        self.content_layout.addLayout(main_h_layout)
     
     def start_node(self):
         """启动节点"""
@@ -235,7 +228,7 @@ class NodeConfigDialog(QDialog):
         try:
             # 使用主窗口的启动方法
             self.parent_window.start_selected_node_by_name(self.node_name)
-            self.accept()
+            self.close()
         except Exception as e:
             QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
     
@@ -1326,7 +1319,7 @@ class ColorSettingsDialog(QDialog):
             self.canvas.apply_color_settings(settings)
             
             QMessageBox.information(self, "成功", "颜色设置已应用")
-            self.accept()
+            self.close()
             
         except Exception as e:
             QMessageBox.critical(self, "错误", f"应用设置失败: {str(e)}")

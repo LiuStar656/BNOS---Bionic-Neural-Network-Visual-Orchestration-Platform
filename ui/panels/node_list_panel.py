@@ -9,12 +9,13 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont
 from ui.core.logger import logger
+from ui.core.floating_panel import FloatingPanel
 import subprocess
 import json
 import os
 
 
-class NodeListPanel(QDialog):
+class NodeListPanel(FloatingPanel):
     """节点列表面板（常驻半透明悬浮窗）- 精简版
     
     设计理念：极简UI，所有操作通过右键菜单完成
@@ -28,91 +29,37 @@ class NodeListPanel(QDialog):
     node_right_clicked = pyqtSignal(str, object)  # 节点右键信号
     
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.parent_window = parent
+        super().__init__(parent, title="节点列表")
         self.nodes_data = {}
         
         # 初始化节点组管理器
         from ui.panels.node_group_manager import NodeGroupManager
         self.group_manager = NodeGroupManager()
         
-        # 设置窗口标志：工具窗口、无边框（移除 WindowStaysOnTopHint 避免覆盖其他软件窗口）
-        self.setWindowFlags(
-            Qt.WindowType.Tool |
-            Qt.WindowType.FramelessWindowHint
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        # init_ui 使用基类的 content_layout
+        self._init_ui()
         
-        self.init_ui()
-        
-    def init_ui(self):
+    def _init_ui(self):
         """初始化UI - 极简设计"""
-        # 主布局
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-        
-        # 创建容器widget用于半透明背景
-        container = QWidget(self)
-        container.setObjectName("container")
-        container.setStyleSheet("""
-            QWidget#container {
-                background-color: rgba(30, 30, 30, 200);
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 30);
-            }
-        """)
-        
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
-        
-        # 标题栏（可拖动）
-        title_layout = QHBoxLayout()
-        title_label = QLabel("节点列表")
-        title_label.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        title_label.setStyleSheet("color: white;")
-        title_layout.addWidget(title_label)
-        title_layout.addStretch()
-        
-        # 最小化按钮
-        minimize_btn = QLabel("─")
-        minimize_btn.setStyleSheet("""
-            QLabel {
-                color: rgba(255, 255, 255, 150);
-                font-size: 16px;
-                padding: 0px 5px;
-            }
-            QLabel:hover {
-                color: white;
-                background-color: rgba(255, 255, 255, 30);
-                border-radius: 3px;
-            }
-        """)
-        minimize_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        minimize_btn.mousePressEvent = lambda e: self.showMinimized()
-        title_layout.addWidget(minimize_btn)
-        
-        layout.addLayout(title_layout)
         
         # 路径显示
         self.path_label = QLabel("未打开项目")
         self.path_label.setStyleSheet("color: rgba(255, 255, 255, 120); font-size: 9px; padding: 2px 0;")
-        layout.addWidget(self.path_label)
+        self.content_layout.addWidget(self.path_label)
         
         # 提示文本
         hint_label = QLabel("右键查看操作")
         hint_label.setStyleSheet("color: rgba(255, 255, 255, 100); font-size: 10px; font-style: italic; padding: 2px 0;")
-        layout.addWidget(hint_label)
+        self.content_layout.addWidget(hint_label)
         
         # 节点树形列表（支持分组显示、多选和拖拽）
         self.node_tree = QTreeWidget()
         self.node_tree.setHeaderHidden(True)
-        self.node_tree.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)  # 支持多选
-        self.node_tree.setDragEnabled(True)  # 启用拖拽
-        self.node_tree.setDragDropMode(QTreeWidget.DragDropMode.InternalMove)  # 允许内部移动
-        self.node_tree.setDefaultDropAction(Qt.DropAction.MoveAction)  # 默认动作为移动
-        self.node_tree.setAcceptDrops(True)  # 接受拖放
+        self.node_tree.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
+        self.node_tree.setDragEnabled(True)
+        self.node_tree.setDragDropMode(QTreeWidget.DragDropMode.InternalMove)
+        self.node_tree.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.node_tree.setAcceptDrops(True)
         self.node_tree.itemDoubleClicked.connect(self.on_node_double_clicked)
         self.node_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.node_tree.customContextMenuRequested.connect(self.show_context_menu)
@@ -148,9 +95,7 @@ class NodeListPanel(QDialog):
                 background-color: rgba(0, 102, 255, 100);
             }
         """)
-        layout.addWidget(self.node_tree)
-        
-        main_layout.addWidget(container)
+        self.content_layout.addWidget(self.node_tree)
         
         # 设置初始大小
         self.resize(280, 500)
@@ -1705,34 +1650,9 @@ class NodeListPanel(QDialog):
         if self.parent_window:
             self.parent_window.stop_selected_node_by_name(node_name)
     
-    # ==================== 鼠标拖动支持 ====================
-    
-    def mousePressEvent(self, event):
-        """鼠标按下事件 - 开始拖动"""
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
-            event.accept()
-    
-    def mouseMoveEvent(self, event):
-        """鼠标移动事件 - 拖动窗口"""
-        if event.buttons() == Qt.MouseButton.LeftButton and hasattr(self, 'drag_position'):
-            self.move(event.globalPosition().toPoint() - self.drag_position)
-            event.accept()
-    
-    def showEvent(self, event):
-        """窗口显示事件 - 不主动置顶，让系统自然管理窗口层级"""
-        super().showEvent(event)
-        # 不调用 activateWindow() 和 raise_()，避免覆盖其他应用窗口
-        # 让用户手动点击来激活窗口
-    
-    def focusOutEvent(self, event):
-        """失去焦点事件 - 不做特殊处理"""
-        super().focusOutEvent(event)
-    
+    # ==================== 鼠标拖动支持（继承自 FloatingPanel 基类）====================
+
     def set_project_path(self, project_path):
         """设置项目路径并加载节点组配置"""
         self.group_manager.set_project_path(project_path)
 
-
-# 需要导入os
-import os

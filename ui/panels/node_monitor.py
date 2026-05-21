@@ -6,11 +6,12 @@
 import os
 import subprocess
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTextEdit, QGroupBox, QWidget, QScrollArea, QMessageBox
 )
-from PyQt6.QtCore import Qt, QTimer, QRectF
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
+from ui.core.floating_panel import FloatingPanel
 
 
 class NodeLogSubPanel(QGroupBox):
@@ -223,99 +224,26 @@ class NodeLogSubPanel(QGroupBox):
         """)
 
 
-class NodeMonitor(QDialog):
+class NodeMonitor(FloatingPanel):
     """节点监测面板（浮动半透明悬浮窗）"""
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.parent_window = parent
-        self.drag_position = None
-        self._sub_panels = {}  # {node_name: NodeLogSubPanel}
-
-        # 窗口标志：与 NodeListPanel 一致
-        self.setWindowFlags(
-            Qt.WindowType.Tool |
-            Qt.WindowType.FramelessWindowHint
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        super().__init__(parent, title="节点监测")
+        self._sub_panels = {}
 
         self.resize(420, 600)
         self.setMinimumSize(320, 350)
-        self.init_ui()
+        self._init_ui()
 
         # 定时刷新子面板列表（每 3 秒检查画布节点变化）
         self._list_timer = QTimer(self)
         self._list_timer.timeout.connect(self._sync_panels)
         self._list_timer.start(3000)
 
-        # 首次同步
         self._sync_panels()
 
-    def init_ui(self):
+    def _init_ui(self):
         """初始化UI"""
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-
-        # 半透明深色容器
-        container = QWidget(self)
-        container.setObjectName("container")
-        container.setStyleSheet("""
-            QWidget#container {
-                background-color: rgba(30, 30, 30, 220);
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 25);
-            }
-        """)
-
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(6)
-
-        # ---- 标题栏 ----
-        title_layout = QHBoxLayout()
-        title_label = QLabel("节点监测")
-        title_label.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        title_label.setStyleSheet("color: white;")
-        title_layout.addWidget(title_label)
-        title_layout.addStretch()
-
-        minimize_btn = QLabel("-")
-        minimize_btn.setStyleSheet("""
-            QLabel {
-                color: rgba(255, 255, 255, 150);
-                font-size: 16px;
-                padding: 0px 5px;
-            }
-            QLabel:hover {
-                color: white;
-                background-color: rgba(255, 255, 255, 30);
-                border-radius: 3px;
-            }
-        """)
-        minimize_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        minimize_btn.mousePressEvent = lambda e: self.showMinimized()
-        title_layout.addWidget(minimize_btn)
-
-        close_btn = QLabel("x")
-        close_btn.setStyleSheet("""
-            QLabel {
-                color: rgba(255, 255, 255, 150);
-                font-size: 16px;
-                padding: 0px 5px;
-            }
-            QLabel:hover {
-                color: white;
-                background-color: rgba(255, 80, 80, 100);
-                border-radius: 3px;
-            }
-        """)
-        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        close_btn.mousePressEvent = lambda e: self._close()
-        title_layout.addWidget(close_btn)
-        layout.addLayout(title_layout)
-
-        # ---- 滚动区域 ----
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -346,15 +274,9 @@ class NodeMonitor(QDialog):
         self._panel_layout.addStretch()
 
         self._scroll.setWidget(self._panel_widget)
-        layout.addWidget(self._scroll, 1)
+        self.content_layout.addWidget(self._scroll, 1)
 
-        # 底部提示
-        hint = QLabel("日志每 2 秒自动刷新")
-        hint.setStyleSheet("color: rgba(255, 255, 255, 80); font-size: 9px; padding: 2px;")
-        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(hint)
-
-        main_layout.addWidget(container)
+        self.hint("日志每 2 秒自动刷新")
 
     # ==================== 同步逻辑 ====================
 
@@ -405,29 +327,12 @@ class NodeMonitor(QDialog):
             sub.deleteLater()
             del self._sub_panels[node_name]
 
-    # ==================== 拖动 ====================
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
-            event.accept()
-
-    def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.MouseButton.LeftButton and self.drag_position is not None:
-            self.move(event.globalPosition().toPoint() - self.drag_position)
-            event.accept()
+    # ==================== 拖动（继承自 FloatingPanel 基类）====================
 
     # ==================== 生命周期 ====================
 
-    def _close(self):
-        """关闭面板"""
+    def _on_close(self):
         for sub in self._sub_panels.values():
             sub.stop_timer()
         self._list_timer.stop()
-        self.close()
-
-    def closeEvent(self, event):
-        for sub in self._sub_panels.values():
-            sub.stop_timer()
-        self._list_timer.stop()
-        super().closeEvent(event)
+        super()._on_close()

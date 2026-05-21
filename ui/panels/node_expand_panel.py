@@ -6,24 +6,23 @@
 import os
 import json
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTextEdit, QGroupBox, QWidget, QMessageBox
+    QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QTextEdit, QGroupBox, QMessageBox
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
+from ui.core.floating_panel import FloatingPanel
 
 
-class NodeExpandPanel(QDialog):
+class NodeExpandPanel(FloatingPanel):
     """节点展开面板（浮动半透明悬浮窗，在节点旁展开）"""
 
     def __init__(self, node_name, parent_window=None):
-        super().__init__(parent_window)
+        super().__init__(parent_window, title="节点详情")
         self.node_name = node_name
-        self.parent_window = parent_window
         self._output_editable = False
-        self.drag_position = None  # 用于拖动
-        self._last_mtime = 0       # 上次 output.json 修改时间
-        self._auto_refresh = True  # 自动刷新开关
+        self._last_mtime = 0
+        self._auto_refresh = True
 
         # 获取节点数据
         self._node_info = None
@@ -32,16 +31,9 @@ class NodeExpandPanel(QDialog):
             self._node_info = parent_window.nodes_data[node_name]
             self._node_path = self._node_info.get('path', '')
 
-        # 窗口标志：与 NodeListPanel 一致
-        self.setWindowFlags(
-            Qt.WindowType.Tool |
-            Qt.WindowType.FramelessWindowHint
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-
         self.resize(620, 380)
         self.setMinimumSize(480, 300)
-        self.init_ui()
+        self._init_ui()
         self._load_output_json()
 
         # 自动刷新定时器（每 2 秒检测 output.json 变化）
@@ -50,74 +42,8 @@ class NodeExpandPanel(QDialog):
         self._refresh_timer.timeout.connect(self._auto_refresh_output)
         self._refresh_timer.start(2000)
 
-    def init_ui(self):
-        """初始化UI — 参照 NodeListPanel 的半透明容器设计"""
-        # 主布局（无边距，用于半透明背景）
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-
-        # 半透明深色容器
-        container = QWidget(self)
-        container.setObjectName("container")
-        container.setStyleSheet("""
-            QWidget#container {
-                background-color: rgba(30, 30, 30, 220);
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 25);
-            }
-        """)
-
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(6)
-
-        # ---- 标题栏（可拖动）----
-        title_layout = QHBoxLayout()
-        title_label = QLabel("节点详情")
-        title_label.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-        title_label.setStyleSheet("color: white;")
-        title_layout.addWidget(title_label)
-        title_layout.addStretch()
-
-        # 最小化按钮
-        minimize_btn = QLabel("-")
-        minimize_btn.setStyleSheet("""
-            QLabel {
-                color: rgba(255, 255, 255, 150);
-                font-size: 16px;
-                padding: 0px 5px;
-            }
-            QLabel:hover {
-                color: white;
-                background-color: rgba(255, 255, 255, 30);
-                border-radius: 3px;
-            }
-        """)
-        minimize_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        minimize_btn.mousePressEvent = lambda e: self.showMinimized()
-        title_layout.addWidget(minimize_btn)
-
-        # 关闭按钮
-        close_btn = QLabel("x")
-        close_btn.setStyleSheet("""
-            QLabel {
-                color: rgba(255, 255, 255, 150);
-                font-size: 16px;
-                padding: 0px 5px;
-            }
-            QLabel:hover {
-                color: white;
-                background-color: rgba(255, 80, 80, 100);
-                border-radius: 3px;
-            }
-        """)
-        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        close_btn.mousePressEvent = lambda e: self._close()
-        title_layout.addWidget(close_btn)
-        layout.addLayout(title_layout)
-
-        # ---- 主内容区：左右分栏 ----
+    def _init_ui(self):
+        """初始化UI — 使用基类 content_layout"""
         main_h_layout = QHBoxLayout()
         main_h_layout.setSpacing(8)
 
@@ -265,8 +191,7 @@ class NodeExpandPanel(QDialog):
 
         main_h_layout.addLayout(right_layout, 1)
 
-        layout.addLayout(main_h_layout)
-        main_layout.addWidget(container)
+        self.content_layout.addLayout(main_h_layout)
 
     # ==================== 功能方法 ====================
 
