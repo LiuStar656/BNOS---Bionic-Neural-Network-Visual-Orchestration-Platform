@@ -90,7 +90,7 @@ class NodeItem(QGraphicsRectItem):
             self._selection_ring.setPen(QPen(QColor(self._style.selected_color), 
                                              self._style.selected_border_width,
                                              Qt.PenStyle.DashLine))
-            self._selection_ring.setBrush(Qt.BrushStyle.NoBrush)
+            self._selection_ring.setBrush(QBrush())
         else:
             rect = self.rect()
             self._selection_ring.setRect(rect)
@@ -98,7 +98,7 @@ class NodeItem(QGraphicsRectItem):
             self._selection_ring.setPen(QPen(QColor(self._style.selected_color),
                                              self._style.selected_border_width,
                                              Qt.PenStyle.DashLine))
-            self._selection_ring.setBrush(Qt.BrushStyle.NoBrush)
+            self._selection_ring.setBrush(QBrush())
     
     def update_status(self, status):
         """更新节点状态"""
