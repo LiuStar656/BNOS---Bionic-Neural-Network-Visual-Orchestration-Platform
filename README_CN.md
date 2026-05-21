@@ -22,33 +22,7 @@
 
 ---
 
-## 🆕 最新更新 (2026-05-21)
-
-### 🎯 四项重大计划实施
-
-#### **1. 节点展开面板** 📤
-- 画布节点新增展开按钮（`>>`），以节点中心展开浮动面板
-- 左侧 output.json 可编辑 + 自动刷新，右侧启动/停止/配置/删除按钮
-- 文件: `ui/panels/node_expand_panel.py`
-
-#### **2. 节点监测面板** 📊
-- 全局实时日志查看器，每 2 秒自动刷新
-- 菜单栏新增「工具」→「节点监测」(Ctrl+Shift+M)
-- 文件: `ui/panels/node_monitor.py`
-
-#### **3. print → logging 迁移** 📝
-- 新建 `ui/core/logger.py`，9 文件 211 处 print 全部迁移
-- 日志文件 `logs/bnos_gui.log`（已 gitignore）
-
-#### **4. 浮动面板基类统一** 🪟
-- 新建 `ui/core/floating_panel.py` 基类
-- NodeListPanel / NodeConfigDialog / NodeMonitor / NodeExpandPanel 均继承
-- 统一无边框、半透明、拖动、标题栏
-
-#### **UI 精简**
-- 全部 Emoji 清除，按钮名称 2-4 字为主
-- 按钮颜色统一黑白灰
-- 框选判定修复（不再误触节点子元素）
+> 📋 **最新更新请查看**: [UPDATE_CN.md](UPDATE_CN.md)
 
 ---
 

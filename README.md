@@ -21,6 +21,10 @@
 
 ---
 
+> 📋 **See [UPDATE_EN.md](UPDATE_EN.md) for recent changes**
+
+---
+
 ## 🆕 Previous Updates (2026-05-18)
 
 ### ✨ New Features & Improvements
