@@ -188,14 +188,12 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
             for node_name, node in self.nodes.items():
                 node_rect = node.sceneBoundingRect()
                 if scene_rect.intersects(node_rect):
-                    # 高亮选中的节点
-                    selected_color = QColor(self.node_selected_color)
-                    node.setPen(QPen(selected_color, 3))
+                    node.setPen(QPen(QColor(self.node_selected_color), 3))
+                    node.setSelected(True)
                     self.box_selected_nodes.append(node_name)
                 else:
-                    # 恢复未选中节点的边框
-                    border_color = QColor(self.node_border_color)
-                    node.setPen(QPen(border_color, 2))
+                    node.setPen(QPen(QColor(self.node_border_color), 2))
+                    node.setSelected(False)
             
             event.accept()
             return
@@ -923,15 +921,25 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
             
     def on_node_selected(self, node):
         """普通单击选中节点（单选，清除之前的多选）"""
-        # 清除之前所有选中节点的高亮
+        # 如果点击的节点已在多选列表中，只取消其他节点的Qt选中,保留此节点可拖动
+        if node.node_name in self.box_selected_nodes:
+            # 确保它是唯一被Qt选中的项，支持拖动
+            for name in self.box_selected_nodes:
+                if name in self.nodes:
+                    self.nodes[name].setSelected(name == node.node_name)
+            return
+        
+        # 清除之前所有选中节点
         for name in self.box_selected_nodes:
             if name in self.nodes:
                 self.nodes[name].setPen(QPen(QColor(self.node_border_color), 2))
+                self.nodes[name].setSelected(False)
         self.box_selected_nodes = []
         
         # 选中当前节点
         self.box_selected_nodes.append(node.node_name)
         node.setPen(QPen(QColor(self.node_selected_color), 3))
+        node.setSelected(True)
         logger.info("选中节点: %s", node.node_name)
     
     def _toggle_node_selection(self, node_name):
@@ -941,18 +949,15 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         
         node = self.nodes[node_name]
         
-        # 检查节点是否已在框选列表中
         if node_name in self.box_selected_nodes:
-            # 取消选中：从列表中移除，恢复边框颜色
             self.box_selected_nodes.remove(node_name)
-            border_color = QColor(self.node_border_color)
-            node.setPen(QPen(border_color, 2))
+            node.setPen(QPen(QColor(self.node_border_color), 2))
+            node.setSelected(False)
             logger.debug("取消选中节点: %s", node_name)
         else:
-            # 选中：添加到列表，高亮边框
             self.box_selected_nodes.append(node_name)
-            selected_color = QColor(self.node_selected_color)
-            node.setPen(QPen(selected_color, 3))
+            node.setPen(QPen(QColor(self.node_selected_color), 3))
+            node.setSelected(True)
             logger.info("选中节点: %s (共%d个)", node_name, len(self.box_selected_nodes))
     
     def get_selected_node(self):
@@ -970,10 +975,10 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
             self.scene.removeItem(self.box_select_rect)
             self.box_select_rect = None
         
-        # 恢复所有节点的边框颜色
+        # 恢复所有节点的边框颜色并取消Qt选中
         for node_name, node in self.nodes.items():
-            border_color = QColor(self.node_border_color)
-            node.setPen(QPen(border_color, 2))
+            node.setPen(QPen(QColor(self.node_border_color), 2))
+            node.setSelected(False)
         
         # 清空选中列表
         self.box_selected_nodes = []
