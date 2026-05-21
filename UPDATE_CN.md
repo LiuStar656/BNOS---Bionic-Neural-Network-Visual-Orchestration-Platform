@@ -7,6 +7,17 @@
 
 ---
 
+## ⚡ 画布可视区域渲染优化 (2026-05-21)
+
+**修改文件**: `ui/canvas/canvas_view.py`
+
+- 视口更新模式从 `FullViewportUpdate` 改为 `SmartViewportUpdate`：只重绘变化区域，大幅减少无效绘制
+- 新增 `CacheBackground`：网格背景缓存，拖拽/缩放时无需重新绘制网格
+- 新增 `DontSavePainterState` / `DontClipPainter` 优化标志，减少 Qt 绘图管线开销
+- 画布平移、缩放、节点移动等操作的帧率和响应速度显著提升
+
+---
+
 ## 🎨 VSCode 风格深色无边框窗口 (2026-05-21)
 
 **新增组件**: `ui/core/dark_title_bar.py`
