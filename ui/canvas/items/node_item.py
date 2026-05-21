@@ -8,7 +8,7 @@ from PyQt6.QtGui import QPen, QColor, QBrush, QFont
 from ui.core.logger import logger
 
 from ui.canvas.items.anchor_item import AnchorItem
-from ui.canvas.items.node_style import DarkNodeStyle, LightNodeStyle
+from ui.canvas.items.node_style import DarkRectNodeStyle
 
 
 class NodeItem(QGraphicsRectItem):
@@ -24,7 +24,7 @@ class NodeItem(QGraphicsRectItem):
         self.canvas = canvas
         
         # 节点样式（默认深色）
-        self._style = style or DarkNodeStyle()
+        self._style = style or DarkRectNodeStyle()
         self._style.node_width = w
         self._style.node_height = h
         
