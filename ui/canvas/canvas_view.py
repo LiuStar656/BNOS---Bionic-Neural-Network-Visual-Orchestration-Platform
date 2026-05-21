@@ -647,6 +647,14 @@ class NodeCanvas(QGraphicsView):
                 new_node_menu.addAction(action)
             
             menu.addSeparator()
+
+            # 节点监测
+            monitor_action = menu.addAction("节点监测")
+            monitor_action.triggered.connect(
+                lambda: self.parent_window.show_node_monitor() if self.parent_window else None
+            )
+            
+            menu.addSeparator()
             
             # 清空所有连线
             clear_edges_action = menu.addAction("清空连线")

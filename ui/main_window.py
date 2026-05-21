@@ -373,18 +373,22 @@ class BNOSMainWindow(QMainWindow):
         self.node_list_panel.show()  # 默认显示
     
     def moveEvent(self, event):
-        """窗口移动事件 - 更新节点列表和Toast位置"""
+        """窗口移动事件 - 更新节点列表、监测面板和Toast位置"""
         super().moveEvent(event)
         
         # 更新节点列表面板位置（保持在窗口内部左上角）
         if hasattr(self, 'node_list_panel') and self.node_list_panel.isVisible():
-            # 计算相对于屏幕的绝对位置
-            # 获取主窗口在屏幕上的位置
             window_pos = self.pos()
-            # 节点列表应该在主窗口内部的左上角
-            panel_x = window_pos.x() + 20  # 主窗口左边 + 20px
-            panel_y = window_pos.y() + 100  # 主窗口顶部 + 100px（留出两层工具栏）
+            panel_x = window_pos.x() + 20
+            panel_y = window_pos.y() + 100
             self.node_list_panel.move(panel_x, panel_y)
+
+        # 更新节点监测面板位置（保持在窗口内部右上角）
+        if hasattr(self, 'node_monitor') and self.node_monitor is not None and self.node_monitor.isVisible():
+            window_pos = self.pos()
+            monitor_x = window_pos.x() + self.width() - 440
+            monitor_y = window_pos.y() + 100
+            self.node_monitor.move(monitor_x, monitor_y)
         
         # 更新所有Toast的位置
         if hasattr(self, 'active_toasts'):
@@ -392,18 +396,22 @@ class BNOSMainWindow(QMainWindow):
                 toast.update_position()
     
     def resizeEvent(self, event):
-        """窗口大小改变事件 - 更新节点列表和Toast位置"""
+        """窗口大小改变事件 - 更新节点列表、监测面板和Toast位置"""
         super().resizeEvent(event)
         
         # 更新节点列表面板位置（保持在窗口内部左上角）
         if hasattr(self, 'node_list_panel') and self.node_list_panel.isVisible():
-            # 计算相对于屏幕的绝对位置
-            # 获取主窗口在屏幕上的位置
             window_pos = self.pos()
-            # 节点列表应该在主窗口内部的左上角
-            panel_x = window_pos.x() + 20  # 主窗口左边 + 20px
-            panel_y = window_pos.y() + 100  # 主窗口顶部 + 100px（留出两层工具栏）
+            panel_x = window_pos.x() + 20
+            panel_y = window_pos.y() + 100
             self.node_list_panel.move(panel_x, panel_y)
+
+        # 更新节点监测面板位置（保持在窗口内部右上角）
+        if hasattr(self, 'node_monitor') and self.node_monitor is not None and self.node_monitor.isVisible():
+            window_pos = self.pos()
+            monitor_x = window_pos.x() + self.width() - 440
+            monitor_y = window_pos.y() + 100
+            self.node_monitor.move(monitor_x, monitor_y)
         
         # 更新所有Toast的位置
         if hasattr(self, 'active_toasts'):
@@ -464,7 +472,20 @@ class BNOSMainWindow(QMainWindow):
             self.node_list_panel.activateWindow()
         else:
             self.node_list_panel.hide()
-    
+
+    def show_node_monitor(self):
+        """打开节点监测面板"""
+        from ui.panels.node_monitor import NodeMonitor
+        if not hasattr(self, 'node_monitor') or self.node_monitor is None:
+            self.node_monitor = NodeMonitor(self)
+            # 初始定位：主窗口右侧
+            window_pos = self.pos()
+            monitor_x = window_pos.x() + self.width() - 440
+            monitor_y = window_pos.y() + 100
+            self.node_monitor.move(monitor_x, monitor_y)
+        self.node_monitor.show()
+        self.node_monitor.raise_()
+
     def open_color_settings(self):
         """打开颜色设置对话框"""
         dialog = ColorSettingsDialog(self.canvas, self)

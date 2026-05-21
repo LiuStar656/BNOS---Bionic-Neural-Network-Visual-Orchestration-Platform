@@ -110,6 +110,15 @@ class MenuManager:
         stop_node_action.triggered.connect(main_window.stop_selected_node)
         edit_menu.addAction(stop_node_action)
         
+        # ========== 工具菜单 ==========
+        tools_menu = menubar.addMenu("工具(&T)")
+
+        monitor_action = QAction("节点监测", main_window)
+        monitor_action.setShortcut("Ctrl+Shift+M")
+        monitor_action.setStatusTip("实时查看画布上所有节点的日志")
+        monitor_action.triggered.connect(main_window.show_node_monitor)
+        tools_menu.addAction(monitor_action)
+
         # ========== 帮助菜单 ==========
         help_menu = menubar.addMenu("帮助(&H)")
         
