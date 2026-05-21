@@ -5,7 +5,6 @@ import os
 import sys
 import json
 import subprocess
-import signal
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
@@ -28,6 +27,7 @@ from ui.panels.property_panel import ColorSettingsDialog
 from ui.creators.node_creator_manager import NodeCreatorManager
 from ui.menu.menu_manager import MenuManager
 from ui.core.toast.toast_notification import ToastNotification
+from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node
 
 
 class AppConfig:
@@ -702,252 +702,51 @@ class BNOSMainWindow(QMainWindow):
             del self.node_creation_worker
     
     def start_selected_node(self):
-        """启动选中的节点（优先从画布获取，回退到节点列表）"""
-        # 优先从画布获取选中节点
-        selected_node = self.canvas.get_selected_node()
-        
-        # 如果画布未选中，回退到节点列表
-        if not selected_node:
-            selected_nodes = self.node_list_panel.get_selected_nodes()
-            selected_node = selected_nodes[0] if selected_nodes else None
-        
-        if not selected_node:
+        """启动选中的节点"""
+        selected = resolve_selected_node(self)
+        if not selected:
             self.show_toast("请先在画布或节点列表中选择一个节点", "warning")
             return
-        
-        if selected_node not in self.nodes_data:
-            self.show_toast(f"节点 {selected_node} 不存在", "error")
-            return
-        
-        node_info = self.nodes_data[selected_node]
-        if node_info['status'] == 'running':
-            self.show_toast(f"节点 {selected_node} 已在运行中", "info")
-            return
-        
-        # 启动节点进程 - 使用节点文件夹内的启动脚本
-        node_path = node_info['path']
-        
-        # 确定启动脚本路径
-        if os.name == 'nt':  # Windows
-            start_script = os.path.join(node_path, "start.bat")
-        else:  # Linux/Mac
-            start_script = os.path.join(node_path, "start.sh")
-        
-        if not os.path.exists(start_script):
-            QMessageBox.critical(self, "错误", f"启动脚本不存在: {start_script}")
-            return
-        
-        try:
-            # 启动进程 - 使用启动脚本
-            if os.name == 'nt':
-                # Windows: 使用 cmd /c 执行 bat 文件，传入 --no-pause 参数避免pause
-                process = subprocess.Popen(
-                    [start_script, "--no-pause"],
-                    cwd=node_path,
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
-            else:
-                # Linux/Mac: 赋予执行权限并执行 shell 脚本，传入 --no-pause 参数
-                os.chmod(start_script, 0o755)
-                process = subprocess.Popen(
-                    ["/bin/bash", start_script, "--no-pause"],
-                    cwd=node_path,
-                    start_new_session=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
-            
-            node_info['process'] = process
-            node_info['status'] = 'running'
-            
-            # 更新状态
-            self.node_list_panel.update_node_status(selected_node, 'running')
-            self.canvas.update_node_status(selected_node, 'running')
-            
-            self.show_toast(f"节点 {selected_node} 已启动", "success")
-        except Exception as e:
-            QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
+        self.start_selected_node_by_name(selected)
     
     def start_selected_node_by_name(self, node_name):
-        """按名称启动节点（供对话框调用）"""
+        """按名称启动节点"""
         if node_name not in self.nodes_data:
             return
-        
         node_info = self.nodes_data[node_name]
         if node_info['status'] == 'running':
-            self.show_toast("节点已在运行中", "info")
+            self.show_toast(f"节点 {node_name} 已在运行中", "info")
             return
         
-        # 启动节点进程 - 使用节点文件夹内的启动脚本
-        node_path = node_info['path']
-        
-        # 确定启动脚本路径
-        if os.name == 'nt':  # Windows
-            start_script = os.path.join(node_path, "start.bat")
-        else:  # Linux/Mac
-            start_script = os.path.join(node_path, "start.sh")
-        
-        if not os.path.exists(start_script):
-            QMessageBox.critical(self, "错误", f"启动脚本不存在: {start_script}")
-            return
-        
-        try:
-            # 启动进程 - 使用启动脚本
-            if os.name == 'nt':
-                # Windows: 直接执行 bat 文件，传入 --no-pause 参数避免pause
-                process = subprocess.Popen(
-                    [start_script, "--no-pause"],
-                    cwd=node_path,
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
-            else:
-                # Linux/Mac: 赋予执行权限并执行 shell 脚本，传入 --no-pause 参数
-                os.chmod(start_script, 0o755)
-                process = subprocess.Popen(
-                    ["/bin/bash", start_script, "--no-pause"],
-                    cwd=node_path,
-                    start_new_session=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
-            
-            node_info['process'] = process
-            node_info['status'] = 'running'
-            
-            # 更新状态
+        success, err = start_node_process(node_info)
+        if success:
             self.node_list_panel.update_node_status(node_name, 'running')
             self.canvas.update_node_status(node_name, 'running')
-            
             self.show_toast(f"节点 {node_name} 已启动", "success")
-        except Exception as e:
-            QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
+        else:
+            QMessageBox.critical(self, "错误", f"启动节点失败: {err}")
     
     def stop_selected_node(self):
-        """停止选中的节点（优先从画布获取，回退到节点列表）"""
-        # 优先从画布获取选中节点
-        selected_node = self.canvas.get_selected_node()
-        
-        # 如果画布未选中，回退到节点列表
-        if not selected_node:
-            selected_nodes = self.node_list_panel.get_selected_nodes()
-            selected_node = selected_nodes[0] if selected_nodes else None
-        
-        if not selected_node:
+        """停止选中的节点"""
+        selected = resolve_selected_node(self)
+        if not selected:
             self.show_toast("请先在画布或节点列表中选择一个节点", "warning")
             return
-        
-        if selected_node not in self.nodes_data:
-            self.show_toast(f"节点 {selected_node} 不存在", "error")
-            return
-        
-        node_info = self.nodes_data[selected_node]
-        if node_info['status'] == 'stopped':
-            self.show_toast(f"节点 {selected_node} 未在运行", "info")
-            return
-        
-        # 停止进程
-        process = node_info['process']
-        if process:
-            try:
-                if os.name == 'nt':
-                    # Windows: 直接使用taskkill强制终止进程树（包括子进程）
-                    try:
-                        subprocess.run(['taskkill', '/F', '/T', '/PID', str(process.pid)],
-                                     capture_output=True, timeout=10)
-                    except subprocess.TimeoutExpired:
-                        # 如果 taskkill 超时，尝试直接 kill
-                        try:
-                            process.kill()
-                            process.wait(timeout=3)
-                        except:
-                            pass
-                    except Exception as e:
-                        logger.error("taskkill执行失败: %s", e)
-                        # 回退到直接终止
-                        try:
-                            process.kill()
-                            process.wait(timeout=3)
-                        except:
-                            pass
-                else:
-                    # Linux/Mac: 终止整个进程组
-                    try:
-                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                        process.wait(timeout=5)
-                    except (ProcessLookupError, subprocess.TimeoutExpired):
-                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                        process.wait()
-            except Exception as e:
-                logger.error("停止节点时出错: %s", e)
-                try:
-                    process.kill()
-                    process.wait()
-                except:
-                    pass
-        
-        node_info['process'] = None
-        node_info['status'] = 'stopped'
-        
-        # 更新状态
-        self.node_list_panel.update_node_status(selected_node, 'stopped')
-        self.canvas.update_node_status(selected_node, 'stopped')
-        
-        self.show_toast(f"节点 {selected_node} 已停止", "success")
+        self.stop_selected_node_by_name(selected)
     
     def stop_selected_node_by_name(self, node_name):
-        """按名称停止节点 - 强制关闭进程（供对话框调用）"""
+        """按名称停止节点"""
         if node_name not in self.nodes_data:
             return
-        
         node_info = self.nodes_data[node_name]
         if node_info['status'] == 'stopped':
-            self.show_toast("节点未在运行", "info")
+            self.show_toast(f"节点 {node_name} 未在运行", "info")
             return
         
-        # ✅ 强制杀死进程
-        process = node_info['process']
-        if process:
-            try:
-                if process.poll() is None:  # 进程仍在运行
-                    if os.name == 'nt':
-                        # Windows: 使用taskkill强制终止进程树
-                        try:
-                            subprocess.run(['taskkill', '/F', '/T', '/PID', str(process.pid)],
-                                         capture_output=True, timeout=10)
-                        except Exception as e:
-                            logger.error("taskkill执行失败: %s", e)
-                            try:
-                                process.kill()
-                                process.wait(timeout=3)
-                            except:
-                                pass
-                    else:
-                        # Linux/Mac: 直接终止进程
-                        try:
-                            process.kill()
-                            process.wait(timeout=3)
-                        except Exception as e:
-                            logger.error("强制终止进程时出错: %s", e)
-                            try:
-                                process.terminate()
-                                process.wait(timeout=3)
-                            except:
-                                pass
-            except Exception as e:
-                logger.error("停止节点时出错: %s", e)
-        
-        node_info['process'] = None
-        node_info['status'] = 'stopped'
-        
-        # 更新状态
+        stop_node_process(node_info)
         self.node_list_panel.update_node_status(node_name, 'stopped')
         self.canvas.update_node_status(node_name, 'stopped')
-        
-        self.show_toast(f"节点 {node_name} 已强制停止", "success")
+        self.show_toast(f"节点 {node_name} 已停止", "success")
 
     def clear_connections(self):
         """清空所有连线"""
@@ -1044,65 +843,11 @@ class BNOSMainWindow(QMainWindow):
         event.accept()
     
     def _force_stop_all_nodes(self, node_names):
-        """强制停止所有指定节点进程
-        
-        Args:
-            node_names: 需要停止的节点名称列表
-        """
-        
+        """强制停止所有指定节点进程"""
         for node_name in node_names:
-            if node_name not in self.nodes_data:
-                continue
-            
-            node_info = self.nodes_data[node_name]
-            process = node_info['process']
-            
-            if not process:
-                continue
-            
-            try:
-                if os.name == 'nt':
-                    # Windows: 直接使用taskkill强制终止进程树（包括子进程）
-                    try:
-                        subprocess.run(['taskkill', '/F', '/T', '/PID', str(process.pid)],
-                                     capture_output=True, timeout=10)
-                    except subprocess.TimeoutExpired:
-                        # 如果 taskkill 超时，尝试直接 kill
-                        try:
-                            process.kill()
-                            process.wait(timeout=3)
-                        except:
-                            pass
-                    except Exception as e:
-                        logger.error("taskkill执行失败: %s", e)
-                        # 回退到直接终止
-                        try:
-                            process.kill()
-                            process.wait(timeout=3)
-                        except:
-                            pass
-                else:
-                    # Linux/Mac: 终止整个进程组
-                    try:
-                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                        process.wait(timeout=3)
-                    except (ProcessLookupError, subprocess.TimeoutExpired):
-                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                        process.wait()
-                
-                # 清理进程对象
-                node_info['process'] = None
-                node_info['status'] = 'stopped'
-                
+            if node_name in self.nodes_data:
+                stop_node_process(self.nodes_data[node_name])
                 logger.info("节点 %s 已停止", node_name)
-                
-            except Exception as e:
-                logger.error("停止节点 %s 时出错: %s", node_name, e)
-                # 即使出错也清理引用
-                node_info['process'] = None
-                node_info['status'] = 'stopped'
-        
-        # 更新UI状态
         self.node_list_panel.update_node_list(self.nodes_data)
         self.canvas.sync_all_nodes_display()
     
