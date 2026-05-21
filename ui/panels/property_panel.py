@@ -1318,25 +1318,28 @@ class ColorSettingsDialog(QDialog):
             # 应用到画布
             self.canvas.apply_color_settings(settings)
             
-            QMessageBox.information(self, "成功", "颜色设置已应用")
+            # 立即保存到项目文件
+            self.canvas._save_color_settings()
+            
+            QMessageBox.information(self, "成功", "颜色设置已应用并保存")
             self.close()
             
         except Exception as e:
             QMessageBox.critical(self, "错误", f"应用设置失败: {str(e)}")
             
     def reset_to_default(self):
-        """恢复到默认颜色"""
+        """恢复到默认颜色（VSCode 深色主题）"""
         default_settings = {
-            'canvas_bg_color': '#ffffff',
-            'grid_color': '#e0e0e0',
-            'grid_opacity': 0.5,
-            'node_bg_color': '#f8f9fa',
-            'node_border_color': '#dee2e6',
-            'node_text_color': '#333333',
-            'node_selected_color': '#2196F3',
-            'input_anchor_color': '#4CAF50',
-            'output_anchor_color': '#2196F3',
-            'edge_color': '#666666',
+            'canvas_bg_color': '#1e1e1e',
+            'grid_color': '#2a2a2a',
+            'grid_opacity': 0.3,
+            'node_bg_color': '#2d2d30',
+            'node_border_color': '#454545',
+            'node_text_color': '#d4d4d4',
+            'node_selected_color': '#007acc',
+            'input_anchor_color': '#6a9955',
+            'output_anchor_color': '#007acc',
+            'edge_color': '#007acc',
             'edge_width': 2
         }
         
