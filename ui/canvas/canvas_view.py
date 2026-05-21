@@ -336,23 +336,18 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
                 probe = probe.parentItem()
 
             if not is_interactive:
-                # 先清除之前的框选状态
+                # 清除之前的选中状态并开始框选
                 self.clear_box_selection()
                 
                 self.is_box_selecting = True
-                # 使用 widget 坐标存储起始位置
                 self.box_select_start_pos = event.position().toPoint()
                 
-                # 创建框选矩形（初始大小为0）
                 from PyQt6.QtWidgets import QGraphicsRectItem
                 self.box_select_rect = QGraphicsRectItem()
                 self.box_select_rect.setPen(QPen(QColor("#2196F3"), 1.5, Qt.PenStyle.DashLine))
-                self.box_select_rect.setBrush(QColor(33, 150, 243, 30))  # 半透明蓝色
-                self.box_select_rect.setZValue(0)  # 在最底层
+                self.box_select_rect.setBrush(QColor(33, 150, 243, 30))
+                self.box_select_rect.setZValue(0)
                 self.scene.addItem(self.box_select_rect)
-                
-                # 清除当前单选
-                self.clear_selection()
                 
                 logger.debug("开始框选")
                 event.accept()
