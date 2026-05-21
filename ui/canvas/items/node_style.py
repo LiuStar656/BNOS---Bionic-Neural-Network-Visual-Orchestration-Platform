@@ -19,6 +19,7 @@ class NodeStyle:
     border_color: str = "#454545"
     text_color: str = "#d4d4d4"
     selected_color: str = "#007acc"
+    selected_border_width: int = 3
     lang_color: str = "#888888"
 
     status_running: str = "#FF4444"
@@ -70,7 +71,6 @@ class RectNodeStyle(NodeStyle):
     out_label_x: int = 4
     label_y: int = -5
     border_width: int = 2
-    selected_border_width: int = 3
 
     # 颜色
     in_label_color: str = "#6a9955"
