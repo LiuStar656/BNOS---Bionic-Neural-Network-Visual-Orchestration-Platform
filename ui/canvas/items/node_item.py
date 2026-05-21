@@ -38,9 +38,9 @@ class NodeItem(QGraphicsRectItem):
         self.setZValue(1)
         self.setRect(QRectF(0, 0, w, h))
         
-        # 锚点
-        self.input_anchor = AnchorItem(-8, h / 2 - 8, "input", self)
-        self.output_anchor = AnchorItem(w - 8, h / 2 - 8, "output", self)
+        # 锚点（初始位置由样式设置）
+        self.input_anchor = AnchorItem(0, 0, "input", self)
+        self.output_anchor = AnchorItem(0, 0, "output", self)
         
         # IN / OUT 标签
         self._in_label = QGraphicsTextItem("IN", self)
