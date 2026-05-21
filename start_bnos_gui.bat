@@ -48,18 +48,21 @@ call "%VENV_DIR%\Scripts\activate.bat"
 cd /d "%GUI_DIR%"
 
 :: ==================== CHECK DEPENDENCIES ====================
-echo [INFO] Checking dependencies...
-python -c "import PyQt6, PyInstaller, virtualenv" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [WARN] Missing dependencies. Installing...
-    if exist "%REQUIREMENTS%" (
-        pip install -r %REQUIREMENTS%
-    ) else (
-        pip install pyqt6 pyinstaller virtualenv
-    )
-) else (
-    echo [OK] All dependencies installed. Skipping.
+echo [INFO] Checking dependencies from %REQUIREMENTS%...
+if not exist "%REQUIREMENTS%" (
+    echo [WARN] %REQUIREMENTS% not found. Installing base PyQt6...
+    pip install pyqt6
+    goto :start_gui
 )
+python -c "import pkg_resources; pkg_resources.require(open('%REQUIREMENTS%').readlines())" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [WARN] Missing dependencies. Installing from %REQUIREMENTS%...
+    pip install -r %REQUIREMENTS%
+) else (
+    echo [OK] All dependencies satisfied. Skipping.
+)
+
+:start_gui
 
 :: ==================== START GUI ====================
 echo.
