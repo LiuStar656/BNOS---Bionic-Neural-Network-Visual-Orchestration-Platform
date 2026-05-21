@@ -1169,7 +1169,7 @@ class NodeCanvas(QGraphicsView):
             logger.info(f"❌ 保存颜色设置失败: {e}")
     
     def _load_color_settings(self, project_path):
-        """从项目配置加载颜色设置"""
+        """从项目配置加载颜色设置，自动升级旧配色到新默认值"""
         if not project_path:
             return
         
@@ -1181,7 +1181,22 @@ class NodeCanvas(QGraphicsView):
             with open(settings_file, 'r', encoding='utf-8') as f:
                 color_settings = json.load(f)
             
-            # 应用颜色设置
+            # 检测是否为旧版浅色/深灰默认值，自动升级
+            old_bg = color_settings.get('canvas_bg_color', '')
+            if old_bg in ('#ffffff', '#282935'):
+                logger.info("检测到旧版配色，自动升级到 VSCode 深色主题")
+                new_defaults = {
+                    'canvas_bg_color': '#1e1e1e',
+                    'grid_color': '#2a2a2a',
+                    'edge_color': '#007acc',
+                    'node_bg_color': '#2d2d30',
+                    'node_border_color': '#454545',
+                    'node_text_color': '#d4d4d4',
+                }
+                color_settings.update(new_defaults)
+                with open(settings_file, 'w', encoding='utf-8') as f:
+                    json.dump(color_settings, f, indent=2, ensure_ascii=False)
+            
             self.apply_color_settings(color_settings)
             logger.info("颜色设置已从 %s 加载", settings_file)
         except Exception as e:
