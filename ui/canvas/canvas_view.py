@@ -289,9 +289,20 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         # 获取点击位置的项
         item = self.itemAt(event.position().toPoint())
         
-        # ✅ 如果正在连线中，检查是否点击了锚点以外的地方
+        # ✅ 连线模式：点击锚点→完成连接，点击节点→完成连接，否则取消
         if self.is_connecting and event.button() == Qt.MouseButton.LeftButton:
-            # 如果点击的不是锚点，取消连线
+            target_node = None
+            probe = item
+            while probe is not None:
+                if isinstance(probe, NodeItem):
+                    target_node = probe
+                    break
+                probe = probe.parentItem()
+            if target_node and target_node != self.connect_source:
+                self.complete_connection_to_input(target_node)
+                logger.debug("连线完成到 %s", target_node.node_name)
+                event.accept()
+                return
             if not isinstance(item, AnchorItem):
                 self.cancel_connection()
                 logger.debug("取消连线")
