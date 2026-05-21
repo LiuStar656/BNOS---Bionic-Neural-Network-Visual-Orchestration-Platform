@@ -75,7 +75,8 @@ class DarkTitleBar(QWidget):
             }
             #titleBarTitle {
                 color: #cccccc;
-                font-size: 13px;
+                font-size: 16px;
+                font-weight: bold;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
                 padding: 0px 12px;
             }
