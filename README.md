@@ -212,12 +212,18 @@ This documentation provides deep technical insights beyond what's covered in thi
 | Module | File | Description |
 |--------|------|-------------|
 | **Entry Point** | `bnos_gui.py` | Initialize QApplication, launch MainWindow |
-| **Main Window** | `ui/main_window.py` | Integrate UI components, manage AppConfig, handle Toast notifications |
-| **Canvas** | `ui/canvas_widget.py` | QGraphicsView for neuron rendering, dragging, synapse connections |
-| **Node List** | `ui/node_list_panel.py` | Tree view of nodes/groups, context menus, multi-select support |
-| **Property Panel** | `ui/property_panel.py` | Config editor, log viewer, process control dialog |
-| **Group Manager** | `ui/node_group_manager.py` | Node group management, persistence, batch operations |
-| **Node Creator** | `create_node.py` | Multi-language template generator with venv setup |
+| **Main Window** | `ui/main_window.py` | Integrate UI components, AppConfig, Toast, node data |
+| **Canvas** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
+| **Node List** | `ui/panels/node_list_panel.py` | Tree view, groups, drag-drop, multi-select |
+| **Property Panel** | `ui/panels/property_panel.py` | Config editor, log viewer, process control, colors |
+| **Expand Panel** | `ui/panels/node_expand_panel.py` | output.json viewer/editor with live refresh |
+| **Node Monitor** | `ui/panels/node_monitor.py` | Real-time logs for all canvas nodes |
+| **Group Manager** | `ui/panels/node_group_manager.py` | Node group CRUD and persistence |
+| **Floating Panel** | `ui/core/floating_panel.py` | Base class for frameless translucent panels |
+| **Logger** | `ui/core/logger.py` | Global logger (console INFO + file DEBUG) |
+| **Menu Manager** | `ui/menu/menu_manager.py` | Unified menu bar (File/Edit/Tools/Help) |
+| **Node Creator** | `ui/creators/node_creator_manager.py` | Multi-language node creation manager |
+| **Tools** | `tools/python_create_node.py` | Python node template generator (venv + scripts) |
 
 
 ---
@@ -456,53 +462,71 @@ BNOS/
 ├── bnos_gui.py                    # Main entry point
 ├── start_bnos_gui.bat             # Windows launcher
 ├── start_bnos_gui.sh              # Linux/Mac launcher
-│
-├── ui/                            # UI modules (Modular Architecture)
-│   ├── __init__.py
-│   ├── main_window.py            # Main window + Toast system
-│   ├── canvas_widget.py          # Compatibility layer (Facade pattern, 15 lines)
-│   ├── node_list_panel.py        # Node list with groups
-│   ├── node_group_manager.py     # Group management logic
-│   ├── node_creator_manager.py   # Node creation tool manager
-│   ├── property_panel.py         # Config dialog + Log viewer
-│   │
-│   └── canvas/                   # 🆕 Modular Canvas Architecture
-│       ├── __init__.py           # Module exports
-│       ├── canvas_view.py        # Core layer: NodeCanvas controller (1763 lines)
-│       ├── CANVAS_SPLIT_REPORT.md # Detailed refactoring documentation
-│       │
-│       └── items/                # Items layer: Pure UI rendering components
-│           ├── __init__.py       # Graphics item exports
-│           ├── anchor_item.py    # AnchorItem: Input/output ports
-│           ├── node_item.py      # NodeItem: Node container
-│           └── edge_item.py      # EdgeItem: Bezier curve connections
-│
-├── tools/                         # Development tools
-│   ├── README.md                 # Tools documentation
-│   ├── python_create_node.py     # Python node template generator
-│   └── rust_create_node.py       # Rust node template generator
-│
-├── nodes/                         # Node instances
-│   └── (user-created nodes)
-│
+├── build_bnos.spec                # PyInstaller spec
 ├── app_config.json                # App settings (window state, last project)
-├── canvas_layout.json             # Current project layout (auto-generated)
-├── color_settings.json            # Node color customization (.gitignored)
-└── requirements_gui.txt           # Python dependencies
+├── canvas_layout.json             # Canvas layout persistence
+├── color_settings.json            # Color settings persistence
+├── requirements_gui.txt           # Python dependencies
+│
+├── ui/                            # UI modules
+│   ├── __init__.py
+│   ├── main_window.py            # Main window
+│   ├── canvas_widget.py          # Compatibility layer (Facade, 15 lines)
+│   │
+│   ├── core/                      # Core components
+│   │   ├── floating_panel.py     # Floating panel base class
+│   │   ├── logger.py             # Global logger (console + file)
+│   │   └── toast/                # Toast notification system
+│   │       └── toast_notification.py
+│   │
+│   ├── menu/                      # Menu system
+│   │   └── menu_manager.py       # Menu bar manager
+│   │
+│   ├── canvas/                    # Canvas engine
+│   │   ├── __init__.py
+│   │   ├── canvas_view.py        # NodeCanvas controller
+│   │   └── items/                # Graphics items
+│   │       ├── __init__.py
+│   │       ├── anchor_item.py    # Anchor (I/O port)
+│   │       ├── node_item.py      # Node container
+│   │       └── edge_item.py      # Bezier curve edge
+│   │
+│   ├── panels/                    # Panels
+│   │   ├── node_list_panel.py    # Node list panel
+│   │   ├── property_panel.py     # Config dialog + color settings
+│   │   ├── node_group_manager.py # Group management
+│   │   ├── node_expand_panel.py  # Node expand panel
+│   │   └── node_monitor.py       # Node monitor (live logs)
+│   │
+│   ├── creators/                  # Node creators
+│   │   └── node_creator_manager.py
+│   │
+│   └── docs/                      # Examples
+│       ├── TOAST_MODULE_README.md
+│       └── toast_examples.py
+│
+├── tools/                         # Node generation tools
+│   ├── README.md
+│   ├── python_create_node.py
+│   └── rust_create_node.py
+│
+└── nodes/                         # Runtime node directory
+    └── (user-created nodes)
 ```
 
 **Architecture Highlights**:
-- ✅ **Modular Canvas**: Split into 4 layers (Items, Core, Compatibility, Exports)
+- ✅ **Unified Floating Panels**: All windows share `FloatingPanel` base class
+- ✅ **Modular Canvas**: Split into items layer (UI) and core layer (business logic)
 - ✅ **Separation of Concerns**: UI rendering isolated from business logic
 - ✅ **Backward Compatible**: Old import paths still work via Facade pattern
 - ✅ **Extensible**: Easy to add custom node types and interactions
-- ✅ **Maintainable**: Each module has single responsibility
+- ✅ **Global Logger**: All print() migrated to logger (console + file)
 
 ### Extending BNOS
 
 #### Adding Language Support
 
-Edit `detect_language()` in `ui/canvas_widget.py`:
+Edit `detect_language()` in `ui/canvas/canvas_view.py`:
 
 ```python
 def detect_language(self, node_path):
@@ -519,7 +543,7 @@ def detect_language(self, node_path):
 
 #### Customizing Node Styles
 
-Modify `NodeItem.__init__()` in `ui/canvas_widget.py`:
+Modify `NodeItem.__init__()` in `ui/canvas/items/node_item.py`:
 
 ```python
 # Node background color

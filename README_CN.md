@@ -1099,12 +1099,18 @@ ode_item.py：节点容器，管理标题、标签、选中状态
 | 模块 | 文件 | 说明 |
 |------|------|------|
 | **主入口** | `bnos_gui.py` | 初始化 QApplication，启动主窗口 |
-| **主窗口** | `ui/main_window.py` | 整合 UI 组件，管理 AppConfig，处理 Toast 通知 |
-| **画布** | `ui/canvas_widget.py` | QGraphicsView 实现节点绘制、拖拽、突触连接 |
-| **节点列表** | `ui/node_list_panel.py` | 节点/分组树形视图，上下文菜单，多选支持 |
-| **属性面板** | `ui/property_panel.py` | 配置编辑器、日志查看器、进程控制对话框 |
-| **分组管理器** | `ui/node_group_manager.py` | 节点分组管理、持久化、批量操作 |
-| **节点创建器** | `tools/python_create_node.py`  | Python 节点模板生成器，自动配置 venv |
+| **主窗口** | `ui/main_window.py` | 整合 UI 组件，管理 AppConfig、节点数据、Toast |
+| **画布** | `ui/canvas/canvas_view.py` | QGraphicsView 实现节点绘制、拖拽、连线 |
+| **节点列表** | `ui/panels/node_list_panel.py` | 节点/分组树形视图，拖拽分组，多选操作 |
+| **属性面板** | `ui/panels/property_panel.py` | 配置编辑器、日志查看器、进程控制、颜色设置 |
+| **展开面板** | `ui/panels/node_expand_panel.py` | 节点 output.json 查看/编辑，自动刷新 |
+| **监测面板** | `ui/panels/node_monitor.py` | 全局实时日志查看，多节点同步监测 |
+| **分组管理器** | `ui/panels/node_group_manager.py` | 节点分组创建/删除/持久化 |
+| **浮动基类** | `ui/core/floating_panel.py` | 统一所有悬浮窗的窗口类型和交互 |
+| **日志模块** | `ui/core/logger.py` | 全局 logger（控制台+文件双通道） |
+| **菜单管理** | `ui/menu/menu_manager.py` | 统一管理菜单栏所有功能 |
+| **节点创建器** | `ui/creators/node_creator_manager.py` | 多语言节点创建管理器（Python/Rust） |
+| **生成工具** | `tools/python_create_node.py` | Python 节点模板生成器（venv + 启动脚本） |
 
 
 ---
@@ -1345,69 +1351,64 @@ Ctrl + 单击多选节点 → 右键 → 批量启动/停止
 BNOS/
 ├── bnos_gui.py                    # 主入口文件
 ├── start_bnos_gui.bat             # Windows 启动脚本
+├── start_bnos_gui.sh              # Linux/macOS 启动脚本
 ├── requirements_gui.txt           # GUI 依赖列表
+├── build_bnos.spec                # PyInstaller 打包配置
 ├── app_config.json                # 应用级配置（窗口状态、最后项目路径）
+├── canvas_layout.json             # 画布布局持久化
+├── color_settings.json            # 颜色设置持久化
+├── README.md / README_CN.md       # 项目文档
+├── UPDATE_CN.md / UPDATE_EN.md    # 更新日志
 │
-├── ui/                            # UI 模块（模块化重组后）
-│   ├── __init__.py                # 统一入口，提供便捷导入
+├── ui/                            # UI 模块
+│   ├── __init__.py                # 统一入口
 │   ├── main_window.py             # 主窗口类
+│   ├── canvas_widget.py           # 画布兼容入口（Facade 模式）
 │   │
-│   ├── core/                      # 核心组件
-│   │   ├── __init__.py
-│   │   ├── app_config.py          # 应用配置管理
+│   ├── core/                      # 核心基础组件
+│   │   ├── floating_panel.py      # 浮动面板基类（统一无边框/拖动/标题栏）
+│   │   ├── logger.py              # 全局日志模块（控制台+文件双通道）
 │   │   └── toast/                 # Toast 通知系统
-│   │       ├── __init__.py
-│   │       ├── toast_notification.py  # Toast 核心类
-│   │       └── toast_manager.py   # Toast 管理器
+│   │       └── toast_notification.py
 │   │
 │   ├── menu/                      # 菜单系统
-│   │   ├── __init__.py
 │   │   └── menu_manager.py        # 菜单栏管理器
 │   │
 │   ├── canvas/                    # 画布系统
 │   │   ├── __init__.py
-│   │   ├── canvas_view.py         # 画布视图（NodeCanvas）
-│   │   └── items/                 # 画布元素
+│   │   ├── canvas_view.py         # 画布主视图（NodeCanvas）
+│   │   └── items/                 # 画布图形元素
 │   │       ├── __init__.py
 │   │       ├── node_item.py       # 节点项
-│   │       ├── edge_item.py       # 连线项
-│   │       └── anchor_item.py     # 锚点项
+│   │       ├── edge_item.py       # 连线项（贝塞尔曲线）
+│   │       └── anchor_item.py     # 锚点项（输入/输出端口）
 │   │
 │   ├── panels/                    # 面板组件
-│   │   ├── __init__.py
-│   │   ├── node_list_panel.py     # 节点列表面板
-│   │   ├── property_panel.py      # 属性面板（配置对话框）
-│   │   └── node_group_manager.py  # 节点组管理
+│   │   ├── node_list_panel.py     # 节点列表悬浮面板
+│   │   ├── property_panel.py      # 节点配置对话框 + 颜色设置
+│   │   ├── node_group_manager.py  # 节点分组管理
+│   │   ├── node_expand_panel.py   # 节点展开面板（output.json 查看/编辑）
+│   │   └── node_monitor.py        # 节点监测面板（全局实时日志）
 │   │
 │   ├── creators/                  # 节点创建器
-│   │   ├── __init__.py
-│   │   └── node_creator_manager.py # 节点创建管理器
+│   │   └── node_creator_manager.py # 多语言节点创建管理器（单例）
 │   │
-│   └── docs/                      # 文档和示例
+│   └── docs/                      # UI 文档与示例
 │       ├── TOAST_MODULE_README.md
 │       └── toast_examples.py
 │
-├── tools/                         # 工具脚本
-│   ├── python_create_node.py      # Python 节点创建脚本
-│   ├── rust_create_node.py        # Rust 节点创建脚本
+├── tools/                         # 节点生成工具
+│   ├── python_create_node.py      # Python 节点模板生成器
+│   ├── rust_create_node.py        # Rust 节点模板生成器
 │   └── README.md
 │
-├── nodes/                         # 节点存储目录（项目内）
-│   └── [node_name]/               # 单个节点文件夹
-│       ├── config.json            # 节点配置
-│       ├── listener.log           # 监听日志
-│       ├── venv/                  # 虚拟环境
-│       └── ...                    # 其他节点文件
-│
-├── docs/                          # 项目文档
-│   ├── README.md                  # 英文文档
-│   ├── README_CN.md               # 中文文档
-│   ├── UI_REFACTORING_COMPLETE.md
-│   ├── IMPORT_PATH_FIXES.md
-│   ├── FIX_NODE_CREATION.md
-│   └── ...                        # 其他技术文档
-│
-└── myenv_new/                     # Python 虚拟环境
+└── nodes/                         # 运行时节点目录（由用户项目创建）
+    └── [node_name]/               # 单个节点文件夹
+        ├── config.json            # 节点配置
+        ├── output.json            # 输出数据
+        ├── logs/listener.log      # 监听日志
+        ├── venv/                  # 独立虚拟环境
+        └── ...                    # 源代码文件
 ```
 
 
@@ -1417,46 +1418,44 @@ BNOS/
 
 #### **ui/** - UI 模块（核心）
 
-采用模块化设计，按功能领域分层组织：
+按功能领域分层：
 
 - **core/** - 核心基础组件
-  - `app_config.py` - 应用配置管理（窗口状态、项目路径记忆）
-  - `toast/` - Toast 通知系统（完全解耦的独立模块）
+  - `floating_panel.py` - 浮动面板基类，统一所有悬浮窗的样式和交互
+  - `logger.py` - 全局日志模块（INFO→控制台，DEBUG→文件）
+  - `toast/` - Toast 通知系统（非侵入式弹窗，支持堆叠和动画）
 
 - **menu/** - 菜单系统
-  - `menu_manager.py` - 统一管理所有菜单栏功能
+  - `menu_manager.py` - 统一管理菜单栏（文件/编辑/工具/帮助）
 
 - **canvas/** - 画布系统
   - `canvas_view.py` - 主画布控制器（无限平移、缩放、框选）
-  - `items/` - 画布元素组件（节点、连线、锚点）
+  - `items/` - 画布图形元素（NodeItem / EdgeItem / AnchorItem）
 
 - **panels/** - 面板组件
-  - `node_list_panel.py` - 左侧节点列表面板
-  - `property_panel.py` - 节点配置对话框
+  - `node_list_panel.py` - 浮动节点列表面板（树形结构、拖拽分组）
+  - `property_panel.py` - 节点配置对话框 + 颜色设置
   - `node_group_manager.py` - 节点分组管理
+  - `node_expand_panel.py` - 节点展开面板（output.json 查看/编辑）
+  - `node_monitor.py` - 节点监测面板（全局日志实时查看）
 
 - **creators/** - 节点创建器
-  - `node_creator_manager.py` - 多语言节点创建管理器
+  - `node_creator_manager.py` - 多语言节点创建管理器（单例模式）
 
-- **docs/** - UI 模块文档
+- **docs/** - UI 模块文档与示例
 
-#### **tools/** - 工具脚本
+#### **tools/** - 节点生成工具
 
-各语言的节点创建模板生成器：
-- `python_create_node.py` - 创建 Python 节点（带虚拟环境）
-- `rust_create_node.py` - 创建 Rust 节点（Cargo 项目）
+- `python_create_node.py` - 创建 Python 节点（独立 venv + 模板代码）
+- `rust_create_node.py` - 创建 Rust 节点（Cargo 项目 + 自愈构建）
 
-#### **nodes/** - 节点存储
+#### **nodes/** - 运行时节点目录（用户项目中）
 
-每个节点是一个独立的文件夹，包含：
-- `config.json` - 节点配置（监听端口、输出类型等）
-- `listener.log` - 实时日志
-- `venv/` - 独立虚拟环境（避免依赖冲突）
-- 源代码文件
-
-#### **docs/** - 项目文档
-
-详细的技术文档和更新记录。
+每个节点是一个独立文件夹：
+- `config.json` - 节点配置
+- `output.json` - 输出数据
+- `logs/listener.log` - 监听日志
+- `venv/` - 独立虚拟环境
 
 
 **架构亮点**：
@@ -1470,7 +1469,7 @@ BNOS/
 
 #### 添加新语言支持
 
-编辑 `ui/canvas_widget.py` 中的 `detect_language()` 方法：
+编辑 `ui/canvas/canvas_view.py` 中的 `detect_language()` 方法：
 
 ```python
 def detect_language(self, node_path):
@@ -1487,7 +1486,7 @@ def detect_language(self, node_path):
 
 #### 自定义节点样式
 
-修改 `ui/canvas_widget.py` 中的 `NodeItem.__init__()`：
+修改 `ui/canvas/items/node_item.py` 中的 `NodeItem.__init__()`：
 
 ```python
 # 节点背景色
@@ -1497,19 +1496,17 @@ self.setBrush(QBrush(QColor("#f8f9fa")))  # 改为其他颜色
 super().__init__(x, y, w, h, None)  # w=140, h=80 可调
 ```
 
-#### 添加工具栏按钮
+#### 添加菜单项
 
-扩展 `ui/main_window.py` 中的 `init_toolbar()` 方法：
+在 `ui/menu/menu_manager.py` 的 `init_menu()` 中添加：
 
 ```python
-custom_action = QAction("自定义功能", self)
-custom_action.triggered.connect(self.custom_function)
-toolbar.addAction(custom_action)
+custom_action = QAction("自定义功能", main_window)
+custom_action.triggered.connect(main_window.custom_function)
+edit_menu.addAction(custom_action)
 ```
 
 #### 自定义 Toast 通知
-
-`ui/main_window.py` 中的 Toast 系统：
 
 ```python
 # 显示通知
