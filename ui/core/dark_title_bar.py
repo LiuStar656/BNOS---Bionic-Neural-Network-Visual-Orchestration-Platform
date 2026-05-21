@@ -78,7 +78,7 @@ class DarkTitleBar(QWidget):
                 font-size: 16px;
                 font-weight: bold;
                 font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-                padding: 0px 12px;
+                padding: 0px 12px 3px 12px;
             }
             #darkTitleBar QPushButton {
                 background-color: transparent;
