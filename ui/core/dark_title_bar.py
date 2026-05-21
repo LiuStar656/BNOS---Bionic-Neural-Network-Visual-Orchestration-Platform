@@ -91,6 +91,7 @@ class DarkTitleBar(QWidget):
             }
             QPushButton#titleBarMaxBtn {
                 font-size: 25px;
+                padding: 0px 0px 6px 0px;
             }
             #titleBarCloseBtn:hover {
                 background-color: #e81123 !important;
