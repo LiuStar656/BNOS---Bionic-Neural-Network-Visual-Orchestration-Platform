@@ -115,7 +115,7 @@ class NodeListPanel(FloatingPanel):
             # 获取被拖拽的节点
             dragged_nodes = self._get_dragged_nodes_from_event(event)
             if not dragged_nodes:
-                print(f"⚠️ 未获取到被拖拽的节点")
+                logger.debug("⚠️ 未获取到被拖拽的节点")
                 original_drop_event(event)
                 return
             
@@ -127,7 +127,7 @@ class NodeListPanel(FloatingPanel):
                 
                 # 如果目标是节点，需要智能判断
                 if target_data and target_data.get('type') == 'node':
-                    print(f"🔄 检测到节点拖拽到节点上，智能处理")
+                    logger.debug("🔄 检测到节点拖拽到节点上，智能处理")
                     
                     target_node = target_data['name']
                     
@@ -137,7 +137,7 @@ class NodeListPanel(FloatingPanel):
                         
                         if target_group:
                             # 目标节点在某个组中，直接将拖拽的节点加入该组
-                            print(f"✅ 目标节点 '{target_node}' 在组 '{target_group}' 中，直接融入")
+                            logger.debug("✅ 目标节点 '%target_node' 在组 '%target_group' 中，直接融入")
                             
                             # 将拖拽的节点添加到目标组
                             self.group_manager.add_nodes_to_group(target_group, dragged_nodes)
@@ -157,7 +157,7 @@ class NodeListPanel(FloatingPanel):
                             return
                         else:
                             # 目标节点不在任何组中（根级别节点），创建新组
-                            print(f"🆕 目标节点 '{target_node}' 不在组中，创建新组")
+                            logger.info("🆕 目标节点 '%target_node' 不在组中，创建新组")
                             
                             # 将所有涉及的节点合并
                             all_nodes = dragged_nodes + [target_node]
@@ -171,7 +171,7 @@ class NodeListPanel(FloatingPanel):
             
             elif not target_item:
                 # 拖到根级别（空白处）- 将节点移出所有组
-                print(f"✅ 拖到根级别，将 {len(dragged_nodes)} 个节点移出组")
+                logger.debug("✅ 拖到根级别，将 {len(dragged_nodes)} 个节点移出组")
                 self._move_nodes_to_ungrouped(dragged_nodes)
                 event.accept()
                 return
@@ -180,7 +180,7 @@ class NodeListPanel(FloatingPanel):
             original_drop_event(event)
             
         except Exception as e:
-            print(f"⚠️ 拦截拖放事件失败: {e}")
+            logger.warning("⚠️ 拦截拖放事件失败: %e")
             import traceback
             traceback.print_exc()
             # 出错时允许默认行为
@@ -208,7 +208,7 @@ class NodeListPanel(FloatingPanel):
             return nodes if nodes else None
             
         except Exception as e:
-            print(f"⚠️ 获取拖拽节点失败: {e}")
+            logger.warning("⚠️ 获取拖拽节点失败: %e")
             return None
     
     def _create_group_for_dragged_nodes(self, node_names):
@@ -249,7 +249,7 @@ class NodeListPanel(FloatingPanel):
                 "success"
             )
         
-        print(f"✅ 自动创建节点组: {new_group_name} (包含 {', '.join(node_names)})")
+        logger.info("✅ 自动创建节点组: %new_group_name (包含 {', '.join(node_names)})")
     
     def update_node_list(self, nodes_data):
         """更新节点列表（树形结构，支持分组）
@@ -431,10 +431,10 @@ class NodeListPanel(FloatingPanel):
                         moved_items.append(data['name'])
             
             if not moved_items:
-                print(f"⚠️ 未找到被移动的节点")
+                logger.debug("⚠️ 未找到被移动的节点")
                 return
             
-            print(f"📦 检测到节点移动: {moved_items}")
+            logger.debug("📦 检测到节点移动: %moved_items")
             
             # 获取目标位置
             target_item = None
@@ -442,11 +442,11 @@ class NodeListPanel(FloatingPanel):
                 target_item = self.node_tree.itemFromIndex(destination_index)
                 if target_item:
                     target_data = target_item.data(0, Qt.ItemDataRole.UserRole)
-                    print(f"🎯 目标类型: {target_data.get('type') if target_data else 'None'}")
+                    logger.debug("🎯 目标类型: {target_data.get('type') if target_data else 'None'}")
             
             if not target_item:
                 # 移动到根级别 - 将节点移出所有组，成为独立节点
-                print(f"✅ 移动到根级别，调用 _move_nodes_to_ungrouped")
+                logger.debug("✅ 移动到根级别，调用 _move_nodes_to_ungrouped")
                 self._move_nodes_to_ungrouped(moved_items)
                 return
             
@@ -455,15 +455,15 @@ class NodeListPanel(FloatingPanel):
             if target_data and target_data.get('type') == 'group':
                 # 移动到某个节点组 - 正常操作
                 target_group = target_data['name']
-                print(f"✅ 移动到组 '{target_group}'，调用 _move_nodes_to_group")
+                logger.debug("✅ 移动到组 '%target_group'，调用 _move_nodes_to_group")
                 self._move_nodes_to_group(moved_items, target_group)
             
             elif target_data and target_data.get('type') == 'node':
                 # 这个情况应该在_intercept_drop_event中已经被处理了
-                print(f"⚠️ 检测到节点到节点的移动（不应该到达这里）")
+                logger.debug("⚠️ 检测到节点到节点的移动（不应该到达这里）")
         
         except Exception as e:
-            print(f"⚠️ 处理节点移动失败: {e}")
+            logger.warning("⚠️ 处理节点移动失败: %e")
             import traceback
             traceback.print_exc()
     
@@ -542,7 +542,7 @@ class NodeListPanel(FloatingPanel):
             if self.parent_window and refresh:
                 self.parent_window.show_toast(f"已自动删除 {len(empty_groups)} 个空节点组", "info")
             
-            print(f"✅ 自动删除空节点组: {', '.join(empty_groups)}")
+            logger.debug("✅ 自动删除空节点组: {', '.join(empty_groups)}")
             return True
         
         return False
@@ -774,11 +774,11 @@ class NodeListPanel(FloatingPanel):
         node_path = self.nodes_data[node_name]['path']
         
         # 详细调试：打印所有路径相关信息
-        print(f"\n{'='*60}")
-        print(f"🔍 [NodeListPanel] 打开节点文件夹")
-        print(f"🔍 节点名称: {node_name}")
-        print(f"🔍 原始节点路径: {node_path}")
-        print(f"🔍 路径类型: {type(node_path)}")
+        logger.debug("\n{'='*60}")
+        logger.debug("🔍 [NodeListPanel] 打开节点文件夹")
+        logger.debug("🔍 节点名称: %node_name")
+        logger.debug("🔍 原始节点路径: %node_path")
+        logger.debug("🔍 路径类型: {type(node_path)}")
         
         # ✅ 关键修复：确保路径是绝对路径且规范化
         original_path = node_path
@@ -786,27 +786,27 @@ class NodeListPanel(FloatingPanel):
         corrected_path = os.path.normpath(corrected_path)
         
         if original_path != corrected_path:
-            print(f"⚠️  路径已修正:")
-            print(f"   原始: {original_path}")
-            print(f"   修正: {corrected_path}")
+            logger.info("⚠️  路径已修正:")
+            logger.debug("   原始: %original_path")
+            logger.debug("   修正: %corrected_path")
             node_path = corrected_path
         
-        print(f"🔍 最终节点路径: {node_path}")
-        print(f"🔍 路径是否存在: {os.path.exists(node_path)}")
-        print(f"🔍 是否为目录: {os.path.isdir(node_path) if os.path.exists(node_path) else 'N/A'}")
-        print(f"🔍 父目录: {os.path.dirname(node_path)}")
-        print(f"🔍 文件夹名称: {os.path.basename(node_path)}")
-        print(f"🔍 当前工作目录: {os.getcwd()}")
+        logger.debug("🔍 最终节点路径: %node_path")
+        logger.debug("🔍 路径是否存在: {os.path.exists(node_path)}")
+        logger.debug("🔍 是否为目录: {os.path.isdir(node_path) if os.path.exists(node_path) else 'N/A'}")
+        logger.debug("🔍 父目录: {os.path.dirname(node_path)}")
+        logger.debug("🔍 文件夹名称: {os.path.basename(node_path)}")
+        logger.debug("🔍 当前工作目录: {os.getcwd()}")
         
         # 检查路径是否包含预期的节点名称
         expected_folder = node_name
         actual_folder = os.path.basename(node_path)
-        print(f"🔍 期望的文件夹名: {expected_folder}")
-        print(f"🔍 实际的文件夹名: {actual_folder}")
-        print(f"🔍 名称匹配: {expected_folder == actual_folder}")
+        logger.debug("🔍 期望的文件夹名: %expected_folder")
+        logger.debug("🔍 实际的文件夹名: %actual_folder")
+        logger.debug("🔍 名称匹配: {expected_folder == actual_folder}")
         
         if not os.path.exists(node_path):
-            print(f"❌ 路径不存在！")
+            logger.warning("❌ 路径不存在！")
             
             # 尝试从主窗口获取正确路径
             if hasattr(self, 'parent_window') and self.parent_window:
@@ -815,13 +815,13 @@ class NodeListPanel(FloatingPanel):
                     correct_path = os.path.abspath(correct_path)
                     correct_path = os.path.normpath(correct_path)
                     
-                    print(f"💡 尝试从主窗口 nodes_data 获取路径: {correct_path}")
+                    logger.debug("💡 尝试从主窗口 nodes_data 获取路径: %correct_path")
                     
                     if os.path.exists(correct_path):
-                        print(f"✅ 找到正确路径，使用此路径")
+                        logger.debug("✅ 找到正确路径，使用此路径")
                         node_path = correct_path
                     else:
-                        print(f"❌ 备用路径也不存在")
+                        logger.warning("❌ 备用路径也不存在")
             
             if not os.path.exists(node_path):
                 QMessageBox.warning(
@@ -847,8 +847,8 @@ class NodeListPanel(FloatingPanel):
         else:  # Linux
             subprocess.Popen(['xdg-open', node_path])
             
-        print(f"✅ 已打开节点文件夹: {node_path}")
-        print(f"{'='*60}\n")
+        logger.info("✅ 已打开节点文件夹: %node_path")
+        logger.debug("{'='*60}\n")
     def view_node_log(self, node_name):
         """查看节点日志"""
         if node_name not in self.nodes_data:
@@ -945,7 +945,7 @@ class NodeListPanel(FloatingPanel):
                             os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                             process.wait()
                 except Exception as e:
-                    print(f"停止节点时出错: {e}")
+                    logger.warning("停止节点时出错: %e")
                     try:
                         process.kill()
                         process.wait()
@@ -1206,7 +1206,7 @@ class NodeListPanel(FloatingPanel):
                         self._start_single_node(node_name)
                         success_count += 1
                     except Exception as e:
-                        print(f"启动节点 {node_name} 失败: {e}")
+                        logger.warning("启动节点 %node_name 失败: %e")
                         fail_count += 1
         
         msg = f"已启动 {success_count} 个节点"
@@ -1233,7 +1233,7 @@ class NodeListPanel(FloatingPanel):
                         self._stop_single_node(node_name)
                         success_count += 1
                     except Exception as e:
-                        print(f"停止节点 {node_name} 失败: {e}")
+                        logger.warning("停止节点 %node_name 失败: %e")
         
         if self.parent_window:
             self.parent_window.show_toast(f"已停止 {success_count} 个节点", "success")
@@ -1296,7 +1296,7 @@ class NodeListPanel(FloatingPanel):
                                 os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                                 process.wait()
                     except Exception as e:
-                        print(f"停止节点时出错: {e}")
+                        logger.warning("停止节点时出错: %e")
                         try:
                             process.kill()
                             process.wait()
@@ -1322,7 +1322,7 @@ class NodeListPanel(FloatingPanel):
                 success_count += 1
                 
             except Exception as e:
-                print(f"删除节点 {node_name} 失败: {e}")
+                logger.warning("删除节点 %node_name 失败: %e")
                 fail_count += 1
                 failed_nodes.append(node_name)
         
@@ -1428,7 +1428,7 @@ class NodeListPanel(FloatingPanel):
                 
                 all_logs.append(f"{'='*60}\n节点: {node_name}\n{'='*60}\n{log_content}\n")
             except Exception as e:
-                print(f"读取节点 {node_name} 日志失败: {e}")
+                logger.warning("读取节点 %node_name 日志失败: %e")
         
         if not all_logs:
             QMessageBox.information(self, "提示", "没有可用的日志文件")
@@ -1541,7 +1541,7 @@ class NodeListPanel(FloatingPanel):
                     self._start_single_node(node_name)
                     success_count += 1
                 except Exception as e:
-                    print(f"启动节点 {node_name} 失败: {e}")
+                    logger.warning("启动节点 %node_name 失败: %e")
         
         if self.parent_window:
             self.parent_window.show_toast(f"已启动组 '{group_name}' 中的 {success_count} 个节点", "success")
@@ -1562,7 +1562,7 @@ class NodeListPanel(FloatingPanel):
                     self._stop_single_node(node_name)
                     success_count += 1
                 except Exception as e:
-                    print(f"停止节点 {node_name} 失败: {e}")
+                    logger.warning("停止节点 %node_name 失败: %e")
         
         if self.parent_window:
             self.parent_window.show_toast(f"已停止组 '{group_name}' 中的 {success_count} 个节点", "success")
@@ -1584,7 +1584,7 @@ class NodeListPanel(FloatingPanel):
                     self._start_single_node(node_name)
                     success_count += 1
                 except Exception as e:
-                    print(f"启动节点 {node_name} 失败: {e}")
+                    logger.warning("启动节点 %node_name 失败: %e")
         
         if self.parent_window:
             self.parent_window.show_toast(f"已启动 {success_count} 个未分组节点", "success")
@@ -1606,7 +1606,7 @@ class NodeListPanel(FloatingPanel):
                     self._stop_single_node(node_name)
                     success_count += 1
                 except Exception as e:
-                    print(f"停止节点 {node_name} 失败: {e}")
+                    logger.warning("停止节点 %node_name 失败: %e")
         
         if self.parent_window:
             self.parent_window.show_toast(f"已停止 {success_count} 个未分组节点", "success")

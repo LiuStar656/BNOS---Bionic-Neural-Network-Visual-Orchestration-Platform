@@ -290,7 +290,7 @@ class NodeCanvas(QGraphicsView):
             # 如果点击的不是锚点，取消连线
             if not isinstance(item, AnchorItem):
                 self.cancel_connection()
-                print("取消连线")
+                logger.debug("取消连线")
                 event.accept()
                 return
         
@@ -302,7 +302,7 @@ class NodeCanvas(QGraphicsView):
             # 如果点击的是节点、连线或锚点，不进入平移模式，让NodeItem自己处理Ctrl+Click多选
             if item is not None and (isinstance(item, NodeItem) or isinstance(item, EdgeItem) or isinstance(item, AnchorItem)):
                 # 不调用 super()，直接返回，让子项处理
-                print("点击了交互项，交给子项处理")
+                logger.debug("点击了交互项，交给子项处理")
                 return
             
             # 点击空白区域，进入平移模式（第二阶段）
@@ -315,7 +315,7 @@ class NodeCanvas(QGraphicsView):
             for node in self.nodes.values():
                 node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
             
-            print("进入平移模式（空格模式+左键）")
+            logger.debug("进入平移模式（空格模式+左键）")
             event.accept()
             return
         
@@ -349,7 +349,7 @@ class NodeCanvas(QGraphicsView):
                 # 清除当前单选
                 self.clear_selection()
                 
-                print("开始框选")
+                logger.debug("开始框选")
                 event.accept()
                 return
 
@@ -374,7 +374,7 @@ class NodeCanvas(QGraphicsView):
             for node in self.nodes.values():
                 node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
             
-            print("退出平移模式")
+            logger.debug("退出平移模式")
             
             # 自动保存布局（包含视图状态）
             if self.parent_window and self.parent_window.current_project_path:
@@ -396,9 +396,9 @@ class NodeCanvas(QGraphicsView):
             self.box_select_start_pos = None
             
             if self.box_selected_nodes:
-                print(f"结束框选，选中 {len(self.box_selected_nodes)} 个节点: {self.box_selected_nodes}")
+                logger.debug("结束框选，选中 %d 个节点: %s", len(self.box_selected_nodes), self.box_selected_nodes)
             else:
-                print("结束框选，未选中节点")
+                logger.debug("结束框选，未选中节点")
             
             event.accept()
             return
@@ -413,7 +413,7 @@ class NodeCanvas(QGraphicsView):
         # 如果双击的是节点，打开配置对话框
         if isinstance(item, NodeItem):
             node_name = item.node_name
-            print(f"双击节点: {node_name}，打开配置对话框")
+            logger.debug("双击节点: %s，打开配置对话框", node_name)
             
             # 调用打开配置的方法
             self.open_node_config(node_name)
@@ -437,7 +437,7 @@ class NodeCanvas(QGraphicsView):
             # 首次按下空格（非自动重复），进入空格快捷键模式
             self.is_space_pressed = True
             self.space_mode_active = True
-            print("进入空格快捷键模式")
+            logger.debug("进入空格快捷键模式")
             
             # 显示手型光标提示
             if not self.is_pan_mode:
@@ -470,11 +470,11 @@ class NodeCanvas(QGraphicsView):
                 for node in self.nodes.values():
                     node.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
                 
-                print("退出平移模式（空格键释放）")
+                logger.debug("退出平移模式（空格键释放）")
             else:
                 self.setCursor(Qt.CursorShape.ArrowCursor)
             
-            print("退出空格快捷键模式")
+            logger.debug("退出空格快捷键模式")
             
             event.accept()
             return
@@ -514,7 +514,7 @@ class NodeCanvas(QGraphicsView):
         self.scene.addItem(node)
         self.nodes[node_name] = node  # 添加到nodes字典
         
-        print(f"节点 '{node_name}' 已添加到画布 (位置: {x}, {y})")
+        logger.info("节点 %s 已添加到画布 (位置: %d, %d)", node_name, x, y)
         
     def remove_node_from_canvas(self, node_name):
         """从画布移除节点"""
@@ -741,9 +741,9 @@ class NodeCanvas(QGraphicsView):
                 try:
                     with open(config_path, 'w', encoding='utf-8') as f:
                         json.dump(upstream_config, f, indent=2, ensure_ascii=False)
-                    print(f"✅ 已清除上游节点 {upstream_name} 的监听配置")
+                    logger.info("已清除上游节点 %s 的监听配置", upstream_name)
                 except Exception as e:
-                    print(f"❌ 保存配置失败: {e}")
+                    logger.info(f"❌ 保存配置失败: {e}")
         
         # 4. 清除下游节点的 listen_upper_file（因为上游被删除了）
         for downstream_name in downstream_nodes:
@@ -756,16 +756,16 @@ class NodeCanvas(QGraphicsView):
                 try:
                     with open(config_path, 'w', encoding='utf-8') as f:
                         json.dump(downstream_config, f, indent=2, ensure_ascii=False)
-                    print(f"✅ 已清除下游节点 {downstream_name} 的监听配置")
+                    logger.info("已清除下游节点 %s 的监听配置", downstream_name)
                 except Exception as e:
-                    print(f"❌ 保存配置失败: {e}")
+                    logger.info(f"❌ 保存配置失败: {e}")
         
         # 5. 从画布中移除节点
         node = self.nodes[node_name]
         self.scene.removeItem(node)
         del self.nodes[node_name]
         
-        print(f"✅ 已从画布删除节点: {node_name}")
+        logger.info("已从画布删除节点: %s", node_name)
         
         # 6. 自动保存布局
         if self.parent_window and self.parent_window.current_project_path:
@@ -808,7 +808,7 @@ class NodeCanvas(QGraphicsView):
                 self.parent_window.start_selected_node_by_name(node_name)
                 success_count += 1
             except Exception as e:
-                print(f"❌ 启动节点 {node_name} 失败: {e}")
+                logger.error("启动节点 %s 失败: %s", node_name, e)
                 fail_count += 1
         
         # 显示结果
@@ -844,7 +844,7 @@ class NodeCanvas(QGraphicsView):
                 self.parent_window.stop_selected_node_by_name(node_name)
                 success_count += 1
             except Exception as e:
-                print(f"❌ 停止节点 {node_name} 失败: {e}")
+                logger.error("停止节点 %s 失败: %s", node_name, e)
                 fail_count += 1
         
         # 显示结果
@@ -887,7 +887,7 @@ class NodeCanvas(QGraphicsView):
                 self.scene.removeItem(node)
                 del self.nodes[node_name]
                 removed_count += 1
-                print(f"✅ 已从画布移除节点: {node_name}")
+                logger.info("已从画布移除节点: %s", node_name)
         
         # 清除所有相关连线
         edges_to_remove = []
@@ -907,7 +907,7 @@ class NodeCanvas(QGraphicsView):
         for edge in edges_to_remove:
             self.remove_edge(edge)
         
-        print(f"✅ 已从画布移除 {removed_count} 个节点")
+        logger.info("已从画布移除 %d 个节点", removed_count)
         
         # 清除选择状态
         self.clear_box_selection()
@@ -936,9 +936,9 @@ class NodeCanvas(QGraphicsView):
                         with open(config_path, 'w', encoding='utf-8') as f:
                             json.dump(config, f, indent=2, ensure_ascii=False)
                         cleared_count += 1
-                        print(f"✅ 已清除节点 {node_name} 的监听配置")
+                        logger.info("已清除节点 %s 的监听配置", node_name)
                     except Exception as e:
-                        print(f"❌ 保存配置失败: {e}")
+                        logger.info(f"❌ 保存配置失败: {e}")
         
         # 清除这些节点的所有输入连线
         edges_to_remove = []
@@ -1009,7 +1009,7 @@ class NodeCanvas(QGraphicsView):
         """重置视图到默认状态"""
         self.resetTransform()
         self.centerOn(0, 0)
-        print("✅ 视图已重置")
+        logger.info("✅ 视图已重置")
     
     # ===== 颜色设置方法 =====
     
@@ -1027,7 +1027,7 @@ class NodeCanvas(QGraphicsView):
             
             # 自动保存配置
             self._save_color_settings()
-            print(f"✅ 画布背景色已更改为: {self.canvas_bg_color}")
+            logger.info("画布背景色已更改为: %s", self.canvas_bg_color)
     
     def change_grid_color(self):
         """修改网格线颜色"""
@@ -1042,7 +1042,7 @@ class NodeCanvas(QGraphicsView):
             
             # 自动保存配置
             self._save_color_settings()
-            print(f"✅ 网格线颜色已更改为: {self.grid_color}")
+            logger.info("网格线颜色已更改为: %s", self.grid_color)
     
     def change_edge_color(self):
         """修改连线颜色"""
@@ -1060,7 +1060,7 @@ class NodeCanvas(QGraphicsView):
             
             # 自动保存配置
             self._save_color_settings()
-            print(f"✅ 连线颜色已更改为: {self.edge_color}")
+            logger.info("连线颜色已更改为: %s", self.edge_color)
     
     def change_node_background_color(self, node_item):
         """修改节点背景颜色"""
@@ -1083,11 +1083,11 @@ class NodeCanvas(QGraphicsView):
                 try:
                     with open(config_path, 'w', encoding='utf-8') as f:
                         json.dump(config, f, indent=2, ensure_ascii=False)
-                    print(f"✅ 节点 {node_item.node_name} 背景色已保存")
+                    logger.info("节点 %s 背景色已保存", node_item.node_name)
                 except Exception as e:
-                    print(f"❌ 保存节点颜色失败: {e}")
+                    logger.info(f"❌ 保存节点颜色失败: {e}")
             
-            print(f"✅ 节点背景色已更改为: {color.name()}")
+            logger.info("节点背景色已更改为: %s", color.name())
     
     def change_node_border_color(self, node_item):
         """修改节点边框颜色"""
@@ -1110,11 +1110,11 @@ class NodeCanvas(QGraphicsView):
                 try:
                     with open(config_path, 'w', encoding='utf-8') as f:
                         json.dump(config, f, indent=2, ensure_ascii=False)
-                    print(f"✅ 节点 {node_item.node_name} 边框色已保存")
+                    logger.info("节点 %s 边框色已保存", node_item.node_name)
                 except Exception as e:
-                    print(f"❌ 保存节点颜色失败: {e}")
+                    logger.info(f"❌ 保存节点颜色失败: {e}")
             
-            print(f"✅ 节点边框色已更改为: {color.name()}")
+            logger.info("节点边框色已更改为: %s", color.name())
     
     def change_node_text_color(self, node_item):
         """修改节点文字颜色"""
@@ -1137,11 +1137,11 @@ class NodeCanvas(QGraphicsView):
                 try:
                     with open(config_path, 'w', encoding='utf-8') as f:
                         json.dump(config, f, indent=2, ensure_ascii=False)
-                    print(f"✅ 节点 {node_item.node_name} 文字色已保存")
+                    logger.info("节点 %s 文字色已保存", node_item.node_name)
                 except Exception as e:
-                    print(f"❌ 保存节点颜色失败: {e}")
+                    logger.info(f"❌ 保存节点颜色失败: {e}")
             
-            print(f"✅ 节点文字色已更改为: {color.name()}")
+            logger.info("节点文字色已更改为: %s", color.name())
     
     def _save_color_settings(self):
         """保存画布颜色设置到项目配置"""
@@ -1161,9 +1161,9 @@ class NodeCanvas(QGraphicsView):
         try:
             with open(settings_file, 'w', encoding='utf-8') as f:
                 json.dump(color_settings, f, indent=2, ensure_ascii=False)
-            print(f"✅ 颜色设置已保存到: {settings_file}")
+            logger.info("颜色设置已保存到: %s", settings_file)
         except Exception as e:
-            print(f"❌ 保存颜色设置失败: {e}")
+            logger.info(f"❌ 保存颜色设置失败: {e}")
     
     def _load_color_settings(self, project_path):
         """从项目配置加载颜色设置"""
@@ -1180,9 +1180,9 @@ class NodeCanvas(QGraphicsView):
             
             # 应用颜色设置
             self.apply_color_settings(color_settings)
-            print(f"✅ 颜色设置已从 {settings_file} 加载")
+            logger.info("颜色设置已从 %s 加载", settings_file)
         except Exception as e:
-            print(f"⚠️ 加载颜色设置失败: {e}")
+            logger.info(f"⚠️ 加载颜色设置失败: {e}")
 
     def update_node_status(self, node_name, status):
         """更新节点状态"""
@@ -1252,7 +1252,7 @@ class NodeCanvas(QGraphicsView):
         selected_color = QColor(self.node_selected_color)
         node.setPen(QPen(selected_color, 3))
         
-        print(f"✅ 选中节点: {self.selected_node}")
+        logger.info("选中节点: %s", self.selected_node)
     
     def _toggle_node_selection(self, node_name):
         """切换节点选中状态（用于Ctrl+单击多选）"""
@@ -1267,13 +1267,13 @@ class NodeCanvas(QGraphicsView):
             self.box_selected_nodes.remove(node_name)
             border_color = QColor(self.node_border_color)
             node.setPen(QPen(border_color, 2))
-            print(f"❌ 取消选中节点: {node_name}")
+            logger.debug("取消选中节点: %s", node_name)
         else:
             # 选中：添加到列表，高亮边框
             self.box_selected_nodes.append(node_name)
             selected_color = QColor(self.node_selected_color)
             node.setPen(QPen(selected_color, 3))
-            print(f"✅ 选中节点: {node_name} (共{len(self.box_selected_nodes)}个)")
+            logger.info("选中节点: %s (共%d个)", node_name, len(self.box_selected_nodes))
     
     def get_selected_node(self):
         """获取当前选中的节点名称"""
@@ -1369,10 +1369,10 @@ class NodeCanvas(QGraphicsView):
                 with open(config_path, 'w', encoding='utf-8') as f:
                     json.dump(target_config, f, indent=2, ensure_ascii=False)
                 
-                print(f"✅ 已配置 {target_name} 监听 {source_name} 的输出")
-                print(f"   listen_upper_file: {source_output_path}")
+                logger.info("已配置 %s 监听 %s 的输出", target_name, source_name)
+                logger.debug("   listen_upper_file: %s", source_output_path)
             except Exception as e:
-                print(f"❌ 保存配置失败: {e}")
+                logger.info(f"❌ 保存配置失败: {e}")
         
         # 创建连线条（此时不会自动更新路径）
         edge = EdgeItem(source_node, target_node, self)
@@ -1384,7 +1384,7 @@ class NodeCanvas(QGraphicsView):
         # 添加到场景后再更新路径和箭头
         edge.update_path()
         
-        print(f"✅ 创建连线: {source_name} -> {target_name}")
+        logger.info("创建连线: %s -> %s", source_name, target_name)
         
         # 自动保存布局（防抖500ms）
         if self.parent_window and self.parent_window.current_project_path:
@@ -1412,9 +1412,9 @@ class NodeCanvas(QGraphicsView):
                 try:
                     with open(config_path, 'w', encoding='utf-8') as f:
                         json.dump(target_config, f, indent=2, ensure_ascii=False)
-                    print(f"✅ 已清空 {target_name} 的监听配置")
+                    logger.info("已清空 %s 的监听配置", target_name)
                 except Exception as e:
-                    print(f"❌ 保存配置失败: {e}")
+                    logger.info(f"❌ 保存配置失败: {e}")
             
             # 从场景中移除
             edge.remove_from_scene()
@@ -1474,7 +1474,7 @@ class NodeCanvas(QGraphicsView):
             self.scene.removeItem(self.temp_edge)
             self.temp_edge = None
             
-        print("画布已清空")
+        logger.info("画布已清空")
 
     def rename_node_in_canvas(self, old_name, new_name):
         """在画布中重命名节点"""
@@ -1492,7 +1492,7 @@ class NodeCanvas(QGraphicsView):
             del self.nodes[old_name]
             self.nodes[new_name] = node
             
-            print(f"✅ 画布节点已重命名: {old_name} -> {new_name}")
+            logger.info("画布节点已重命名: %s -> %s", old_name, new_name)
 
     def save_layout(self, project_path):
         """保存画布布局到JSON文件 - 完整持久化（包含节点颜色）"""
@@ -1566,9 +1566,9 @@ class NodeCanvas(QGraphicsView):
         try:
             with open(layout_file, 'w', encoding='utf-8') as f:
                 json.dump(layout_data, f, indent=2, ensure_ascii=False)
-            print(f"✅ 画布布局已保存到: {layout_file}")
+            logger.info("画布布局已保存到: %s", layout_file)
         except Exception as e:
-            print(f"❌ 保存布局失败: {e}")
+            logger.info(f"❌ 保存布局失败: {e}")
         
         # 同时保存颜色设置
         self._save_color_settings()
@@ -1580,7 +1580,7 @@ class NodeCanvas(QGraphicsView):
         
         layout_file = os.path.join(project_path, "canvas_layout.json")
         if not os.path.exists(layout_file):
-            print(f"ℹ️  未找到布局文件: {layout_file}")
+            logger.info(f"ℹ️  未找到布局文件: {layout_file}")
             # 即使没有布局文件，也尝试加载颜色设置
             self._load_color_settings(project_path)
             return
@@ -1639,7 +1639,7 @@ class NodeCanvas(QGraphicsView):
                         self.scene.addItem(edge)
                         self.edges.append(edge)
                     
-                    print(f"✅ 画布尺寸已更新: {self.canvas_width}x{self.canvas_height}")
+                    logger.info("画布尺寸已更新: %dx%d", self.canvas_width, self.canvas_height)
             
             nodes_loaded = 0
             edges_loaded = 0
@@ -1752,8 +1752,8 @@ class NodeCanvas(QGraphicsView):
                         self.nodes[node_name] = node
                         
                         nodes_added_auto += 1
-                        print(f"   🔄 自动恢复节点: {node_name} (位置: {x}, {y})")
-                        print(f"   🔄 自动恢复节点: {node_name} (位置: {x}, {y})")
+                        logger.info("自动恢复节点: %s (位置: %d, %d)", node_name, x, y)
+                        logger.info("自动恢复节点: %s (位置: %d, %d)", node_name, x, y)
 
             # 第三步：恢复连线（避免重复，只恢复两端节点都在画布中的连线）
             existing_edges = set()
@@ -1797,11 +1797,11 @@ class NodeCanvas(QGraphicsView):
             # 输出统计信息
             total_nodes = len(self.nodes)
             total_edges = len(self.edges)
-            print(f"✅ 加载完成: {total_nodes}个节点, {total_edges}条连线")
+            logger.info("加载完成: %d个节点, %d条连线", total_nodes, total_edges)
             if nodes_added_auto > 0:
-                print(f"   🔄 自动恢复: {nodes_added_auto}个节点")
+                logger.info("自动恢复: %d个节点", nodes_added_auto)
             if edges_restored > 0:
-                print(f"   🔗 恢复连线: {edges_restored}条")
+                logger.info("恢复连线: %d条", edges_restored)
 
             # 第四步：恢复视图状态（缩放、滚动位置、中心点）
             view_state = layout_data.get("view_state")
@@ -1837,24 +1837,24 @@ class NodeCanvas(QGraphicsView):
                         h_scroll.setValue(h_scroll.value() + int(delta_x))
                         v_scroll.setValue(v_scroll.value() + int(delta_y))
                         
-                        print(f"✅ 画布视图状态已恢复 (缩放: {scale:.2f}x, 中心: {center_x:.0f}, {center_y:.0f})")
+                        logger.info("画布视图状态已恢复 (缩放: %.2fx, 中心: %.0f, %.0f)", scale, center_x, center_y)
                     else:
-                        print(f"✅ 画布视图状态已恢复 (缩放: {scale:.2f}x)")
+                        logger.info("画布视图状态已恢复 (缩放: %.2fx)", scale)
                 except Exception as e:
-                    print(f"⚠️  恢复画布视图状态失败: {e}")
+                    logger.info(f"⚠️  恢复画布视图状态失败: {e}")
 
         except (json.JSONDecodeError, IOError) as e:
-            print(f"⚠️  布局文件损坏，使用默认布局: {e}")
+            logger.info(f"⚠️  布局文件损坏，使用默认布局: {e}")
             # 备份损坏的文件
             try:
                 import shutil
                 backup_file = layout_file + ".bak"
                 shutil.copy2(layout_file, backup_file)
-                print(f"📦 已备份损坏的布局文件: {backup_file}")
+                logger.info("已备份损坏的布局文件: %s", backup_file)
             except:
                 pass
         except Exception as e:
-            print(f"❌ 加载布局失败: {e}")
+            logger.info(f"❌ 加载布局失败: {e}")
             import traceback
             traceback.print_exc()
 
@@ -1905,4 +1905,4 @@ class NodeCanvas(QGraphicsView):
         for edge in self.edges:
             edge.update_edge_style()
         
-        print("✅ 颜色设置已应用")
+        logger.info("✅ 颜色设置已应用")
