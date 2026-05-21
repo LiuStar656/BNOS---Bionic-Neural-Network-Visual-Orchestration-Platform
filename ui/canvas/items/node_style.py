@@ -213,11 +213,13 @@ class DotNodeStyle(NodeStyle):
         from PyQt6.QtGui import QPen, QBrush, QFont
         from PyQt6.QtCore import Qt
         w, h = self.node_width, self.node_height
+        r = self.dot_radius
+        cx, cy = w // 2 - r, h // 4 - r
 
-        # 隐藏方框
+        # 方框与圆点一致（选中框不超出圆点）
         node_item.setBrush(QBrush(Qt.GlobalColor.transparent))
         node_item.setPen(QPen(Qt.PenStyle.NoPen))
-        node_item.setRect(0, 0, w, h)
+        node_item.setRect(cx, cy, r * 2, r * 2)
 
         # 隐藏所有方框专属组件
         for attr in ('input_anchor', 'output_anchor', '_in_label', '_out_label',
@@ -227,9 +229,7 @@ class DotNodeStyle(NodeStyle):
         node_item.status_indicator.setVisible(False)
         node_item._expand_btn_rect.setRect(-100, -100, 1, 1)
 
-        # 圆点本体（放在左上区域）
-        r = self.dot_radius
-        cx, cy = w // 2 - r, h // 4 - r
+        # 圆点本体
         if not hasattr(node_item, '_body') or node_item._body is None:
             node_item._body = QGraphicsEllipseItem(cx, cy, r * 2, r * 2, node_item)
             node_item._body.setZValue(5)
