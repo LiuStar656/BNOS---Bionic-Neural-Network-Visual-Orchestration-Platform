@@ -60,17 +60,17 @@ class NodeCanvas(QGraphicsView):
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontSavePainterState, True)
         
-        # ===== 颜色配置（支持自定义）=====
-        self.canvas_bg_color = '#ffffff'          # 画布背景色
-        self.grid_color = '#e0e0e0'               # 网格线颜色
-        self.grid_opacity = 0.5                   # 网格线透明度 (0-1)
-        self.node_bg_color = '#f8f9fa'            # 节点背景色
-        self.node_border_color = '#dee2e6'        # 节点边框色
-        self.node_text_color = '#333333'          # 节点文字色
-        self.node_selected_color = '#2196F3'      # 选中节点边框色
-        self.input_anchor_color = '#4CAF50'       # 输入锚点颜色
-        self.output_anchor_color = '#2196F3'      # 输出锚点颜色
-        self.edge_color = '#666666'               # 连线颜色
+        # ===== 颜色配置（支持自定义）— VSCode 深色主题 =====
+        self.canvas_bg_color = '#1e1e1e'          # 画布背景（与标题栏统一）
+        self.grid_color = '#2a2a2a'               # 网格线（极暗灰，若有若无）
+        self.grid_opacity = 0.3                   # 网格透明度
+        self.node_bg_color = '#2d2d30'            # 节点背景（略亮于画布）
+        self.node_border_color = '#454545'        # 节点边框（微弱边框）
+        self.node_text_color = '#d4d4d4'          # 节点文字（标准前景色）
+        self.node_selected_color = '#007acc'      # 选中边框（VSCode 蓝）
+        self.input_anchor_color = '#6a9955'       # 输入锚点（VSCode 绿）
+        self.output_anchor_color = '#007acc'      # 输出锚点（VSCode 蓝）
+        self.edge_color = '#007acc'               # 连线色（VSCode 蓝）
         self.edge_width = 2                       # 连线宽度
         
         # 应用背景色
