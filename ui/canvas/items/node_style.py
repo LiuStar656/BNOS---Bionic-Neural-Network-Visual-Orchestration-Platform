@@ -216,35 +216,51 @@ class DotNodeStyle(NodeStyle):
         r = self.dot_radius
         cx, cy = w // 2 - r, h // 4 - r
 
-        # 方框与圆点一致（选中框不超出圆点）
+        # 方框与圆点一致
         node_item.setBrush(QBrush(Qt.GlobalColor.transparent))
         node_item.setPen(QPen(Qt.PenStyle.NoPen))
         node_item.setRect(cx, cy, r * 2, r * 2)
 
-        # 隐藏所有方框专属组件
-        for attr in ('input_anchor', 'output_anchor', '_in_label', '_out_label',
-                     '_expand_btn', '_expand_label'):
+        # 隐藏方框专属组件
+        for attr in ('_in_label', '_out_label', '_expand_btn', '_expand_label'):
             if hasattr(node_item, attr) and getattr(node_item, attr, None):
                 getattr(node_item, attr).setVisible(False)
         node_item.status_indicator.setVisible(False)
         node_item._expand_btn_rect.setRect(-100, -100, 1, 1)
 
-        # 圆点本体
+        # ===== 三层锚点架构 =====
+        # 输出锚点 — 最下层 (z=4)，尺寸=指示灯
+        out_sz = r * 2
+        node_item.output_anchor.setRect(0, 0, out_sz, out_sz)
+        node_item.output_anchor.setPos(cx, cy)
+        node_item.output_anchor.setZValue(4)
+        node_item.output_anchor.setVisible(True)
+        node_item.output_anchor.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+
+        # 输入锚点 — 中层 (z=5)，比指示灯大
+        in_extra = 6
+        in_sz = r * 2 + in_extra
+        node_item.input_anchor.setRect(0, 0, in_sz, in_sz)
+        node_item.input_anchor.setPos(cx - in_extra // 2, cy - in_extra // 2)
+        node_item.input_anchor.setZValue(5)
+        node_item.input_anchor.setVisible(True)
+        node_item.input_anchor.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+
+        # 指示灯 — 最上层 (z=6)，可点击穿透
+        body_sz = r * 2
         if not hasattr(node_item, '_body') or node_item._body is None:
-            node_item._body = QGraphicsEllipseItem(cx, cy, r * 2, r * 2, node_item)
-            node_item._body.setZValue(5)
+            node_item._body = QGraphicsEllipseItem(cx, cy, body_sz, body_sz, node_item)
         else:
-            node_item._body.setRect(cx, cy, r * 2, r * 2)
+            node_item._body.setRect(cx, cy, body_sz, body_sz)
+        node_item._body.setZValue(6)
         node_item._body.setVisible(True)
         node_item._body.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
 
         self.apply_status(node_item, node_item.status)
 
-        # 圆底 y，文字从这里开始（相切）
+        # 文字
         dot_bottom = cy + 2 * r
-        text_x = cx  # 左对齐
-
-        # 名称
+        text_x = cx
         f = QFont(self.name_font_family, self.name_font_size)
         if self.name_font_bold: f.setBold(True)
         node_item.name_text.setDefaultTextColor(QColor(self.text_color))
@@ -252,7 +268,6 @@ class DotNodeStyle(NodeStyle):
         node_item.name_text.setVisible(True)
         node_item.name_text.setPos(text_x, dot_bottom + 2)
 
-        # 语言标签（名称下方）
         f2 = QFont(self.lang_font_family, self.lang_font_size)
         if self.lang_font_bold: f2.setBold(True)
         node_item.lang_text.setDefaultTextColor(QColor(self.lang_color))
