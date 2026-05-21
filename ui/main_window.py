@@ -28,103 +28,8 @@ from ui.creators.node_creator_manager import NodeCreatorManager
 from ui.menu.menu_manager import MenuManager
 from ui.core.toast.toast_notification import ToastNotification
 from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node
-
-
-class AppConfig:
-    """应用配置管理 - 全局配置记忆系统"""
-    
-    def __init__(self):
-        # 配置文件路径（程序根目录）
-        self.config_file = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), 
-            "..", 
-            "app_config.json"
-        )
-        
-        # 默认配置
-        self.config = {
-            # 窗口布局持久化
-            "window_geometry": {
-                "x": 100,
-                "y": 100,
-                "width": 1400,
-                "height": 900,
-                "maximized": False
-            },
-            "splitter_sizes": [250, 1150],  # 左侧节点列表 + 右侧画布
-            
-            # 项目记忆
-            "last_project": None,
-            
-            # 画布视图状态（最后的项目）
-            "canvas_view_state": {
-                "scale": 1.0,
-                "scroll_x": 0,
-                "scroll_y": 0
-            }
-        }
-        
-        # 加载配置
-        self.load()
-    
-    def load(self):
-        """加载配置 - 带异常处理"""
-        try:
-            if os.path.exists(self.config_file):
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    loaded = json.load(f)
-                    
-                    # 合并配置（保留新字段的默认值）
-                    for key in loaded:
-                        if key in self.config:
-                            if isinstance(self.config[key], dict) and isinstance(loaded[key], dict):
-                                # 字典类型：深度合并
-                                self.config[key].update(loaded[key])
-                            else:
-                                # 其他类型：直接覆盖
-                                self.config[key] = loaded[key]
-                                
-                logger.info("配置已加载: %s", self.config_file)
-            else:
-                logger.info("配置文件不存在，使用默认配置")
-                
-        except (json.JSONDecodeError, IOError) as e:
-            logger.warning("配置文件损坏，重置为默认配置: %s", e)
-            # 备份损坏的文件
-            if os.path.exists(self.config_file):
-                backup_file = self.config_file + ".bak"
-                try:
-                    import shutil
-                    shutil.copy2(self.config_file, backup_file)
-                    logger.info("已备份损坏的配置: %s", backup_file)
-                except:
-                    pass
-        except Exception as e:
-            logger.error("加载配置失败: %s", e)
-    
-    def save(self):
-        """保存配置 - 带异常处理"""
-        try:
-            # 确保目录存在
-            config_dir = os.path.dirname(self.config_file)
-            if not os.path.exists(config_dir):
-                os.makedirs(config_dir)
-            
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=2, ensure_ascii=False)
-                
-            logger.info("配置已保存: %s", self.config_file)
-            
-        except Exception as e:
-            logger.error("保存配置失败: %s", e)
-    
-    def get(self, key, default=None):
-        """获取配置项"""
-        return self.config.get(key, default)
-    
-    def set(self, key, value):
-        """设置配置项"""
-        self.config[key] = value
+from ui.core.app_config import AppConfig
+from ui.core.theme import DARK_QSS
 
 
 class BNOSMainWindow(QMainWindow):
@@ -1010,41 +915,7 @@ class BNOSMainWindow(QMainWindow):
         super().mouseMoveEvent(event)
     
     def _apply_dark_theme(self):
-        self.setStyleSheet("""
-            QMainWindow { background-color: #1e1e1e; border: 2px solid #1e1e1e; }
-            QWidget#centralWidget { background-color: #1e1e1e; border: none; }
-            QScrollBar:horizontal, QScrollBar:vertical { background-color: #1e1e1e; border: none; }
-            QScrollBar:horizontal { height: 10px; } QScrollBar:vertical { width: 10px; }
-            QScrollBar::handle:horizontal, QScrollBar::handle:vertical { background-color: #424242; border-radius: 5px; min-width: 30px; min-height: 30px; }
-            QScrollBar::handle:horizontal:hover, QScrollBar::handle:vertical:hover { background-color: #555555; }
-            QScrollBar::add-line, QScrollBar::sub-line { width: 0px; height: 0px; }
-            QScrollBar::add-page, QScrollBar::sub-page { background: none; }
-            QDialog { background-color: #252526; color: #cccccc; }
-            QMessageBox { background-color: #252526; color: #cccccc; }
-            QLabel { color: #cccccc; }
-            QLineEdit { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; padding: 4px 8px; }
-            QLineEdit:focus { border-color: #007acc; }
-            QComboBox { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; padding: 4px 8px; }
-            QComboBox QAbstractItemView { background-color: #252526; color: #cccccc; selection-background-color: #094771; }
-            QPushButton { background-color: #0e639c; color: white; border: 1px solid #0e639c; border-radius: 3px; padding: 6px 14px; }
-            QPushButton:hover { background-color: #1177bb; }
-            QPushButton:pressed { background-color: #094771; }
-            QGroupBox { color: #cccccc; border: 1px solid #454545; border-radius: 4px; margin-top: 12px; padding-top: 18px; font-weight: bold; }
-            QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 6px; }
-            QTreeWidget { background-color: #252526; color: #cccccc; border: 1px solid #3c3c3c; alternate-background-color: #2d2d2d; }
-            QTreeWidget::item:selected { background-color: #094771; } QTreeWidget::item:hover { background-color: #2a2d2e; }
-            QHeaderView::section { background-color: #252526; color: #cccccc; border: none; border-right: 1px solid #3c3c3c; border-bottom: 1px solid #3c3c3c; padding: 4px 8px; }
-            QTableWidget { background-color: #252526; color: #cccccc; border: 1px solid #3c3c3c; gridline-color: #3c3c3c; }
-            QTableWidget::item:selected { background-color: #094771; }
-            QTextEdit, QPlainTextEdit { background-color: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; }
-            QTabWidget::pane { background-color: #1e1e1e; border: 1px solid #3c3c3c; }
-            QTabBar::tab { background-color: #2d2d2d; color: #cccccc; padding: 8px 16px; border: none; border-right: 1px solid #3c3c3c; }
-            QTabBar::tab:selected { background-color: #1e1e1e; border-top: 2px solid #007acc; } QTabBar::tab:hover { background-color: #3a3a3a; }
-            QToolTip { background-color: #383838; color: #cccccc; border: 1px solid #555555; padding: 4px 8px; font-size: 12px; }
-            QSplitter::handle { background-color: #3c3c3c; width: 2px; } QSplitter::handle:hover { background-color: #007acc; }
-            QProgressBar { background-color: #3c3c3c; color: white; border: none; border-radius: 2px; text-align: center; }
-            QProgressBar::chunk { background-color: #0e639c; border-radius: 2px; }
-        """)
+        self.setStyleSheet(DARK_QSS)
     
     def show_about(self):
         """显示关于对话框"""
