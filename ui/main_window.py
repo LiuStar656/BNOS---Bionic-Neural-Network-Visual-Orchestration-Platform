@@ -16,9 +16,11 @@ from PyQt6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QMenu, QGraphicsView, QGraphicsScene,
     QInputDialog, QGraphicsOpacityEffect, QApplication
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRectF, QTimer, QThread
-from PyQt6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction
+from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRectF, QTimer, QThread, QEvent
+from PyQt6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction, QMouseEvent
 from ui.core.logger import logger
+from ui.core.dark_title_bar import DarkTitleBar
+from PyQt6.QtWidgets import QMenuBar as _QMenuBar
 
 from ui.canvas_widget import NodeCanvas
 from ui.panels.node_list_panel import NodeListPanel
@@ -95,30 +97,24 @@ class ToastNotification(QLabel):
     
     def show_toast(self):
         """显示通知并启动淡入动画"""
-        # 先确保大小已调整
         self.adjustSize()
         
-        # 计算位置：使用绝对屏幕坐标，固定在主窗口右上角
         if self.parent():
-            # 获取主窗口在屏幕上的位置
             parent_window = self.parent()
             window_pos = parent_window.pos()
             window_size = parent_window.size()
             
-            # 计算相对于窗口的右上角位置（使用绝对屏幕坐标）
             x = window_pos.x() + window_size.width() - self.width() - 20
-            y = window_pos.y() + 100 + (self.stack_index * 60)  # 留出两层工具栏空间
+            y = window_pos.y() + 40 + (self.stack_index * 60)
             
-            # 边界检测：确保Toast不会超出屏幕底部
             screen = QApplication.primaryScreen().geometry()
             max_y = screen.bottom() - self.height() - 10
             if y > max_y:
-                y = max_y  # 限制在屏幕内
+                y = max_y
         else:
-            # 如果没有父窗口，使用屏幕右上角
             screen = QApplication.primaryScreen().geometry()
             x = screen.right() - self.width() - 20
-            y = screen.top() + 100 + (self.stack_index * 60)
+            y = screen.top() + 40 + (self.stack_index * 60)
         
         self.move(x, y)
         self.show()
@@ -164,32 +160,26 @@ class ToastNotification(QLabel):
                 self.opacity_effect.setOpacity(self.current_opacity)
     
     def update_position(self):
-        """更新位置（用于堆叠时的位置调整）"""
-        # 重新调整大小以确保准确性
+        """更新位置"""
         self.adjustSize()
         
-        # 计算位置：使用绝对屏幕坐标，固定在主窗口右上角
         if self.parent():
-            # 获取主窗口在屏幕上的位置
             parent_window = self.parent()
             window_pos = parent_window.pos()
             window_size = parent_window.size()
             
-            # 计算相对于窗口的右上角位置（使用绝对屏幕坐标）
             x = window_pos.x() + window_size.width() - self.width() - 20
-            y = window_pos.y() + 100 + (self.stack_index * 60)  # 留出两层工具栏空间
+            y = window_pos.y() + 40 + (self.stack_index * 60)
             
-            # 边界检测：确保Toast不会超出屏幕底部
             screen = QApplication.primaryScreen().geometry()
             max_y = screen.bottom() - self.height() - 10
             if y > max_y:
-                y = max_y  # 限制在屏幕内
+                y = max_y
         else:
             screen = QApplication.primaryScreen().geometry()
             x = screen.right() - self.width() - 20
-            y = screen.top() + 100 + (self.stack_index * 60)
+            y = screen.top() + 40 + (self.stack_index * 60)
         
-        # 平滑移动到新位置
         self.move(x, y)
     
     def start_fade_out(self):
@@ -312,6 +302,8 @@ class AppConfig:
 class BNOSMainWindow(QMainWindow):
     """BNOS主窗口类"""
     
+    _RESIZE_MARGIN = 6
+    
     def __init__(self):
         super().__init__()
         
@@ -324,97 +316,95 @@ class BNOSMainWindow(QMainWindow):
         self.connections = []  # [(source_node, target_node)]
         
         # Toast通知队列管理
-        self.active_toasts = []  # 当前显示的Toast列表
+        self.active_toasts = []
         
-        # 初始化节点创建管理器（单例，自动注册所有语言创建器）
+        # 初始化节点创建管理器
         self.node_creator = NodeCreatorManager.get_instance()
+        
+        # 无边框 + 自定义标题栏
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         
         # 初始化UI
         self.init_ui()
-        # 使用MenuManager初始化菜单栏（替代工具栏）
-        MenuManager.init_menu(self)
+        
+        # 应用深色主题
+        self._apply_dark_theme()
         
         # 恢复窗口状态
         self.restore_window_state()
         
-        # 设置窗口属性
-        self.setWindowTitle("BNOS 节点编排平台")
+        self.setWindowTitle("BnosGui")
         
-        # 自动打开最后的项目
         self.auto_open_last_project()
         
     def init_ui(self):
         """初始化主界面布局"""
-        # 中央部件
         central_widget = QWidget()
+        central_widget.setObjectName("centralWidget")
         self.setCentralWidget(central_widget)
         
-        # 主布局 - 只包含画布
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # 中间画布 - 节点编排（直接添加到主布局）
-        self.canvas = NodeCanvas(self)
-        main_layout.addWidget(self.canvas)
+        # 创建菜单栏（嵌入标题栏）
+        self._inline_menubar = _QMenuBar(self)
+        self._inline_menubar.setObjectName("titleBarMenu")
+        MenuManager.init_menu(self, self._inline_menubar)
         
-        # 创建节点列表面板（常驻半透明悬浮窗，默认显示）
+        # 标题栏：标题 + 菜单 + 按钮同行
+        self._title_bar = DarkTitleBar(self, "BnosGui", self._inline_menubar)
+        self._title_bar.minimize_clicked.connect(self.showMinimized)
+        self._title_bar.maximize_clicked.connect(self._toggle_maximize)
+        self._title_bar.close_clicked.connect(self.close)
+        main_layout.addWidget(self._title_bar)
+        
+        # 画布
+        self.canvas = NodeCanvas(self)
+        main_layout.addWidget(self.canvas, 1)
+        
+        # 节点列表面板
         self.node_list_panel = NodeListPanel(self)
         self.node_list_panel.setWindowTitle("节点列表")
-        # 默认显示，不再隐藏
         
-        # 设置节点列表面板的初始位置和大小（窗口内部左上角区域）
         panel_width = 280
         panel_height = 500
-        # 计算相对于屏幕的绝对位置
         window_pos = self.pos()
-        panel_x = window_pos.x() + 20  # 主窗口左边 + 20px
-        panel_y = window_pos.y() + 100  # 主窗口顶部 + 100px（留出两层工具栏空间）
+        panel_x = window_pos.x() + 20
+        panel_y = window_pos.y() + 40
         self.node_list_panel.setGeometry(panel_x, panel_y, panel_width, panel_height)
-        self.node_list_panel.show()  # 默认显示
+        self.node_list_panel.show()
     
     def moveEvent(self, event):
-        """窗口移动事件 - 更新节点列表、监测面板和Toast位置"""
+        """窗口移动事件"""
         super().moveEvent(event)
+        off = 40
         
-        # 更新节点列表面板位置（保持在窗口内部左上角）
         if hasattr(self, 'node_list_panel') and self.node_list_panel.isVisible():
-            window_pos = self.pos()
-            panel_x = window_pos.x() + 20
-            panel_y = window_pos.y() + 100
-            self.node_list_panel.move(panel_x, panel_y)
+            p = self.pos()
+            self.node_list_panel.move(p.x() + 20, p.y() + off)
 
-        # 更新节点监测面板位置（保持在窗口内部右上角）
         if hasattr(self, 'node_monitor') and self.node_monitor is not None and self.node_monitor.isVisible():
-            window_pos = self.pos()
-            monitor_x = window_pos.x() + self.width() - 440
-            monitor_y = window_pos.y() + 100
-            self.node_monitor.move(monitor_x, monitor_y)
+            p = self.pos()
+            self.node_monitor.move(p.x() + self.width() - 440, p.y() + off)
         
-        # 更新所有Toast的位置
         if hasattr(self, 'active_toasts'):
             for toast in self.active_toasts:
                 toast.update_position()
     
     def resizeEvent(self, event):
-        """窗口大小改变事件 - 更新节点列表、监测面板和Toast位置"""
+        """窗口大小改变事件"""
         super().resizeEvent(event)
+        off = 40
         
-        # 更新节点列表面板位置（保持在窗口内部左上角）
         if hasattr(self, 'node_list_panel') and self.node_list_panel.isVisible():
-            window_pos = self.pos()
-            panel_x = window_pos.x() + 20
-            panel_y = window_pos.y() + 100
-            self.node_list_panel.move(panel_x, panel_y)
+            p = self.pos()
+            self.node_list_panel.move(p.x() + 20, p.y() + off)
 
-        # 更新节点监测面板位置（保持在窗口内部右上角）
         if hasattr(self, 'node_monitor') and self.node_monitor is not None and self.node_monitor.isVisible():
-            window_pos = self.pos()
-            monitor_x = window_pos.x() + self.width() - 440
-            monitor_y = window_pos.y() + 100
-            self.node_monitor.move(monitor_x, monitor_y)
+            p = self.pos()
+            self.node_monitor.move(p.x() + self.width() - 440, p.y() + off)
         
-        # 更新所有Toast的位置
         if hasattr(self, 'active_toasts'):
             for toast in self.active_toasts:
                 toast.update_position()
@@ -479,10 +469,9 @@ class BNOSMainWindow(QMainWindow):
         from ui.panels.node_monitor import NodeMonitor
         if not hasattr(self, 'node_monitor') or self.node_monitor is None:
             self.node_monitor = NodeMonitor(self)
-            # 初始定位：主窗口右侧
             window_pos = self.pos()
             monitor_x = window_pos.x() + self.width() - 440
-            monitor_y = window_pos.y() + 100
+            monitor_y = window_pos.y() + 40
             self.node_monitor.move(monitor_x, monitor_y)
         self.node_monitor.show()
         self.node_monitor.raise_()
@@ -808,7 +797,7 @@ class BNOSMainWindow(QMainWindow):
                     window_height = self.height() if self.height() > 0 else 100
                     
                     x = parent_rect.right() - window_width - 20
-                    y = parent_rect.top() + 80
+                    y = parent_rect.top() + 40
                     
                     self.move(x, y)
         
@@ -1391,6 +1380,98 @@ class BNOSMainWindow(QMainWindow):
                 
                 # 2. 加载画布布局（包含节点位置、连线关系、视图状态的完整恢复）
                 self.canvas.load_layout(last_project)
+    
+    def _toggle_maximize(self):
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+        if hasattr(self, '_title_bar'):
+            self._title_bar.set_maximized_state(self.isMaximized())
+    
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.WindowStateChange and hasattr(self, '_title_bar'):
+            self._title_bar.set_maximized_state(self.isMaximized())
+    
+    def setWindowTitle(self, title: str):
+        super().setWindowTitle(title)
+        if hasattr(self, '_title_bar'):
+            self._title_bar.set_title(title)
+    
+    def _get_resize_region(self, pos):
+        x, y = pos.x(), pos.y()
+        w, h, m = self.width(), self.height(), self._RESIZE_MARGIN
+        t, b, l, r = y <= m, y >= h - m, x <= m, x >= w - m
+        if t and l: return Qt.CursorShape.SizeFDiagCursor, "top-left"
+        if t and r: return Qt.CursorShape.SizeBDiagCursor, "top-right"
+        if b and l: return Qt.CursorShape.SizeBDiagCursor, "bottom-left"
+        if b and r: return Qt.CursorShape.SizeFDiagCursor, "bottom-right"
+        if t:      return Qt.CursorShape.SizeVerCursor, "top"
+        if b:      return Qt.CursorShape.SizeVerCursor, "bottom"
+        if l:      return Qt.CursorShape.SizeHorCursor, "left"
+        if r:      return Qt.CursorShape.SizeHorCursor, "right"
+        return None, None
+    
+    def mousePressEvent(self, event: QMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton and not self.isMaximized():
+            _, direction = self._get_resize_region(event.pos())
+            if direction and self.windowHandle():
+                edges = {
+                    "top-left": Qt.Edge.TopEdge | Qt.Edge.LeftEdge,
+                    "top-right": Qt.Edge.TopEdge | Qt.Edge.RightEdge,
+                    "bottom-left": Qt.Edge.BottomEdge | Qt.Edge.LeftEdge,
+                    "bottom-right": Qt.Edge.BottomEdge | Qt.Edge.RightEdge,
+                    "top": Qt.Edge.TopEdge, "bottom": Qt.Edge.BottomEdge,
+                    "left": Qt.Edge.LeftEdge, "right": Qt.Edge.RightEdge,
+                }
+                self.windowHandle().startSystemResize(edges.get(direction))
+                return
+        super().mousePressEvent(event)
+    
+    def mouseMoveEvent(self, event: QMouseEvent):
+        if not self.isMaximized():
+            cursor, _ = self._get_resize_region(event.pos())
+            if cursor: self.setCursor(cursor)
+            else: self.unsetCursor()
+        super().mouseMoveEvent(event)
+    
+    def _apply_dark_theme(self):
+        self.setStyleSheet("""
+            QMainWindow { background-color: #1e1e1e; border: 2px solid #1e1e1e; }
+            QWidget#centralWidget { background-color: #1e1e1e; border: none; }
+            QScrollBar:horizontal, QScrollBar:vertical { background-color: #1e1e1e; border: none; }
+            QScrollBar:horizontal { height: 10px; } QScrollBar:vertical { width: 10px; }
+            QScrollBar::handle:horizontal, QScrollBar::handle:vertical { background-color: #424242; border-radius: 5px; min-width: 30px; min-height: 30px; }
+            QScrollBar::handle:horizontal:hover, QScrollBar::handle:vertical:hover { background-color: #555555; }
+            QScrollBar::add-line, QScrollBar::sub-line { width: 0px; height: 0px; }
+            QScrollBar::add-page, QScrollBar::sub-page { background: none; }
+            QDialog { background-color: #252526; color: #cccccc; }
+            QMessageBox { background-color: #252526; color: #cccccc; }
+            QLabel { color: #cccccc; }
+            QLineEdit { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; padding: 4px 8px; }
+            QLineEdit:focus { border-color: #007acc; }
+            QComboBox { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; padding: 4px 8px; }
+            QComboBox QAbstractItemView { background-color: #252526; color: #cccccc; selection-background-color: #094771; }
+            QPushButton { background-color: #0e639c; color: white; border: 1px solid #0e639c; border-radius: 3px; padding: 6px 14px; }
+            QPushButton:hover { background-color: #1177bb; }
+            QPushButton:pressed { background-color: #094771; }
+            QGroupBox { color: #cccccc; border: 1px solid #454545; border-radius: 4px; margin-top: 12px; padding-top: 18px; font-weight: bold; }
+            QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 6px; }
+            QTreeWidget { background-color: #252526; color: #cccccc; border: 1px solid #3c3c3c; alternate-background-color: #2d2d2d; }
+            QTreeWidget::item:selected { background-color: #094771; } QTreeWidget::item:hover { background-color: #2a2d2e; }
+            QHeaderView::section { background-color: #252526; color: #cccccc; border: none; border-right: 1px solid #3c3c3c; border-bottom: 1px solid #3c3c3c; padding: 4px 8px; }
+            QTableWidget { background-color: #252526; color: #cccccc; border: 1px solid #3c3c3c; gridline-color: #3c3c3c; }
+            QTableWidget::item:selected { background-color: #094771; }
+            QTextEdit, QPlainTextEdit { background-color: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; }
+            QTabWidget::pane { background-color: #1e1e1e; border: 1px solid #3c3c3c; }
+            QTabBar::tab { background-color: #2d2d2d; color: #cccccc; padding: 8px 16px; border: none; border-right: 1px solid #3c3c3c; }
+            QTabBar::tab:selected { background-color: #1e1e1e; border-top: 2px solid #007acc; } QTabBar::tab:hover { background-color: #3a3a3a; }
+            QToolTip { background-color: #383838; color: #cccccc; border: 1px solid #555555; padding: 4px 8px; font-size: 12px; }
+            QSplitter::handle { background-color: #3c3c3c; width: 2px; } QSplitter::handle:hover { background-color: #007acc; }
+            QProgressBar { background-color: #3c3c3c; color: white; border: none; border-radius: 2px; text-align: center; }
+            QProgressBar::chunk { background-color: #0e639c; border-radius: 2px; }
+        """)
     
     def show_about(self):
         """显示关于对话框"""

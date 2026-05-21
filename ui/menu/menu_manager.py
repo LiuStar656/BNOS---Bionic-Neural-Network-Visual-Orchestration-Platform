@@ -12,13 +12,15 @@ class MenuManager:
     """菜单管理器 - 将所有功能整合到菜单栏"""
     
     @staticmethod
-    def init_menu(main_window):
+    def init_menu(main_window, menubar=None):
         """初始化菜单栏
         
         Args:
             main_window: BNOSMainWindow实例
+            menubar: 要添加菜单的 QMenuBar（None 则使用窗口默认）
         """
-        menubar = main_window.menuBar()
+        if menubar is None:
+            menubar = main_window.menuBar()
         
         # ========== 文件菜单 ==========
         file_menu = menubar.addMenu("文件(&F)")
