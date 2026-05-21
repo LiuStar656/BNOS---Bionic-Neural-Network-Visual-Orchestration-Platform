@@ -16,7 +16,10 @@ class EdgeItem(QGraphicsPathItem):
         super().__init__()
         self.start_node = start_node
         self.end_node = end_node
-        self.canvas = canvas  # 引用画布对象
+        self.canvas = canvas
+        
+        # 可视区域渲染：连线缓存
+        self.setCacheMode(QGraphicsPathItem.CacheMode.DeviceCoordinateCache)
         
         # 样式（使用画布配置）
         self.update_edge_style()

@@ -23,6 +23,9 @@ class NodeItem(QGraphicsRectItem):
         self.status = status
         self.canvas = canvas  # 引用画布对象
         
+        # 可视区域渲染：节点缓存，只渲染视口内可见节点
+        self.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
+        
         # 设置可移动和可选中
         self.setFlags(
             QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
