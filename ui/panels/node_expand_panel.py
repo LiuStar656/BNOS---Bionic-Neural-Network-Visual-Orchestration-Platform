@@ -116,7 +116,7 @@ class NodeExpandPanel(FloatingPanel):
             }
         """)
         info_layout = QVBoxLayout(info_group)
-        name_label = QLabel(self.node_name)
+        name_label = QLabel(str(self.node_name))
         name_label.setFont(QFont("Arial", 10, QFont.Weight.Bold))
         name_label.setStyleSheet("color: white;")
         info_layout.addWidget(name_label)
