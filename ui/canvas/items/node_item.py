@@ -103,7 +103,7 @@ class NodeItem(QGraphicsRectItem):
         self._expand_label.setDefaultTextColor(QColor("#cccccc"))
         font_tiny2 = QFont("Arial", 7, QFont.Weight.Bold)
         self._expand_label.setFont(font_tiny2)
-        self._expand_label.setPos(expand_x + 1, expand_y - 1)
+        self._expand_label.setPos(expand_x - 1, expand_y - 1)
         self._expand_label.setZValue(3)
         
     def update_status(self, status):
