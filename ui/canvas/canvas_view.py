@@ -28,6 +28,7 @@ from PyQt6.QtGui import (
     QPainter, QPen, QColor, QBrush, QFont, QPainterPath,
     QPolygonF, QAction
 )
+from PyQt6.QtCore import QPointF
 
 from ui.core.logger import logger
 from ui.canvas.items.node_item import NodeItem
@@ -985,19 +986,37 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         self.is_box_selecting = False
         self.box_select_start_pos = None
                     
+    def _start_connection_by_name(self, node_name):
+        """按节点名称开始连线（供右键菜单调用）"""
+        if node_name not in self.nodes:
+            return
+        self.start_connection_from_output(self.nodes[node_name])
+    
     def start_connection_from_output(self, source_node):
         """从输出锚点开始连线"""
         self.is_connecting = True
         self.connect_source = source_node
         
-        # 视觉反馈
         self.viewport().setCursor(Qt.CursorShape.CrossCursor)
         
-        # 创建临时连线
         self.temp_edge = QGraphicsPathItem()
         pen = QPen(QColor("#4A90E2"), 2, Qt.PenStyle.DashLine)
         self.temp_edge.setPen(pen)
         self.scene.addItem(self.temp_edge)
+        
+        # 立即绘制初始曲线（从输出锚点到鼠标当前位置）
+        cursor_pos = self.mapFromGlobal(self.cursor().pos())
+        scene_pos = self.mapToScene(cursor_pos)
+        start = source_node.output_anchor.sceneBoundingRect().center()
+        
+        path = QPainterPath()
+        path.moveTo(start)
+        dx = abs(scene_pos.x() - start.x())
+        ctrl = max(dx * 0.5, 50)
+        c1 = QPointF(start.x() + ctrl, start.y())
+        c2 = QPointF(scene_pos.x() - ctrl, scene_pos.y())
+        path.cubicTo(c1, c2, scene_pos)
+        self.temp_edge.setPath(path)
         
     def complete_connection_to_input(self, target_node):
         """完成连线到输入锚点"""
