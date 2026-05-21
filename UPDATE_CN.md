@@ -7,6 +7,79 @@
 
 ---
 
+## 🆕 四项重大计划实施 (2026-05-21)
+
+### **计划1: 节点展开面板** 📤
+
+**新增组件**: `ui/panels/node_expand_panel.py`
+
+- 画布节点右上角新增 `>>` 展开按钮，点击后以节点中心为基准展开浮动面板
+- 左侧 output.json 编辑器（深色主题/可编辑/自动刷新）
+- 右侧 启动/停止、节点配置、删除节点 三个操作按钮
+- 右键菜单新增「展开节点」入口
+- 窗口中心与节点中心坐标重合
+
+### **计划2: 节点监测面板** 📊
+
+**新增组件**: `ui/panels/node_monitor.py`
+
+- 全局日志实时查看器，父窗口 + 可折叠子面板架构
+- 每 3 秒同步画布节点变化，每 2 秒自动检测日志文件 mtime 变化刷新
+- 菜单栏新增「工具(&T)」→「节点监测」(Ctrl+Shift+M)
+- 画布右键菜单新增「节点监测」
+- 窗口类型与节点列表一致，跟随主窗口移动
+
+### **计划3: print → logging 迁移** 📝
+
+**新增模块**: `ui/core/logger.py`
+
+- 控制台 INFO + 文件 DEBUG 双通道输出
+- 9 个文件、211 处 `print()` 全部迁移到 `logger`
+- 日志文件: `logs/bnos_gui.log`（已被 .gitignore 排除）
+
+### **计划4: 浮动面板窗口类型统一** 🪟
+
+**新增基类**: `ui/core/floating_panel.py`
+
+- 统一所有浮动窗口的无边框、半透明、拖动、标题栏
+- `NodeListPanel` → 继承 `FloatingPanel`
+- `NodeConfigDialog` → 继承 `FloatingPanel`（去掉 QDialogButtonBox）
+- `NodeMonitor` → 继承 `FloatingPanel`
+- `NodeExpandPanel` → 继承 `FloatingPanel`
+- 视觉风格完全统一: `rgba(30,30,30,220)` 半透明深色容器
+
+---
+
+## 🎨 UI 精简与优化 (2026-05-21)
+
+### **Emoji 全面清除 + 名称精简** 🧹
+
+- 所有 UI 按钮、菜单、对话框标题中的 Emoji 图案已移除
+- 按键名称精简为 2-4 字为主（如「清空所有连线」→「清空连线」）
+- 涉及 6 个文件: canvas_view.py、property_panel.py、node_list_panel.py、main_window.py、menu_manager.py、bnos_gui.py
+
+### **按钮颜色统一黑白灰** ⚫
+
+- 所有按钮彩色背景改为黑白灰三阶（`#333`/`#555`/`#666`）
+- 涉及 `property_panel.py` 14 处
+
+### **画布右键菜单增强** 📋
+
+- 画布空白区域右键新增「新建节点」子菜单（7 种语言）
+- 画布空白区域右键新增「节点监测」
+
+### **框选判定逻辑修复** 🎯
+
+- 点击节点子元素（状态灯、文字、展开按钮）不再误触框选
+- 使用 `parentItem()` 链上溯替代平面 `isinstance` 检查
+
+### **Bug 修复** 🔧
+
+- 修复画布单节点右键启动/停止崩溃（缺少 `start_single_node`/`stop_single_node` 方法）
+- `.gitignore` 添加 `logs/` 排除日志目录
+
+---
+
 ## 🏗️ 导入路径修复与代码质量优化 (2026-05-21 晚)
 
 ### **核心修复概览** 🔧

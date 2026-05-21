@@ -4,6 +4,79 @@
 
 ---
 
+## 🆕 Four Major Plans Implemented (2026-05-21)
+
+### **Plan 1: Node Expand Panel** 📤
+
+**New component**: `ui/panels/node_expand_panel.py`
+
+- `>>` expand button on canvas node top-right corner, opens floating panel centered on node
+- Left: output.json editor (dark theme/editable/auto-refresh)
+- Right: Start/Stop, Config, Delete three action buttons
+- Right-click menu adds "Expand Node" entry
+- Panel center aligns with node center coordinates
+
+### **Plan 2: Node Monitor Panel** 📊
+
+**New component**: `ui/panels/node_monitor.py`
+
+- Global real-time log viewer, parent window + collapsible sub-panel architecture
+- Syncs canvas nodes every 3s, auto-refreshes logs on mtime change every 2s
+- Menu bar adds "Tools(&T)" → "Node Monitor" (Ctrl+Shift+M)
+- Canvas right-click menu adds "Node Monitor"
+- Window type matches NodeListPanel, follows main window
+
+### **Plan 3: print → logging Migration** 📝
+
+**New module**: `ui/core/logger.py`
+
+- Console INFO + File DEBUG dual-channel output
+- All 211 `print()` calls across 9 files migrated to `logger`
+- Log file: `logs/bnos_gui.log` (excluded by .gitignore)
+
+### **Plan 4: Floating Panel Base Class** 🪟
+
+**New base class**: `ui/core/floating_panel.py`
+
+- Unifies frameless, translucent, draggable, titled window behavior
+- `NodeListPanel` → extends `FloatingPanel`
+- `NodeConfigDialog` → extends `FloatingPanel` (removed QDialogButtonBox)
+- `NodeMonitor` → extends `FloatingPanel`
+- `NodeExpandPanel` → extends `FloatingPanel`
+- Unified visual style: `rgba(30,30,30,220)` translucent dark container
+
+---
+
+## 🎨 UI Simplification & Optimization (2026-05-21)
+
+### **Emoji Removal + Name Simplification** 🧹
+
+- All Emoji patterns removed from UI buttons, menus, dialog titles
+- Button names simplified to 2-4 characters (e.g., "Clear All Edges" → "Clear Edges")
+- 6 files affected: canvas_view.py, property_panel.py, node_list_panel.py, main_window.py, menu_manager.py, bnos_gui.py
+
+### **Button Colors Unified to Black/White/Gray** ⚫
+
+- All colorful button backgrounds replaced with monochrome (`#333`/`#555`/`#666`)
+- 14 locations in `property_panel.py`
+
+### **Canvas Right-Click Menu Enhanced** 📋
+
+- Canvas blank area right-click adds "New Node" submenu (7 languages)
+- Canvas blank area right-click adds "Node Monitor"
+
+### **Box Selection Logic Fixed** 🎯
+
+- Clicking node sub-items (status indicator, text, expand button) no longer triggers box selection
+- Uses `parentItem()` chain lookup instead of flat `isinstance` check
+
+### **Bug Fixes** 🔧
+
+- Fixed single-node right-click start/stop crash (missing `start_single_node`/`stop_single_node` methods)
+- `.gitignore` adds `logs/` to exclude log directory
+
+---
+
 ## Import Path Fixes & Code Quality Optimization (2026-05-21 Evening)
 
 ### Core Fixes Overview 🔧
