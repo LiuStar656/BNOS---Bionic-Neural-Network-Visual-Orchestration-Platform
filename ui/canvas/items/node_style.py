@@ -82,7 +82,7 @@ class NodeStyle:
         # 背景 + 边框
         node_item.setBrush(QBrush(QColor(self.bg_color)))
         node_item.setPen(QPen(QColor(self.border_color), self.border_width))
-        node_item.setRect(w, h)
+        node_item.setRect(0, 0, w, h)
 
         # 文字
         node_item.name_text.setDefaultTextColor(QColor(self.text_color))
