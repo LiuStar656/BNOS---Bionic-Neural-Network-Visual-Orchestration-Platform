@@ -85,6 +85,7 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         
         # 应用背景色
         self.setBackgroundBrush(QColor(self.canvas_bg_color))
+        self.resetCachedContent()
         # 禁用 viewport 自带背景，让场景背景透出
         vp = self.viewport()
         vp.setAutoFillBackground(False)

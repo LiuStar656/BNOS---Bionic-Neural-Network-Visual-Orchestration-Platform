@@ -17,6 +17,7 @@ class CanvasColorsMixin:
         if color.isValid():
             self.canvas_bg_color = color.name()
             self.setBackgroundBrush(QColor(self.canvas_bg_color))
+            self.resetCachedContent()
             self.viewport().repaint()
             self._save_color_settings()
             logger.info("画布背景色已更改为: %s", self.canvas_bg_color)
@@ -133,27 +134,25 @@ class CanvasColorsMixin:
         self.edge_color = settings.get('edge_color', self.edge_color)
         self.edge_width = settings.get('edge_width', self.edge_width)
 
-        # 画布背景 — 强制重设刷子并立即重绘
-        self.setBackgroundBrush(QColor(self.canvas_bg_color))
-        self.viewport().repaint()
-
-        # 刷新所有现有节点颜色
         bg = QColor(self.node_bg_color)
         border_pen = QPen(QColor(self.node_border_color), 2)
         text_c = QColor(self.node_text_color)
         sel_c = QColor(self.node_selected_color)
+
         for node in self.nodes.values():
             node.setBrush(QBrush(bg))
             node.setPen(border_pen)
             if hasattr(node, 'name_text'):
                 node.name_text.setDefaultTextColor(text_c)
-            # 更新选中边框色（如果有_selection_ring）
             if hasattr(node, '_selection_ring') and node._selection_ring:
                 node._selection_ring.setPen(QPen(sel_c, 3))
 
-        # 刷新所有现有连线
         for edge in self.edges:
             edge.update_edge_style()
 
-        self.scene.update()
-        self.viewport().update()
+        # 关键：先 setBackgroundBrush 再 resetCachedContent 再 repaint
+        self.setBackgroundBrush(QColor(self.canvas_bg_color))
+        self.resetCachedContent()
+        self.viewport().repaint()
+        logger.info("apply_color_settings: bg=%s grid=%s edge=%s",
+                     self.canvas_bg_color, self.grid_color, self.edge_color)
