@@ -4,6 +4,7 @@ BNOS 桌面可视化节点编排平台 - 主入口
 """
 import sys
 import os
+import time
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 from ui.main_window import BNOSMainWindow
@@ -11,15 +12,24 @@ from ui.core.logger import logger
 from ui.core.i18n import init_i18n, t
 
 
+def _progress(progress_file, pct, msg):
+    """向启动器发送进度"""
+    try:
+        with open(progress_file, 'a', encoding='utf-8') as f:
+            f.write(f"{pct}|{msg}\n")
+    except Exception:
+        pass
+
+
 def main():
     """应用程序主入口"""
     try:
-        # ---- 标记文件（启动器通过 --marker 传递）----
-        marker_file = None
+        # ---- 进度文件（启动器通过 --progress 传递）----
+        progress_file = None
         args = sys.argv[:]
         for a in args:
-            if a.startswith("--marker="):
-                marker_file = a.split("=", 1)[1]
+            if a.startswith("--progress="):
+                progress_file = a.split("=", 1)[1]
                 args.remove(a)
                 break
 
@@ -27,6 +37,8 @@ def main():
         from ui.core.app_config import AppConfig
         saved_lang = AppConfig().get("language", "cn")
         init_i18n(saved_lang)
+        if progress_file:
+            _progress(progress_file, 35, "Config loaded (" + saved_lang + ")")
 
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)
         QApplication.setStyle("Fusion")
@@ -34,18 +46,24 @@ def main():
         app.setApplicationName(t("_k_app_name"))
         app.setOrganizationName("BNOS")
 
+        if progress_file:
+            _progress(progress_file, 45, "Qt initialized")
+
         # ---- 创建主窗口 ----
+        if progress_file:
+            _progress(progress_file, 55, "Building main window...")
         window = BNOSMainWindow()
+
+        if progress_file:
+            _progress(progress_file, 80, "Main window ready")
+
+        # ---- 加载项目 ----
+        if progress_file:
+            _progress(progress_file, 90, "Restoring project...")
+            _progress(progress_file, 100, "BNOS ready")
+            time.sleep(0.3)  # 给启动器读文件的时间
+
         window.show()
-
-        # ---- 通知启动器 ----
-        if marker_file:
-            try:
-                with open(marker_file, 'w') as f:
-                    f.write("ready")
-            except Exception:
-                pass
-
         ret = app.exec()
         if ret == 42:
             import subprocess
