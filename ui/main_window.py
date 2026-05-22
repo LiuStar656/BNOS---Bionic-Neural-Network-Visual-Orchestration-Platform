@@ -611,6 +611,18 @@ class BNOSMainWindow(QMainWindow):
         elif self._ipc_server:
             self._ipc_server.broadcast(A_UPDATE_STATUS, {"node_name": node_name, "status": status})
 
+    def _restart_application(self):
+        """重启应用程序"""
+        import sys, os, subprocess
+        logger.info("正在重启应用...")
+        self._process_manager.stop_all()
+        if self._ipc_server:
+            self._ipc_server.stop()
+        QApplication.quit()
+        # 新进程启动（与原参数一致）
+        subprocess.Popen([sys.executable, *sys.argv], cwd=os.getcwd())
+        sys.exit(0)
+
     def _apply_dark_theme(self):
         self.setStyleSheet(DARK_QSS)
     

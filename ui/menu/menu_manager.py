@@ -61,6 +61,15 @@ class MenuManager:
 
         file_menu.addSeparator()
 
+        file_menu.addSeparator()
+
+        # 重启
+        restart_action = QAction(t("k_menu_restart"), main_window)
+        restart_action.setShortcut("Ctrl+R")
+        restart_action.setStatusTip(t("k_menu_restart_desc"))
+        restart_action.triggered.connect(main_window._restart_application)
+        file_menu.addAction(restart_action)
+
         # 退出
         exit_action = QAction(t("k_menu_exit"), main_window)
         exit_action.setShortcut("Ctrl+Q")

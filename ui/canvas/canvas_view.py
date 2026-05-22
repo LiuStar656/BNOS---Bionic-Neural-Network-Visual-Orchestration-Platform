@@ -263,6 +263,10 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         # 默认处理（拖拽平移等）
         super().mouseMoveEvent(event)
     
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.draw_layer.resize_toolbar()
+
     def wheelEvent(self, event):
         """滚轮事件 - Ctrl+滚轮缩放，触控板/滚轮平移"""
         # 检查是否按下Ctrl键

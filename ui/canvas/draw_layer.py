@@ -13,8 +13,6 @@ from ui.canvas.draw_toolbar import DrawToolbar
 from ui.core.logger import logger
 
 
-from PyQt6.QtCore import QEvent
-
 class DrawLayer:
     """绘图层管理器，嵌入 NodeCanvas"""
 
@@ -51,7 +49,6 @@ class DrawLayer:
         self.toolbar.setParent(view)
         self.toolbar.setGeometry(0, 0, 36, view.height())
         self.toolbar.show()
-        view.installEventFilter(self)
         self.toolbar.tool_changed.connect(self.set_tool)
         self.toolbar.style_changed.connect(self._on_style)
         self.toolbar.layer_locked.connect(self.set_locked)
@@ -309,8 +306,6 @@ class DrawLayer:
         self.graphics.clear()
         self.canvas._save_timer.start(500)
 
-    def eventFilter(self, obj, event):
-        if obj is self.canvas.viewport() and event.type() == QEvent.Type.Resize:
-            if self.toolbar:
-                self.toolbar.setGeometry(0, 0, 36, obj.height())
-        return False
+    def resize_toolbar(self):
+        if self.toolbar and self.toolbar.isVisible():
+            self.toolbar.setGeometry(0, 0, 36, self.canvas.viewport().height())

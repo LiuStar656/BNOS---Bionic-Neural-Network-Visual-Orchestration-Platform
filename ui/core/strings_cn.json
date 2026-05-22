@@ -272,5 +272,8 @@
   "k_lang_cpp": "C++ (开发中)",
   "k_lang_shell": "Shell (开发中)",
   "k_node_enter_name": "请输入节点名称（{lang}）:",
-  "k_node_lang_unsupported": "暂不支持创建 {lang} 节点，仅 Python 和 Rust 可用"
+  "k_node_lang_unsupported": "暂不支持创建 {lang} 节点，仅 Python 和 Rust 可用",
+
+  "k_menu_restart": "重启(&R)",
+  "k_menu_restart_desc": "重启应用程序"
 }
