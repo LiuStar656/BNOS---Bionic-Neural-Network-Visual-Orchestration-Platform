@@ -251,83 +251,13 @@ class NodeConfigDialog(FloatingPanel):
     
     def open_node_folder(self):
         """打开节点文件夹"""
-        try:
-            import platform
-            
-            # 详细调试：打印所有路径相关信息
-            logger.debug("[NodeConfigDialog] 打开节点文件夹")
-            logger.debug("节点名称: %s", self.node_name)
-            logger.debug("原始节点路径: %s", self.node_path)
-            logger.debug("路径类型: %s", type(self.node_path))
-            
-            # 关键修复：确保路径是绝对路径且规范化
-            original_path = self.node_path
-            corrected_path = os.path.abspath(original_path)
-            corrected_path = os.path.normpath(corrected_path)
-            
-            if original_path != corrected_path:
-                logger.debug("路径已修正: 原始=%s, 修正=%s", original_path, corrected_path)
-                self.node_path = corrected_path
-            
-            logger.debug("最终节点路径: %s", self.node_path)
-            logger.debug("路径是否存在: %s", os.path.exists(self.node_path))
-            logger.debug("是否为目录: %s", os.path.isdir(self.node_path) if os.path.exists(self.node_path) else 'N/A')
-            logger.debug("父目录: %s", os.path.dirname(self.node_path))
-            logger.debug("文件夹名称: %s", os.path.basename(self.node_path))
-            logger.debug("当前工作目录: %s", os.getcwd())
-            
-            # 检查路径是否包含预期的节点名称
-            expected_folder = self.node_name
-            actual_folder = os.path.basename(self.node_path)
-            logger.debug("期望的文件夹名: %s, 实际的文件夹名: %s, 匹配: %s",
-                         expected_folder, actual_folder, expected_folder == actual_folder)
-            
-            if not os.path.exists(self.node_path):
-                logger.warning("路径不存在: %s", self.node_path)
-                
-                # 尝试从父窗口获取正确路径
-                if self.parent_window and hasattr(self.parent_window, 'nodes_data'):
-                    node_info = self.parent_window.nodes_data.get(self.node_name)
-                    if node_info and 'path' in node_info:
-                        correct_path = node_info['path']
-                        correct_path = os.path.abspath(correct_path)
-                        correct_path = os.path.normpath(correct_path)
-                        
-                        logger.debug("尝试从 nodes_data 获取路径: %s", correct_path)
-                        
-                        if os.path.exists(correct_path):
-                            logger.debug("找到正确路径，使用此路径")
-                            self.node_path = correct_path
-                        else:
-                            logger.warning("备用路径也不存在: %s", correct_path)
-                
-                if not os.path.exists(self.node_path):
-                    QMessageBox.warning(
-                        self, 
-                        t("k_title_warning"), 
-                        f"⚠️ 节点文件夹不存在！\n\n路径: {self.node_path}\n\n"
-                        f"可能原因：\n"
-                        f"1. 节点已被删除\n"
-                        f"2. 项目路径已更改\n"
-                        f"3. 节点数据未正确加载\n\n"
-                        f"请尝试刷新节点列表。"
-                    )
-                    return
-            
-            system = platform.system()
-            if system == "Windows":
-                subprocess.Popen(['explorer', self.node_path])
-            elif system == "Darwin":  # macOS
-                subprocess.Popen(['open', self.node_path])
-            else:  # Linux
-                subprocess.Popen(['xdg-open', self.node_path])
-                
-            logger.debug("已打开节点文件夹: %s", self.node_path)
-        except Exception as e:
-            logger.error("打开文件夹异常: %s", e)
-            QMessageBox.critical(self, t("k_title_error"), f"打开文件夹失败: {str(e)}")
-            import traceback
-            traceback.print_exc()
+        from ui.core.utils.file_utils import resolve_and_open_folder
+        resolve_and_open_folder(
+            self.node_path,
+            self.node_name,
+            parent_window=self.parent_window,
+            dialog_parent=self
+        )
     
     def _check_vscode_installed(self):
         """检测 VSCode 是否已安装（通过 code 命令）"""

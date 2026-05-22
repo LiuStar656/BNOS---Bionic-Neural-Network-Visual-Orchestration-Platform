@@ -872,84 +872,14 @@ class NodeListPanel(FloatingPanel):
         if node_name not in self.nodes_data:
             QMessageBox.warning(self, t("k_title_warning"), f"⚠️ 节点 '{node_name}' 未找到！")
             return
-        
-        node_path = self.nodes_data[node_name]['path']
-        
-        # 详细调试：打印所有路径相关信息
-        logger.debug("\n{'='*60}")
-        logger.debug("🔍 [NodeListPanel] 打开节点文件夹")
-        logger.debug("🔍 节点名称: %node_name")
-        logger.debug("🔍 原始节点路径: %node_path")
-        logger.debug("🔍 路径类型: {type(node_path)}")
-        
-        # ✅ 关键修复：确保路径是绝对路径且规范化
-        original_path = node_path
-        corrected_path = os.path.abspath(original_path)
-        corrected_path = os.path.normpath(corrected_path)
-        
-        if original_path != corrected_path:
-            logger.info("⚠️  路径已修正:")
-            logger.debug("   原始: %original_path")
-            logger.debug("   修正: %corrected_path")
-            node_path = corrected_path
-        
-        logger.debug("🔍 最终节点路径: %node_path")
-        logger.debug("🔍 路径是否存在: {os.path.exists(node_path)}")
-        logger.debug("🔍 是否为目录: {os.path.isdir(node_path) if os.path.exists(node_path) else 'N/A'}")
-        logger.debug("🔍 父目录: {os.path.dirname(node_path)}")
-        logger.debug("🔍 文件夹名称: {os.path.basename(node_path)}")
-        logger.debug("🔍 当前工作目录: {os.getcwd()}")
-        
-        # 检查路径是否包含预期的节点名称
-        expected_folder = node_name
-        actual_folder = os.path.basename(node_path)
-        logger.debug("🔍 期望的文件夹名: %expected_folder")
-        logger.debug("🔍 实际的文件夹名: %actual_folder")
-        logger.debug("🔍 名称匹配: {expected_folder == actual_folder}")
-        
-        if not os.path.exists(node_path):
-            logger.warning("❌ 路径不存在！")
-            
-            # 尝试从主窗口获取正确路径
-            if hasattr(self, 'parent_window') and self.parent_window:
-                if node_name in self.parent_window.nodes_data:
-                    correct_path = self.parent_window.nodes_data[node_name]['path']
-                    correct_path = os.path.abspath(correct_path)
-                    correct_path = os.path.normpath(correct_path)
-                    
-                    logger.debug("💡 尝试从主窗口 nodes_data 获取路径: %correct_path")
-                    
-                    if os.path.exists(correct_path):
-                        logger.debug("✅ 找到正确路径，使用此路径")
-                        node_path = correct_path
-                    else:
-                        logger.warning("❌ 备用路径也不存在")
-            
-            if not os.path.exists(node_path):
-                QMessageBox.warning(
-                    self, 
-                    t("k_title_warning"), 
-                    f"⚠️ 节点文件夹不存在！\n\n路径: {node_path}\n\n"
-                    f"可能原因：\n"
-                    f"1. 节点已被删除\n"
-                    f"2. 项目路径已更改\n"
-                    f"3. 节点数据未正确加载\n\n"
-                    f"请尝试刷新节点列表。"
-                )
-                return
-        
-        # 使用系统默认文件管理器打开
-        import platform
-        
-        system = platform.system()
-        if system == "Windows":
-            subprocess.Popen(['explorer', node_path])
-        elif system == "Darwin":  # macOS
-            subprocess.Popen(['open', node_path])
-        else:  # Linux
-            subprocess.Popen(['xdg-open', node_path])
-            
-        logger.info("✅ 已打开节点文件夹: %node_path")
+
+        from ui.core.utils.file_utils import resolve_and_open_folder
+        resolve_and_open_folder(
+            self.nodes_data[node_name]['path'],
+            node_name,
+            parent_window=self.parent_window,
+            dialog_parent=self
+        )
         logger.debug("{'='*60}\n")
     def view_node_log(self, node_name):
         """查看节点日志"""
