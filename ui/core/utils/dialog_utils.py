@@ -285,7 +285,26 @@ def themed_message(parent, title, text, mode="info"):
         dlg.exec = custom_exec
 
     lay.addLayout(br)
-    if parent: dlg.move(parent.geometry().center() - dlg.rect().center())
+    if parent and parent.isVisible():
+        dlg.move(parent.geometry().center() - dlg.rect().center())
+    else:
+        from PyQt6.QtWidgets import QApplication
+        screen = QApplication.primaryScreen()
+        if screen:
+            geo = screen.availableGeometry()
+            dlg.move(geo.center() - dlg.rect().center())
+
+    # 点击空白处关闭（info/warning/error 模式）
+    if mode in ("info", "warning", "error"):
+        dlg._close_on_blank = True
+        orig_press = dlg.mousePressEvent
+        def _on_press(e):
+            if getattr(dlg, '_close_on_blank', False):
+                dlg.accept()
+            else:
+                orig_press(e)
+        dlg.mousePressEvent = _on_press
+
     rc = dlg.exec()
     if mode == "question3":
         return rc if isinstance(rc, int) else MSG_CANCEL
