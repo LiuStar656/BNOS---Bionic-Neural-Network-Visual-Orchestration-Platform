@@ -17,7 +17,7 @@ class CanvasColorsMixin:
         if color.isValid():
             self.canvas_bg_color = color.name()
             self.setBackgroundBrush(QColor(self.canvas_bg_color))
-            self.viewport().update()
+            self.viewport().repaint()
             self._save_color_settings()
             logger.info("画布背景色已更改为: %s", self.canvas_bg_color)
 

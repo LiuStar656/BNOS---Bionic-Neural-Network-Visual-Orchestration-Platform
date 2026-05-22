@@ -7,7 +7,7 @@ from PyQt6.QtGui import QFont, QColor
 from ui.core.i18n import t
 
 _STYLE = """
-QDialog { background-color: #2d2d30; }
+QDialog { background-color: #2d2d30; border: 1px solid #555; border-radius: 6px; }
 QGroupBox { color: #ccc; font-weight: bold; border: 1px solid #454545; border-radius: 4px; margin-top: 8px; padding-top: 12px; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
 QLabel { color: #ccc; }
@@ -27,9 +27,27 @@ class ColorSettingsDialog(QDialog):
         self.setFixedSize(500, 580)
         self.setStyleSheet(_STYLE)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._drag_pos = None
 
         self.init_ui()
+        if parent:
+            self.move(parent.geometry().center() - self.rect().center())
+
+    def mousePressEvent(self, e):
+        if e.position().y() < 40:
+            self._drag_pos = e.globalPosition().toPoint()
+        super().mousePressEvent(e)
+
+    def mouseMoveEvent(self, e):
+        if self._drag_pos:
+            delta = e.globalPosition().toPoint() - self._drag_pos
+            self.move(self.pos() + delta)
+            self._drag_pos = e.globalPosition().toPoint()
+        super().mouseMoveEvent(e)
+
+    def mouseReleaseEvent(self, e):
+        self._drag_pos = None
+        super().mouseReleaseEvent(e)
         
     def init_ui(self):
         """初始化UI"""
