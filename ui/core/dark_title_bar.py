@@ -13,7 +13,7 @@ class DarkTitleBar(QWidget):
     maximize_clicked = pyqtSignal()
     close_clicked = pyqtSignal()
 
-    def __init__(self, parent=None, title="BnosGui", menubar=None):
+    def __init__(self, parent=None, title="BnosConsole", menubar=None):
         super().__init__(parent)
         self._parent_window = parent
         self._is_maximized = False

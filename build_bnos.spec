@@ -3,7 +3,7 @@
 block_cipher = None
 
 a = Analysis(
-    ['bnos_gui.py'],
+    ['bnos_console.py'],
     pathex=[],
     binaries=[],
     datas=[

@@ -240,7 +240,7 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              BNOS GUI (PyQt6)                    │
+│              BNOS Console (PyQt6)                    │
 │                                                  │
 │  ┌──────────────┐  ┌──────────────────────────┐ │
 │  │ Node List    │  │   Neural Network Canvas  │ │
@@ -265,7 +265,7 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 
 | Module | File | Description |
 |--------|------|-------------|
-| **Entry Point** | `bnos_gui.py` | Initialize QApplication, launch MainWindow |
+| **Entry Point** | `bnos_console.py` | Initialize QApplication, launch MainWindow |
 | **Main Window** | `ui/main_window.py` | Integrate UI components, AppConfig, Toast, node data |
 | **Canvas** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
 | **Node Styles** | `ui/canvas/items/node_style.py` | Node style system (rect/dot), 3-layer z-architecture |
@@ -310,20 +310,20 @@ myenv_new\Scripts\activate
 source myenv_new/bin/activate
 
 # 4. Install dependencies
-pip install -r requirements_gui.txt
+pip install -r requirements.txt
 
 # 5. Launch application
-python bnos_gui.py
+python bnos_console.py
 ```
 
 #### Option 2: Using Startup Script (Windows)
 
 ``powershell
 # PowerShell (for paths with spaces)
-& ".\start_bnos_gui.bat"
+& ".\start_bnos_console.bat"
 
 # Or CMD
-start_bnos_gui.bat
+start_bnos_console.bat
 ```
 
 > **Note**: First run will automatically check and install PyQt6 if missing.
@@ -514,14 +514,14 @@ Toolbar → New Project → Select Folder
 ```
 BNOS/
 │
-├── bnos_gui.py                    # Main entry point
-├── start_bnos_gui.bat             # Windows launcher
-├── start_bnos_gui.sh              # Linux/Mac launcher
+├── bnos_console.py                    # Main entry point
+├── start_bnos_console.bat             # Windows launcher
+├── start_bnos_console.sh              # Linux/Mac launcher
 ├── build_bnos.spec                # PyInstaller spec
 ├── app_config.json                # App settings (window state, last project)
 ├── canvas_layout.json             # Canvas layout persistence
 ├── color_settings.json            # Color settings persistence
-├── requirements_gui.txt           # Python dependencies
+├── requirements.txt           # Python dependencies
 │
 ├── ui/                            # UI modules
 │   ├── __init__.py
@@ -649,7 +649,7 @@ self.show_toast("Operation successful", "success", duration=3000)
 pip install pyinstaller
 
 # Package
-pyinstaller --onefile --windowed --name="BNOS" bnos_gui.py
+pyinstaller --onefile --windowed --name="BNOS" bnos_console.py
 ```
 
 Output: `dist/BNOS.exe` (~100MB+, includes PyQt6)

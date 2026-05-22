@@ -6,16 +6,16 @@ setlocal enabledelayedexpansion
 
 cls
 echo ======================================
-echo   BNOS Desktop Visual Node Platform
+echo   BNOS Console - Visual Node Orchestration
 echo ======================================
 echo.
 
 :: ==================== CONFIG ====================
 set "VENV_DIR=myenv_new"
-set "REQUIREMENTS=requirements_gui.txt"
+set "REQUIREMENTS=requirements.txt"
 set "PYTHON=python"
-set "MAIN_FILE=bnos_gui.py"
-set "GUI_DIR=."
+set "MAIN_FILE=bnos_console.py"
+set "APP_DIR=."
 
 :: ==================== CHECK PYTHON ====================
 echo [INFO] Checking Python environment...
@@ -44,8 +44,8 @@ if not exist "%VENV_DIR%\Scripts\python.exe" (
 echo [INFO] Activating virtual environment...
 call "%VENV_DIR%\Scripts\activate.bat"
 
-:: ==================== GO TO GUI FOLDER ====================
-cd /d "%GUI_DIR%"
+:: ==================== GO TO APP FOLDER ====================
+cd /d "%APP_DIR%"
 
 :: ==================== CHECK DEPENDENCIES ====================
 echo [INFO] Checking dependencies from %REQUIREMENTS%...
@@ -64,10 +64,10 @@ if %errorlevel% neq 0 (
 
 :start_gui
 
-:: ==================== START GUI ====================
+:: ==================== START APP ====================
 echo.
 echo ======================================
-echo Starting BNOS GUI Application...
+echo Starting BNOS Console...
 echo ======================================
 echo.
 

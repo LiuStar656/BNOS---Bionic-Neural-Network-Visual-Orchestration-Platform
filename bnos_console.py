@@ -1,11 +1,10 @@
 """
 BNOS 桌面可视化节点编排平台 - 主入口
-基于PyQt6的纯桌面端GUI应用
+基于PyQt6的纯桌面端应用
 """
 import sys
-import os
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from ui.main_window import BNOSMainWindow
 from ui.core.logger import logger
 from ui.core.i18n import init_i18n, t
@@ -52,9 +51,11 @@ def main():
         # ---- 完成 ----
         splash.set_progress(100, "BNOS")
         splash.append_log(t("_k_splash_done"))
-        splash.close_splash()
 
         window.show()
+        # 主页面打开 2 秒后再关闭闪屏
+        QTimer.singleShot(2000, splash.close_splash)
+
         ret = app.exec()
         if ret == 42:
             import subprocess

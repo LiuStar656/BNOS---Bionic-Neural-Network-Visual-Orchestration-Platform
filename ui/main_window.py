@@ -77,7 +77,7 @@ class BNOSMainWindow(QMainWindow):
         # 恢复窗口状态
         self.restore_window_state()
         
-        self.setWindowTitle("BnosGui")
+        self.setWindowTitle("BnosConsole")
         
         # 进程健康检测定时器（每3秒检查运行中的节点是否仍存活）
         self._health_timer = QTimer(self)
@@ -103,7 +103,7 @@ class BNOSMainWindow(QMainWindow):
         MenuManager.init_menu(self, self._inline_menubar)
         
         # 标题栏：标题 + 菜单 + 按钮同行
-        self._title_bar = DarkTitleBar(self, "BnosGui", self._inline_menubar)
+        self._title_bar = DarkTitleBar(self, "BnosConsole", self._inline_menubar)
         self._title_bar.minimize_clicked.connect(self.showMinimized)
         self._title_bar.maximize_clicked.connect(self._toggle_maximize)
         self._title_bar.close_clicked.connect(self.close)

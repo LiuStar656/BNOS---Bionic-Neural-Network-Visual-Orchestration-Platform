@@ -7,6 +7,37 @@
 
 ---
 
+## 🚀 启动动画 + 品牌重命名 BnosConsole + README 重构 (2026-05-23)
+
+### 启动闪屏
+
+新增 `ui/core/splash_screen.py`（114 行）：
+- **ASCII 艺术 BNOS**：6 行 █ 字符拼成，Consolas 13pt 加粗，全黑白配色
+- **BNOS CONSOLE** 副标题 + 项目描述（i18n）
+- **左下角实时日志**：QTextEdit 80px，启动步骤追加滚动
+- **底部进度条**：0→100%，灰色 chunk
+- **延迟关闭**：主窗口打开 2 秒后自动消失
+
+### 品牌重命名：BnosGui → BnosConsole
+
+| 旧名称 | 新名称 |
+|--------|--------|
+| `bnos_gui.py` | `bnos_console.py` |
+| `start_bnos_gui.bat` | `start_bnos_console.bat` |
+| `start_bnos_gui.sh` | `start_bnos_console.sh` |
+| `requirements_gui.txt` | `requirements.txt` |
+| `"BnosGui"` 窗口标题 | `"BnosConsole"` |
+| `logs/bnos_gui.log` | `logs/bnos_console.log` |
+| `_k_app_name` | `"BNOS Console"` (中/英统一) |
+
+影响文件 25+ 个，含 `main_window.py`、`dark_title_bar.py`、`logger.py`、`build_bnos.spec`、README、UPDATE、tests 等。
+
+### 影响文件
+
+`splash_screen.py`(新增)、`bnos_console.py`(重命名+闪屏延迟)、`strings_cn/en.json`、`main_window.py`、`dark_title_bar.py`、`logger.py`、`build_bnos.spec`、启动脚本、README、UPDATE、tests
+
+---
+
 ## 🔧 颜色设置修复 + 语言切换持久化 + 侧边栏样式统一 (2026-05-22)
 
 ### 颜色设置修复
@@ -26,9 +57,9 @@
 | 修复项 | 文件 | 根因 |
 |--------|------|------|
 | 设置未保存到磁盘 | `settings_dialog.py` | `app_config.set()` 后缺 `app_config.save()` |
-| 启动时未读保存的语言 | `bnos_gui.py` | `init_i18n()` 无参调用，默认 `cn` |
+| 启动时未读保存的语言 | `bnos_console.py` | `init_i18n()` 无参调用，默认 `cn` |
 | 未知键被 `load()` 过滤 | `app_config.py` | `if key in self.config` 跳过 `language`/`process_mode` |
-| 重启流程不可靠 | `main_window.py` + `bnos_gui.py` | `sys.exit(0)` 在 Qt 事件循环内可能被吞，改用退出码 42 驱动重启 |
+| 重启流程不可靠 | `main_window.py` + `bnos_console.py` | `sys.exit(0)` 在 Qt 事件循环内可能被吞，改用退出码 42 驱动重启 |
 | **Python from-import 值拷贝** | `i18n.py` + `settings_dialog.py` | `from i18n import LANG` 是字符串值拷贝，`init_i18n("en")` 后本模块 LANG 仍为 `"cn"`，导致设置对话框永远显示"当前语言:中文"。新增 `get_lang()` 函数动态读取。 |
 
 ### 侧边栏样式统一
@@ -37,7 +68,7 @@
 
 ### 影响文件
 
-`canvas_colors.py`、`app_config.py`、`settings_dialog.py`、`bnos_gui.py`、`draw_toolbar.py`、`color_settings_dialog.py`
+`canvas_colors.py`、`app_config.py`、`settings_dialog.py`、`bnos_console.py`、`draw_toolbar.py`、`color_settings_dialog.py`
 
 ---
 
@@ -74,7 +105,7 @@
 
 ### 影响文件
 
-`strings_en.json`(新增)、`strings_cn.json`(扩展)、`i18n.py`、`bnos_gui.py`、`dialog_utils.py`、`node_list_context.py`、`main_window.py`、`menu_manager.py`、`draw_toolbar.py`、`draw_layer.py`、`floating_panel.py`、`node_list_panel.py`、`UPDATE_CN.md`、`UPDATE_EN.md`
+`strings_en.json`(新增)、`strings_cn.json`(扩展)、`i18n.py`、`bnos_console.py`、`dialog_utils.py`、`node_list_context.py`、`main_window.py`、`menu_manager.py`、`draw_toolbar.py`、`draw_layer.py`、`floating_panel.py`、`node_list_panel.py`、`UPDATE_CN.md`、`UPDATE_EN.md`
 
 ---
 
@@ -118,11 +149,11 @@
 
 ### 全局样式统一
 
-- `bnos_gui.py`：`AA_DontUseNativeDialogs` 在 QApplication 创建前设置
-- `bnos_gui.py`：全局 `setStyle("Fusion")` 确保所有控件走 Qt 渲染管线
+- `bnos_console.py`：`AA_DontUseNativeDialogs` 在 QApplication 创建前设置
+- `bnos_console.py`：全局 `setStyle("Fusion")` 确保所有控件走 Qt 渲染管线
 - 所有对话框统一 `FramelessWindowHint` + 自定义标题栏，颜色 `rgba(30,30,30,220)`
 
-**影响文件**：`main_window.py`、`ipc.py`、`canvas_process.py`、`dialog_utils.py`(新增)、`node_list_panel.py`、`project_manager.py`、`external_node_manager.py`、`bnos_gui.py`
+**影响文件**：`main_window.py`、`ipc.py`、`canvas_process.py`、`dialog_utils.py`(新增)、`node_list_panel.py`、`project_manager.py`、`external_node_manager.py`、`bnos_console.py`
 
 ---
 
@@ -423,7 +454,7 @@ z=4  输出锚点（底层）
 **新增组件**: `ui/core/dark_title_bar.py`
 
 - 主窗口改为无边框设计，自定义 40px 黑色标题栏（`#1e1e1e`）
-- 菜单栏嵌入标题栏同行：`[BnosGui] [文件] [编辑] [工具] [帮助] ←→ [─] [□] [✕]`
+- 菜单栏嵌入标题栏同行：`[BnosConsole] [文件] [编辑] [工具] [帮助] ←→ [─] [□] [✕]`
 - 全局深色 QSS 主题：菜单、滚动条、输入框、按钮、表格等全部深色风格
 - 无边框窗口支持边缘拖拽调整大小（6px 敏感区域）
 - 自定义最小化/最大化/关闭按钮，关闭按钮 hover 变红（`#e81123`）
@@ -459,7 +490,7 @@ z=4  输出锚点（底层）
 
 - 控制台 INFO + 文件 DEBUG 双通道输出
 - 9 个文件、211 处 `print()` 全部迁移到 `logger`
-- 日志文件: `logs/bnos_gui.log`（已被 .gitignore 排除）
+- 日志文件: `logs/bnos_console.log`（已被 .gitignore 排除）
 
 ### **计划4: 浮动面板窗口类型统一** 🪟
 
@@ -480,7 +511,7 @@ z=4  输出锚点（底层）
 
 - 所有 UI 按钮、菜单、对话框标题中的 Emoji 图案已移除
 - 按键名称精简为 2-4 字为主（如「清空所有连线」→「清空连线」）
-- 涉及 6 个文件: canvas_view.py、property_panel.py、node_list_panel.py、main_window.py、menu_manager.py、bnos_gui.py
+- 涉及 6 个文件: canvas_view.py、property_panel.py、node_list_panel.py、main_window.py、menu_manager.py、bnos_console.py
 
 ### **按钮颜色统一黑白灰** ⚫
 

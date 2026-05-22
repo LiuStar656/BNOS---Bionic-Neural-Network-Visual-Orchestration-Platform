@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "======================================"
-echo "  BNOS Desktop Visual Node Platform"
+echo "  BNOS Console - Visual Node Orchestration"
 echo "======================================"
 echo ""
 
@@ -84,15 +84,15 @@ echo ""
 echo "[INFO] Checking dependencies..."
 
 # Check if requirements file exists
-if [ ! -f "requirements_gui.txt" ]; then
-    echo "[WARN] requirements_gui.txt not found"
+if [ ! -f "requirements.txt" ]; then
+    echo "[WARN] requirements.txt not found"
     echo ""
     echo "[INFO] Will attempt to install basic dependencies..."
     INSTALL_CMD="pip install pyqt6"
 else
-    echo "[INFO] Found requirements_gui.txt"
+    echo "[INFO] Found requirements.txt"
     echo ""
-    INSTALL_CMD="pip install -r requirements_gui.txt"
+    INSTALL_CMD="pip install -r requirements.txt"
 fi
 
 # Quick check if key dependency is installed
@@ -131,7 +131,7 @@ echo "Starting BNOS Node Platform..."
 echo "======================================"
 echo ""
 
-python bnos_gui.py
+python bnos_console.py
 
 EXIT_CODE=$?
 

@@ -58,6 +58,13 @@ class SplashScreen(QWidget):
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             title_layout.addWidget(lbl)
 
+        # 副标题 — BNOS Console
+        console_sub = QLabel("BNOS  CONSOLE")
+        console_sub.setFont(QFont("Consolas", 11, QFont.Weight.Bold))
+        console_sub.setStyleSheet("color: #ccc; background: transparent; letter-spacing: 3px;")
+        console_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_layout.addWidget(console_sub)
+
         # 副标题（从 i18n 读取）
         from ui.core.i18n import t
         sub = QLabel(t("_k_splash_subtitle"))

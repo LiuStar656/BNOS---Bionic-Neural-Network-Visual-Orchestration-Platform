@@ -37,7 +37,7 @@ def setup_logger(name: str = "BNOS") -> logging.Logger:
     log_dir = Path(__file__).parent.parent.parent / "logs"
     log_dir.mkdir(exist_ok=True)
     file_handler = logging.FileHandler(
-        log_dir / "bnos_gui.log", encoding='utf-8'
+        log_dir / "bnos_console.log", encoding='utf-8'
     )
     file_handler.setLevel(logging.DEBUG)
     file_fmt = logging.Formatter(

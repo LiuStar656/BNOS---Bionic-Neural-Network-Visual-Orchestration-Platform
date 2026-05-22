@@ -1,7 +1,7 @@
 """
 快速测试：启动画布子进程
 
-先启动主 GUI (python bnos_gui.py)，再新开终端运行此脚本。
+先启动主 GUI (python bnos_console.py)，再新开终端运行此脚本。
 """
 import sys
 import os

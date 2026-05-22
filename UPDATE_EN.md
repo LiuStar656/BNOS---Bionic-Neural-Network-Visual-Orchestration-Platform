@@ -4,6 +4,37 @@
 
 ---
 
+## 🚀 Splash Screen + Brand Rename BnosConsole + README Update (2026-05-23)
+
+### Splash Screen
+
+New `ui/core/splash_screen.py` (114 lines):
+- **ASCII Art BNOS**: 6-line █ block characters, Consolas 13pt bold, monochrome
+- **BNOS CONSOLE** subtitle + project tagline (i18n)
+- **Bottom-left live log**: QTextEdit 80px, scrolled startup steps
+- **Bottom progress bar**: 0→100%, gray chunk
+- **Delayed close**: 2 seconds after main window appears
+
+### Brand Rename: BnosGui → BnosConsole
+
+| Old | New |
+|-----|-----|
+| `bnos_gui.py` | `bnos_console.py` |
+| `start_bnos_gui.bat` | `start_bnos_console.bat` |
+| `start_bnos_gui.sh` | `start_bnos_console.sh` |
+| `requirements_gui.txt` | `requirements.txt` |
+| `"BnosGui"` window title | `"BnosConsole"` |
+| `logs/bnos_gui.log` | `logs/bnos_console.log` |
+| `_k_app_name` | `"BNOS Console"` (cn/en unified) |
+
+25+ files affected: `main_window.py`, `dark_title_bar.py`, `logger.py`, `build_bnos.spec`, README, UPDATE, tests, etc.
+
+### Affected Files
+
+`splash_screen.py`(new), `bnos_console.py`(rename + splash delay), `strings_cn/en.json`, `main_window.py`, `dark_title_bar.py`, `logger.py`, `build_bnos.spec`, startup scripts, README, UPDATE, tests
+
+---
+
 ## 🔧 Color Settings Fixes + Language Persistence + Sidebar Unification (2026-05-22)
 
 ### Color Settings Fixes
@@ -23,9 +54,9 @@
 | Fix | File | Root Cause |
 |-----|------|-----------|
 | Settings not saved to disk | `settings_dialog.py` | Missing `app_config.save()` after `set()` |
-| Saved language not read on startup | `bnos_gui.py` | `init_i18n()` called without reading saved preference |
+| Saved language not read on startup | `bnos_console.py` | `init_i18n()` called without reading saved preference |
 | Unknown keys filtered by `load()` | `app_config.py` | `if key in self.config` skipped `language`/`process_mode` |
-| Unreliable restart flow | `main_window.py` + `bnos_gui.py` | `sys.exit(0)` could be swallowed by Qt event loop; switched to exit code 42 restart |
+| Unreliable restart flow | `main_window.py` + `bnos_console.py` | `sys.exit(0)` could be swallowed by Qt event loop; switched to exit code 42 restart |
 
 ### Sidebar Style Unification
 
@@ -33,7 +64,7 @@ Draw toolbar button colors: `#252525`→`#2d2d30`, foreground `#aaa`→`#ccc`, h
 
 ### Affected Files
 
-`canvas_colors.py`, `app_config.py`, `settings_dialog.py`, `bnos_gui.py`, `draw_toolbar.py`, `color_settings_dialog.py`
+`canvas_colors.py`, `app_config.py`, `settings_dialog.py`, `bnos_console.py`, `draw_toolbar.py`, `color_settings_dialog.py`
 
 ---
 
@@ -70,7 +101,7 @@ Draw toolbar button colors: `#252525`→`#2d2d30`, foreground `#aaa`→`#ccc`, h
 
 ### Affected Files
 
-`strings_en.json`(new), `strings_cn.json`(expanded), `i18n.py`, `bnos_gui.py`, `dialog_utils.py`, `node_list_context.py`, `main_window.py`, `menu_manager.py`, `draw_toolbar.py`, `draw_layer.py`, `floating_panel.py`, `node_list_panel.py`, `UPDATE_CN.md`, `UPDATE_EN.md`
+`strings_en.json`(new), `strings_cn.json`(expanded), `i18n.py`, `bnos_console.py`, `dialog_utils.py`, `node_list_context.py`, `main_window.py`, `menu_manager.py`, `draw_toolbar.py`, `draw_layer.py`, `floating_panel.py`, `node_list_panel.py`, `UPDATE_CN.md`, `UPDATE_EN.md`
 
 ---
 
@@ -114,11 +145,11 @@ Completely eliminated all native Windows dialogs, achieving full application-wid
 
 ### Global Style Unification
 
-- `bnos_gui.py`: `AA_DontUseNativeDialogs` set before `QApplication()` creation
-- `bnos_gui.py`: Global `setStyle("Fusion")` forces all widgets through Qt render pipeline
+- `bnos_console.py`: `AA_DontUseNativeDialogs` set before `QApplication()` creation
+- `bnos_console.py`: Global `setStyle("Fusion")` forces all widgets through Qt render pipeline
 - All dialogs unified to `FramelessWindowHint` + custom title bar, color `rgba(30,30,30,220)`
 
-**Affected files**: `main_window.py`, `ipc.py`, `canvas_process.py`, `dialog_utils.py`(new), `node_list_panel.py`, `project_manager.py`, `external_node_manager.py`, `bnos_gui.py`
+**Affected files**: `main_window.py`, `ipc.py`, `canvas_process.py`, `dialog_utils.py`(new), `node_list_panel.py`, `project_manager.py`, `external_node_manager.py`, `bnos_console.py`
 
 ---
 
@@ -416,7 +447,7 @@ z=4  Output anchor (bottom layer)
 **New component**: `ui/core/dark_title_bar.py`
 
 - Main window switched to frameless design with custom 40px dark title bar (`#1e1e1e`)
-- Menu bar embedded in same row as title bar: `[BnosGui] [File] [Edit] [Tools] [Help] ←→ [─] [□] [✕]`
+- Menu bar embedded in same row as title bar: `[BnosConsole] [File] [Edit] [Tools] [Help] ←→ [─] [□] [✕]`
 - Global dark QSS theme: menus, scrollbars, inputs, buttons, tables, dialogs all dark-styled
 - Edge-drag resize support for frameless window (6px sensitive margin)
 - Custom minimize/maximize/close buttons, close button turns red (`#e81123`) on hover
@@ -452,7 +483,7 @@ z=4  Output anchor (bottom layer)
 
 - Console INFO + File DEBUG dual-channel output
 - All 211 `print()` calls across 9 files migrated to `logger`
-- Log file: `logs/bnos_gui.log` (excluded by .gitignore)
+- Log file: `logs/bnos_console.log` (excluded by .gitignore)
 
 ### **Plan 4: Floating Panel Base Class** 🪟
 
@@ -473,7 +504,7 @@ z=4  Output anchor (bottom layer)
 
 - All Emoji patterns removed from UI buttons, menus, dialog titles
 - Button names simplified to 2-4 characters (e.g., "Clear All Edges" → "Clear Edges")
-- 6 files affected: canvas_view.py, property_panel.py, node_list_panel.py, main_window.py, menu_manager.py, bnos_gui.py
+- 6 files affected: canvas_view.py, property_panel.py, node_list_panel.py, main_window.py, menu_manager.py, bnos_console.py
 
 ### **Button Colors Unified to Black/White/Gray** ⚫
 

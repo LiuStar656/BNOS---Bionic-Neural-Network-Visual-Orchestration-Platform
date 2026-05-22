@@ -1,7 +1,7 @@
 """
 快速测试：启动核心业务子进程
 
-先启动主 GUI (python bnos_gui.py)，再运行此脚本。
+先启动主 GUI (python bnos_console.py)，再运行此脚本。
 核心进程无 UI，只输出日志。
 """
 import sys

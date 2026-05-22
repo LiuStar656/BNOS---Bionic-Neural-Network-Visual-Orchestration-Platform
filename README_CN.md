@@ -234,7 +234,7 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              BNOS GUI (PyQt6)                    │
+│              BNOS Console (PyQt6)                    │
 │                                                  │
 │  ┌──────────────┐  ┌──────────────────────────┐ │
 │  │ 节点列表      │  │     神经网络画布          │ │
@@ -259,7 +259,7 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 
 | 模块 | 文件 | 说明 |
 |------|------|------|
-| **主入口** | `bnos_gui.py` | 初始化 QApplication，启动主窗口 |
+| **主入口** | `bnos_console.py` | 初始化 QApplication，启动主窗口 |
 | **主窗口** | `ui/main_window.py` | 整合 UI 组件，管理 AppConfig、节点数据、Toast |
 | **画布** | `ui/canvas/canvas_view.py` | QGraphicsView 实现节点绘制、拖拽、连线 |
 | **节点样式** | `ui/canvas/items/node_style.py` | 节点样式系统（方形/圆形），三层 z 轴架构 |
@@ -304,20 +304,20 @@ myenv_new\Scripts\activate
 source myenv_new/bin/activate
 
 # 4. 安装依赖
-pip install -r requirements_gui.txt
+pip install -r requirements.txt
 
 # 5. 启动应用
-python bnos_gui.py
+python bnos_console.py
 ```
 
 #### 方式二：使用启动脚本（Windows）
 
 ```powershell
 # PowerShell（路径含空格时使用 &）
-& ".\start_bnos_gui.bat"
+& ".\start_bnos_console.bat"
 
 # 或 CMD
-start_bnos_gui.bat
+start_bnos_console.bat
 ```
 
 > **提示**：首次运行会自动检查并安装 PyQt6（如果缺失），请耐心等待。
@@ -503,10 +503,10 @@ Ctrl + 单击多选节点 → 右键 → 批量启动/停止
 
 ```
 BNOS/
-├── bnos_gui.py                    # 主入口文件
-├── start_bnos_gui.bat             # Windows 启动脚本
-├── start_bnos_gui.sh              # Linux/macOS 启动脚本
-├── requirements_gui.txt           # GUI 依赖列表
+├── bnos_console.py                    # 主入口文件
+├── start_bnos_console.bat             # Windows 启动脚本
+├── start_bnos_console.sh              # Linux/macOS 启动脚本
+├── requirements.txt           # GUI 依赖列表
 ├── build_bnos.spec                # PyInstaller 打包配置
 ├── app_config.json                # 应用级配置（窗口状态、最后项目路径）
 ├── canvas_layout.json             # 画布布局持久化（含节点样式）
@@ -640,7 +640,7 @@ self.show_toast("操作成功", "success", duration=3000)
 pip install pyinstaller
 
 # 打包
-pyinstaller --onefile --windowed --name="BNOS" bnos_gui.py
+pyinstaller --onefile --windowed --name="BNOS" bnos_console.py
 ```
 
 输出：`dist/BNOS.exe`（约 100MB+，包含 PyQt6）
