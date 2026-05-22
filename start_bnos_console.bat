@@ -71,7 +71,8 @@ echo Starting BNOS Console...
 echo ======================================
 echo.
 
-%PYTHON% "%MAIN_FILE%"
+:: 启动器（tkinter，系统 Python 即可）独立管理动画 + 后台启动主程序
+%PYTHON% launcher.py
 
 :: ==================== EXIT ====================
 echo.
