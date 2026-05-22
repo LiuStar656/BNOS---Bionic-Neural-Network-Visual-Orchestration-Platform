@@ -2,7 +2,7 @@
 BNOS 菜单管理器 - 纯菜单栏设计（无工具栏）
 负责初始化和管理主窗口的菜单栏
 """
-from PyQt6.QtWidgets import (QInputDialog, QLineEdit, QMessageBox,
+from PyQt6.QtWidgets import (QLineEdit, QMessageBox, QWidget,
                                 QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout)
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
@@ -178,21 +178,40 @@ class MenuManager:
 
         prompt = t("k_node_enter_name").replace("{lang}", language)
         dlg = QDialog(main_window)
-        dlg.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog)
+        dlg.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
         dlg.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        dlg.setFixedSize(360, 150)
-        dlg.setStyleSheet("QDialog { background: rgba(30,30,30,220); border: 1px solid rgba(255,255,255,20); border-radius: 8px; }")
-        layout = QVBoxLayout(dlg)
-        layout.setContentsMargins(16, 14, 16, 10)
-        header = QLabel(t("k_node_create"))
-        header.setStyleSheet("color: #cccccc; font-size: 14px; font-weight: bold;")
-        layout.addWidget(header)
+        dlg.resize(360, 160)
+        # 外层无间距
+        outer = QVBoxLayout(dlg)
+        outer.setContentsMargins(0, 0, 0, 0)
+        # 半透明容器（与 FloatingPanel 完全一致）
+        container = QWidget()
+        container.setStyleSheet("QWidget { background-color: rgba(30,30,30,220); border-radius: 8px; border: 1px solid rgba(255,255,255,25); }")
+        outer.addWidget(container)
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(6)
+        # 标题栏（FloatingPanel 风格）
+        bar = QHBoxLayout()
+        title_lbl = QLabel(t("k_node_create"))
+        title_lbl.setStyleSheet("color: white; font-size: 12px; font-weight: bold; background: transparent; border: none;")
+        bar.addWidget(title_lbl)
+        bar.addStretch()
+        close_lbl = QLabel("x")
+        close_lbl.setStyleSheet("color: rgba(255,255,255,150); font-size: 14px; padding: 0 5px; background: transparent; border: none;")
+        close_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_lbl.mousePressEvent = lambda e: dlg.reject()
+        bar.addWidget(close_lbl)
+        layout.addLayout(bar)
+        # 提示文字
         lbl = QLabel(prompt)
-        lbl.setStyleSheet("color: rgba(255,255,255,180); font-size: 12px; padding: 2px 0;")
+        lbl.setStyleSheet("color: rgba(255,255,255,180); font-size: 12px; background: transparent; border: none;")
         layout.addWidget(lbl)
+        # 输入框
         edit = QLineEdit()
         edit.setStyleSheet("background-color: rgba(255,255,255,10); color: #d4d4d4; border: 1px solid rgba(255,255,255,15); border-radius: 4px; padding: 6px 10px; font-size: 13px;")
         layout.addWidget(edit)
+        # 按钮
         btn_row = QHBoxLayout()
         btn_row.addStretch()
         ok_btn = QPushButton(t("k_ok"))
@@ -205,7 +224,6 @@ class MenuManager:
         ok_btn.clicked.connect(dlg.accept)
         cancel_btn.clicked.connect(dlg.reject)
         edit.returnPressed.connect(dlg.accept)
-        # 居中于父窗口
         if main_window:
             mw = main_window.geometry()
             dlg.move(mw.center() - dlg.rect().center())
