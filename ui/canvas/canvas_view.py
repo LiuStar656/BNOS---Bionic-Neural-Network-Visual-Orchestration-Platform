@@ -129,9 +129,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         pix.fill(QColor(self.canvas_bg_color))
 
         p = QPainter(pix)
-        gc = QColor(self.grid_color)
-        gc.setAlphaF(self.grid_opacity)
-        p.setPen(QPen(gc, 0.5))
+        p.setPen(QPen(QColor(self.grid_color), 0.5))
 
         for i in range(0, tile_size, grid):
             p.drawLine(i, 0, i, tile_size)
@@ -140,17 +138,22 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         return pix
 
     def drawBackground(self, painter, rect):
-        """网格固定渲染：预烘焙纹理 → 平铺，不逐线重绘"""
+        """网格固定渲染：预烘焙纹理 → 平铺，缩放越小越透明"""
         super().drawBackground(painter, rect)
 
         if not self.draw_grid:
             return
 
-        # 缓存键：颜色+透明度变化时重建纹理
-        cache_key = (self.grid_color, self.grid_opacity)
+        # 缓存键：颜色变化时重建纹理（不透明度由 painter 动态控制）
+        cache_key = self.grid_color
         if self._grid_texture is None or self._grid_texture_key != cache_key:
             self._grid_texture = self._build_grid_texture()
             self._grid_texture_key = cache_key
+
+        # 不透明度随缩放变化：缩放 ≤1 时等比降低，≥1 时保持基础值
+        scale = self.transform().m11()
+        opacity = self.grid_opacity * min(1.0, max(0.12, scale))
+        painter.setOpacity(opacity)
 
         tex = self._grid_texture
         tw, th = tex.width(), tex.height()
