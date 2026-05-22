@@ -14,8 +14,6 @@ echo.
 set "VENV_DIR=myenv_new"
 set "REQUIREMENTS=requirements.txt"
 set "PYTHON=python"
-set "MAIN_FILE=bnos_console.py"
-set "APP_DIR=."
 
 :: ==================== CHECK PYTHON ====================
 echo [INFO] Checking Python environment...
@@ -71,6 +69,6 @@ echo Starting BNOS Console...
 echo ======================================
 echo.
 
-:: 启动 launcher (后台运行，终端立即退出)
-start "" /b %PYTHON% launcher.py
+:: 启动 launcher (pythonw 无终端窗口，系统 Python 即可)
+where pythonw >nul 2>&1 && (start "" pythonw launcher.py) || (start "" /b python launcher.py)
 exit /b 0
