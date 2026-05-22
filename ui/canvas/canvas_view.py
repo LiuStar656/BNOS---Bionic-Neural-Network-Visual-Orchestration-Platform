@@ -313,25 +313,33 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         # 获取点击位置的项
         item = self.itemAt(event.position().toPoint())
         
-        # ✅ 连线模式：点击锚点→完成连接，点击节点→完成连接，否则取消
+        # ✅ 连线模式：点击锚点→完成连接，点击节点→完成连接，点击连线→查找末端节点完成连接，否则取消
         if self.is_connecting and event.button() == Qt.MouseButton.LeftButton:
             target_node = None
-            probe = item
-            while probe is not None:
+            # 获取点击位置上的所有 items（按 z 排序），跳过临时连线虚线
+            for probe in self.items(event.position().toPoint()):
+                if probe is self.temp_edge:
+                    continue
                 if isinstance(probe, NodeItem):
                     target_node = probe
                     break
-                probe = probe.parentItem()
+                # 点击连线或箭头 → 优先用末端节点作为目标
+                if isinstance(probe, EdgeItem):
+                    target_node = probe.end_node
+                    break
+            logger.debug("mousePress: item=%s, target_node=%s, connect_source=%s",
+                         type(item).__name__, target_node.node_name if target_node else None,
+                         self.connect_source.node_name if self.connect_source else None)
             if target_node and target_node != self.connect_source:
                 self.complete_connection_to_input(target_node)
                 logger.debug("连线完成到 %s", target_node.node_name)
                 event.accept()
                 return
-            if not isinstance(item, AnchorItem):
-                self.cancel_connection()
-                logger.debug("取消连线")
-                event.accept()
-                return
+            # 如果在空白处或无效项上点击，取消连线
+            self.cancel_connection()
+            logger.debug("取消连线")
+            event.accept()
+            return
         
         # 空格+左键：两阶段触发机制
         # 第一阶段：按住空格进入空格快捷键模式
@@ -1031,11 +1039,13 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         """从输出锚点开始连线"""
         self.is_connecting = True
         self.connect_source = source_node
+        logger.debug("连线模式启动: source=%s, is_connecting=%s", source_node.node_name, self.is_connecting)
         
         self.viewport().setCursor(Qt.CursorShape.CrossCursor)
         
         self.temp_edge = QGraphicsPathItem()
         self.temp_edge.setZValue(2)  # 浮于网格+节点之上
+        self.temp_edge.setAcceptedMouseButtons(Qt.MouseButton.NoButton)  # 不拦截鼠标事件，穿透到下方锚点/节点
         pen = QPen(QColor("#4A90E2"), 2, Qt.PenStyle.DashLine)
         self.temp_edge.setPen(pen)
         self.scene.addItem(self.temp_edge)
@@ -1052,6 +1062,9 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         
     def complete_connection_to_input(self, target_node):
         """完成连线到输入锚点"""
+        logger.debug("complete_connection_to_input: source=%s, target=%s, is_connecting=%s",
+                     self.connect_source.node_name if self.connect_source else None,
+                     target_node.node_name, self.is_connecting)
         if self.connect_source and self.connect_source != target_node:
             self.create_edge(self.connect_source, target_node)
         
@@ -1160,20 +1173,6 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
                 self._save_timer.stop()
                 self._save_timer.start(500)
 
-    def complete_connection_to_input(self, target_node):
-        """完成连线到输入锚点"""
-        if self.connect_source and self.connect_source != target_node:
-            self.create_edge(self.connect_source, target_node)
-        
-        if self.temp_edge:
-            self.scene.removeItem(self.temp_edge)
-            self.temp_edge = None
-        
-        self.is_connecting = False
-        self.connect_source = None
-        self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
-        self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
-    
     def cancel_connection(self):
         """取消连线"""
         if self.temp_edge:

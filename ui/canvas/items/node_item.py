@@ -268,6 +268,13 @@ class NodeItem(QGraphicsRectItem):
         if event.button() == Qt.MouseButton.LeftButton:
             pos_in_item = self.mapFromScene(event.scenePos())
             is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
+            w = self.rect().width()
+            h = self.rect().height()
+
+            # 调试：连线模式下的点击信息
+            if self.canvas and self.canvas.is_connecting:
+                logger.debug("NodeItem[%s].mousePress: pos=(%.1f,%.1f) rect=(%.0f,%.0f) is_dot=%s eventAccepted=%s",
+                             self.node_name, pos_in_item.x(), pos_in_item.y(), w, h, is_dot, event.isAccepted())
 
             # 圆点节点：点击圆点本体 = 输入锚点（连线完成）/ 选中
             if is_dot:
@@ -276,6 +283,7 @@ class NodeItem(QGraphicsRectItem):
                 if body_scene_rect.contains(pos_in_item):
                     if self.canvas and self.canvas.is_connecting:
                         self.canvas.complete_connection_to_input(self)
+                        event.accept()
                         return
                     if self.canvas:
                         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
@@ -300,13 +308,18 @@ class NodeItem(QGraphicsRectItem):
                 if output_anchor_rect.contains(pos_in_item):
                     if self.canvas:
                         self.canvas.start_connection_from_output(self)
+                    event.accept()
                     return
 
                 # 方块节点：输入锚点（完成连线）
                 input_anchor_rect = QRectF(-8, h / 2 - 8, 16, 16)
                 if input_anchor_rect.contains(pos_in_item):
+                    logger.debug("NodeItem: 点击输入锚点 area, is_connecting=%s, canvas=%s",
+                                 self.canvas.is_connecting if self.canvas else None, self.canvas is not None)
                     if self.canvas and self.canvas.is_connecting:
+                        logger.debug("NodeItem: 完成连线到 %s", self.node_name)
                         self.canvas.complete_connection_to_input(self)
+                    event.accept()
                     return
 
             # Ctrl+单击

@@ -445,7 +445,7 @@ class BNOSMainWindow(QMainWindow):
 
         # 选择外部节点文件夹
         folder_path = QFileDialog.getExistingDirectory(
-            self, "选择外部节点文件夹",
+            self, t("k_node_select_external"),
             "",
             QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
         )
@@ -572,7 +572,7 @@ class BNOSMainWindow(QMainWindow):
         
         # 弹出对话框输入节点名称
         node_name, ok = QInputDialog.getText(
-            self, "新建节点", 
+            self, t("k_node_create"), 
             f"请输入节点名称（{language}）:",
             QLineEdit.EchoMode.Normal
         )
@@ -671,7 +671,7 @@ class BNOSMainWindow(QMainWindow):
                 layout.setContentsMargins(15, 10, 15, 10)
                 
                 # 标题标签
-                self.title_label = QLabel("创建节点")
+                self.title_label = QLabel(t("k_node_creating"))
                 self.title_label.setStyleSheet("""
                     QLabel {
                         color: white;
@@ -683,7 +683,7 @@ class BNOSMainWindow(QMainWindow):
                 layout.addWidget(self.title_label)
                 
                 # 进度消息标签
-                self.message_label = QLabel("正在初始化...")
+                self.message_label = QLabel(t("k_node_init"))
                 self.message_label.setStyleSheet("""
                     QLabel {
                         color: rgba(255, 255, 255, 0.9);
@@ -1109,7 +1109,7 @@ class BNOSMainWindow(QMainWindow):
     
     def show_about(self):
         """显示关于对话框"""
-        QMessageBox.about(self, "关于 BNOS", 
+        QMessageBox.about(self, t("k_title_about"), 
             "BNOS - Bionic Neural Network Program Operating System\n\n"
             "版本: 1.0.0\n"
             "仿生神经网络程序操作系统\n\n"

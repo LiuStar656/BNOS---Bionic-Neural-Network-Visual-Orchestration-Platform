@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QTextEdit, QGroupBox, QWidget, QScrollArea, QMessageBox
 )
 from ui.core.i18n import t
-)
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
 from ui.core.floating_panel import FloatingPanel
