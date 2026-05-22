@@ -43,7 +43,10 @@ ASCII_BNOS = [
 
 
 def find_venv_python():
-    base = os.path.dirname(os.path.abspath(__file__))
+    try:
+        base = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        base = os.getcwd()
     candidates = [
         os.path.join(base, "myenv_new", "Scripts", "python.exe"),
         os.path.join(base, "myenv_new", "bin", "python3"),
@@ -234,4 +237,11 @@ def _fallback_launch():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"[!] Launcher crashed: {e}")
+        import traceback
+        traceback.print_exc()
+        input("Press Enter to exit...")
+        sys.exit(1)
