@@ -69,6 +69,10 @@ echo Starting BNOS Console...
 echo ======================================
 echo.
 
-:: 启动 launcher (pythonw 无终端窗口，系统 Python 即可)
-where pythonw >nul 2>&1 && (start "" pythonw launcher.py) || (start "" /b python launcher.py)
+:: 启动 launcher (pythonw 完全无终端)
+if exist %PYTHON%w.exe (
+    start "" %PYTHON%w launcher.py
+) else (
+    start "" /b %PYTHON% launcher.py
+)
 exit /b 0

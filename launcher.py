@@ -47,7 +47,9 @@ def find_venv_python():
         base = os.path.dirname(os.path.abspath(__file__))
     except NameError:
         base = os.getcwd()
+    # Windows 优先 pythonw（无控制台窗口）
     candidates = [
+        os.path.join(base, "myenv_new", "Scripts", "pythonw.exe"),
         os.path.join(base, "myenv_new", "Scripts", "python.exe"),
         os.path.join(base, "myenv_new", "bin", "python3"),
     ]
