@@ -421,6 +421,14 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
                 event.accept()
                 return
 
+        # Ctrl+左键（非节点上）：切换节点/绘图模式
+        if (event.button() == Qt.MouseButton.LeftButton
+                and event.modifiers() & Qt.KeyboardModifier.ControlModifier
+                and item is None):
+            self._toggle_draw_mode()
+            event.accept()
+            return
+
         # 其他情况：交给默认处理或子项处理
         super().mousePressEvent(event)
         return
@@ -850,6 +858,22 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
             node.setPen(QPen(QColor(self.node_selected_color), 3))
             node.setSelected(True)
             logger.info("选中节点: %s (共%d个)", node_name, len(self.box_selected_nodes))
+
+    def _toggle_draw_mode(self):
+        """Ctrl+Click 空白处：切换节点模式↔绘图模式"""
+        if self.draw_layer._tool:
+            t = self.draw_layer._tool
+            self.draw_layer.set_tool("")
+            if self.draw_layer.toolbar and hasattr(self.draw_layer.toolbar, '_btns'):
+                self.draw_layer.toolbar._current_tool = None
+                for btn in self.draw_layer.toolbar._btns.values():
+                    btn.setStyleSheet(self.draw_layer.toolbar.BTN_BASE)
+            logger.info("模式切换: 绘图(%s) → 节点模式", t)
+        else:
+            self.draw_layer.set_tool("rect")
+            if self.draw_layer.toolbar:
+                self.draw_layer.toolbar._pick("rect")
+            logger.info("模式切换: 节点模式 → 绘图(rect)")
     
     def get_selected_node(self):
         """获取当前选中的节点名称（单选优先取第一个）"""
