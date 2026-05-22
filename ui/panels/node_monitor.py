@@ -14,6 +14,7 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
 from ui.core.floating_panel import FloatingPanel
 from ui.core.utils.dialog_utils import themed_message
+from ui.core.polling_manager import polling_manager
 
 
 class NodeLogSubPanel(QGroupBox):
@@ -24,7 +25,6 @@ class NodeLogSubPanel(QGroupBox):
         self.node_name = node_name
         self.node_path = node_path
         self._collapsed = False
-        self._last_mtime = 0
         self._log_file = os.path.join(node_path, "logs", "listener.log")
 
         self.setStyleSheet("""
@@ -45,7 +45,10 @@ class NodeLogSubPanel(QGroupBox):
 
         self._init_ui(node_status)
         self._load_log()
-        self._start_timer()
+
+        # 订阅 polling_manager 日志变更信号（替代独立定时器）
+        polling_manager.watch_log(node_path, "listener.log")
+        polling_manager.log_file_changed.connect(self._on_external_log_change)
 
     def _init_ui(self, status):
         layout = QVBoxLayout(self)
@@ -125,14 +128,12 @@ class NodeLogSubPanel(QGroupBox):
     # ==================== 功能 ====================
 
     def _load_log(self):
-        """加载日志文件内容（完整读取，有 mtime 变化才刷新）"""
+        """加载日志文件内容"""
         if not os.path.exists(self._log_file):
             self._log_editor.setPlainText("# 暂无日志\n# 节点启动后将自动生成")
-            self._last_mtime = 0
             return
 
         try:
-            self._last_mtime = os.path.getmtime(self._log_file)
             with open(self._log_file, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
             if not content.strip():
@@ -145,21 +146,15 @@ class NodeLogSubPanel(QGroupBox):
         except Exception as e:
             self._log_editor.setPlainText(f"# 读取失败: {e}")
 
-    def _check_and_refresh(self):
-        """定时器回调：只在文件变化时重新加载"""
-        if not os.path.exists(self._log_file):
-            return
-        try:
-            current_mtime = os.path.getmtime(self._log_file)
-        except OSError:
-            return
-        if current_mtime > self._last_mtime:
+    def _on_external_log_change(self, node_path, log_filename):
+        """polling_manager 信号：日志文件被外部修改"""
+        if node_path == self.node_path:
             self._load_log()
 
     def _clear_log(self):
         """清空日志文件"""
-        reply = themed_message(self, t("k_title_confirm_clear"), f"确定要清空 {self.node_name} 的日志文件吗？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
+        reply = themed_message(self, t("k_title_confirm_clear"), t("_k_clear_log_confirm").format(name=self.node_name),
+            "question")
         if not reply:
             return
         try:
@@ -167,9 +162,8 @@ class NodeLogSubPanel(QGroupBox):
             with open(self._log_file, 'w', encoding='utf-8') as f:
                 f.write("")
             self._log_editor.setPlainText(t("k_log_cleared"))
-            self._last_mtime = os.path.getmtime(self._log_file)
         except Exception as e:
-            themed_message(self, t("k_title_error"), f"清空失败: {e}", "error")
+            themed_message(self, t("k_title_error"), t("_k_clear_failed").format(err=str(e)), "error")
 
     def _open_folder(self):
         """打开节点目录"""
@@ -188,25 +182,23 @@ class NodeLogSubPanel(QGroupBox):
         self._log_editor.setVisible(not self._collapsed)
         self._collapse_indicator.setText(">" if self._collapsed else "v")
 
-    # ==================== 定时器 ====================
-
-    def _start_timer(self):
-        self._refresh_timer = QTimer(self)
-        self._refresh_timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self._refresh_timer.timeout.connect(self._check_and_refresh)
-        self._refresh_timer.start(2000)
-
-    def stop_timer(self):
-        """外部停止定时器"""
-        if hasattr(self, '_refresh_timer'):
-            self._refresh_timer.stop()
+    def unsubscribe_monitor(self):
+        """取消订阅 polling_manager（面板移除时调用）"""
+        polling_manager.unwatch_log(self.node_path, "listener.log")
 
     # ==================== 状态更新 ====================
 
     def update_status(self, status):
-        """外部更新状态显示"""
-        status_text = t("k_status_running") if status == 'running' else t("k_status_stopped")
-        status_color = "#4CAF50" if status == 'running' else "#999"
+        """外部更新状态显示（三态：running/idle/stopped）"""
+        if status == 'running':
+            status_text = t("k_status_running")
+            status_color = "#4CAF50"
+        elif status == 'idle':
+            status_text = t("k_status_idle")
+            status_color = "#F0A030"
+        else:
+            status_text = t("k_status_stopped")
+            status_color = "#999"
         self._title_btn.setText(f"{self.node_name}  [{status_text}]")
         self._title_btn.setStyleSheet(f"""
             QPushButton {{
@@ -322,7 +314,7 @@ class NodeMonitor(FloatingPanel):
         """移除节点日志子面板"""
         if node_name in self._sub_panels:
             sub = self._sub_panels[node_name]
-            sub.stop_timer()
+            sub.unsubscribe_monitor()
             self._panel_layout.removeWidget(sub)
             sub.deleteLater()
             del self._sub_panels[node_name]
@@ -333,6 +325,6 @@ class NodeMonitor(FloatingPanel):
 
     def _on_close(self):
         for sub in self._sub_panels.values():
-            sub.stop_timer()
+            sub.unsubscribe_monitor()
         self._list_timer.stop()
         super()._on_close()

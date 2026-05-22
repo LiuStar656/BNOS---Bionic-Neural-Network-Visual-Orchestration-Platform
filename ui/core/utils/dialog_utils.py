@@ -5,7 +5,7 @@ import os
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout,
                                QWidget, QLineEdit, QTreeWidget, QTreeWidgetItem,
                                QComboBox, QHeaderView)
-from PyQt6.QtCore import Qt, QDir, QTimer
+from PyQt6.QtCore import Qt, QDir, QPoint, QTimer
 from PyQt6.QtGui import QFont
 from ui.core.i18n import t
 
@@ -34,6 +34,7 @@ def _make_dialog(parent, title, w, h):
     tl = QLabel(title); tl.setStyleSheet(_STYLE_TITLE); bar.addWidget(tl); bar.addStretch()
     xl = QLabel("x"); xl.setStyleSheet("color: rgba(255,255,255,150); font-size: 14px; padding:0 5px; background:transparent;"); xl.setCursor(Qt.CursorShape.PointingHandCursor)
     xl.mousePressEvent = lambda e: dlg.reject(); bar.addWidget(xl); lay.addLayout(bar)
+    dlg._container = c  # 供 themed_message 使用
     return dlg, lay
 
 
@@ -215,8 +216,9 @@ def pick_folder(parent, title, start=""):
             drive_combo.blockSignals(False)
             break
     load_tree(initial)
-    if parent:
-        dlg.move(parent.geometry().center() - dlg.rect().center())
+    if parent and parent.isVisible():
+        pc = parent.mapToGlobal(parent.rect().center())
+        dlg.move(pc - dlg.rect().center())
 
     if dlg.exec() == QDialog.DialogCode.Accepted:
         return os.path.normpath(sel_path[0])
@@ -233,7 +235,9 @@ def themed_input(parent, title, prompt, default=""):
     cb = QPushButton(t("k_cancel")); cb.setStyleSheet(_STYLE_BTN_GREY)
     br.addWidget(ob); br.addWidget(cb); lay.addLayout(br)
     ob.clicked.connect(dlg.accept); cb.clicked.connect(dlg.reject); e.returnPressed.connect(dlg.accept)
-    if parent: dlg.move(parent.geometry().center() - dlg.rect().center())
+    if parent and parent.isVisible():
+        pc = parent.mapToGlobal(parent.rect().center())
+        dlg.move(pc - dlg.rect().center())
     return e.text().strip() if dlg.exec() == QDialog.DialogCode.Accepted else None
 
 
@@ -285,25 +289,27 @@ def themed_message(parent, title, text, mode="info"):
         dlg.exec = custom_exec
 
     lay.addLayout(br)
+
+    # --- 居中 ---
     if parent and parent.isVisible():
-        dlg.move(parent.geometry().center() - dlg.rect().center())
+        pc = parent.mapToGlobal(parent.rect().center())
+        dlg.move(pc.x() - dlg.width() // 2, pc.y() - dlg.height() // 2)
     else:
         from PyQt6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
         if screen:
             geo = screen.availableGeometry()
-            dlg.move(geo.center() - dlg.rect().center())
+            dlg.move(geo.center().x() - dlg.width() // 2,
+                     geo.center().y() - dlg.height() // 2)
 
-    # 点击空白处关闭（info/warning/error 模式）
+    # --- 点击空白处关闭（info/warning/error 模式）---
     if mode in ("info", "warning", "error"):
-        dlg._close_on_blank = True
-        orig_press = dlg.mousePressEvent
-        def _on_press(e):
-            if getattr(dlg, '_close_on_blank', False):
-                dlg.accept()
-            else:
-                orig_press(e)
-        dlg.mousePressEvent = _on_press
+        c = dlg._container
+        # 覆写容器的 mousePressEvent：容器填满整个对话框，
+        # 但没有子控件的地方（布局间距、空白区）事件会落入容器本身
+        old_mp = c.mousePressEvent
+        c.mousePressEvent = lambda e: dlg.accept()
+        dlg._old_container_mp = old_mp  # 保持引用防止 GC
 
     rc = dlg.exec()
     if mode == "question3":

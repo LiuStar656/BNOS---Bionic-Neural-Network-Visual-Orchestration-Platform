@@ -496,7 +496,7 @@ if not "%1"=="--no-pause" (
 )
 
 REM 写入 PID 文件供 GUI 检测
-powershell -Command "$p=(Get-WmiObject Win32_Process -Filter \"Name='python.exe' and CommandLine like '%%listener.py%%'\" | Select-Object -First 1).ProcessId; if($p){{$p | Out-File -FilePath '.pid' -Encoding ASCII -NoNewline}}"
+powershell -Command "$p=(Get-WmiObject Win32_Process -Filter ^"Name='python.exe' and CommandLine like '%%listener.py%%'^" | Select-Object -First 1).ProcessId; if($p){{$p | Out-File -FilePath '.pid' -Encoding ASCII -NoNewline}}"
 
 if not "%1"=="--no-pause" (
     echo ✅ 监听程序已在后台运行

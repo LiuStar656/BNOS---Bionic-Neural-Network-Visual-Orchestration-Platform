@@ -1,4 +1,4 @@
-"""节点配置对话框"""
+"""节点配置对话框 — 配置编辑器双向同步 + 日志动态刷新"""
 import os
 import sys
 import json
@@ -11,26 +11,42 @@ from PyQt6.QtWidgets import (
     QColorDialog, QSlider, QSpinBox, QComboBox,
     QDialogButtonBox
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
 from ui.core.logger import logger
 from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.utils.file_utils import resolve_and_open_folder
 from ui.core.utils.dialog_utils import themed_message
+from ui.core.polling_manager import polling_manager
 
 class NodeConfigDialog(FloatingPanel):
-    """节点配置对话框（双击节点打开）"""
+    """节点配置对话框（双击节点打开）— 配置双向同步 + 日志动态刷新"""
     
     def __init__(self, node_name, config, node_path, parent_window=None):
         super().__init__(parent_window, title=f"节点配置: {node_name}")
         self.node_name = node_name
         self.config = config
         self.node_path = node_path
-        
+
+        # ---- 配置编辑器双向同步状态 ----
+        self._save_timer = QTimer(self)
+        self._save_timer.setSingleShot(True)
+        self._save_timer.timeout.connect(self._write_config_to_file)
+        self._last_config_content = ""
+        self._ignore_external = False
+
+        # ---- 日志自动刷新状态 ----
+        self._current_log_file = ""
+
         self.resize(950, 550)
         self.setMinimumSize(700, 400)
         self._init_ui()
+
+        # ---- 订阅 polling_manager 信号（替代独立定时器）----
+        polling_manager.config_file_changed.connect(self._on_config_external_change)
+        polling_manager.log_file_changed.connect(self._on_log_external_change)
+        polling_manager.watch_config(self.node_path)
         
     def _init_ui(self):
         """初始化UI"""
@@ -46,6 +62,14 @@ class NodeConfigDialog(FloatingPanel):
         # 上半部分：config.json 编辑器
         config_group = QGroupBox(t("k_config_edit"))
         config_layout = QVBoxLayout(config_group)
+
+        # 工具栏：状态指示
+        tool_row = QHBoxLayout()
+        self._config_status = QLabel("")
+        self._config_status.setStyleSheet("color: rgba(255,255,255,120); font-size: 10px; background: transparent;")
+        tool_row.addWidget(self._config_status)
+        tool_row.addStretch()
+        config_layout.addLayout(tool_row)
         
         self.config_text = QTextEdit()
         self.config_text.setReadOnly(False)
@@ -59,26 +83,13 @@ class NodeConfigDialog(FloatingPanel):
                 selection-background-color: #264f78;
             }
         """)
+        # 用户编辑文本 → 启动防抖保存
+        self.config_text.textChanged.connect(self._on_config_edit)
         
         # 加载并显示 config.json 内容
         self.load_config_json()
         
         config_layout.addWidget(self.config_text)
-        
-        # config.json 操作按钮
-        config_btn_layout = QHBoxLayout()
-        
-        refresh_config_btn = QPushButton("刷新配置")
-        refresh_config_btn.setStyleSheet("background-color: #555555; color: white; padding: 5px 15px;")
-        refresh_config_btn.clicked.connect(self.load_config_json)
-        config_btn_layout.addWidget(refresh_config_btn)
-        
-        save_config_btn = QPushButton("保存配置")
-        save_config_btn.setStyleSheet("background-color: #333333; color: white; padding: 5px 15px;")
-        save_config_btn.clicked.connect(self.save_config_from_editor)
-        config_btn_layout.addWidget(save_config_btn)
-        
-        config_layout.addLayout(config_btn_layout)
         
         left_layout.addWidget(config_group, 1)  # 上半部分占据更多空间
         
@@ -106,6 +117,13 @@ class NodeConfigDialog(FloatingPanel):
         """)
         self.log_file_combo.currentIndexChanged.connect(self.on_log_file_changed)
         log_file_layout.addWidget(self.log_file_combo)
+        log_file_layout.addStretch()
+        
+        # 清空日志按钮
+        self.clear_log_btn = QPushButton("清空日志")
+        self.clear_log_btn.setStyleSheet("background-color: #666666; color: white; padding: 5px 15px;")
+        self.clear_log_btn.clicked.connect(self.clear_current_log)
+        log_file_layout.addWidget(self.clear_log_btn)
         
         log_layout.addLayout(log_file_layout)
         
@@ -126,21 +144,6 @@ class NodeConfigDialog(FloatingPanel):
         self.load_log_files()
         
         log_layout.addWidget(self.output_text)
-        
-        # 日志操作按钮
-        log_btn_layout = QHBoxLayout()
-        
-        refresh_log_btn = QPushButton("刷新日志")
-        refresh_log_btn.setStyleSheet("background-color: #555555; color: white; padding: 5px 15px;")
-        refresh_log_btn.clicked.connect(self.refresh_log_files)
-        log_btn_layout.addWidget(refresh_log_btn)
-        
-        clear_log_btn = QPushButton("清空日志")
-        clear_log_btn.setStyleSheet("background-color: #666666; color: white; padding: 5px 15px;")
-        clear_log_btn.clicked.connect(self.clear_current_log)
-        log_btn_layout.addWidget(clear_log_btn)
-        
-        log_layout.addLayout(log_btn_layout)
         
         left_layout.addWidget(log_group, 1)  # 下半部分同样占据空间
         
@@ -228,9 +231,8 @@ class NodeConfigDialog(FloatingPanel):
         try:
             # 使用主窗口的启动方法
             self.parent_window.start_selected_node_by_name(self.node_name)
-            self.close()
         except Exception as e:
-            themed_message(self, t("k_title_error"), f"启动节点失败: {str(e)}", "error")
+            themed_message(self, t("k_title_error"), t("_k_node_start_fail_prop").format(err=str(e)), "error")
     
     def stop_node(self):
         """停止节点"""
@@ -246,7 +248,7 @@ class NodeConfigDialog(FloatingPanel):
             # 使用主窗口的停止方法
             self.parent_window.stop_selected_node_by_name(self.node_name)
         except Exception as e:
-            themed_message(self, t("k_title_error"), f"停止节点失败: {str(e)}", "error")
+            themed_message(self, t("k_title_error"), t("_k_node_stop_fail_prop").format(err=str(e)), "error")
     
     def open_node_folder(self):
         """打开节点文件夹"""
@@ -282,18 +284,15 @@ class NodeConfigDialog(FloatingPanel):
         try:
             # 容错：检查文件夹是否存在
             if not os.path.exists(self.node_path) or not os.path.isdir(self.node_path):
-                themed_message(self, t("k_title_warning"), f"节点文件夹不存在:\n{self.node_path}", "warning")
+                themed_message(self, t("k_title_warning"), t("_k_node_folder_not_exist").format(path=self.node_path), "warning")
                 return
             
             # 预检测 VSCode 是否安装
             vscode_installed = self._check_vscode_installed()
             if not vscode_installed:
-                reply = themed_message(self, "VSCode 未检测到", "⚠️ 未检测到 VSCode (code 命令)\n\n"
-                    "是否仍要创建工作区文件？\n\n"
-                    "您可以稍后手动用 VSCode 打开该文件。",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No, "question")
-                if reply == QMessageBox.StandardButton.No:
+                reply = themed_message(self, t("k_title_vscode_not_found"), t("_k_vscode_not_found"),
+                    "question")
+                if not reply:
                     return
             
             # 生成 .code-workspace 文件路径
@@ -330,22 +329,14 @@ class NodeConfigDialog(FloatingPanel):
                     else:  # Linux
                         subprocess.Popen(['code', workspace_file])
                     
-                    themed_message(self, t("k_title_success"), f"✅ 已创建 VSCode 工作区并自动打开\n\n"
-                        f"工作区文件：{workspace_file}\n"
-                        f"使用相对路径配置，可安全迁移项目", "info")
+                    themed_message(self, t("k_title_success"), t("_k_workspace_created").format(path=workspace_file), "info")
                 except Exception as e:
-                    themed_message(self, t("k_title_workspace_created"), f"✅ VSCode 工作区文件已创建\n\n"
-                        f"工作区文件：{workspace_file}\n\n"
-                        f"⚠️ 自动打开失败：{str(e)}\n\n"
-                        f"请手动用 VSCode 打开该文件", "info")
+                    themed_message(self, t("k_title_workspace_created"), t("_k_workspace_created_no_open").format(path=workspace_file, err=str(e)), "info")
             else:
-                themed_message(self, t("k_title_workspace_created"), f"✅ VSCode 工作区文件已创建\n\n"
-                    f"工作区文件：{workspace_file}\n\n"
-                    f"💡 提示：安装 VSCode 并添加 'code' 命令到 PATH 后，\n"
-                    f"可以双击此文件直接用 VSCode 打开", "info")
+                themed_message(self, t("k_title_workspace_created"), t("_k_workspace_created_no_code").format(path=workspace_file), "info")
             
         except Exception as e:
-            themed_message(self, t("k_title_error"), f"创建 VSCode 工作区失败: {str(e)}", "error")
+            themed_message(self, t("k_title_error"), t("_k_vscode_workspace_create_fail").format(err=str(e)), "error")
             import traceback
             traceback.print_exc()
     
@@ -359,7 +350,7 @@ class NodeConfigDialog(FloatingPanel):
                 activate_script = os.path.join(self.node_path, "venv", "bin", "activate")
             
             if not os.path.exists(activate_script):
-                themed_message(self, t("k_title_warning"), f"虚拟环境不存在:\n{activate_script}", "warning")
+                themed_message(self, t("k_title_warning"), t("_k_venv_not_exist").format(path=activate_script), "warning")
                 return
             
             # 打开命令行
@@ -383,80 +374,138 @@ class NodeConfigDialog(FloatingPanel):
                     except:
                         continue
         except Exception as e:
-            themed_message(self, t("k_title_error"), f"打开命令行失败: {str(e)}", "error")
+            themed_message(self, t("k_title_error"), t("_k_terminal_open_fail").format(err=str(e)), "error")
             import traceback
             traceback.print_exc()
     
+    # ==================== config.json 双向同步（参照 node_expand_panel）====================
+
     def load_config_json(self):
-        """加载并显示 config.json 的内容"""
+        """从文件加载 config.json 到编辑器（不触发 textChanged 保存）"""
+        config_path = os.path.join(self.node_path, "config.json")
         try:
-            config_path = os.path.join(self.node_path, "config.json")
-            
             if not os.path.exists(config_path):
-                self.config_text.setPlainText("⚠️ config.json 文件不存在")
-                return
-            
-            with open(config_path, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
-            
-            if not content:
+                self.config_text.blockSignals(True)
                 self.config_text.setPlainText("{}")
+                self.config_text.blockSignals(False)
+                self._last_config_content = "{}"
                 return
-            
+
+            with open(config_path, 'r', encoding='utf-8') as f:
+                raw = f.read()
+
+            if not raw.strip():
+                formatted = "{}"
+            else:
+                try:
+                    data = json.loads(raw)
+                    formatted = json.dumps(data, indent=2, ensure_ascii=False)
+                except json.JSONDecodeError:
+                    formatted = raw
+
+            self._last_config_content = formatted
+            self.config_text.blockSignals(True)
+            self.config_text.setPlainText(formatted)
+            self.config_text.blockSignals(False)
+
+        except Exception:
+            self._last_config_content = ""
+
+    def _on_config_edit(self):
+        """用户编辑 → 启动防抖保存"""
+        self._save_timer.start(800)
+
+    def _write_config_to_file(self):
+        """将编辑器内容写入 config.json（防抖保存）"""
+        if self._ignore_external:
+            return
+
+        config_path = os.path.join(self.node_path, "config.json")
+        content = self.config_text.toPlainText().strip()
+
+        if not content:
+            return
+
+        try:
             # 尝试格式化 JSON
             try:
                 data = json.loads(content)
                 formatted = json.dumps(data, indent=2, ensure_ascii=False)
-                self.config_text.setPlainText(formatted)
             except json.JSONDecodeError:
-                # 如果不是有效的 JSON，直接显示原始内容
-                self.config_text.setPlainText(content)
-                
-        except Exception as e:
-            self.config_text.setPlainText(f"❌ 读取 config.json 失败:\n{str(e)}")
+                # JSON 不合法时直接写入原始内容
+                formatted = content
 
-    def save_config_from_editor(self):
-        """从编辑器保存 config.json"""
-        try:
-            config_path = os.path.join(self.node_path, "config.json")
-            content = self.config_text.toPlainText().strip()
-            
-            # 验证 JSON 格式
-            try:
-                data = json.loads(content)
-                # 格式化后保存
-                formatted = json.dumps(data, indent=2, ensure_ascii=False)
-                with open(config_path, 'w', encoding='utf-8') as f:
-                    f.write(formatted)
-                
-                # 更新内存中的数据
-                if self.parent_window and self.node_name in self.parent_window.nodes_data:
+            self._last_config_content = formatted
+            self._ignore_external = True
+
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
+            with open(config_path, 'w', encoding='utf-8') as f:
+                f.write(formatted)
+
+            # 编辑器同步为格式化后的内容（阻止回环）
+            self.config_text.blockSignals(True)
+            self.config_text.setPlainText(formatted)
+            self.config_text.blockSignals(False)
+
+            # 更新内存数据
+            if self.parent_window and self.node_name in self.parent_window.nodes_data:
+                try:
                     self.parent_window.nodes_data[self.node_name]['config'] = data
-                    
-                    # 同步更新画布上的节点显示
-                    if hasattr(self.parent_window, 'canvas'):
-                        self.parent_window.canvas.sync_node_display(self.node_name)
-                
-                themed_message(self, t("k_title_success"), "✅ config.json 已保存", "info")
-            except json.JSONDecodeError as e:
-                reply = themed_message(self, t("k_title_json_error"), f"⚠️ 当前内容不是有效的 JSON 格式：\n\n{str(e)}\n\n是否仍要保存？",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No, "question")
-                if reply:
-                    with open(config_path, 'w', encoding='utf-8') as f:
-                        f.write(content)
-                    
-                    # 即使格式错误也尝试更新内存数据
-                    if self.parent_window and self.node_name in self.parent_window.nodes_data:
-                        try:
-                            self.parent_window.nodes_data[self.node_name]['config'] = json.loads(content)
-                        except:
-                            pass
-                    
-                    themed_message(self, t("k_title_success"), "✅ 已保存（未格式化）", "info")
-                    
+                except:
+                    pass
+                if hasattr(self.parent_window, 'canvas'):
+                    self.parent_window.canvas.sync_node_display(self.node_name)
+
+            self._config_status.setText(t("k_status_saved"))
+            self._config_status.setStyleSheet("color: #4CAF50; font-size: 10px; background: transparent;")
+
+            QTimer.singleShot(500, self._reset_ignore_flag)
+
         except Exception as e:
-            themed_message(self, t("k_title_error"), f"❌ 保存 config.json 失败:\n{str(e)}", "error")
+            self._config_status.setText(t("k_status_save_failed"))
+            self._config_status.setStyleSheet("color: #F44336; font-size: 10px; background: transparent;")
+            logger.error("保存 config.json 失败: %s", e)
+
+    def _reset_ignore_flag(self):
+        self._ignore_external = False
+
+    def _on_config_external_change(self, node_path):
+        """polling_manager 信号：config.json 被外部修改"""
+        if node_path != self.node_path or self._ignore_external:
+            return
+        # 外部变更 → 刷新编辑器
+        self.load_config_json()
+        self._config_status.setText(t("k_status_updated"))
+        self._config_status.setStyleSheet("color: #2196F3; font-size: 10px; background: transparent;")
+
+    # ==================== 日志动态刷新 ====================
+
+    def _on_log_external_change(self, node_path, log_filename):
+        """polling_manager 信号：日志文件被外部修改"""
+        if node_path != self.node_path or not self._current_log_file:
+            return
+        if log_filename == self._current_log_file:
+            self._load_log_content(log_filename)
+
+    def _load_log_content(self, log_filename):
+        """加载日志文件到编辑器"""
+        log_path = os.path.join(self.node_path, "logs", log_filename)
+        try:
+            if not os.path.exists(log_path):
+                self.output_text.setPlainText(f"# 日志文件不存在: {log_filename}")
+                return
+
+            with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+            if not content.strip():
+                self.output_text.setPlainText(t("k_log_empty"))
+            else:
+                self.output_text.setPlainText(content)
+            # 滚动到底部
+            scrollbar = self.output_text.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
+        except Exception:
+            pass
 
     def load_log_files(self):
         """加载 logs 目录下的所有 .log 文件"""
@@ -464,72 +513,49 @@ class NodeConfigDialog(FloatingPanel):
             logs_dir = os.path.join(self.node_path, "logs")
             
             if not os.path.exists(logs_dir):
-                self.output_text.setPlainText("⚠️ logs 目录不存在\n\n提示：节点启动后会自动创建此目录并生成日志文件")
+                self.output_text.setPlainText("# logs 目录不存在\n# 提示：节点启动后会自动创建此目录并生成日志文件")
+                self._current_log_file = ""
+                self.log_file_combo.blockSignals(True)
                 self.log_file_combo.clear()
+                self.log_file_combo.blockSignals(False)
                 return
             
             # 查找所有 .log 文件
-            log_files = [f for f in os.listdir(logs_dir) if f.endswith('.log')]
+            log_files = sorted([f for f in os.listdir(logs_dir) if f.endswith('.log')])
             
-            if not log_files:
-                self.output_text.setPlainText("📭 logs 目录为空\n\n提示：节点尚未产生日志数据")
-                self.log_file_combo.clear()
-                return
-            
-            # 按文件名排序
-            log_files.sort()
-            
-            # 填充下拉框
-            self.log_file_combo.blockSignals(True)  # 阻止信号触发
+            # 更新下拉框（保留当前选中项）
+            self.log_file_combo.blockSignals(True)
+            old_current = self.log_file_combo.currentText() if self.log_file_combo.count() > 0 else ""
             self.log_file_combo.clear()
             for log_file in log_files:
                 self.log_file_combo.addItem(log_file)
+            # 恢复选择
+            if old_current and old_current in log_files:
+                idx = log_files.index(old_current)
+                self.log_file_combo.setCurrentIndex(idx)
+            elif log_files:
+                self.log_file_combo.setCurrentIndex(0)
             self.log_file_combo.blockSignals(False)
             
-            # 加载第一个日志文件
+            # 加载当前选中的日志并订阅
             if log_files:
-                self.load_selected_log_file(log_files[0])
+                self._current_log_file = self.log_file_combo.currentText()
+                polling_manager.watch_log(self.node_path, self._current_log_file)
+                self._load_log_content(self._current_log_file)
                 
-        except Exception as e:
-            self.output_text.setPlainText(f"❌ 读取 logs 目录失败:\n{str(e)}")
-            self.log_file_combo.clear()
-    
-    def load_selected_log_file(self, log_filename):
-        """加载选定的日志文件内容"""
-        try:
-            logs_dir = os.path.join(self.node_path, "logs")
-            log_path = os.path.join(logs_dir, log_filename)
-            
-            if not os.path.exists(log_path):
-                self.output_text.setPlainText(f"⚠️ 日志文件不存在: {log_filename}")
-                return
-            
-            with open(log_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            if not content:
-                self.output_text.setPlainText(f"📭 日志文件为空: {log_filename}")
-                return
-            
-            self.output_text.setPlainText(content)
-            
-            # 滚动到底部（显示最新日志）
-            scrollbar = self.output_text.verticalScrollBar()
-            scrollbar.setValue(scrollbar.maximum())
-                
-        except Exception as e:
-            self.output_text.setPlainText(f"❌ 读取日志文件失败:\n{str(e)}")
+        except Exception:
+            pass
     
     def on_log_file_changed(self, index):
         """当日志文件选择改变时加载对应文件"""
         if index >= 0:
+            # 取消旧日志订阅
+            if self._current_log_file:
+                polling_manager.unwatch_log(self.node_path, self._current_log_file)
             log_filename = self.log_file_combo.itemText(index)
-            self.load_selected_log_file(log_filename)
-    
-    def refresh_log_files(self):
-        """刷新日志文件列表"""
-        self.load_log_files()
-        themed_message(self, t("k_title_success"), "✅ 日志文件列表已刷新", "info")
+            self._current_log_file = log_filename
+            polling_manager.watch_log(self.node_path, log_filename)
+            self._load_log_content(log_filename)
     
     def clear_current_log(self):
         """清空当前日志文件"""
@@ -541,16 +567,14 @@ class NodeConfigDialog(FloatingPanel):
         logs_dir = os.path.join(self.node_path, "logs")
         log_path = os.path.join(logs_dir, log_filename)
         
-        reply = themed_message(self, t("k_title_confirm_clear"), f"确定要清空日志文件 '{log_filename}' 吗？\n\n此操作不可恢复！",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No, "question")
+        reply = themed_message(self, t("k_title_confirm_clear"), t("_k_clear_log_file_confirm").format(name=log_filename),
+            "question")
         
         if reply:
             try:
                 with open(log_path, 'w', encoding='utf-8') as f:
                     f.write("")
-                self.output_text.setPlainText(f"📭 日志文件已清空: {log_filename}")
-                themed_message(self, t("k_title_success"), f"✅ 日志文件 '{log_filename}' 已清空", "info")
+                self._last_log_mtime = os.path.getmtime(log_path)
+                self.output_text.setPlainText(t("k_log_cleared"))
             except Exception as e:
-                themed_message(self, t("k_title_error"), f"❌ 清空日志文件失败:\n{str(e)}", "error")
-
+                themed_message(self, t("k_title_error"), t("_k_log_file_clear_fail").format(err=str(e)), "error")

@@ -634,12 +634,8 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         if node_name not in self.nodes:
             return
         
-        reply = themed_message(self, t("k_title_confirm_delete"), f"确定要从画布中删除节点 '{node_name}' 吗？\n\n"
-            f"这将：\n"
-            f"1. 从画布中移除该节点\n"
-            f"2. 删除所有相关连线\n"
-            f"3. 清除上下游节点的 listen_upper_file 配置",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
+        reply = themed_message(self, t("k_title_confirm_delete"), t("_k_canvas_remove_node_confirm").format(name=node_name),
+            "question")
         
         if not reply:
             return

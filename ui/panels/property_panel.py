@@ -178,15 +178,15 @@ class PropertyPanel(QWidget):
                 elif os.path.exists(os.path.join(start_path, "start.sh")):
                     start_script = os.path.join(start_path, "start.sh")
                 else:
-                    themed_message(self, t("k_title_error"), f"启动脚本不存在: {start_script}", "error")
+                    themed_message(self, t("k_title_error"), t("_k_start_script_missing").format(script=start_script), "error")
                     return
                 start_node_process(self.parent_window.nodes_data[self.current_node_name])
                 self.parent_window.nodes_data[self.current_node_name]['status'] = 'running'
                 self.parent_window.canvas.update_node_status(self.current_node_name, 'running')
                 self.parent_window.node_list_panel.update_node_status(self.current_node_name, 'running')
-                themed_message(self, t("k_title_success"), f"节点 '{self.current_node_name}' 已启动", "info")
+                themed_message(self, t("k_title_success"), t("_k_node_started_prop").format(name=self.current_node_name), "info")
         except Exception as e:
-            themed_message(self, t("k_title_error"), f"启动节点失败: {str(e)}", "error")
+            themed_message(self, t("k_title_error"), t("_k_node_start_fail_prop").format(err=str(e)), "error")
     
     def stop_node(self):
         """停止节点"""
@@ -205,9 +205,9 @@ class PropertyPanel(QWidget):
             self.parent_window.nodes_data[self.current_node_name]['status'] = 'stopped'
             self.parent_window.canvas.update_node_status(self.current_node_name, 'stopped')
             self.parent_window.node_list_panel.update_node_status(self.current_node_name, 'stopped')
-            themed_message(self, t("k_title_success"), f"节点 '{self.current_node_name}' 已强制停止", "info")
+            themed_message(self, t("k_title_success"), t("_k_node_stopped_prop").format(name=self.current_node_name), "info")
         except Exception as e:
-            themed_message(self, t("k_title_error"), f"停止节点失败: {str(e)}", "error")
+            themed_message(self, t("k_title_error"), t("_k_node_stop_fail_prop").format(err=str(e)), "error")
     
     def add_filter_rule(self):
         """添加Filter规则"""
@@ -262,7 +262,7 @@ class PropertyPanel(QWidget):
             
             themed_message(self, t("k_title_success"), t("k_config_saved"), "info")
         except Exception as e:
-            themed_message(self, t("k_title_error"), f"保存配置失败: {str(e)}", "error")
+            themed_message(self, t("k_title_error"), t("_k_config_save_fail").format(err=str(e)), "error")
             
     def load_connection_info(self, source_name, target_name, source_output_path):
         """加载连线配置信息"""

@@ -16,6 +16,7 @@ from PyQt6.QtGui import QFont
 from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.logger import logger
+from ui.core.polling_manager import polling_manager
 
 
 class NodeExpandPanel(FloatingPanel):
@@ -402,10 +403,8 @@ class NodeExpandPanel(FloatingPanel):
 
     def _delete_node(self):
         """从画布删除节点"""
-        reply = themed_message(self, "确认删除", f"确定要从画布中删除节点 '{self.node_name}' 吗？\n\n"
-            f"这将从画布视图中移除该节点及所有相关连线，\n"
-            f"不会删除节点文件夹和配置文件。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
+        reply = themed_message(self, t("k_title_confirm_delete"), t("_k_node_expand_confirm_delete").format(name=self.node_name),
+            "question")
         if not reply:
             return
         if self.parent_window and hasattr(self.parent_window, 'canvas'):

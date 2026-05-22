@@ -190,6 +190,7 @@ class NodeGroupManager:
             return False
         
         added_count = 0
+        emptied_groups = set()  # 记录可能因移出而变空的旧组
         for node_name in node_names:
             # 如果节点已在其他组，先移除
             if node_name in self.node_to_group:
@@ -197,12 +198,17 @@ class NodeGroupManager:
                 if old_group != group_name and old_group in self.groups:
                     if node_name in self.groups[old_group]['nodes']:
                         self.groups[old_group]['nodes'].remove(node_name)
+                        emptied_groups.add(old_group)
             
             # 添加到新组（避免重复）
             if node_name not in self.groups[group_name]['nodes']:
                 self.groups[group_name]['nodes'].append(node_name)
                 self.node_to_group[node_name] = group_name
                 added_count += 1
+        
+        # 清理因节点移出而变空的旧组
+        for old_g in emptied_groups:
+            self._cleanup_empty_group(old_g)
         
         if added_count > 0:
             self.save_groups()
@@ -211,6 +217,13 @@ class NodeGroupManager:
         
         return added_count > 0
     
+    def _cleanup_empty_group(self, group_name: str):
+        """若组内无节点且非锁定组，则自动删除"""
+        if group_name in self.groups and not self.groups[group_name]['nodes']:
+            if not self.is_group_locked(group_name):
+                del self.groups[group_name]
+                logger.info("自动删除空节点组: %s", group_name)
+
     def remove_nodes_from_group(self, group_name: str, node_names: List[str]) -> bool:
         """从组中移除节点
         
@@ -235,6 +248,7 @@ class NodeGroupManager:
                 del self.node_to_group[node_name]
         
         if removed_count > 0:
+            self._cleanup_empty_group(group_name)
             self.save_groups()
             logger.info("从组 %s 移除 %d 个节点", group_name, removed_count)
             self._notify_changed()

@@ -173,7 +173,7 @@ class NodeListContextMixin:
         if self.parent_window and hasattr(self.parent_window, 'unmount_external_node'):
             reply = themed_message(self, t("k_title_confirm_unmount"),
                 t("_k_confirm_unmount").format(name=node_name),
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
+                "question")
             if reply:
                 self.parent_window.unmount_external_node(node_name)
 

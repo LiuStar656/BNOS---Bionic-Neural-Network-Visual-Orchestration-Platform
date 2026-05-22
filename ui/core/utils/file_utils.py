@@ -69,5 +69,5 @@ def resolve_and_open_folder(node_path, node_name, parent_window=None, dialog_par
     except Exception as e:
         logger.error("[file_utils] 打开文件夹失败: %s", e)
         if dialog_parent:
-            themed_message(dialog_parent, t("k_title_error"), f"打开文件夹失败: {e}", "error")
+            themed_message(dialog_parent, t("k_title_error"), t("_k_folder_open_fail").format(err=e), "error")
         return False

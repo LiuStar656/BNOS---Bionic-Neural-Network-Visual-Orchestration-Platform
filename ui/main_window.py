@@ -31,6 +31,7 @@ from ui.creators.node_creator_manager import NodeCreatorManager
 from ui.menu.menu_manager import MenuManager
 from ui.core.toast.toast_notification import ToastNotification
 from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node, check_running_processes, detect_running_nodes
+from ui.core.polling_manager import polling_manager
 from ui.core.project_manager import project_new, project_open, project_refresh
 from ui.core.external_node_manager import mount_node, unmount_node as _unmount_node
 from ui.core.window_state_manager import save_state, restore_state
@@ -82,11 +83,12 @@ class BNOSMainWindow(QMainWindow):
         
         self.setWindowTitle("BnosConsole")
         
-        # 进程健康检测定时器（每3秒检查运行中的节点是否仍存活）
-        self._health_timer = QTimer(self)
-        self._health_timer.setInterval(3000)
-        self._health_timer.timeout.connect(self._check_node_health)
-        self._health_timer.start()
+        # 统一轮询管理器（替代原来的 SystemMonitor 和 GlobalDetector）
+        polling_manager.node_status_changed.connect(self._on_node_status_changed)
+        polling_manager.global_log_changed.connect(self._on_global_log_changed)
+        polling_manager.global_config_changed.connect(self._on_global_config_changed)
+        polling_manager.app_state_changed.connect(self._on_app_state_changed)
+        polling_manager.start(self.nodes_data)
         
         self.auto_open_last_project()
         
@@ -361,14 +363,36 @@ class BNOSMainWindow(QMainWindow):
         if self.canvas: self.canvas.update_node_status(node_name, 'stopped')
         self.show_toast(t("_k_node_stopped").format(name=node_name), "success")
 
-    def _check_node_health(self):
-        """定时检测节点进程状态（三态：running/idle/stopped）"""
-        dead = check_running_processes(self.nodes_data)
-        for name, code, new_status in dead:
-            self.node_list_panel.update_node_status(name, new_status)
-            if self.canvas: self.canvas.update_node_status(name, new_status)
-            if new_status == 'stopped':
-                self.show_toast(t("_k_node_exited").format(name=name, code=code or '?'), "warning")
+    def _on_node_status_changed(self, name, new_status):
+        """polling_manager 信号：节点状态变更"""
+        self.node_list_panel.update_node_status(name, new_status)
+        if self.canvas:
+            self.canvas.update_node_status(name, new_status)
+        if new_status == 'stopped':
+            exit_code = self.nodes_data.get(name, {}).get('last_exit_code')
+            self.show_toast(t("_k_node_exited").format(name=name, code=exit_code or '?'), "warning")
+
+    def _on_global_log_changed(self, log_file, content):
+        """polling_manager 信号：全局日志文件变化"""
+        logger.debug(f"Global log changed: {log_file}")
+        # 可以在这里添加日志变化的处理逻辑，例如更新日志面板
+
+    def _on_global_config_changed(self, config_file):
+        """polling_manager 信号：全局配置文件变化"""
+        logger.info(f"Global config changed: {config_file}")
+        # 如果是 app_config.json，重新加载配置
+        if config_file == "app_config.json":
+            self.app_config.load()
+            self.show_toast(f"配置文件已更新: {config_file}", "info")
+        # 如果是 color_settings.json，重新应用主题
+        elif config_file == "color_settings.json":
+            self._apply_dark_theme()
+            self.show_toast(f"颜色配置已更新: {config_file}", "info")
+
+    def _on_app_state_changed(self, state):
+        """polling_manager 信号：应用状态变化"""
+        logger.info(f"App state changed: {state}")
+        # 可以在这里添加状态变化的处理逻辑
 
     def clear_connections(self):
         """清空所有连线"""
@@ -452,6 +476,9 @@ class BNOSMainWindow(QMainWindow):
         self.save_window_state()
         self.app_config.set("last_project", self.current_project_path)
         self.app_config.save()
+        
+        # 停止统一轮询管理器
+        polling_manager.stop()
         
         # 停止 IPC 和子进程
         if self._process_manager:
