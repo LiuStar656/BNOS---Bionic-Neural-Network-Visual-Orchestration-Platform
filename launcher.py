@@ -119,9 +119,12 @@ def main():
 
     venv_python = find_venv_python()
     if not os.path.exists(venv_python):
-        log("[!] Virtual environment not found!")
+        log("[!] Virtual environment not found")
+        log("[!] Please run: python -m venv myenv_new")
+        log("[!] Then: myenv_new\\Scripts\\pip install -r requirements.txt")
+        progress(0, "Virtual environment missing")
         root.update()
-        time.sleep(2)
+        time.sleep(3)
         root.destroy()
         sys.exit(1)
 
@@ -169,9 +172,11 @@ def main():
             except Exception:
                 pass
 
-        # 平滑动画：每帧向目标前进
+        # 平滑动画：快速追赶目标进度
         if display_pct < target_pct:
-            display_pct = min(display_pct + 2, target_pct)
+            gap = target_pct - display_pct
+            step = max(1, gap // 3)  # 大步快追，小步精调
+            display_pct = min(display_pct + step, target_pct)
             progress(display_pct, "")
             if display_pct >= 100 and finish_time is None:
                 finish_time = time.time()
