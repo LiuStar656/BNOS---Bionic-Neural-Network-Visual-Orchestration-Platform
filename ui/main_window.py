@@ -20,6 +20,7 @@ from PyQt6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction, QMouseEve
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.dark_title_bar import DarkTitleBar
+from ui.core.utils.dialog_utils import themed_message
 from PyQt6.QtWidgets import QMenuBar as _QMenuBar
 
 from ui.canvas_widget import NodeCanvas
@@ -422,7 +423,7 @@ class BNOSMainWindow(QMainWindow):
             if len(running_nodes) > 10:
                 nodes_list += f"\n... 还有 {len(running_nodes) - 10} 个节点"
             
-            from ui.core.utils.dialog_utils import themed_message, MSG_ACCEPT, MSG_REJECT, MSG_CANCEL
+            from ui.core.utils.dialog_utils import MSG_ACCEPT, MSG_REJECT, MSG_CANCEL
             reply = themed_message(
                 self, t("k_title_detect_running"),
                 t("_k_close_running_nodes").format(count=len(running_nodes), nodes=nodes_list),
@@ -691,5 +692,4 @@ class BNOSMainWindow(QMainWindow):
     
     def show_about(self):
         """显示关于对话框"""
-        from ui.core.utils.dialog_utils import themed_message
         themed_message(self, t("k_title_about"), t("_k_about_text"), "info")
