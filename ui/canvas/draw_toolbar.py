@@ -1,31 +1,47 @@
 """
-绘图工具栏 — PS 风格左侧竖式，滚轮滚动，宽度 36px
+绘图工具栏 — PS 风格左侧竖式，匹配菜单栏深色主题
 """
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QScrollArea,
                               QColorDialog, QLabel)
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
 
 
-TOOL_W = 36
-BTN_H  = 32
+TOOL_W = 40          # 工具栏宽度（够按钮显示）
+BTN_H  = 34          # 按钮高度
+FONT   = QFont("Consolas", 12)
+
+# 配色：与菜单栏/标题栏统一
+BG_TOOLBAR   = "#1e1e1e"
+BG_BTN       = "#2d2d2d"
+FG_BTN       = "#cccccc"
+BG_BTN_ON    = "#007acc"
+FG_BTN_ON    = "#ffffff"
+BG_DANGER    = "#a02020"
+BORDER       = "#333333"
+SEPARATOR    = "#444444"
 
 TOOLS = [
-    ("rect",       "□",  "矩形(R)"),
-    ("round_rect", "◻",  "圆角矩形"),
-    ("polygon",    "◇",  "多边形(P)"),
-    ("arrow",      "→",  "箭头(A)"),
-    ("text",       "T",  "文字(T)"),
+    ("rect",       "▯",  "矩形"),
+    ("round_rect", "◰",  "圆角矩形"),
+    ("polygon",    "⬠",  "多边形"),
+    ("arrow",      "➤",  "箭头"),
+    ("text",       "T",  "文字"),
 ]
 
-BTN_BASE = """
-QPushButton {
-    background: #3c3c3c; color: #999; border: none;
-    border-radius: 3px; font-size: 13px; min-height: 28px;
-}
-QPushButton:hover { background: #505050; color: #fff; }
+BTN_BASE = f"""
+QPushButton {{
+    background: {BG_BTN}; color: {FG_BTN}; border: none;
+    border-radius: 3px; font-size: 14px; font-weight: bold;
+    min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
+}}
+QPushButton:hover {{ background: #3c3c3c; }}
 """
 
-BTN_ON = "QPushButton { background: #007acc; color: #fff; border: none; border-radius: 3px; font-size: 13px; }"
+BTN_ON = f"""
+QPushButton {{ background: {BG_BTN_ON}; color: {FG_BTN_ON};
+    border: none; border-radius: 3px; font-size: 14px; font-weight: bold; }}
+"""
 
 
 class DrawToolbar(QWidget):
@@ -43,29 +59,32 @@ class DrawToolbar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedWidth(TOOL_W)
-        self.setStyleSheet("background-color: #2d2d30; border-right: 1px solid #3e3e42;")
+        bg = f"background-color: {BG_TOOLBAR}; border-right: 1px solid {BORDER};"
+        self.setStyleSheet(f"QWidget {{ {bg} }}")
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("QScrollArea { border: none; } QScrollBar:vertical { width: 4px; }")
-        main_layout.addWidget(scroll, 1)  # stretch=1 fill all space
+        scroll.setStyleSheet(f"QScrollArea {{ border: none; }} QScrollBar:vertical {{ width: 3px; background: {BG_TOOLBAR}; }}")
+        main_layout.addWidget(scroll, 1)
         self._scroll = scroll
 
         container = QWidget()
+        container.setStyleSheet(f"background-color: {BG_TOOLBAR};")
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(2, 4, 2, 4)
+        layout.setContentsMargins(3, 4, 3, 4)
         layout.setSpacing(2)
 
         self._btns = {}
         self._current_tool = None
 
-        # 工具按钮
         for tid, icon, tip in TOOLS:
             btn = QPushButton(icon)
+            btn.setFont(FONT)
             btn.setFixedHeight(BTN_H)
             btn.setToolTip(tip)
             btn.setStyleSheet(BTN_BASE)
@@ -73,51 +92,50 @@ class DrawToolbar(QWidget):
             layout.addWidget(btn)
             self._btns[tid] = btn
 
-        # 分隔
-        s1 = QLabel("─" * 3); s1.setStyleSheet("color: #555; font-size: 7px; padding: 2px 0;")
-        s1.setAlignment(Qt.AlignmentFlag.AlignCenter); layout.addWidget(s1)
+        self._sep(layout)
 
-        # 样式
-        self._stroke_btn = self._mk_btn("⊙", "描边颜色", layout)
+        self._stroke_btn = self._mk_btn("⚫", "描边颜色", layout)
         self._stroke_btn.clicked.connect(self._pick_stroke)
         self._fill_btn = self._mk_btn("◉", "填充颜色", layout)
         self._fill_btn.clicked.connect(self._pick_fill)
 
-        s2 = QLabel("─" * 3); s2.setStyleSheet("color: #555; font-size: 7px; padding: 2px 0;")
-        s2.setAlignment(Qt.AlignmentFlag.AlignCenter); layout.addWidget(s2)
+        self._sep(layout)
 
-        # 图层控制
-        self._lock_btn = self._mk_btn("🔒", "锁定绘图层", layout)
+        self._lock_btn = self._mk_btn("L", "锁定绘图层", layout)
         self._lock_btn.clicked.connect(lambda: self._toggle_lock())
-
-        self._hide_btn = self._mk_btn("👁", "显示/隐藏", layout)
+        self._hide_btn = self._mk_btn("V", "显示/隐藏", layout)
         self._hide_btn.clicked.connect(lambda: self._toggle_visible())
 
-        s3 = QLabel("─" * 3); s3.setStyleSheet("color: #555; font-size: 7px; padding: 2px 0;")
-        s3.setAlignment(Qt.AlignmentFlag.AlignCenter); layout.addWidget(s3)
+        self._sep(layout)
 
-        # 操作
-        self._mk_btn("↩", "撤销", layout).clicked.connect(lambda: self.undo_requested.emit())
-        self._mk_btn("↪", "重做", layout).clicked.connect(lambda: self.redo_requested.emit())
+        self._mk_btn("<", "撤销", layout).clicked.connect(lambda: self.undo_requested.emit())
+        self._mk_btn(">", "重做", layout).clicked.connect(lambda: self.redo_requested.emit())
 
-        s4 = QLabel("─" * 3); s4.setStyleSheet("color: #555; font-size: 7px; padding: 2px 0;")
-        s4.setAlignment(Qt.AlignmentFlag.AlignCenter); layout.addWidget(s4)
+        self._sep(layout)
 
-        del_btn = self._mk_btn("✕", "删除选中", layout)
-        del_btn.setStyleSheet(BTN_BASE + "QPushButton:hover { background: #a00; color: #fff; }")
-        del_btn.clicked.connect(lambda: self.delete_requested.emit())
+        d = self._mk_btn("X", "删除选中", layout)
+        d.setStyleSheet(BTN_BASE + f"QPushButton:hover {{ background: {BG_DANGER}; color: #fff; }}")
+        d.clicked.connect(lambda: self.delete_requested.emit())
 
-        clr_btn = self._mk_btn("⌫", "清空全部", layout)
-        clr_btn.setStyleSheet(BTN_BASE + "QPushButton:hover { background: #a00; color: #fff; }")
-        clr_btn.clicked.connect(lambda: self.clear_requested.emit())
+        c = self._mk_btn("C", "清空全部", layout)
+        c.setStyleSheet(BTN_BASE + f"QPushButton:hover {{ background: {BG_DANGER}; color: #fff; }}")
+        c.clicked.connect(lambda: self.clear_requested.emit())
 
         layout.addStretch()
         scroll.setWidget(container)
+
         self._locked = False
         self._visible = True
 
+    def _sep(self, layout):
+        s = QLabel()
+        s.setFixedHeight(1)
+        s.setStyleSheet(f"background-color: {SEPARATOR}; margin: 3px 2px;")
+        layout.addWidget(s)
+
     def _mk_btn(self, icon, tip, layout):
         btn = QPushButton(icon)
+        btn.setFont(FONT)
         btn.setFixedHeight(BTN_H)
         btn.setToolTip(tip)
         btn.setStyleSheet(BTN_BASE)
@@ -126,7 +144,6 @@ class DrawToolbar(QWidget):
 
     def _pick(self, tid):
         if self._current_tool == tid:
-            # 取消选择
             self._btns[tid].setStyleSheet(BTN_BASE)
             self._current_tool = None
             self.tool_changed.emit("")
@@ -139,13 +156,14 @@ class DrawToolbar(QWidget):
 
     def _toggle_lock(self):
         self._locked = not self._locked
-        self._lock_btn.setStyleSheet(BTN_ON if self._locked else BTN_BASE)
-        self._lock_btn.setText("🔒" if not self._locked else "🔏")
-        self.layer_locked.emit(self._locked)
+        c = BG_BTN_ON if self._locked else BG_BTN
+        self._lock_btn.setStyleSheet(f"QPushButton {{ background: {c}; color: #fff; font-size: 14px; font-weight: bold; border-radius: 3px; }}")
 
     def _toggle_visible(self):
         self._visible = not self._visible
-        self._hide_btn.setStyleSheet(BTN_BASE + "QPushButton { color: #666; }" if not self._visible else BTN_BASE)
+        c = "#3c3c3c" if not self._visible else BG_BTN
+        t = "#666" if not self._visible else FG_BTN
+        self._hide_btn.setStyleSheet(f"QPushButton {{ background: {c}; color: {t}; font-size: 14px; font-weight: bold; border-radius: 3px; }}")
         self.layer_visible.emit(self._visible)
 
     def _pick_stroke(self):
