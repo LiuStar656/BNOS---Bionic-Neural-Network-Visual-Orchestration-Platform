@@ -3,6 +3,7 @@ BNOS 桌面可视化节点编排平台 - 主入口
 基于PyQt6的纯桌面端应用
 """
 import sys
+import os
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt, QTimer
 from ui.main_window import BNOSMainWindow
