@@ -63,7 +63,6 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         # 可视区域渲染优化：只更新变化区域，网格不限制
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontSavePainterState, True)
-        self.setOptimizationFlag(QGraphicsView.OptimizationFlag.IndirectPainting, True)
         self.setCacheMode(QGraphicsView.CacheModeFlag.CacheBackground)
 
         # 网格纹理缓存
