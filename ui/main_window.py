@@ -103,6 +103,11 @@ class BNOSMainWindow(QMainWindow):
         self._inline_menubar = _QMenuBar(self)
         self._inline_menubar.setObjectName("titleBarMenu")
         MenuManager.init_menu(self, self._inline_menubar)
+        # 全局 Ctrl+D 删除动作
+        self._action_delete = QAction(self)
+        self._action_delete.setShortcut("Ctrl+D")
+        self._action_delete.triggered.connect(self._on_ctrl_d)
+        self.addAction(self._action_delete)
         
         # 标题栏：标题 + 菜单 + 按钮同行
         self._title_bar = DarkTitleBar(self, "BnosConsole", self._inline_menubar)
@@ -654,6 +659,34 @@ class BNOSMainWindow(QMainWindow):
 
     def _apply_dark_theme(self):
         self.setStyleSheet(DARK_QSS)
+
+    def _on_ctrl_d(self):
+        """Ctrl+D 统一删除：画布选区/节点列表/绘图图形/节点组"""
+        # 节点列表面板有焦点 → 删除选中节点或组
+        if self.node_list_panel and self.node_list_panel.isVisible():
+            try:
+                from PyQt6.QtWidgets import QApplication
+                fw = QApplication.focusWidget()
+                if fw and self.node_list_panel.isAncestorOf(fw):
+                    sel = self.node_list_panel.get_selected_nodes()
+                    if sel:
+                        self.node_list_panel.batch_delete_nodes()
+                        return
+                    grps = self.node_list_panel.get_selected_groups()
+                    for g in grps:
+                        self.node_list_panel.delete_group(g)
+                    if grps:
+                        return
+            except Exception:
+                pass
+
+        # 画布有焦点 → 删除选中节点/图形
+        if self.canvas:
+            if self.canvas.box_selected_nodes:
+                self.canvas.batch_remove_nodes_from_canvas()
+                return
+            self.canvas.draw_layer.delete_selected()
+            return
     
     def show_about(self):
         """显示关于对话框"""
