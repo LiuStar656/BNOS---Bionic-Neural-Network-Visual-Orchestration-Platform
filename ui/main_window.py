@@ -275,9 +275,9 @@ class BNOSMainWindow(QMainWindow):
             self.show_toast(t("k_node_lang_unsupported").replace("{lang}", language), "warning")
             return
 
-        from ui.core.floating_panel import themed_input_dialog
+        from ui.core.utils.dialog_utils import themed_input
         prompt = t("k_node_enter_name").replace("{lang}", language)
-        node_name = themed_input_dialog(self, t("k_node_create"), prompt)
+        node_name = themed_input(self, t("k_node_create"), prompt)
         if not node_name:
             return
         
