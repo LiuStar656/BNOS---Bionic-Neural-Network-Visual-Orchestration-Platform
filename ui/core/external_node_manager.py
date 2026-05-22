@@ -17,7 +17,7 @@ def mount_node(main_window):
 
     folder_path = QFileDialog.getExistingDirectory(
         main_window, t("k_node_select_external"), "",
-        QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
+        QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks | QFileDialog.Option.DontUseNativeDialog
     )
 
     if not folder_path:

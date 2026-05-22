@@ -11,11 +11,39 @@ QScrollBar::handle:horizontal:hover, QScrollBar::handle:vertical:hover { backgro
 QScrollBar::add-line, QScrollBar::sub-line { width: 0px; height: 0px; }
 QScrollBar::add-page, QScrollBar::sub-page { background: none; }
 QDialog { background-color: #252526; color: #cccccc; }
+QDialog QLabel { color: #cccccc; }
+QDialog QLineEdit { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; padding: 4px 8px; }
+QDialog QPushButton { background-color: #0e639c; color: white; border: none; border-radius: 3px; padding: 6px 14px; }
+QDialog QPushButton:hover { background-color: #1177bb; }
 QMessageBox { background-color: #252526; color: #cccccc; }
+QMessageBox QLabel { color: #cccccc; font-size: 13px; }
+QMessageBox QPushButton { background-color: #0e639c; color: white; border: none; border-radius: 3px; padding: 6px 18px; min-width: 80px; }
+QMessageBox QPushButton:hover { background-color: #1177bb; }
+QInputDialog { background-color: #252526; color: #cccccc; }
+QInputDialog QLabel { color: #cccccc; }
+QInputDialog QLineEdit { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; padding: 4px 8px; }
+QInputDialog QPushButton { background-color: #0e639c; color: white; border: none; border-radius: 3px; padding: 6px 14px; }
+QInputDialog QPushButton:hover { background-color: #1177bb; }
+QFileDialog { background-color: #252526; }
+QFileDialog QLabel { color: #cccccc; }
+QFileDialog QLineEdit { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; }
+QFileDialog QTreeView, QFileDialog QListView { background-color: #252526; color: #cccccc; border: 1px solid #3c3c3c; }
+QFileDialog QTreeView::item:selected, QFileDialog QListView::item:selected { background-color: #094771; }
+QFileDialog QPushButton { background-color: #0e639c; color: white; border: none; border-radius: 3px; padding: 6px 14px; }
+QFileDialog QPushButton:hover { background-color: #1177bb; }
+QColorDialog { background-color: #252526; }
+QColorDialog QLabel { color: #cccccc; }
+QColorDialog QPushButton { background-color: #0e639c; color: white; border: none; border-radius: 3px; padding: 6px 14px; }
+QColorDialog QPushButton:hover { background-color: #1177bb; }
+QMenu { background-color: #252526; color: #cccccc; border: 1px solid #454545; padding: 4px 0; }
+QMenu::item { padding: 6px 30px 6px 20px; }
+QMenu::item:selected { background-color: #094771; }
+QMenu::separator { height: 1px; background-color: #454545; margin: 4px 10px; }
 QLabel { color: #cccccc; }
 QLineEdit { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; padding: 4px 8px; }
 QLineEdit:focus { border-color: #007acc; }
 QComboBox { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; padding: 4px 8px; }
+QComboBox::drop-down { border: none; }
 QComboBox QAbstractItemView { background-color: #252526; color: #cccccc; selection-background-color: #094771; }
 QPushButton { background-color: #0e639c; color: white; border: 1px solid #0e639c; border-radius: 3px; padding: 6px 14px; }
 QPushButton:hover { background-color: #1177bb; }
