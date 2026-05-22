@@ -204,18 +204,8 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
             scene_pos = self.mapToScene(event.position().toPoint())
             start_pos = self.connect_source.output_anchor.sceneBoundingRect().center()
 
-            # ComfyUI 风格直角正交临时连线
-            step = 40
+            # 简单直线临时连线
             path = QPainterPath(start_pos)
-            if start_pos.x() + step + 20 < scene_pos.x():
-                path.lineTo(start_pos.x() + step, start_pos.y())
-                path.lineTo(start_pos.x() + step, scene_pos.y())
-            else:
-                mid_y = (start_pos.y() + scene_pos.y()) / 2
-                path.lineTo(start_pos.x() + step, start_pos.y())
-                path.lineTo(start_pos.x() + step, mid_y)
-                path.lineTo(scene_pos.x() - step, mid_y)
-                path.lineTo(scene_pos.x() - step, scene_pos.y())
             path.lineTo(scene_pos)
 
             self.temp_edge.setPath(path)
@@ -1013,23 +1003,13 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         self.temp_edge.setPen(pen)
         self.scene.addItem(self.temp_edge)
 
-        # 初始直角正交临时连线
+        # 初始直线临时连线
         cursor_pos = self.mapFromGlobal(self.cursor().pos())
         scene_pos = self.mapToScene(cursor_pos)
         start = source_node.output_anchor.sceneBoundingRect().center()
-        step = 40
 
         path = QPainterPath()
         path.moveTo(start)
-        if start.x() + step + 20 < scene_pos.x():
-            path.lineTo(start.x() + step, start.y())
-            path.lineTo(start.x() + step, scene_pos.y())
-        else:
-            mid_y = (start.y() + scene_pos.y()) / 2
-            path.lineTo(start.x() + step, start.y())
-            path.lineTo(start.x() + step, mid_y)
-            path.lineTo(scene_pos.x() - step, mid_y)
-            path.lineTo(scene_pos.x() - step, scene_pos.y())
         path.lineTo(scene_pos)
         self.temp_edge.setPath(path)
         
