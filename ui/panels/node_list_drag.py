@@ -46,17 +46,24 @@ class NodeListDragMixin:
                             g = self.group_manager.get_node_group(n)
                             if g and self.group_manager.is_group_locked(g):
                                 dragged_locked_roots.add(g)
-                        if dragged_locked_roots and target_group not in dragged_locked_roots:
-                            if target_group and self.group_manager.is_group_locked(target_group):
+
+                        # 目标组是锁定组 → 禁止移入（无论被拖节点来源）
+                        if target_group and self.group_manager.is_group_locked(target_group):
+                            if not dragged_locked_roots:
+                                if self.parent_window:
+                                    self.parent_window.show_toast("禁止将节点移入挂载组", "warning")
+                            elif target_group not in dragged_locked_roots:
                                 if self.parent_window:
                                     self.parent_window.show_toast("不同根目录的挂载节点组之间禁止移动", "warning")
-                                event.accept()
-                                return
-                            if target_group and not self.group_manager.is_group_locked(target_group):
-                                if self.parent_window:
-                                    self.parent_window.show_toast("挂载组内的节点禁止移出", "warning")
-                                event.accept()
-                                return
+                            event.accept()
+                            return
+
+                        # 被拖节点来自锁定组 → 禁止移出
+                        if dragged_locked_roots and (not target_group or target_group not in dragged_locked_roots):
+                            if self.parent_window:
+                                self.parent_window.show_toast("挂载组内的节点禁止移出组", "warning")
+                            event.accept()
+                            return
                         
                         if target_group:
                             logger.debug("✅ 目标节点 '%s' 在组 '%s' 中，直接融入", target_node, target_group)

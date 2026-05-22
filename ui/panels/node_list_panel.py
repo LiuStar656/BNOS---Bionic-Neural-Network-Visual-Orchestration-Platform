@@ -536,6 +536,10 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
     
     def move_node_to_group(self, node_name, group_name):
         """移动节点到指定组"""
+        if self.group_manager.is_group_locked(group_name):
+            if self.parent_window:
+                self.parent_window.show_toast("禁止将节点移入挂载组", "warning")
+            return
         if self.group_manager.add_nodes_to_group(group_name, [node_name]):
             self.update_node_list(self.nodes_data)
             if self.parent_window:
@@ -548,7 +552,10 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             if self.parent_window:
                 self.parent_window.show_toast("请先选中要移动的节点", "warning")
             return
-        
+        if self.group_manager.is_group_locked(group_name):
+            if self.parent_window:
+                self.parent_window.show_toast("禁止将节点移入挂载组", "warning")
+            return
         if self.group_manager.add_nodes_to_group(group_name, selected_nodes):
             self.update_node_list(self.nodes_data)
             if self.parent_window:
@@ -934,6 +941,11 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         if not selected_nodes:
             if self.parent_window:
                 self.parent_window.show_toast("请先选中要移除的节点", "warning")
+            return
+
+        if self.group_manager.is_group_locked(group_name):
+            if self.parent_window:
+                self.parent_window.show_toast("挂载组内的节点禁止移出", "warning")
             return
         
         if self.group_manager.remove_nodes_from_group(group_name, selected_nodes):
