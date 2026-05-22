@@ -31,7 +31,7 @@ class CanvasProcessApp:
 
         init_i18n()
 
-        self.ipc = IPCClient(self)
+        self.ipc = IPCClient()
 
         # 延迟初始化画布（连接后再创建）
         self.canvas = None
