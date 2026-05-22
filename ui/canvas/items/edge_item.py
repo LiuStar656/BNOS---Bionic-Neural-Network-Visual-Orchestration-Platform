@@ -58,8 +58,8 @@ class EdgeItem(QGraphicsPathItem):
         self._hovered_handle = -1
         self._hovered_wp = -1
 
-        # 不使用缓存 — 手柄渲染需精确叠在网格上方
-        self.setCacheMode(QGraphicsPathItem.CacheMode.NoCache)
+        # ItemCoordinateCache: 更新路径自动清缓存，不产生拖影，不干扰网格
+        self.setCacheMode(QGraphicsPathItem.CacheMode.ItemCoordinateCache)
         self.setZValue(1)  # 浮于网格之上
         self.update_edge_style()
 
@@ -159,6 +159,7 @@ class EdgeItem(QGraphicsPathItem):
         path.moveTo(pts[0])
         for p in pts[1:]:
             path.lineTo(p)
+        self.prepareGeometryChange()  # 清除旧缓存区域，防止拖影
         self.setPath(path)
         if len(pts) >= 2:
             self._add_arrow(pts[-2], pts[-1])
