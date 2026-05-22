@@ -278,5 +278,8 @@
   "k_menu_restart_desc": "重启应用程序",
 
   "k_ok": "确定",
-  "k_cancel": "取消"
-}
+  "k_cancel": "取消",
+
+  "k_project_select_parent_dir": "选择上级目录",
+  "k_project_new": "新建项目",
+  "k_project_input_name": "请输入项目文件夹名称:"

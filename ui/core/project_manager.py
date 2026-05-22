@@ -8,62 +8,64 @@ from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.node_registry import NodeRegistry
 from ui.core.node_process import detect_running_nodes
-from ui.core.utils.dialog_utils import pick_folder
+from ui.core.utils.dialog_utils import pick_folder, themed_input
 
 
 def project_new(main_window):
-    """新建项目"""
+    """新建项目：选父目录 → 输入名称 → 创建文件夹+nodes/"""
     if main_window.current_project_path:
         main_window.canvas.save_layout(main_window.current_project_path)
 
-    project_dir = pick_folder(main_window, t("k_project_select_dir"))
-
-    if not project_dir:
+    # 1. 选上级目录
+    parent_dir = pick_folder(main_window, t("k_project_select_parent_dir"))
+    if not parent_dir:
         return
 
+    # 2. 输入项目名
+    proj_name = themed_input(main_window, t("k_project_new"), t("k_project_input_name"))
+    if not proj_name or not proj_name.strip():
+        return
+
+    # 3. 创建项目文件夹
+    project_dir = os.path.join(parent_dir, proj_name.strip())
+    if os.path.exists(project_dir):
+        QMessageBox.warning(main_window, t("k_title_warning"), f"文件夹已存在: {project_dir}")
+        return
+    os.makedirs(project_dir)
     nodes_dir = os.path.join(project_dir, "nodes")
-    if not os.path.exists(nodes_dir):
-        reply = QMessageBox.question(
-            main_window, t("k_project_create_nodes_dir"),
-            f"在 {project_dir} 下创建 nodes/ 目录？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            os.makedirs(nodes_dir, exist_ok=True)
-        else:
-            return
+    os.makedirs(nodes_dir, exist_ok=True)
 
     main_window.current_project_path = project_dir
     main_window.nodes_data.clear()
     main_window.connections.clear()
     main_window.canvas.clear_canvas()
-
     project_refresh(main_window)
-
-    main_window.show_toast(f"已创建项目: {os.path.basename(project_dir)}", "success")
+    main_window.show_toast(f"已创建项目: {proj_name.strip()}", "success")
 
 
 def project_open(main_window):
-    """打开项目"""
+    """打开项目：选文件夹 → 识别项目结构 → 加载"""
     if main_window.current_project_path:
         main_window.canvas.save_layout(main_window.current_project_path)
 
     project_dir = pick_folder(main_window, t("k_project_open_dir"))
-
     if not project_dir:
         return
 
+    # 验证是否为有效项目（有 nodes/ 目录或 canvas_layout.json）
     nodes_dir = os.path.join(project_dir, "nodes")
-    if not os.path.exists(nodes_dir):
-        reply = QMessageBox.question(
-            main_window, t("k_project_no_nodes_dir"),
-            f"{project_dir} 下未找到 nodes/ 目录，是否创建？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            os.makedirs(nodes_dir, exist_ok=True)
-        else:
-            return
+    has_nodes = os.path.isdir(nodes_dir)
+    has_layout = os.path.isfile(os.path.join(project_dir, "canvas_layout.json"))
+
+    if not has_nodes and not has_layout:
+        QMessageBox.warning(main_window, t("k_title_warning"),
+                            f"未识别为有效项目目录：\n{project_dir}\n\n"
+                            f"项目中需包含 nodes/ 文件夹 或 canvas_layout.json")
+        return
+
+    # 确保 nodes/ 存在（旧项目可能只有 layout）
+    if not has_nodes:
+        os.makedirs(nodes_dir, exist_ok=True)
 
     main_window.current_project_path = project_dir
     main_window.nodes_data.clear()
@@ -72,7 +74,6 @@ def project_open(main_window):
 
     project_refresh(main_window)
     main_window.canvas.load_layout(project_dir)
-
     main_window.show_toast(f"已打开项目: {os.path.basename(project_dir)}", "success")
 
 
