@@ -150,10 +150,11 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
             self._grid_texture = self._build_grid_texture()
             self._grid_texture_key = cache_key
 
-        # 不透明度随缩放变化：缩放 ≤1 时等比降低，≥1 时保持基础值
+        # 不透明度：缩放 ≤0.5 直接归零，>0.5 保持完整
         scale = self.transform().m11()
-        opacity = self.grid_opacity * min(1.0, max(0.12, scale))
-        painter.setOpacity(opacity)
+        if scale <= 0.5:
+            return  # 网格不可见
+        painter.setOpacity(self.grid_opacity)
 
         tex = self._grid_texture
         tw, th = tex.width(), tex.height()
