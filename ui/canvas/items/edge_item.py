@@ -58,8 +58,8 @@ class EdgeItem(QGraphicsPathItem):
         self._hovered_handle = -1
         self._hovered_wp = -1
 
-        # NoCache: 每次直接绘制，手动清旧区域防拖影
-        self.setCacheMode(QGraphicsPathItem.CacheMode.NoCache)
+        # ItemCoordinateCache: setPath时自动失效旧缓存，不产生残留
+        self.setCacheMode(QGraphicsPathItem.CacheMode.ItemCoordinateCache)
         self.setZValue(0)  # 线条层：最低
         self.update_edge_style()
 
@@ -154,9 +154,6 @@ class EdgeItem(QGraphicsPathItem):
     def update_path(self):
         if not self.start_node or not self.end_node:
             return
-        # 记录旧区域 → 事后清理残留
-        scene = self.scene()
-        old_br = self.sceneBoundingRect() if scene else None
 
         pts = self._all_points()
         path = QPainterPath()
@@ -166,11 +163,6 @@ class EdgeItem(QGraphicsPathItem):
 
         self.prepareGeometryChange()
         self.setPath(path)
-        self.update()
-
-        # 清理旧区域残留（网格独立 z=-10，不受此影响）
-        if scene and old_br:
-            scene.update(old_br.adjusted(-2, -2, 2, 2))
 
         if len(pts) >= 2:
             self._add_arrow(pts[-2], pts[-1])
