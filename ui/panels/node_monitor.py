@@ -157,11 +157,9 @@ class NodeLogSubPanel(QGroupBox):
 
     def _clear_log(self):
         """清空日志文件"""
-        reply = QMessageBox.question(
-            self, t("k_title_confirm_clear"), f"确定要清空 {self.node_name} 的日志文件吗？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        reply = themed_message(self, t("k_title_confirm_clear"), f"确定要清空 {self.node_name} 的日志文件吗？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
+        if not reply:
             return
         try:
             os.makedirs(os.path.dirname(self._log_file), exist_ok=True)
@@ -170,7 +168,7 @@ class NodeLogSubPanel(QGroupBox):
             self._log_editor.setPlainText(t("k_log_cleared"))
             self._last_mtime = os.path.getmtime(self._log_file)
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"清空失败: {e}")
+            themed_message(self, t("k_title_error"), f"清空失败: {e}", "error")
 
     def _open_folder(self):
         """打开节点目录"""

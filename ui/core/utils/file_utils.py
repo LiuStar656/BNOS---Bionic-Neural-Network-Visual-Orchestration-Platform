@@ -5,6 +5,7 @@ import os
 import subprocess
 import platform
 from PyQt6.QtWidgets import QMessageBox
+from ui.core.utils.dialog_utils import themed_message
 from ui.core.logger import logger
 from ui.core.i18n import t
 
@@ -44,16 +45,14 @@ def resolve_and_open_folder(node_path, node_name, parent_window=None, dialog_par
     # 3. 仍然不存在 → 提示用户
     if not os.path.exists(corrected_path):
         parent = dialog_parent or parent_window
-        QMessageBox.warning(
-            parent,
-            t("k_title_warning"),
-            f"节点文件夹不存在！\n\n路径: {corrected_path}\n\n"
+        themed_message(
+            parent, t("k_title_warning"), f"节点文件夹不存在！\n\n路径: {corrected_path}\n\n"
             f"可能原因：\n"
             f"1. 节点已被删除\n"
             f"2. 项目路径已更改\n"
             f"3. 节点数据未正确加载\n\n"
             f"请尝试刷新节点列表。"
-        )
+        , "warning")
         return False
 
     # 4. 打开文件夹
@@ -70,5 +69,5 @@ def resolve_and_open_folder(node_path, node_name, parent_window=None, dialog_par
     except Exception as e:
         logger.error("[file_utils] 打开文件夹失败: %s", e)
         if dialog_parent:
-            QMessageBox.critical(dialog_parent, t("k_title_error"), f"打开文件夹失败: {e}")
+            themed_message(dialog_parent, t("k_title_error"), f"打开文件夹失败: {e}", "error")
         return False

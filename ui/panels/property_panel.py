@@ -4,6 +4,7 @@
 import os
 import json
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout, QLineEdit, QPushButton, QTextEdit, QGroupBox, QScrollArea, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView, QComboBox)
+from ui.core.utils.dialog_utils import themed_message
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from ui.core.logger import logger
@@ -160,12 +161,12 @@ class PropertyPanel(QWidget):
     def start_node(self):
         """启动节点"""
         if not self.current_node_name or not self.parent_window:
-            QMessageBox.warning(self, t("k_title_warning"), t("k_node_select_one"))
+            themed_message(self, t("k_title_warning"), t("k_node_select_one"), "warning")
             return
         
         node_data = self.parent_window.nodes_data.get(self.current_node_name)
         if node_data and node_data.get('status') == 'running':
-            QMessageBox.information(self, t("k_title_info"), t("k_node_already_running"))
+            themed_message(self, t("k_title_info"), t("k_node_already_running"), "info")
             return
         
         try:
@@ -177,25 +178,25 @@ class PropertyPanel(QWidget):
                 elif os.path.exists(os.path.join(start_path, "start.sh")):
                     start_script = os.path.join(start_path, "start.sh")
                 else:
-                    QMessageBox.critical(self, t("k_title_error"), f"启动脚本不存在: {start_script}")
+                    themed_message(self, t("k_title_error"), f"启动脚本不存在: {start_script}", "error")
                     return
                 start_node_process(self.parent_window.nodes_data[self.current_node_name])
                 self.parent_window.nodes_data[self.current_node_name]['status'] = 'running'
                 self.parent_window.canvas.update_node_status(self.current_node_name, 'running')
                 self.parent_window.node_list_panel.update_node_status(self.current_node_name, 'running')
-                QMessageBox.information(self, t("k_title_success"), f"节点 '{self.current_node_name}' 已启动")
+                themed_message(self, t("k_title_success"), f"节点 '{self.current_node_name}' 已启动", "info")
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"启动节点失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"启动节点失败: {str(e)}", "error")
     
     def stop_node(self):
         """停止节点"""
         if not self.current_node_name or not self.parent_window:
-            QMessageBox.warning(self, t("k_title_warning"), t("k_node_select_one"))
+            themed_message(self, t("k_title_warning"), t("k_node_select_one"), "warning")
             return
         
         node_data = self.parent_window.nodes_data.get(self.current_node_name)
         if not node_data or node_data.get('status') != 'running':
-            QMessageBox.information(self, t("k_title_info"), t("k_node_not_running"))
+            themed_message(self, t("k_title_info"), t("k_node_not_running"), "info")
             return
         
         try:
@@ -204,9 +205,9 @@ class PropertyPanel(QWidget):
             self.parent_window.nodes_data[self.current_node_name]['status'] = 'stopped'
             self.parent_window.canvas.update_node_status(self.current_node_name, 'stopped')
             self.parent_window.node_list_panel.update_node_status(self.current_node_name, 'stopped')
-            QMessageBox.information(self, t("k_title_success"), f"节点 '{self.current_node_name}' 已强制停止")
+            themed_message(self, t("k_title_success"), f"节点 '{self.current_node_name}' 已强制停止", "info")
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"停止节点失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"停止节点失败: {str(e)}", "error")
     
     def add_filter_rule(self):
         """添加Filter规则"""
@@ -224,7 +225,7 @@ class PropertyPanel(QWidget):
     def save_config(self):
         """保存配置"""
         if not self.current_node_name or not self.current_node_path:
-            QMessageBox.warning(self, t("k_title_warning"), t("k_node_select_one"))
+            themed_message(self, t("k_title_warning"), t("k_node_select_one"), "warning")
             return
         
         try:
@@ -259,9 +260,9 @@ class PropertyPanel(QWidget):
                 if hasattr(self.parent_window, 'canvas'):
                     self.parent_window.canvas.sync_node_display(self.current_node_name)
             
-            QMessageBox.information(self, t("k_title_success"), t("k_config_saved"))
+            themed_message(self, t("k_title_success"), t("k_config_saved"), "info")
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"保存配置失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"保存配置失败: {str(e)}", "error")
             
     def load_connection_info(self, source_name, target_name, source_output_path):
         """加载连线配置信息"""

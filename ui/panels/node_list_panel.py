@@ -279,7 +279,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
     def open_node_folder(self, node_name):
         """打开节点文件夹"""
         if node_name not in self.nodes_data:
-            QMessageBox.warning(self, t("k_title_warning"), f"⚠️ 节点 '{node_name}' 未找到！")
+            themed_message(self, t("k_title_warning"), f"⚠️ 节点 '{node_name}' 未找到！", "warning")
             return
 
         from ui.core.utils.file_utils import resolve_and_open_folder
@@ -299,7 +299,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         log_file = os.path.join(node_path, "logs", "listener.log")
         
         if not os.path.exists(log_file):
-            QMessageBox.information(self, t("k_title_info"), t("k_node_no_log"))
+            themed_message(self, t("k_title_info"), t("k_node_no_log"), "info")
             return
         
         try:
@@ -309,7 +309,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             from ui.core.utils.log_viewer import show_log_dialog
             show_log_dialog(self, f"节点日志 - {node_name}", log_content)
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"读取日志失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"读取日志失败: {str(e)}", "error")
             
     def edit_node_config(self, node_name):
         """编辑节点配置"""
@@ -336,13 +336,10 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 self.parent_window.show_toast("外部挂载节点请使用「卸载」功能，禁止删除", "warning")
             return
         
-        reply = QMessageBox.question(
-            self, "确认删除",
-            f"确定要删除节点 '{node_name}' 吗？\n这将删除整个节点文件夹！",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+        reply = themed_message(self, "确认删除", f"确定要删除节点 '{node_name}' 吗？\n这将删除整个节点文件夹！",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
         
-        if reply != QMessageBox.StandardButton.Yes:
+        if not reply:
             return
         
         node_path = self.nodes_data[node_name]['path']
@@ -411,9 +408,9 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             # 刷新列表
             self.update_node_list(self.nodes_data)
             
-            QMessageBox.information(self, t("k_title_success"), f"节点 {node_name} 已删除")
+            themed_message(self, t("k_title_success"), f"节点 {node_name} 已删除", "info")
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"删除节点失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"删除节点失败: {str(e)}", "error")
     
     def rename_node(self, old_name):
         """重命名节点"""
@@ -429,12 +426,12 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         # 验证名称格式
         import re
         if not re.match(r'^[a-zA-Z0-9_-]+$', new_name):
-            QMessageBox.warning(self, t("k_title_warning"), t("k_node_name_invalid"))
+            themed_message(self, t("k_title_warning"), t("k_node_name_invalid"), "warning")
             return
         
         # 检查名称是否已存在
         if new_name != old_name and new_name in self.nodes_data:
-            QMessageBox.warning(self, t("k_title_warning"), f"节点名称 '{new_name}' 已存在")
+            themed_message(self, t("k_title_warning"), f"节点名称 '{new_name}' 已存在", "warning")
             return
         
         try:
@@ -444,7 +441,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             
             # 1. 重命名文件夹
             if os.path.exists(new_path):
-                QMessageBox.warning(self, t("k_title_warning"), f"文件夹 '{new_name}' 已存在")
+                themed_message(self, t("k_title_warning"), f"文件夹 '{new_name}' 已存在", "warning")
                 return
             
             os.rename(old_path, new_path)
@@ -496,10 +493,10 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 # 如果没有父窗口，只更新本地列表
                 self.update_node_list(self.nodes_data)
 
-            QMessageBox.information(self, t("k_title_success"), f"节点已重命名为: {new_name}")
+            themed_message(self, t("k_title_success"), f"节点已重命名为: {new_name}", "info")
             
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"重命名失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"重命名失败: {str(e)}", "error")
             import traceback
             traceback.print_exc()
     
@@ -532,13 +529,10 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             # 如果有选中的节点，询问是否添加到新组
             selected_nodes = self.get_selected_nodes()
             if selected_nodes:
-                reply = QMessageBox.question(
-                    self, "添加到组",
-                    f"是否将选中的 {len(selected_nodes)} 个节点添加到新组 '{group_name}'？",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-                )
+                reply = themed_message(self, "添加到组", f"是否将选中的 {len(selected_nodes)} 个节点添加到新组 '{group_name}'？",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
                 
-                if reply == QMessageBox.StandardButton.Yes:
+                if reply:
                     self.group_manager.add_nodes_to_group(group_name, selected_nodes)
             
             # 刷新列表
@@ -604,13 +598,10 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             if self.parent_window:
                 self.parent_window.show_toast("挂载组禁止删除，请先卸载外部节点", "warning")
             return
-        reply = QMessageBox.question(
-            self, "确认删除",
-            f"确定要删除组 '{group_name}' 吗？\n组内节点不会被删除。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+        reply = themed_message(self, "确认删除", f"确定要删除组 '{group_name}' 吗？\n组内节点不会被删除。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
         
-        if reply != QMessageBox.StandardButton.Yes:
+        if not reply:
             return
         
         if self.group_manager.delete_group(group_name):
@@ -689,13 +680,11 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             return
         
         # 确认删除
-        reply = QMessageBox.question(
-            self, t("k_title_confirm_batch_delete"),
-            f"确定要删除选中的 {len(selected_nodes)} 个节点吗？\n这将删除所有选中节点的文件夹！\n\n节点列表:\n" + "\n".join(selected_nodes[:10]) + ("..." if len(selected_nodes) > 10 else ""),
+        reply = themed_message(self, t("k_title_confirm_batch_delete"), f"确定要删除选中的 {len(selected_nodes)} 个节点吗？\n这将删除所有选中节点的文件夹！\n\n节点列表:\n" + "\n".join(selected_nodes[:10]) + ("..." if len(selected_nodes) > 10 else "", "question"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
-        if reply != QMessageBox.StandardButton.Yes:
+        if not reply:
             return
         
         success_count = 0
@@ -798,7 +787,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             if len(failed_nodes) > 5:
                 msg += f"\n...等{len(failed_nodes)}个"
         
-        QMessageBox.information(self, t("k_title_batch_delete_result"), msg)
+        themed_message(self, t("k_title_batch_delete_result"), msg, "info")
         
         if self.parent_window:
             self.parent_window.show_toast(f"已删除 {success_count} 个节点", "success")
@@ -884,7 +873,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 logger.warning("读取节点 %s 日志失败: %s", node_name, e)
         
         if not all_logs:
-            QMessageBox.information(self, t("k_title_info"), t("k_node_no_log_available"))
+            themed_message(self, t("k_title_info"), t("k_node_no_log_available"), "info")
             return
         
         from ui.core.utils.log_viewer import show_log_dialog
@@ -906,15 +895,12 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             return
         
         # 多个节点时，显示确认对话框
-        reply = QMessageBox.question(
-            self, "批量编辑配置",
-            f"您选中了 {len(selected_nodes)} 个节点。\n\n"
+        reply = themed_message(self, "批量编辑配置", f"您选中了 {len(selected_nodes)} 个节点。\n\n"
             f"将依次打开每个节点的配置对话框。\n"
             f"是否继续？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
         
-        if reply != QMessageBox.StandardButton.Yes:
+        if not reply:
             return
         
         # 依次打开每个节点的配置对话框

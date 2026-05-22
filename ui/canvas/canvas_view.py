@@ -551,7 +551,7 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
     def add_node_to_canvas(self, node_name):
         """添加节点到画布"""
         if node_name in self.nodes:
-            QMessageBox.information(self, t("k_title_info"), t("k_canvas_node_exists"))
+            themed_message(self, t("k_title_info"), t("k_canvas_node_exists"), "info")
             return
         
         # 获取节点信息
@@ -611,17 +611,14 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         if node_name not in self.nodes:
             return
         
-        reply = QMessageBox.question(
-            self, t("k_title_confirm_delete"),
-            f"确定要从画布中删除节点 '{node_name}' 吗？\n\n"
+        reply = themed_message(self, t("k_title_confirm_delete"), f"确定要从画布中删除节点 '{node_name}' 吗？\n\n"
             f"这将：\n"
             f"1. 从画布中移除该节点\n"
             f"2. 删除所有相关连线\n"
             f"3. 清除上下游节点的 listen_upper_file 配置",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
         
-        if reply != QMessageBox.StandardButton.Yes:
+        if not reply:
             return
         
         # 1. 找到所有与该节点相关的连线

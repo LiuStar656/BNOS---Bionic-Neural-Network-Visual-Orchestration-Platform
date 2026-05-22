@@ -316,7 +316,7 @@ class BNOSMainWindow(QMainWindow):
             self.canvas.update_node_status(node_name, 'running')
             self.show_toast(f"节点 {node_name} 已启动", "success")
         else:
-            QMessageBox.critical(self, t("k_title_error"), f"启动节点失败: {err}")
+            themed_message(self, t("k_title_error"), f"启动节点失败: {err}", "error")
     
     def stop_selected_node(self):
         """停止选中的节点"""
@@ -350,13 +350,10 @@ class BNOSMainWindow(QMainWindow):
 
     def clear_connections(self):
         """清空所有连线"""
-        reply = QMessageBox.question(
-            self, t("k_title_confirm"), 
-            t("k_confirm_clear_connections"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+        reply = themed_message(self, t("k_title_confirm"), t("k_confirm_clear_connections"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
         
-        if reply != QMessageBox.StandardButton.Yes:
+        if not reply:
             return
         
         # 清空所有下游节点的 listen_upper_file

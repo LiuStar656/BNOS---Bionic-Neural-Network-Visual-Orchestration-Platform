@@ -29,7 +29,7 @@ def project_new(main_window):
     # 3. 创建项目文件夹
     project_dir = os.path.join(parent_dir, proj_name.strip())
     if os.path.exists(project_dir):
-        QMessageBox.warning(main_window, t("k_title_warning"), f"文件夹已存在: {project_dir}")
+        themed_message(main_window, t("k_title_warning"), f"文件夹已存在: {project_dir}", "warning")
         return
     os.makedirs(project_dir)
     nodes_dir = os.path.join(project_dir, "nodes")
@@ -58,9 +58,8 @@ def project_open(main_window):
     has_layout = os.path.isfile(os.path.join(project_dir, "canvas_layout.json"))
 
     if not has_nodes and not has_layout:
-        QMessageBox.warning(main_window, t("k_title_warning"),
-                            f"未识别为有效项目目录：\n{project_dir}\n\n"
-                            f"项目中需包含 nodes/ 文件夹 或 canvas_layout.json")
+        themed_message(main_window, t("k_title_warning"), f"未识别为有效项目目录：\n{project_dir}\n\n"
+                            f"项目中需包含 nodes/ 文件夹 或 canvas_layout.json", "warning")
         return
 
     # 确保 nodes/ 存在（旧项目可能只有 layout）

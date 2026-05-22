@@ -4,6 +4,7 @@
 import os
 import json
 from PyQt6.QtWidgets import QGraphicsPathItem, QMessageBox
+from ui.core.utils.dialog_utils import themed_message
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPen, QColor, QPainterPath
 from ui.core.logger import logger
@@ -64,7 +65,7 @@ class CanvasConnectionsMixin:
         """创建连线并配置上下游关系"""
         for edge in self.edges:
             if edge.start_node == source_node and edge.end_node == target_node:
-                QMessageBox.information(self, t("k_title_info"), t("k_canvas_edge_exists"))
+                themed_message(self, t("k_title_info"), t("k_canvas_edge_exists"), "info")
                 return
 
         source_name = None

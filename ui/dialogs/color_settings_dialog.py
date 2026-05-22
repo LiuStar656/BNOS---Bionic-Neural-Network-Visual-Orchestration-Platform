@@ -1,5 +1,6 @@
 """画布和节点颜色设置对话框"""
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout, QPushButton, QGroupBox, QScrollArea, QMessageBox, QColorDialog, QSlider, QSpinBox, QDialog, QDialogButtonBox)
+from ui.core.utils.dialog_utils import themed_message
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
 from ui.core.i18n import t
@@ -295,13 +296,13 @@ class ColorSettingsDialog(QDialog):
             # 立即保存到项目文件
             self.canvas._save_color_settings()
             
-            QMessageBox.information(self, t("k_title_success"), t("k_color_applied"))
+            themed_message(self, t("k_title_success"), t("k_color_applied"), "info")
             self.close()
             
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"应用设置失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"应用设置失败: {str(e)}", "error")
             
     def reset_to_default(self):
         """恢复到默认颜色"""
         self.apply_preset_theme('dark')
-        QMessageBox.information(self, t("k_title_info"), t("k_color_reset_done"))
+        themed_message(self, t("k_title_info"), t("k_color_reset_done"), "info")

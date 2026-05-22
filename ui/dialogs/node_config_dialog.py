@@ -225,7 +225,7 @@ class NodeConfigDialog(FloatingPanel):
         
         node_data = self.parent_window.nodes_data.get(self.node_name)
         if node_data and node_data.get('status') == 'running':
-            QMessageBox.information(self, t("k_title_info"), t("k_node_already_running"))
+            themed_message(self, t("k_title_info"), t("k_node_already_running"), "info")
             return
         
         try:
@@ -233,7 +233,7 @@ class NodeConfigDialog(FloatingPanel):
             self.parent_window.start_selected_node_by_name(self.node_name)
             self.close()
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"启动节点失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"启动节点失败: {str(e)}", "error")
     
     def stop_node(self):
         """停止节点"""
@@ -242,14 +242,14 @@ class NodeConfigDialog(FloatingPanel):
         
         node_data = self.parent_window.nodes_data.get(self.node_name)
         if not node_data or node_data.get('status') == 'stopped':
-            QMessageBox.information(self, t("k_title_info"), t("k_node_not_running"))
+            themed_message(self, t("k_title_info"), t("k_node_not_running"), "info")
             return
         
         try:
             # 使用主窗口的停止方法
             self.parent_window.stop_selected_node_by_name(self.node_name)
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"停止节点失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"停止节点失败: {str(e)}", "error")
     
     def open_node_folder(self):
         """打开节点文件夹"""
@@ -285,21 +285,17 @@ class NodeConfigDialog(FloatingPanel):
         try:
             # 容错：检查文件夹是否存在
             if not os.path.exists(self.node_path) or not os.path.isdir(self.node_path):
-                QMessageBox.warning(self, t("k_title_warning"), f"节点文件夹不存在:\n{self.node_path}")
+                themed_message(self, t("k_title_warning"), f"节点文件夹不存在:\n{self.node_path}", "warning")
                 return
             
             # 预检测 VSCode 是否安装
             vscode_installed = self._check_vscode_installed()
             if not vscode_installed:
-                reply = QMessageBox.question(
-                    self,
-                    "VSCode 未检测到",
-                    "⚠️ 未检测到 VSCode (code 命令)\n\n"
+                reply = themed_message(self, "VSCode 未检测到", "⚠️ 未检测到 VSCode (code 命令)\n\n"
                     "是否仍要创建工作区文件？\n\n"
                     "您可以稍后手动用 VSCode 打开该文件。",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No
-                )
+                    QMessageBox.StandardButton.No, "question")
                 if reply == QMessageBox.StandardButton.No:
                     return
             
@@ -337,25 +333,22 @@ class NodeConfigDialog(FloatingPanel):
                     else:  # Linux
                         subprocess.Popen(['code', workspace_file])
                     
-                    QMessageBox.information(self, t("k_title_success"), 
-                        f"✅ 已创建 VSCode 工作区并自动打开\n\n"
+                    themed_message(self, t("k_title_success"), f"✅ 已创建 VSCode 工作区并自动打开\n\n"
                         f"工作区文件：{workspace_file}\n"
-                        f"使用相对路径配置，可安全迁移项目")
+                        f"使用相对路径配置，可安全迁移项目", "info")
                 except Exception as e:
-                    QMessageBox.information(self, t("k_title_workspace_created"), 
-                        f"✅ VSCode 工作区文件已创建\n\n"
+                    themed_message(self, t("k_title_workspace_created"), f"✅ VSCode 工作区文件已创建\n\n"
                         f"工作区文件：{workspace_file}\n\n"
                         f"⚠️ 自动打开失败：{str(e)}\n\n"
-                        f"请手动用 VSCode 打开该文件")
+                        f"请手动用 VSCode 打开该文件", "info")
             else:
-                QMessageBox.information(self, t("k_title_workspace_created"), 
-                    f"✅ VSCode 工作区文件已创建\n\n"
+                themed_message(self, t("k_title_workspace_created"), f"✅ VSCode 工作区文件已创建\n\n"
                     f"工作区文件：{workspace_file}\n\n"
                     f"💡 提示：安装 VSCode 并添加 'code' 命令到 PATH 后，\n"
-                    f"可以双击此文件直接用 VSCode 打开")
+                    f"可以双击此文件直接用 VSCode 打开", "info")
             
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"创建 VSCode 工作区失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"创建 VSCode 工作区失败: {str(e)}", "error")
             import traceback
             traceback.print_exc()
     
@@ -369,7 +362,7 @@ class NodeConfigDialog(FloatingPanel):
                 activate_script = os.path.join(self.node_path, "venv", "bin", "activate")
             
             if not os.path.exists(activate_script):
-                QMessageBox.warning(self, t("k_title_warning"), f"虚拟环境不存在:\n{activate_script}")
+                themed_message(self, t("k_title_warning"), f"虚拟环境不存在:\n{activate_script}", "warning")
                 return
             
             # 打开命令行
@@ -393,7 +386,7 @@ class NodeConfigDialog(FloatingPanel):
                     except:
                         continue
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"打开命令行失败: {str(e)}")
+            themed_message(self, t("k_title_error"), f"打开命令行失败: {str(e)}", "error")
             import traceback
             traceback.print_exc()
     
@@ -447,16 +440,12 @@ class NodeConfigDialog(FloatingPanel):
                     if hasattr(self.parent_window, 'canvas'):
                         self.parent_window.canvas.sync_node_display(self.node_name)
                 
-                QMessageBox.information(self, t("k_title_success"), "✅ config.json 已保存")
+                themed_message(self, t("k_title_success"), "✅ config.json 已保存", "info")
             except json.JSONDecodeError as e:
-                reply = QMessageBox.question(
-                    self, 
-                    t("k_title_json_error"),
-                    f"⚠️ 当前内容不是有效的 JSON 格式：\n\n{str(e)}\n\n是否仍要保存？",
+                reply = themed_message(self, t("k_title_json_error"), f"⚠️ 当前内容不是有效的 JSON 格式：\n\n{str(e)}\n\n是否仍要保存？",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No
-                )
-                if reply == QMessageBox.StandardButton.Yes:
+                    QMessageBox.StandardButton.No, "question")
+                if reply:
                     with open(config_path, 'w', encoding='utf-8') as f:
                         f.write(content)
                     
@@ -467,10 +456,10 @@ class NodeConfigDialog(FloatingPanel):
                         except:
                             pass
                     
-                    QMessageBox.information(self, t("k_title_success"), "✅ 已保存（未格式化）")
+                    themed_message(self, t("k_title_success"), "✅ 已保存（未格式化）", "info")
                     
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"❌ 保存 config.json 失败:\n{str(e)}")
+            themed_message(self, t("k_title_error"), f"❌ 保存 config.json 失败:\n{str(e)}", "error")
 
     def load_log_files(self):
         """加载 logs 目录下的所有 .log 文件"""
@@ -543,32 +532,28 @@ class NodeConfigDialog(FloatingPanel):
     def refresh_log_files(self):
         """刷新日志文件列表"""
         self.load_log_files()
-        QMessageBox.information(self, t("k_title_success"), "✅ 日志文件列表已刷新")
+        themed_message(self, t("k_title_success"), "✅ 日志文件列表已刷新", "info")
     
     def clear_current_log(self):
         """清空当前日志文件"""
         if self.log_file_combo.count() == 0:
-            QMessageBox.warning(self, t("k_title_warning"), t("k_log_no_clear"))
+            themed_message(self, t("k_title_warning"), t("k_log_no_clear"), "warning")
             return
         
         log_filename = self.log_file_combo.currentText()
         logs_dir = os.path.join(self.node_path, "logs")
         log_path = os.path.join(logs_dir, log_filename)
         
-        reply = QMessageBox.question(
-            self, 
-            t("k_title_confirm_clear"),
-            f"确定要清空日志文件 '{log_filename}' 吗？\n\n此操作不可恢复！",
+        reply = themed_message(self, t("k_title_confirm_clear"), f"确定要清空日志文件 '{log_filename}' 吗？\n\n此操作不可恢复！",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
+            QMessageBox.StandardButton.No, "question")
         
-        if reply == QMessageBox.StandardButton.Yes:
+        if reply:
             try:
                 with open(log_path, 'w', encoding='utf-8') as f:
                     f.write("")
                 self.output_text.setPlainText(f"📭 日志文件已清空: {log_filename}")
-                QMessageBox.information(self, t("k_title_success"), f"✅ 日志文件 '{log_filename}' 已清空")
+                themed_message(self, t("k_title_success"), f"✅ 日志文件 '{log_filename}' 已清空", "info")
             except Exception as e:
-                QMessageBox.critical(self, t("k_title_error"), f"❌ 清空日志文件失败:\n{str(e)}")
+                themed_message(self, t("k_title_error"), f"❌ 清空日志文件失败:\n{str(e)}", "error")
 

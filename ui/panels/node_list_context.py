@@ -2,6 +2,7 @@
 节点列表右键菜单系统 Mixin — 空白/节点/组/未分组 多层菜单构建
 """
 from PyQt6.QtWidgets import QMenu, QMessageBox
+from ui.core.utils.dialog_utils import themed_message
 from PyQt6.QtCore import Qt
 from ui.core.i18n import t
 
@@ -167,12 +168,9 @@ class NodeListContextMixin:
     def _unmount_node(self, node_name):
         """卸载外部挂载节点（委托给主窗口）"""
         if self.parent_window and hasattr(self.parent_window, 'unmount_external_node'):
-            reply = QMessageBox.question(
-                self, "确认卸载",
-                f"确定要卸载外部节点 '{node_name}' 吗？\n节点文件夹不会被删除。",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply == QMessageBox.StandardButton.Yes:
+            reply = themed_message(self, "确认卸载", f"确定要卸载外部节点 '{node_name}' 吗？\n节点文件夹不会被删除。",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
+            if reply:
                 self.parent_window.unmount_external_node(node_name)
 
     def _show_group_context_menu(self, menu, group_name):
