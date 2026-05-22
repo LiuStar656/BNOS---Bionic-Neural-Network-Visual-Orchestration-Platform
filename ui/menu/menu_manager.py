@@ -2,7 +2,8 @@
 BNOS 菜单管理器 - 纯菜单栏设计（无工具栏）
 负责初始化和管理主窗口的菜单栏
 """
-from PyQt6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
+from PyQt6.QtWidgets import (QInputDialog, QLineEdit, QMessageBox,
+                                QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout)
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 from ui.core.logger import logger
@@ -176,13 +177,28 @@ class MenuManager:
             return
 
         prompt = t("k_node_enter_name").replace("{lang}", language)
-        node_name, ok = QInputDialog.getText(
-            main_window, t("k_node_create"),
-            prompt,
-            QLineEdit.EchoMode.Normal
-        )
-        
-        if not ok or not node_name:
+        dlg = QDialog(main_window)
+        dlg.setWindowTitle(t("k_node_create"))
+        dlg.setFixedSize(360, 130)
+        dlg.setStyleSheet("QDialog { background-color: #252526; } QLabel { color: #cccccc; font-size: 13px; } QLineEdit { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555; border-radius: 3px; padding: 6px; } QPushButton { background-color: #0e639c; color: white; border: none; border-radius: 3px; padding: 6px 18px; min-width: 70px; } QPushButton:hover { background-color: #1177bb; }")
+        layout = QVBoxLayout(dlg)
+        layout.addWidget(QLabel(prompt))
+        edit = QLineEdit()
+        layout.addWidget(edit)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        ok_btn = QPushButton(t("k_ok"))
+        cancel_btn = QPushButton(t("k_cancel"))
+        cancel_btn.setStyleSheet("QPushButton { background-color: #3c3c3c; color: #cccccc; border: none; border-radius: 3px; padding: 6px 18px; } QPushButton:hover { background-color: #555; }")
+        btn_row.addWidget(ok_btn)
+        btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+        ok_btn.clicked.connect(dlg.accept)
+        cancel_btn.clicked.connect(dlg.reject)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        node_name = edit.text().strip()
+        if not node_name:
             return
         
         lang_map = {"Python": "python", "Rust": "rust"}

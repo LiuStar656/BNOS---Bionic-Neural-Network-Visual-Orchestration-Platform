@@ -19,11 +19,12 @@ QMessageBox { background-color: #252526; color: #cccccc; }
 QMessageBox QLabel { color: #cccccc; font-size: 13px; }
 QMessageBox QPushButton { background-color: #0e639c; color: white; border: none; border-radius: 3px; padding: 6px 18px; min-width: 80px; }
 QMessageBox QPushButton:hover { background-color: #1177bb; }
-QInputDialog { background-color: #252526; color: #cccccc; }
-QInputDialog QLabel { color: #cccccc; }
-QInputDialog QLineEdit { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; padding: 4px 8px; }
-QInputDialog QPushButton { background-color: #0e639c; color: white; border: none; border-radius: 3px; padding: 6px 14px; }
+QInputDialog { background-color: #252526; color: #cccccc; border: 1px solid #454545; border-radius: 6px; }
+QInputDialog QLabel { color: #cccccc; font-size: 13px; padding: 4px 0; }
+QInputDialog QLineEdit { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; padding: 6px 10px; font-size: 13px; min-width: 280px; }
+QInputDialog QPushButton { background-color: #0e639c; color: white; border: none; border-radius: 3px; padding: 6px 18px; min-width: 80px; }
 QInputDialog QPushButton:hover { background-color: #1177bb; }
+QInputDialog QPushButton:last { background-color: #3c3c3c; }
 QFileDialog { background-color: #252526; }
 QFileDialog QLabel { color: #cccccc; }
 QFileDialog QLineEdit { background-color: #3c3c3c; color: #cccccc; border: 1px solid #555555; border-radius: 3px; }
