@@ -4,6 +4,37 @@
 
 ---
 
+## 🎨 Drawing Toolbar — PS-Style Left Vertical Toolbar (2026-05-22)
+
+### New Modules
+
+| File | Lines | Responsibility |
+|------|-------|---------------|
+| `graphic_items.py` | 250 | Base class + 5 shapes: rect, round rect, polygon, arrow, text |
+| `draw_layer.py` | 260 | Unified graphics mgmt: render/select/drag/undo-redo/Alt toggle/persist |
+| `draw_toolbar.py` | 185 | PS-style 40px left vertical toolbar, VSCode theme, scrollable |
+
+### Features
+
+**5 drawing tools**: Rectangle, Rounded rect, Polygon (double-click close), Arrow, Text
+
+**Interaction**:
+- Default: mouse prioritizes nodes, graphics are non-interfering
+- **Alt key**: toggles graphics edit mode (select/drag/handle scaling)
+- **Right-click**: directly delete graphics on canvas
+- Toolbar **L** locks drawing layer, **V** toggles visibility
+- Undo/Redo (independent stack, no conflict with node ops)
+
+**Toolbar design**:
+- 40px wide, full canvas height, scroll wheel support
+- `#1e1e1e` color matching menu bar/title bar
+- VSCode-style selection: blue left-edge highlight, no button deformation
+- 2px divider line from canvas
+
+**Box select**: Alt+Left-drag for node selection, avoids drawing tool conflicts
+
+---
+
 ## 🏗️ Process Isolation Architecture + Drawing Tools Plan (2026-05-22)
 
 ### Process Isolation Infrastructure
@@ -25,15 +56,7 @@ Four-process architecture (Main / Canvas / Panel / Core), IPC communication read
 
 ### Drawing Tools Development Plan
 
-PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-key to toggle edit mode.
-
-**To be developed**:
-
-| File | Responsibility |
-|------|---------------|
-| `graphic_items.py` | Graphics base class + 5 shape subclasses |
-| `draw_layer.py` | Unified graphics rendering/selection/drag/undo-redo |
-| `draw_toolbar.py` | PS-style left vertical toolbar (scrollable) |
+PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-key to toggle edit mode. ✅ Delivered (see "Drawing Toolbar" above).
 
 ---
 
