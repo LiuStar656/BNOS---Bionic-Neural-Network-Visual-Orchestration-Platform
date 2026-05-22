@@ -45,7 +45,7 @@ class BNOSMainWindow(QMainWindow):
     """BNOS主窗口类"""
     
     _RESIZE_MARGIN = 6
-    CANVAS_PROCESS_MODE = True  # 画布进程隔离：True=子进程, False=嵌入式
+    CANVAS_PROCESS_MODE = False  # True=画布独立子进程(崩溃隔离), False=嵌入式(正常布局)
     
     def __init__(self):
         super().__init__()
