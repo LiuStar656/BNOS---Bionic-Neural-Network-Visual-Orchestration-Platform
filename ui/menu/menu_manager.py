@@ -2,8 +2,7 @@
 BNOS 菜单管理器 - 纯菜单栏设计（无工具栏）
 负责初始化和管理主窗口的菜单栏
 """
-from PyQt6.QtWidgets import (QLineEdit, QMessageBox, QWidget,
-                                QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout)
+from PyQt6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 from ui.core.logger import logger
@@ -157,90 +156,6 @@ class MenuManager:
         about_action.setStatusTip(t("k_menu_about_desc"))
         about_action.triggered.connect(main_window.show_about)
         help_menu.addAction(about_action)
-    
-    @staticmethod
-    def create_new_node_with_language(main_window, language):
-        """使用指定语言创建新节点
-        
-        Args:
-            main_window: BNOSMainWindow实例
-            language: 编程语言名称
-        """
-        if not main_window.current_project_path:
-            main_window.show_toast(t("k_project_no_project"), "warning")
-            return
-
-        # 仅 Python 和 Rust 可用
-        if language not in ("Python", "Rust"):
-            main_window.show_toast(t("k_node_lang_unsupported").replace("{lang}", language), "warning")
-            logger.info("暂不支持创建 %s 节点", language)
-            return
-
-        prompt = t("k_node_enter_name").replace("{lang}", language)
-        dlg = QDialog(main_window)
-        dlg.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
-        dlg.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        dlg.resize(360, 160)
-        # 外层无间距
-        outer = QVBoxLayout(dlg)
-        outer.setContentsMargins(0, 0, 0, 0)
-        # 半透明容器（与 FloatingPanel 完全一致）
-        container = QWidget()
-        container.setStyleSheet("QWidget { background-color: rgba(30,30,30,220); border-radius: 8px; border: 1px solid rgba(255,255,255,25); }")
-        outer.addWidget(container)
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(14, 10, 14, 10)
-        layout.setSpacing(6)
-        # 标题栏（FloatingPanel 风格）
-        bar = QHBoxLayout()
-        title_lbl = QLabel(t("k_node_create"))
-        title_lbl.setStyleSheet("color: white; font-size: 12px; font-weight: bold; background: transparent; border: none;")
-        bar.addWidget(title_lbl)
-        bar.addStretch()
-        close_lbl = QLabel("x")
-        close_lbl.setStyleSheet("color: rgba(255,255,255,150); font-size: 14px; padding: 0 5px; background: transparent; border: none;")
-        close_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
-        close_lbl.mousePressEvent = lambda e: dlg.reject()
-        bar.addWidget(close_lbl)
-        layout.addLayout(bar)
-        # 提示文字
-        lbl = QLabel(prompt)
-        lbl.setStyleSheet("color: rgba(255,255,255,180); font-size: 12px; background: transparent; border: none;")
-        layout.addWidget(lbl)
-        # 输入框
-        edit = QLineEdit()
-        edit.setStyleSheet("background-color: rgba(255,255,255,10); color: #d4d4d4; border: 1px solid rgba(255,255,255,15); border-radius: 4px; padding: 6px 10px; font-size: 13px;")
-        layout.addWidget(edit)
-        # 按钮
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-        ok_btn = QPushButton(t("k_ok"))
-        ok_btn.setStyleSheet("QPushButton { background-color: rgba(0,120,212,200); color: white; border: none; border-radius: 4px; padding: 6px 20px; } QPushButton:hover { background-color: rgba(0,140,240,220); }")
-        cancel_btn = QPushButton(t("k_cancel"))
-        cancel_btn.setStyleSheet("QPushButton { background-color: rgba(255,255,255,10); color: #cccccc; border: 1px solid rgba(255,255,255,15); border-radius: 4px; padding: 6px 20px; } QPushButton:hover { background-color: rgba(255,255,255,20); }")
-        btn_row.addWidget(ok_btn)
-        btn_row.addWidget(cancel_btn)
-        layout.addLayout(btn_row)
-        ok_btn.clicked.connect(dlg.accept)
-        cancel_btn.clicked.connect(dlg.reject)
-        edit.returnPressed.connect(dlg.accept)
-        if main_window:
-            mw = main_window.geometry()
-            dlg.move(mw.center() - dlg.rect().center())
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
-        node_name = edit.text().strip()
-        if not node_name:
-            return
-        
-        lang_map = {"Python": "python", "Rust": "rust"}
-        lang_key = lang_map.get(language, language.lower())
-        
-        if not main_window.node_creator.has_creator(lang_key):
-            main_window.show_toast(t("k_node_lang_unsupported").replace("{lang}", language), "warning")
-            return
-        
-        main_window._start_async_node_creation(node_name, lang_key, language)
     
     @staticmethod
     def show_about(main_window):
