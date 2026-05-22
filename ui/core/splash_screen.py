@@ -2,11 +2,11 @@
 启动动画 — ASCII 字符拼成的 BNOS + 左下角日志 + 进度条
 """
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                               QProgressBar, QTextEdit, QApplication)
+                               QProgressBar, QTextEdit, QApplication, QFrame)
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QPalette, QColor
 
-# ── ASCII Art: BNOS (7行 × 宽) ──
+# ── ASCII Art: BNOS (6行) ──
 ASCII_BNOS = [
     " █████╗     ███╗  ██╗     █████╗     ██████╗ ",
     " ██╔══██╗   ████╗ ██║    ██╔══██╗   ██╔════╝ ",
@@ -16,7 +16,6 @@ ASCII_BNOS = [
     " ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝  ",
 ]
 
-_TITLE_STYLE = "color: #ffffff; background: transparent; font-size: 16px;"
 _LOG_STYLE = ("QTextEdit { background-color: transparent; color: #aaa; border: none; "
               "font-family: Consolas; font-size: 10px; }")
 _BAR_STYLE = """
@@ -29,6 +28,10 @@ _HINT_STYLE = "color: #888; font-size: 10px; background: transparent;"
 class SplashScreen(QWidget):
     """启动闪屏 — 居中屏幕，ASCII 标题 + 日志 + 进度条"""
 
+    _CONTENT_W = 600
+    _CONTENT_H = 330
+    _BORDER = 3
+
     def __init__(self):
         super().__init__()
         self.setWindowFlags(
@@ -36,15 +39,28 @@ class SplashScreen(QWidget):
             Qt.WindowType.WindowStaysOnTopHint |
             Qt.WindowType.SplashScreen
         )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-        self.setFixedSize(620, 340)
-        self.setStyleSheet("background-color: #1e1e1e; border: 2px solid #777; border-radius: 8px;")
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setFixedSize(self._CONTENT_W + self._BORDER * 2,
+                          self._CONTENT_H + self._BORDER * 2)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 18, 20, 14)
-        layout.setSpacing(8)
+        # 外框透明，内框有边
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
 
-        # ── 标题 ASCII Art ──
+        # ── 内容容器（带可见边框）──
+        inner = QFrame(self)
+        inner.setStyleSheet(
+            f"QFrame {{ background-color: #1e1e1e; border: {self._BORDER}px solid #777; "
+            f"border-radius: 8px; }}"
+        )
+        inner.setFixedSize(self._CONTENT_W, self._CONTENT_H)
+        outer.addWidget(inner, 0, Qt.AlignmentFlag.AlignCenter)
+
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(20, 10, 20, 14)
+        layout.setSpacing(6)
+
+        # ── ASCII Art ──
         title_widget = QWidget()
         title_widget.setStyleSheet("background: transparent;")
         title_layout = QVBoxLayout(title_widget)
@@ -58,14 +74,12 @@ class SplashScreen(QWidget):
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             title_layout.addWidget(lbl)
 
-        # 副标题 — BNOS Console
         console_sub = QLabel("BNOS  CONSOLE")
         console_sub.setFont(QFont("Consolas", 11, QFont.Weight.Bold))
         console_sub.setStyleSheet("color: #ccc; background: transparent; letter-spacing: 3px;")
         console_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_layout.addWidget(console_sub)
 
-        # 副标题（从 i18n 读取）
         from ui.core.i18n import t
         sub = QLabel(t("_k_splash_subtitle"))
         sub.setFont(QFont("Consolas", 9))
@@ -75,7 +89,7 @@ class SplashScreen(QWidget):
 
         layout.addWidget(title_widget, 1)
 
-        # ── 日志区 ──
+        # ── 日志 ──
         self.log_edit = QTextEdit()
         self.log_edit.setReadOnly(True)
         self.log_edit.setMaximumHeight(80)
@@ -111,17 +125,13 @@ class SplashScreen(QWidget):
             )
 
     def append_log(self, text: str):
-        """追加一行启动日志"""
         self.log_edit.append(text)
-        # 自动滚到底部
         sb = self.log_edit.verticalScrollBar()
         sb.setValue(sb.maximum())
         QApplication.instance().processEvents()
 
     def set_progress(self, value: int, text: str = ""):
-        """更新进度条"""
         self.progress.setValue(value)
-        # 找到 hint label 并更新
         for child in self.children():
             if isinstance(child, QLabel) and child.styleSheet() == _HINT_STYLE:
                 child.setText(text)
@@ -129,5 +139,4 @@ class SplashScreen(QWidget):
         QApplication.instance().processEvents()
 
     def close_splash(self):
-        """关闭闪屏"""
         self.close()
