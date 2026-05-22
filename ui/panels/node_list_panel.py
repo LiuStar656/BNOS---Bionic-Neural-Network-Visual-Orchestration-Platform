@@ -228,8 +228,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         
         node_name = data['name']
         if self.parent_window:
-            # 检查节点是否已在画布上
-            if node_name in self.parent_window.canvas.nodes:
+            if self.parent_window.canvas and node_name in self.parent_window.canvas.nodes:
                 self.parent_window.show_toast(f"节点 {node_name} 已在画布上", "warning")
                 return
             
@@ -275,7 +274,8 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
     def add_node_to_canvas(self, node_name):
         """添加节点到画布"""
         if self.parent_window:
-            self.parent_window.canvas.add_node_to_canvas(node_name)
+            if self.parent_window.canvas:
+                self.parent_window.canvas.add_node_to_canvas(node_name)
 
     def open_node_folder(self, node_name):
         """打开节点文件夹"""
@@ -403,7 +403,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 pass
             
             # 从画布中移除
-            if self.parent_window:
+            if self.parent_window and self.parent_window.canvas:
                 self.parent_window.canvas.remove_node_from_canvas(node_name)
             
             # 刷新列表
@@ -471,19 +471,12 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             del self.nodes_data[old_name]
             self.nodes_data[new_name] = node_info
             
-            # 6. 更新画布上的节点
-            if self.parent_window:
+            if self.parent_window and self.parent_window.canvas:
                 self.parent_window.canvas.rename_node_in_canvas(old_name, new_name)
-                
-                # 停止自动保存定时器（防止竞态条件）
                 if hasattr(self.parent_window.canvas, '_save_timer'):
                     self.parent_window.canvas._save_timer.stop()
-                
-                # 手动保存布局
                 if self.parent_window.current_project_path:
                     self.parent_window.canvas.save_layout(self.parent_window.current_project_path)
-                
-                # 恢复自动保存
                 if hasattr(self.parent_window.canvas, '_save_timer'):
                     self.parent_window.canvas._save_timer.start()
             
@@ -761,7 +754,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                     registry.unregister_node(node_name)
                 
                 # 从画布中移除
-                if self.parent_window:
+                if self.parent_window and self.parent_window.canvas:
                     self.parent_window.canvas.remove_node_from_canvas(node_name)
                 
                 success_count += 1
@@ -810,12 +803,12 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         
         for node_name in selected_nodes:
             # 检查节点是否已在画布上
-            if node_name in self.parent_window.canvas.nodes:
+            if self.parent_window.canvas and node_name in self.parent_window.canvas.nodes:
                 skip_count += 1
                 continue
             
-            # 添加到画布
-            self.parent_window.canvas.add_node_to_canvas(node_name)
+            if self.parent_window.canvas:
+                self.parent_window.canvas.add_node_to_canvas(node_name)
             success_count += 1
         
         msg = f"已添加 {success_count} 个节点到画布"
