@@ -430,6 +430,13 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
                 event.accept()
                 return
 
+        # 左键点击空白处 → 取消所有选中（节点+图形+连线）
+        if event.button() == Qt.MouseButton.LeftButton and item is None:
+            self.clear_box_selection()
+            self.scene.clearSelection()
+            event.accept()
+            return
+
         # 其他情况：交给默认处理或子项处理
         super().mousePressEvent(event)
         return
