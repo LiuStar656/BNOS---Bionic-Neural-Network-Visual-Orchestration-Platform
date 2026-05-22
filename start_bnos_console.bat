@@ -71,11 +71,6 @@ echo Starting BNOS Console...
 echo ======================================
 echo.
 
-:: 启动 launcher (tkinter 闪屏 → 后台启动 venv 主程序)
-%PYTHON% launcher.py
-
-:: ==================== EXIT ====================
-echo.
-echo [INFO] Application exited.
-pause
-exit /b %errorlevel%
+:: 启动 launcher (后台运行，终端立即退出)
+start "" /b %PYTHON% launcher.py
+exit /b 0

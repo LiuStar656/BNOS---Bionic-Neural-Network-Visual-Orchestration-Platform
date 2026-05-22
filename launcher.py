@@ -202,7 +202,7 @@ def main():
             target_pct = 100
 
         # 100% 后短暂延迟关闭
-        if finish_time and time.time() - finish_time > 0.2:
+        if finish_time and time.time() - finish_time > 1:
             break
 
         # 超时兜底
