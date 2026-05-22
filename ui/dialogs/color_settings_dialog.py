@@ -1,31 +1,55 @@
 """画布和节点颜色设置对话框"""
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout, QPushButton, QGroupBox, QScrollArea, QMessageBox, QColorDialog, QSlider, QSpinBox, QDialog, QDialogButtonBox)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout,
+    QPushButton, QGroupBox, QScrollArea, QColorDialog, QSlider, QSpinBox, QDialog)
 from ui.core.utils.dialog_utils import themed_message
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
 from ui.core.i18n import t
 
+_STYLE = """
+QDialog { background-color: #2d2d30; }
+QGroupBox { color: #ccc; font-weight: bold; border: 1px solid #454545; border-radius: 4px; margin-top: 8px; padding-top: 12px; }
+QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
+QLabel { color: #ccc; }
+QScrollArea { border: none; background: transparent; }
+QSlider::groove:horizontal { height: 6px; background: #333; border-radius: 3px; }
+QSlider::handle:horizontal { width: 14px; height: 14px; background: #777; border-radius: 7px; margin: -4px 0; }
+QSpinBox { background: #3c3c3c; color: #ccc; border: 1px solid #555; padding: 3px; }
+"""
+
 class ColorSettingsDialog(QDialog):
     """画布和节点颜色设置对话框"""
-    
+
     def __init__(self, canvas, parent=None):
         super().__init__(parent)
         self.canvas = canvas
         self.setWindowTitle(t("k_color_settings"))
-        self.setGeometry(300, 200, 500, 600)
-        
+        self.setFixedSize(500, 580)
+        self.setStyleSheet(_STYLE)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
         self.init_ui()
         
     def init_ui(self):
         """初始化UI"""
         layout = QVBoxLayout(self)
-        layout.setSpacing(15)
-        
-        # 标题
-        title = QLabel(t("k_custom_appearance"))
-        title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        layout.setSpacing(10)
+        layout.setContentsMargins(14, 10, 14, 10)
+
+        # 自定义标题栏
+        title_bar = QHBoxLayout()
+        title = QLabel(t("k_color_settings"))
+        title.setFont(QFont("Arial", 13, QFont.Weight.Bold))
+        title.setStyleSheet("color: white;")
+        title_bar.addWidget(title)
+        title_bar.addStretch()
+        cl = QLabel("✕")
+        cl.setStyleSheet("color: #888; font-size: 14px; padding: 2px 6px;")
+        cl.setCursor(Qt.CursorShape.PointingHandCursor)
+        cl.mousePressEvent = lambda e: self.reject()
+        title_bar.addWidget(cl)
+        layout.addLayout(title_bar)
         
         # 滚动区域
         scroll = QScrollArea()
@@ -182,12 +206,6 @@ class ColorSettingsDialog(QDialog):
         button_layout.addWidget(close_btn)
 
         content_layout.addLayout(button_layout)
-
-        # ===== 关闭按钮（旧保留兼容）=====
-        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        button_box.rejected.connect(self.reject)
-        button_box.setVisible(False)  # 隐藏旧的关闭按钮，用上方的新按钮
-        layout.addWidget(button_box)
         
     def update_grid_opacity_label(self, value):
         """更新网格线透明度标签"""

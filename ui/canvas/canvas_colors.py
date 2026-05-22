@@ -133,8 +133,9 @@ class CanvasColorsMixin:
         self.edge_color = settings.get('edge_color', self.edge_color)
         self.edge_width = settings.get('edge_width', self.edge_width)
 
-        # 画布背景
+        # 画布背景 — 强制重设刷子并立即重绘
         self.setBackgroundBrush(QColor(self.canvas_bg_color))
+        self.viewport().repaint()
 
         # 刷新所有现有节点颜色
         bg = QColor(self.node_bg_color)
