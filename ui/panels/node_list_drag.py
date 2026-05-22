@@ -55,6 +55,7 @@ class NodeListDragMixin:
                             elif target_group not in dragged_locked_roots:
                                 if self.parent_window:
                                     self.parent_window.show_toast("不同根目录的挂载节点组之间禁止移动", "warning")
+                            self.update_node_list(self.nodes_data)
                             event.accept()
                             return
 
@@ -62,6 +63,7 @@ class NodeListDragMixin:
                         if dragged_locked_roots and (not target_group or target_group not in dragged_locked_roots):
                             if self.parent_window:
                                 self.parent_window.show_toast("挂载组内的节点禁止移出组", "warning")
+                            self.update_node_list(self.nodes_data)
                             event.accept()
                             return
                         
@@ -90,6 +92,7 @@ class NodeListDragMixin:
                     if g and self.group_manager.is_group_locked(g):
                         if self.parent_window:
                             self.parent_window.show_toast("挂载组内的节点禁止移出组", "warning")
+                        self.update_node_list(self.nodes_data)
                         event.accept()
                         return
                 logger.debug("✅ 拖到根级别，将 %d 个节点移出组", len(dragged_nodes))
@@ -201,6 +204,7 @@ class NodeListDragMixin:
                 if not current_group or not self.group_manager.is_group_locked(current_group):
                     if self.parent_window:
                         self.parent_window.show_toast("禁止将节点移入挂载组", "warning")
+                    self.update_node_list(self.nodes_data)
                     return
         
         dragged_locked_groups = set()
@@ -213,6 +217,7 @@ class NodeListDragMixin:
                 if locked_g != group_name:
                     if self.parent_window:
                         self.parent_window.show_toast(f"挂载组'{locked_g}'内的节点禁止移入其他组", "warning")
+                    self.update_node_list(self.nodes_data)
                     return
         
         if self.group_manager.add_nodes_to_group(group_name, node_names):
@@ -228,6 +233,7 @@ class NodeListDragMixin:
             if current_group and self.group_manager.is_group_locked(current_group):
                 if self.parent_window:
                     self.parent_window.show_toast("挂载组内的节点禁止移出组", "warning")
+                self.update_node_list(self.nodes_data)
                 return
         
         removed_count = 0
