@@ -383,8 +383,10 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
             event.accept()
             return
         
-        # 左键：检查是否点击空白区域（准备框选）- 仅在未按空格时
-        if event.button() == Qt.MouseButton.LeftButton and not self.is_space_pressed:
+        # Alt+左键：框选模式（仅在未按空格时）
+        if (event.button() == Qt.MouseButton.LeftButton
+                and not self.is_space_pressed
+                and event.modifiers() & Qt.KeyboardModifier.AltModifier):
             # 沿 parentItem 链上溯，排除所有交互项及其子元素
             is_interactive = False
             probe = item

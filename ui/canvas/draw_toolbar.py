@@ -35,7 +35,7 @@ QPushButton {{
     border: none; border-left: 3px solid transparent;
     font-size: 14px; font-weight: bold;
     min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
-    padding-left: 2px; text-align: left;
+    text-align: center;
 }}
 QPushButton:hover {{ background: #333333; }}
 """
@@ -46,7 +46,7 @@ QPushButton {{
     border: none; border-left: 3px solid {BG_BTN_ON};
     font-size: 14px; font-weight: bold;
     min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
-    padding-left: 2px; text-align: left;
+    text-align: center;
 }}
 """
 
