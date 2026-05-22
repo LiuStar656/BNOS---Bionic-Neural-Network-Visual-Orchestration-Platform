@@ -85,6 +85,11 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         
         # 应用背景色
         self.setBackgroundBrush(QColor(self.canvas_bg_color))
+        # 禁用 viewport 自带背景，让场景背景透出
+        vp = self.viewport()
+        vp.setAutoFillBackground(False)
+        vp.setStyleSheet("background: transparent;")
+        vp.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
         
         # 网格背景（可选）
         self.draw_grid = True
@@ -129,9 +134,9 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         self._save_timer.timeout.connect(self._auto_save_layout)
 
     def drawBackground(self, painter, rect):
-        """背景：仅填底色，网格由独立的 GridItem 渲染"""
-        super().drawBackground(painter, rect)
-        self._ensure_grid_item()  # 缩放变化时更新可见性
+        """背景：直接用 canvas_bg_color 填充（绕过可能被 stylesheet 覆盖的默认行为）"""
+        painter.fillRect(rect, QColor(self.canvas_bg_color))
+        self._ensure_grid_item()
 
     def _ensure_grid_item(self):
         """确保网格作为独立 QGraphicsPathItem 存在（z=-10，最底层）"""
