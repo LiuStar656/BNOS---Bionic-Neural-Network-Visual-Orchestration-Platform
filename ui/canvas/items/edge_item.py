@@ -154,9 +154,6 @@ class EdgeItem(QGraphicsPathItem):
     def update_path(self):
         if not self.start_node or not self.end_node:
             return
-        # 记录旧区域（场景坐标），用于事后强制清除
-        scene = self.scene()
-        old_br = self.sceneBoundingRect() if scene else None
 
         pts = self._all_points()
         path = QPainterPath()
@@ -166,15 +163,10 @@ class EdgeItem(QGraphicsPathItem):
 
         self.prepareGeometryChange()
         self.setPath(path)
+        self.update()
 
         if len(pts) >= 2:
             self._add_arrow(pts[-2], pts[-1])
-
-        # 强制重绘旧区域 + 当前区域，消除任何可能的拖影
-        if scene:
-            self.update()
-            scene.update(old_br.adjusted(-4, -4, 4, 4))
-            scene.update(self.sceneBoundingRect().adjusted(-4, -4, 4, 4))
 
     def _add_arrow(self, seg_start, seg_end):
         dx = seg_end.x() - seg_start.x()

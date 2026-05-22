@@ -82,6 +82,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         
         # 网格背景（可选）
         self.draw_grid = True
+        self._grid_item = None
         
         # 节点和连线存储
         self.nodes = {}  # {node_name: NodeItem}
@@ -118,32 +119,61 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         self._save_timer.timeout.connect(self._auto_save_layout)
 
     def drawBackground(self, painter, rect):
-        """网格直接绘制（场景坐标），缩放<0.5x 不可见，CacheBackground 负责缓存"""
+        """背景：仅填底色，网格由独立的 GridItem 渲染"""
         super().drawBackground(painter, rect)
+        self._ensure_grid_item()  # 缩放变化时更新可见性
 
+    def _ensure_grid_item(self):
+        """确保网格作为独立 QGraphicsPathItem 存在（z=-10，最底层）"""
         if not self.draw_grid:
+            if self._grid_item:
+                self.scene.removeItem(self._grid_item)
+                self._grid_item = None
             return
 
         scale = self.transform().m11()
         if scale <= 0.5:
+            if self._grid_item:
+                self._grid_item.setVisible(False)
             return
 
-        painter.setOpacity(self.grid_opacity)
+        need_create = self._grid_item is None
+        if need_create:
+            self._grid_item = QGraphicsPathItem()
+            self._grid_item.setZValue(-10)
+            self._grid_item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            self.scene.addItem(self._grid_item)
+        else:
+            self._grid_item.setVisible(True)
 
+        # 仅样式变化时重建路径
+        cache_key = (self.grid_color, self.grid_opacity, self.canvas_width, self.canvas_height)
+        if not need_create and getattr(self._grid_item, '_cache_key', None) == cache_key:
+            return
+
+        cw, ch = self.canvas_width, self.canvas_height
+        half_w, half_h = cw // 2, ch // 2
         grid = 20
-        left = int(rect.left()) - (int(rect.left()) % grid)
-        top = int(rect.top()) - (int(rect.top()) % grid)
-        gc = QColor(self.grid_color)
-        painter.setPen(QPen(gc, 0.5))
 
-        x = left
-        while x < int(rect.right()):
-            painter.drawLine(int(x), int(rect.top()), int(x), int(rect.bottom()))
+        path = QPainterPath()
+        x = -half_w
+        while x <= half_w:
+            path.moveTo(x, -half_h); path.lineTo(x, half_h)
             x += grid
-        y = top
-        while y < int(rect.bottom()):
-            painter.drawLine(int(rect.left()), int(y), int(rect.right()), int(y))
+        y = -half_h
+        while y <= half_h:
+            path.moveTo(-half_w, y); path.lineTo(half_w, y)
             y += grid
+
+        gc = QColor(self.grid_color)
+        gc.setAlphaF(self.grid_opacity)
+        pen = QPen(gc, 0.5)
+        pen.setCosmetic(True)
+
+        self._grid_item.setPath(path)
+        self._grid_item.setPen(pen)
+        self._grid_item.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+        self._grid_item._cache_key = cache_key
     
     def mouseMoveEvent(self, event):
         """鼠标移动事件 - 处理平移、框选和连线拖拽"""
