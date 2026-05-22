@@ -146,8 +146,6 @@ class DrawToolbar(QWidget):
         btn.setFixedHeight(BTN_H)
         btn.setToolTip(tip)
         btn.setStyleSheet(BTN_BASE)
-        from PyQt6.QtCore import Qt as QtAlign
-        btn.setProperty("class", "toolbar-btn")
         layout.addWidget(btn)
         return btn
 
