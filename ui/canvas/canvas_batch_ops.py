@@ -3,7 +3,6 @@
 """
 import os
 import json
-from PyQt6.QtWidgets import QMessageBox
 from ui.core.utils.dialog_utils import themed_message
 from ui.core.logger import logger
 from ui.core.i18n import t
@@ -27,7 +26,7 @@ class CanvasBatchOpsMixin:
                 continue
 
             node_info = self.parent_window.nodes_data[node_name]
-            if node_info['status'] == 'running':
+            if node_info['status'] in ('running', 'idle'):
                 skip_count += 1
                 continue
 
@@ -38,7 +37,7 @@ class CanvasBatchOpsMixin:
                 logger.error("启动节点 %s 失败: %s", node_name, e)
                 fail_count += 1
 
-        result_msg = f"批量启动完成\n✅ 成功: {success_count}\n⏭️ 跳过: {skip_count}\n❌ 失败: {fail_count}"
+        result_msg = t("_k_batch_start_result").format(success=success_count, skip=skip_count, fail=fail_count)
         themed_message(self, t("k_title_batch_start_result"), result_msg, "info")
         self.clear_box_selection()
 
@@ -57,7 +56,7 @@ class CanvasBatchOpsMixin:
                 continue
 
             node_info = self.parent_window.nodes_data[node_name]
-            if node_info['status'] != 'running':
+            if node_info['status'] not in ('running', 'idle'):
                 skip_count += 1
                 continue
 
@@ -68,7 +67,7 @@ class CanvasBatchOpsMixin:
                 logger.error("停止节点 %s 失败: %s", node_name, e)
                 fail_count += 1
 
-        result_msg = f"批量停止完成\n✅ 成功: {success_count}\n⏭️ 跳过: {skip_count}\n❌ 失败: {fail_count}"
+        result_msg = t("_k_batch_stop_result").format(success=success_count, skip=skip_count, fail=fail_count)
         themed_message(self, t("k_title_batch_stop_result"), result_msg, "info")
         self.clear_box_selection()
 
@@ -83,11 +82,9 @@ class CanvasBatchOpsMixin:
         if count > 10:
             nodes_preview += f"\n  ... 还有 {count - 10} 个节点"
 
-        reply = themed_message(self, t("k_title_confirm_remove_canvas"), f"确定要从画布中移除以下 {count} 个节点吗？\n\n"
-            f"{nodes_preview}\n\n"
-            f"注意：这只会从画布视图中移除节点显示和连线，\n"
-            f"不会删除节点文件或配置文件。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
+        reply = themed_message(self, t("k_title_confirm_remove_canvas"),
+            t("_k_batch_remove_confirm").format(count=count, nodes=nodes_preview),
+            "question")
 
         if not reply:
             return
@@ -159,7 +156,8 @@ class CanvasBatchOpsMixin:
         for edge in edges_to_remove:
             self.remove_edge(edge)
 
-        themed_message(self, t("k_title_clear_complete"), f"已清除 {cleared_count} 个节点的监听配置", "info")
+        themed_message(self, t("k_title_clear_complete"),
+            t("_k_config_cleared").format(count=cleared_count), "info")
         self.clear_box_selection()
 
         if self.parent_window and self.parent_window.current_project_path:
