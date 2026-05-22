@@ -95,7 +95,7 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         
         # 绘图层
         self.draw_layer = DrawLayer(self)
-        self._draw_toolbar = None
+        self._draw_toolbar = self.draw_layer.attach_toolbar()
         
         # 连线状态
         self.is_connecting = False
