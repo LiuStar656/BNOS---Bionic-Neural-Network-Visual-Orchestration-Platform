@@ -15,8 +15,8 @@ def main():
     """应用程序主入口"""
     try:
         init_i18n()
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)  # 必须在QApplication创建前
         app = QApplication(sys.argv)
-        app.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)  # 统一深色主题
         app.setApplicationName("BNOS 节点编排平台")
         app.setOrganizationName("BNOS")
         
