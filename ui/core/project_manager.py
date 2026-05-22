@@ -17,7 +17,7 @@ def project_new(main_window):
 
     project_dir = QFileDialog.getExistingDirectory(
         main_window, t("k_project_select_dir"), "",
-        QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks | QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.DontUseNativeDialog
+        QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
     )
 
     if not project_dir:
@@ -52,7 +52,7 @@ def project_open(main_window):
 
     project_dir = QFileDialog.getExistingDirectory(
         main_window, t("k_project_open_dir"), "",
-        QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks | QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.DontUseNativeDialog
+        QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
     )
 
     if not project_dir:

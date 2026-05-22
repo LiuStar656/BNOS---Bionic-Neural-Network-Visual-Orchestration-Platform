@@ -15,7 +15,8 @@ def main():
     """应用程序主入口"""
     try:
         init_i18n()
-        QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)  # 必须在QApplication创建前
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)
+        QApplication.setStyle("Fusion")  # Fusion确保QSS完全控制
         app = QApplication(sys.argv)
         app.setApplicationName("BNOS 节点编排平台")
         app.setOrganizationName("BNOS")
