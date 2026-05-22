@@ -421,13 +421,9 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             return
         
         # 输入新名称
-        new_name, ok = QInputDialog.getText(
-            self, t("k_node_rename"),
-            ft("k_node_input_new_name"),
-            text=old_name
-        )
-        
-        if not ok or not new_name:
+        from ui.core.floating_panel import themed_input_dialog
+        new_name = themed_input_dialog(self, t("k_node_rename"), ft("k_node_input_new_name"), old_name)
+        if not new_name:
             return
         
         # 验证名称格式
@@ -519,12 +515,9 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
     
     def create_node_group(self):
         """创建新的节点组"""
-        group_name, ok = QInputDialog.getText(
-            self, t("k_group_create_group"),
-            t("k_node_input_new_group_name")
-        )
-        
-        if not ok or not group_name:
+        from ui.core.floating_panel import themed_input_dialog
+        group_name = themed_input_dialog(self, t("k_group_create_group"), t("k_node_input_new_group_name"))
+        if not group_name:
             return
         
         # 选择颜色
@@ -592,13 +585,9 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             if self.parent_window:
                 self.parent_window.show_toast("挂载组禁止重命名", "warning")
             return
-        new_name, ok = QInputDialog.getText(
-            self, "重命名组",
-            ft("k_group_input_new_name"),
-            text=group_name
-        )
-        
-        if not ok or not new_name:
+        from ui.core.floating_panel import themed_input_dialog
+        new_name = themed_input_dialog(self, "重命名组", ft("k_group_input_new_name"), group_name)
+        if not new_name:
             return
         
         if new_name == group_name:
@@ -1065,12 +1054,9 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 self.parent_window.show_toast("没有未分组的节点", "warning")
             return
         
-        group_name, ok = QInputDialog.getText(
-            self, t("k_group_create_new"),
-            f"将为 {len(ungrouped_nodes)} 个未分组节点创建新组\n请输入组名称:"
-        )
-        
-        if not ok or not group_name:
+        from ui.core.floating_panel import themed_input_dialog
+        group_name = themed_input_dialog(self, t("k_group_create_new"), f"将为 {len(ungrouped_nodes)} 个未分组节点创建新组\n请输入组名称:")
+        if not group_name:
             return
         
         # 选择颜色

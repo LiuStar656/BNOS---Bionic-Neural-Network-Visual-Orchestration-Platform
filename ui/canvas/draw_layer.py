@@ -221,9 +221,9 @@ class DrawLayer:
         elif self._tool == "arrow":
             g = ArrowGraphic([(pos.x(), pos.y()), (pos.x(), pos.y())])
         elif self._tool == "text":
-            from PyQt6.QtWidgets import QInputDialog
-            text, ok = QInputDialog.getText(self.canvas, "文本", "输入文字:")
-            if not ok or not text.strip():
+            from ui.core.floating_panel import themed_input_dialog
+            text = themed_input_dialog(self.canvas, "文本", "输入文字:")
+            if not text or not text.strip():
                 return False
             g = TextGraphic(text.strip(), pos.x(), pos.y())
             g.set_style(stroke_color=self._stroke, fill_color=self._fill)

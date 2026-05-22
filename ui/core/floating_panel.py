@@ -157,3 +157,30 @@ class FloatingPanel(QDialog):
     def showEvent(self, event):
         """不主动置顶，让系统自然管理窗口层级"""
         super().showEvent(event)
+
+
+def themed_input_dialog(parent, title, prompt, default=""):
+    """统一样式输入弹窗 — Frameless 半透明深色"""
+    dlg = QDialog(parent)
+    dlg.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
+    dlg.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    dlg.resize(380, 160)
+    outer = QVBoxLayout(dlg); outer.setContentsMargins(0,0,0,0)
+    c = QWidget(); c.setStyleSheet("QWidget { background-color: rgba(30,30,30,220); border-radius: 8px; border: 1px solid rgba(255,255,255,25); }")
+    outer.addWidget(c)
+    lay = QVBoxLayout(c); lay.setContentsMargins(14,10,14,10); lay.setSpacing(6)
+    bar = QHBoxLayout()
+    tl = QLabel(title); tl.setStyleSheet("color: white; font-size: 12px; font-weight: bold; background: transparent; border: none;")
+    bar.addWidget(tl); bar.addStretch()
+    xl = QLabel("x"); xl.setStyleSheet("color: rgba(255,255,255,150); font-size: 14px; padding:0 5px; background: transparent;"); xl.setCursor(Qt.CursorShape.PointingHandCursor)
+    xl.mousePressEvent = lambda e: dlg.reject(); bar.addWidget(xl); lay.addLayout(bar)
+    lb = QLabel(prompt); lb.setStyleSheet("color: rgba(255,255,255,180); font-size: 12px; background: transparent;"); lay.addWidget(lb)
+    e = QLineEdit(default); e.setStyleSheet("background: rgba(255,255,255,10); color: #d4d4d4; border: 1px solid rgba(255,255,255,15); border-radius: 4px; padding: 6px 10px; font-size: 13px;")
+    lay.addWidget(e)
+    br = QHBoxLayout(); br.addStretch()
+    ob = QPushButton("确定"); ob.setStyleSheet("QPushButton { background: rgba(0,120,212,200); color: white; border: none; border-radius: 4px; padding: 6px 20px; } QPushButton:hover { background: rgba(0,140,240,220); }")
+    cb = QPushButton("取消"); cb.setStyleSheet("QPushButton { background: rgba(255,255,255,10); color: #ccc; border: 1px solid rgba(255,255,255,15); border-radius: 4px; padding: 6px 20px; } QPushButton:hover { background: rgba(255,255,255,20); }")
+    br.addWidget(ob); br.addWidget(cb); lay.addLayout(br)
+    ob.clicked.connect(dlg.accept); cb.clicked.connect(dlg.reject); e.returnPressed.connect(dlg.accept)
+    if parent: dlg.move(parent.geometry().center() - dlg.rect().center())
+    return e.text().strip() if dlg.exec() == QDialog.DialogCode.Accepted else None

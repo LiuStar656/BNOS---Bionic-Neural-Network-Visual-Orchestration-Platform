@@ -275,33 +275,9 @@ class BNOSMainWindow(QMainWindow):
             self.show_toast(t("k_node_lang_unsupported").replace("{lang}", language), "warning")
             return
 
+        from ui.core.floating_panel import themed_input_dialog
         prompt = t("k_node_enter_name").replace("{lang}", language)
-        dlg = QDialog(self)
-        dlg.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
-        dlg.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        dlg.resize(360, 160)
-        outer = QVBoxLayout(dlg); outer.setContentsMargins(0,0,0,0)
-        c = QWidget(); c.setStyleSheet("QWidget { background-color: rgba(30,30,30,220); border-radius: 8px; border: 1px solid rgba(255,255,255,25); }")
-        outer.addWidget(c)
-        lay = QVBoxLayout(c); lay.setContentsMargins(14,10,14,10); lay.setSpacing(6)
-        bar = QHBoxLayout()
-        tlb = QLabel(t("k_node_create")); tlb.setStyleSheet("color: white; font-size: 12px; font-weight: bold; background: transparent; border: none;")
-        bar.addWidget(tlb); bar.addStretch()
-        cl = QLabel("x"); cl.setStyleSheet("color: rgba(255,255,255,150); font-size: 14px; padding:0 5px; background: transparent; border: none;")
-        cl.setCursor(Qt.CursorShape.PointingHandCursor); cl.mousePressEvent = lambda e: dlg.reject()
-        bar.addWidget(cl); lay.addLayout(bar)
-        lb = QLabel(prompt); lb.setStyleSheet("color: rgba(255,255,255,180); font-size: 12px; background: transparent; border: none;")
-        lay.addWidget(lb)
-        edit = QLineEdit(); edit.setStyleSheet("background: rgba(255,255,255,10); color: #d4d4d4; border: 1px solid rgba(255,255,255,15); border-radius: 4px; padding: 6px 10px; font-size: 13px;")
-        lay.addWidget(edit)
-        br = QHBoxLayout(); br.addStretch()
-        okb = QPushButton(t("k_ok")); okb.setStyleSheet("QPushButton { background: rgba(0,120,212,200); color: white; border: none; border-radius: 4px; padding: 6px 20px; } QPushButton:hover { background: rgba(0,140,240,220); }")
-        cb = QPushButton(t("k_cancel")); cb.setStyleSheet("QPushButton { background: rgba(255,255,255,10); color: #ccc; border: 1px solid rgba(255,255,255,15); border-radius: 4px; padding: 6px 20px; } QPushButton:hover { background: rgba(255,255,255,20); }")
-        br.addWidget(okb); br.addWidget(cb); lay.addLayout(br)
-        okb.clicked.connect(dlg.accept); cb.clicked.connect(dlg.reject); edit.returnPressed.connect(dlg.accept)
-        mw = self.geometry(); dlg.move(mw.center() - dlg.rect().center())
-        if dlg.exec() != QDialog.DialogCode.Accepted: return
-        node_name = edit.text().strip()
+        node_name = themed_input_dialog(self, t("k_node_create"), prompt)
         if not node_name:
             return
         
