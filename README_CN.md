@@ -510,72 +510,98 @@ Ctrl + 单击多选节点 → 右键 → 批量启动/停止
 
 ```
 BNOS/
-├── bnos_console.py                    # 主入口文件
-├── start_bnos_console.bat             # Windows 启动脚本
-├── start_bnos_console.sh              # Linux/macOS 启动脚本
-├── requirements.txt           # GUI 依赖列表
-├── build_bnos.spec                # PyInstaller 打包配置
-├── app_config.json                # 应用级配置（窗口状态、最后项目路径）
-├── canvas_layout.json             # 画布布局持久化（含节点样式）
-├── color_settings.json            # 颜色设置持久化
-├── README.md / README_CN.md       # 项目文档
-├── UPDATE_CN.md / UPDATE_EN.md    # 更新日志
+├── bnos_console.py                 # 主入口（闪屏+启动流程）
+├── start_bnos_console.bat          # Windows 启动脚本
+├── start_bnos_console.sh           # Linux/macOS 启动脚本
+├── requirements.txt                # 依赖列表
+├── build_bnos.spec                 # PyInstaller 打包配置
+├── app_config.json                 # 应用级配置（窗口/语言/进程模式）
+├── README.md / README_CN.md        # 项目文档
+├── UPDATE_CN.md / UPDATE_EN.md     # 更新日志
 │
-├── ui/                            # UI 模块
-│   ├── __init__.py                # 统一入口
-│   ├── main_window.py             # 主窗口类
-│   ├── canvas_widget.py           # 画布兼容入口（Facade 模式）
+├── ui/                             # UI 模块
+│   ├── __init__.py
+│   ├── main_window.py              # 主窗口 (BNOSMainWindow)
+│   ├── canvas_widget.py            # 画布兼容入口 (Facade)
 │   │
-│   ├── core/                      # 核心基础组件
-│   │   ├── app_config.py          # 应用配置管理
-│   │   ├── theme.py               # 深色 QSS 主题
-│   │   ├── node_process.py        # 节点进程管理
-│   │   ├── dark_title_bar.py      # VSCode 风格标题栏
-│   │   ├── floating_panel.py      # 浮动面板基类
-│   │   ├── logger.py              # 全局日志模块
-│   │   └── toast/                 # Toast 通知系统
-│   │       └── toast_notification.py
+│   ├── core/                       # 核心组件
+│   │   ├── i18n.py                 # 国际化模块 (cn/en 运行时切换)
+│   │   ├── strings_cn.json         # 中文语言包 (408 键)
+│   │   ├── strings_en.json         # 英文语言包 (408 键)
+│   │   ├── app_config.py           # 应用配置管理
+│   │   ├── theme.py                # 深色 QSS 主题
+│   │   ├── logger.py               # 日志模块 (控制台+文件)
+│   │   ├── node_process.py         # 节点进程管理
+│   │   ├── node_creation_worker.py # 异步节点创建
+│   │   ├── node_registry.py        # 节点注册表 (持久化)
+│   │   ├── connection_inferrer.py  # 连线反推校验
+│   │   ├── dark_title_bar.py       # 无边框标题栏
+│   │   ├── floating_panel.py       # 浮动面板基类
+│   │   ├── splash_screen.py        # 启动闪屏 (ASCII+日志+进度条)
+│   │   ├── ipc.py                  # 进程间通信 (QLocalSocket)
+│   │   ├── process_manager.py      # 子进程管理器
+│   │   ├── project_manager.py      # 项目管理 (新建/打开)
+│   │   ├── external_node_manager.py# 挂载外部节点
+│   │   ├── window_state_manager.py # 窗口状态持久化
+│   │   ├── toast/                  # Toast 通知系统
+│   │   └── utils/                  # 工具模块
+│   │       ├── dialog_utils.py     # 统一对话框 (themed_message/pick_folder)
+│   │       ├── file_utils.py       # 文件操作工具
+│   │       └── log_viewer.py       # 日志查看器
 │   │
-│   ├── menu/                      # 菜单系统
-│   │   └── menu_manager.py        # 菜单栏管理器
+│   ├── menu/                       # 菜单系统
+│   │   └── menu_manager.py
 │   │
-│   ├── canvas/                    # 画布系统
-│   │   ├── __init__.py
-│   │   ├── canvas_view.py         # 画布主视图
-│   │   ├── canvas_colors.py       # 颜色管理 Mixin
-│   │   ├── canvas_layout.py       # 布局持久化 Mixin
-│   │   ├── canvas_menus.py        # 右键菜单 Mixin
-│   │   └── items/                 # 画布图形元素
-│   │       ├── __init__.py
-│   │       ├── node_item.py       # 节点项
-│   │       ├── node_style.py      # 节点样式系统（方形/圆形）
-│   │       ├── edge_item.py       # 连线项（贝塞尔曲线）
-│   │       └── anchor_item.py     # 锚点项（输入/输出端口）
+│   ├── dialogs/                    # 对话框
+│   │   ├── color_settings_dialog.py# 颜色设置
+│   │   └── settings_dialog.py      # 设置 (语言/进程隔离)
 │   │
-│   ├── panels/                    # 面板组件
-│   │   ├── node_list_panel.py     # 节点列表悬浮面板
-│   │   ├── property_panel.py      # 节点配置对话框 + 颜色设置
-│   │   ├── node_group_manager.py  # 节点分组管理
-│   │   ├── node_expand_panel.py   # 节点展开面板
-│   │   └── node_monitor.py        # 节点监测面板
+│   ├── canvas/                     # 画布系统
+│   │   ├── canvas_view.py          # 画布主视图
+│   │   ├── canvas_colors.py        # 颜色管理 Mixin
+│   │   ├── canvas_layout.py        # 布局持久化 Mixin
+│   │   ├── canvas_menus.py         # 右键菜单 Mixin
+│   │   ├── canvas_connections.py   # 连线管理 Mixin
+│   │   ├── canvas_box_select.py    # 框选 Mixin
+│   │   ├── canvas_batch_ops.py     # 批量操作 Mixin
+│   │   ├── canvas_process.py       # 画布子进程入口
+│   │   ├── graphic_items.py        # 绘图图形 (矩形/箭头/文字)
+│   │   ├── draw_layer.py           # 绘图层管理
+│   │   ├── draw_toolbar.py         # PS风格左侧绘图工具栏
+│   │   └── items/                  # 画布图形元素
+│   │       ├── node_item.py        # 节点项
+│   │       ├── node_style.py       # 节点样式 (方形/圆形)
+│   │       ├── edge_item.py        # 连线项 (直角直线+折叠)
+│   │       └── anchor_item.py      # 锚点项 (IN/OUT)
 │   │
-│   ├── creators/                  # 节点创建器
-│   │   └── node_creator_manager.py
+│   ├── panels/                     # 面板组件
+│   │   ├── node_list_panel.py      # 节点列表悬浮面板
+│   │   ├── node_list_context.py    # 右键菜单 Mixin
+│   │   ├── node_list_drag.py       # 拖拽分组 Mixin
+│   │   ├── property_panel.py       # 属性/配置面板
+│   │   ├── node_group_manager.py   # 节点分组管理
+│   │   ├── node_expand_panel.py    # 节点展开面板
+│   │   ├── node_monitor.py         # 节点监测面板
+│   │   └── panel_process.py        # 面板子进程入口
 │   │
-│   └── docs/                      # UI 文档与示例
+│   ├── creators/                   # 节点创建器
+│   │   └── node_creator_manager.py # 多语言节点创建
+│   │
+│   └── docs/                       # 文档与示例
 │
-├── tools/                         # 节点生成工具
-│   ├── python_create_node.py      # Python 节点模板生成器
-│   ├── rust_create_node.py        # Rust 节点模板生成器
+├── tests/                          # 测试脚本
+├── tools/                          # 节点生成工具
+│   ├── python_create_node.py       # Python 节点模板生成器
+│   ├── rust_create_node.py         # Rust 节点模板生成器
 │   └── README.md
 │
-└── nodes/                         # 运行时节点目录（由用户项目创建）
-    └── [node_name]/               # 单个节点文件夹
-        ├── config.json            # 节点配置
-        ├── output.json            # 输出数据
-        ├── logs/listener.log      # 监听日志
-        ├── venv/                  # 独立虚拟环境
-        └── ...                    # 源代码文件
+└── nodes/                          # 运行时节点目录（由项目创建）
+    └── [node_name]/
+        ├── config.json             # 节点配置
+        ├── output.json             # 输出数据
+        ├── logs/listener.log       # 监听日志
+        ├── venv/                   # 独立虚拟环境
+        └── ...                     # 源代码文件
 ```
 
 ### 架构亮点

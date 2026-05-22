@@ -38,7 +38,7 @@ class SplashScreen(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
         self.setFixedSize(620, 340)
-        self.setStyleSheet("background-color: #1e1e1e; border: 1px solid #555; border-radius: 6px;")
+        self.setStyleSheet("background-color: #1e1e1e; border: 2px solid #777; border-radius: 8px;")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 14)

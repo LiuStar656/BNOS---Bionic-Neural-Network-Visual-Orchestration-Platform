@@ -520,68 +520,97 @@ Toolbar → New Project → Select Folder
 
 ```
 BNOS/
+├── bnos_console.py                 # Main entry (splash + startup)
+├── start_bnos_console.bat          # Windows launcher
+├── start_bnos_console.sh           # Linux/Mac launcher
+├── requirements.txt                # Python dependencies
+├── build_bnos.spec                 # PyInstaller spec
+├── app_config.json                 # App config (window/lang/process mode)
+├── README.md / README_CN.md        # Documentation
+├── UPDATE_CN.md / UPDATE_EN.md     # Changelog
 │
-├── bnos_console.py                    # Main entry point
-├── start_bnos_console.bat             # Windows launcher
-├── start_bnos_console.sh              # Linux/Mac launcher
-├── build_bnos.spec                # PyInstaller spec
-├── app_config.json                # App settings (window state, last project)
-├── canvas_layout.json             # Canvas layout persistence
-├── color_settings.json            # Color settings persistence
-├── requirements.txt           # Python dependencies
+├── ui/                             # UI modules
+│   ├── main_window.py              # Main window (BNOSMainWindow)
+│   ├── canvas_widget.py            # Canvas compat (Facade)
+│   │
+│   ├── core/                       # Core components
+│   │   ├── i18n.py                 # i18n (cn/en runtime switch)
+│   │   ├── strings_cn.json         # Chinese (408 keys)
+│   │   ├── strings_en.json         # English (408 keys)
+│   │   ├── app_config.py           # App config persistence
+│   │   ├── theme.py                # Dark QSS theme
+│   │   ├── logger.py               # Logger (console + file)
+│   │   ├── node_process.py         # Node process management
+│   │   ├── node_creation_worker.py # Async node creation
+│   │   ├── node_registry.py        # Node registry (persistent)
+│   │   ├── connection_inferrer.py  # Edge config validation
+│   │   ├── dark_title_bar.py       # Frameless title bar
+│   │   ├── floating_panel.py       # Floating panel base
+│   │   ├── splash_screen.py        # Splash (ASCII + log + progress)
+│   │   ├── ipc.py                  # IPC (QLocalSocket + JSON)
+│   │   ├── process_manager.py      # Subprocess manager
+│   │   ├── project_manager.py      # Project (new/open)
+│   │   ├── external_node_manager.py# External node mount
+│   │   ├── window_state_manager.py # Window state persistence
+│   │   ├── toast/                  # Toast notification system
+│   │   └── utils/                  # Utility modules
+│   │       ├── dialog_utils.py     # Unified dialogs
+│   │       ├── file_utils.py       # File operations
+│   │       └── log_viewer.py       # Log viewer
+│   │
+│   ├── menu/                       # Menu system
+│   │   └── menu_manager.py
+│   │
+│   ├── dialogs/                    # Dialogs
+│   │   ├── color_settings_dialog.py# Color settings
+│   │   └── settings_dialog.py      # Settings (lang/process)
+│   │
+│   ├── canvas/                     # Canvas engine
+│   │   ├── canvas_view.py          # NodeCanvas controller
+│   │   ├── canvas_colors.py        # Color management Mixin
+│   │   ├── canvas_layout.py        # Layout persistence Mixin
+│   │   ├── canvas_menus.py         # Context menu Mixin
+│   │   ├── canvas_connections.py   # Connection management Mixin
+│   │   ├── canvas_box_select.py    # Box selection Mixin
+│   │   ├── canvas_batch_ops.py     # Batch operations Mixin
+│   │   ├── canvas_process.py       # Canvas subprocess entry
+│   │   ├── graphic_items.py        # Drawing shapes (rect/arrow/text)
+│   │   ├── draw_layer.py           # Drawing layer management
+│   │   ├── draw_toolbar.py         # PS-style left vertical toolbar
+│   │   └── items/                  # Graphics items
+│   │       ├── node_item.py        # Node container
+│   │       ├── node_style.py       # Node style (rect/dot)
+│   │       ├── edge_item.py        # Orthogonal edge + fold
+│   │       └── anchor_item.py      # Anchor (IN/OUT port)
+│   │
+│   ├── panels/                     # Panels
+│   │   ├── node_list_panel.py      # Node list panel
+│   │   ├── node_list_context.py    # Context menu Mixin
+│   │   ├── node_list_drag.py       # Drag-drop grouping Mixin
+│   │   ├── property_panel.py       # Property/config panel
+│   │   ├── node_group_manager.py   # Group management
+│   │   ├── node_expand_panel.py    # Node expansion panel
+│   │   ├── node_monitor.py         # Live log monitor
+│   │   └── panel_process.py        # Panel subprocess entry
+│   │
+│   ├── creators/                   # Node creators
+│   │   └── node_creator_manager.py # Multi-language node creation
+│   │
+│   └── docs/                       # Documentation & examples
 │
-├── ui/                            # UI modules
-│   ├── __init__.py
-│   ├── main_window.py            # Main window
-│   ├── canvas_widget.py          # Compatibility layer (Facade, 15 lines)
-│   │
-│   ├── core/                      # Core components
-│   │   ├── app_config.py         # App config persistence
-│   │   ├── theme.py              # Dark QSS theme
-│   │   ├── node_process.py       # Node process management
-│   │   ├── dark_title_bar.py     # VSCode-style title bar
-│   │   ├── floating_panel.py     # Floating panel base class
-│   │   ├── logger.py             # Global logger (console + file)
-│   │   └── toast/                # Toast notification system
-│   │       └── toast_notification.py
-│   │
-│   ├── menu/                      # Menu system
-│   │   └── menu_manager.py       # Menu bar manager
-│   │
-│   ├── canvas/                    # Canvas engine
-│   │   ├── __init__.py
-│   │   ├── canvas_view.py        # NodeCanvas controller
-│   │   ├── canvas_colors.py      # Color management Mixin
-│   │   ├── canvas_layout.py      # Layout persistence Mixin
-│   │   ├── canvas_menus.py       # Context menu Mixin
-│   │   └── items/                # Graphics items
-│   │       ├── __init__.py
-│   │       ├── anchor_item.py    # Anchor (I/O port)
-│   │       ├── node_item.py      # Node container
-│   │       ├── node_style.py     # Node style system (rect/dot)
-│   │       └── edge_item.py      # Bezier curve edge
-│   │
-│   ├── panels/                    # Panels
-│   │   ├── node_list_panel.py    # Node list panel
-│   │   ├── property_panel.py     # Config dialog + color settings
-│   │   ├── node_group_manager.py # Group management
-│   │   ├── node_expand_panel.py  # Node expand panel
-│   │   └── node_monitor.py       # Node monitor (live logs)
-│   │
-│   ├── creators/                  # Node creators
-│   │   └── node_creator_manager.py
-│   │
-│   └── docs/                      # Examples
-│       ├── TOAST_MODULE_README.md
-│       └── toast_examples.py
+├── tests/                          # Test scripts
+├── tools/                          # Node generation tools
+│   ├── python_create_node.py       # Python node template generator
+│   ├── rust_create_node.py         # Rust node template generator
+│   └── README.md
 │
-├── tools/                         # Node generation tools
-│   ├── README.md
-│   ├── python_create_node.py
-│   └── rust_create_node.py
-│
-└── nodes/                         # Runtime node directory
-    └── (user-created nodes)
+└── nodes/                          # Runtime node dir (user-created)
+    └── [node_name]/
+        ├── config.json             # Node configuration
+        ├── output.json             # Output data
+        ├── logs/listener.log       # Listener log
+        ├── venv/                   # Isolated virtual environment
+        └── ...                     # Source code files
 ```
 
 **Architecture Highlights**:
