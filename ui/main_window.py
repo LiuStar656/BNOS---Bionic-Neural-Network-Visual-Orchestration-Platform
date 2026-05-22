@@ -37,7 +37,7 @@ from ui.core.node_registry import NodeRegistry
 from ui.core.app_config import AppConfig
 from ui.core.theme import DARK_QSS
 from ui.core.ipc import IPCServer, A_ADD_NODE, A_REMOVE_NODE, A_UPDATE_STATUS
-from ui.core.ipc import A_CREATE_EDGE, A_REMOVE_EDGE, A_SYNC_DATA, A_CLEAR_ALL
+from ui.core.ipc import A_CREATE_EDGE, A_REMOVE_EDGE, A_SYNC_DATA, A_CLEAR_ALL, A_WIN_SYNC
 from ui.core.process_manager import ProcessManager
 
 
