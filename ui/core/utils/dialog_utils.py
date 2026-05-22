@@ -76,6 +76,7 @@ def pick_folder(parent, title, start=""):
     dlg, lay = _make_dialog(parent, title, 620, 440)
 
     # 驱动器选择 + 上级按钮
+    drives = _get_drives()
     nav_bar = QHBoxLayout()
     drive_combo = QComboBox()
     drive_combo.setFixedWidth(70)
