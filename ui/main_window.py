@@ -111,7 +111,9 @@ class BNOSMainWindow(QMainWindow):
         # 画布
         if self.CANVAS_PROCESS_MODE:
             self.canvas = None  # 不嵌入，用子进程
-            self.setWindowTitle("BnosGui")
+            placeholder = QWidget()
+            placeholder.setStyleSheet("background-color: #1e1e1e;")
+            main_layout.addWidget(placeholder, 1)
         else:
             self.canvas = NodeCanvas(self)
             main_layout.addWidget(self.canvas, 1)
