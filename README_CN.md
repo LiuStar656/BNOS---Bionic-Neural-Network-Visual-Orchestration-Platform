@@ -250,7 +250,7 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 
 ### 🛠️ 其他新功能
 
-- **启动闪屏**：ASCII 艺术 BNOS + 实时日志 + 进度条，屏幕居中 2 秒渐出
+- **独立启动器**：`launcher.py` 纯 tkinter 实现，零依赖，可打包为独立 EXE。闪屏瞬间弹出 → 后台启动 venv 主程序 → 实时进度同步 → 100% 自动关闭
 - **进程隔离**：可选画布子进程模式，崩溃不影响主窗口（调试阶段）
 - **设置对话框**：语言切换 + 进程隔离开关（Ctrl+,）
 - **统一对话框**：全部弹窗自绘深色主题，`themed_message` 替代 QMessageBox
@@ -288,7 +288,9 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 
 | 模块 | 文件 | 说明 |
 |------|------|------|
+| **启动器** | `launcher.py` | 纯 tkinter 启动动画，管理 venv 加载与主程序启动 |
 | **主入口** | `bnos_console.py` | 初始化 QApplication，启动主窗口 |
+| **状态灯** | `node_style.py` + `node_process.py` | 三态指示灯（灰=停止/绿=空闲/红=运行）|
 | **主窗口** | `ui/main_window.py` | 整合 UI 组件，管理 AppConfig、节点数据、Toast |
 | **画布** | `ui/canvas/canvas_view.py` | QGraphicsView 实现节点绘制、拖拽、连线 |
 | **节点样式** | `ui/canvas/items/node_style.py` | 节点样式系统（方形/圆形），三层 z 轴架构 |
@@ -532,9 +534,11 @@ Ctrl + 单击多选节点 → 右键 → 批量启动/停止
 
 ```
 BNOS/
-├── bnos_console.py                 # 主入口（闪屏+启动流程）
-├── start_bnos_console.bat          # Windows 启动脚本
+├── launcher.py                     # 独立启动器（tkinter，可打包 EXE）
+├── start_bnos_console.vbs          # Windows 零窗口启动脚本
+├── start_bnos_console.bat          # Windows 备用启动脚本
 ├── start_bnos_console.sh           # Linux/macOS 启动脚本
+├── bnos_console.py                 # 主入口
 ├── requirements.txt                # 依赖列表
 ├── build_bnos.spec                 # PyInstaller 打包配置
 ├── app_config.json                 # 应用级配置（窗口/语言/进程模式）

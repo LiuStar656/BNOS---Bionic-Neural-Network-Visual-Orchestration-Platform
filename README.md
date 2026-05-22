@@ -255,7 +255,7 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 
 ### 🛠️ Other Features
 
-- **Splash screen**: ASCII art BNOS + live log + progress bar, centered, 2s fade
+- **Standalone launcher**: `launcher.py` pure tkinter, zero deps, packable as EXE. Splash appears instantly → backgrounds venv main program → real-time progress sync → auto-close at 100%
 - **Process isolation**: Optional canvas subprocess mode, crash-safe (debug stage)
 - **Settings dialog**: Language + process isolation toggle (Ctrl+,)
 - **Unified dialogs**: All popups self-drawn dark, `themed_message` replaces QMessageBox
@@ -542,9 +542,11 @@ Toolbar → New Project → Select Folder
 
 ```
 BNOS/
-├── bnos_console.py                 # Main entry (splash + startup)
-├── start_bnos_console.bat          # Windows launcher
+├── launcher.py                     # Standalone launcher (tkinter, packable EXE)
+├── start_bnos_console.vbs          # Zero-window launcher
+├── start_bnos_console.bat          # Windows fallback launcher
 ├── start_bnos_console.sh           # Linux/Mac launcher
+├── bnos_console.py                 # Main entry
 ├── requirements.txt                # Python dependencies
 ├── build_bnos.spec                 # PyInstaller spec
 ├── app_config.json                 # App config (window/lang/process mode)
