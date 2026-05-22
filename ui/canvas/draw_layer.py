@@ -54,14 +54,14 @@ class DrawLayer:
         self.toolbar.layer_visible.connect(self.set_visible)
         self.toolbar.undo_requested.connect(self.undo)
         self.toolbar.redo_requested.connect(self.redo)
+        self.toolbar.delete_requested.connect(self.delete_selected)
+        self.toolbar.clear_requested.connect(self.clear_all)
         return self.toolbar
 
     # ── 工具/样式/图层控制 ──
 
     def set_tool(self, tool):
         self._tool = tool
-        if not self.toolbar:
-            return
         view = self.canvas.viewport()
         cursor = Qt.CursorShape.ArrowCursor
         if tool in ("rect", "round_rect", "arrow"):
@@ -71,6 +71,9 @@ class DrawLayer:
         elif tool == "text":
             cursor = Qt.CursorShape.IBeamCursor
         view.setCursor(cursor)
+        # 取消当前正在创建的图形
+        self._current = None
+        self._dragging_graphic = None
 
     def _on_style(self, key, value):
         if key == "stroke":
@@ -288,7 +291,16 @@ class DrawLayer:
     # ── 删除选中图形 ──
 
     def delete_selected(self):
+        self._save_undo()
         for g in list(self.graphics):
             if g.isSelected():
                 self.canvas.scene.removeItem(g)
                 self.graphics.remove(g)
+        self.canvas._save_timer.start(500)
+
+    def clear_all(self):
+        self._save_undo()
+        for g in self.graphics:
+            self.canvas.scene.removeItem(g)
+        self.graphics.clear()
+        self.canvas._save_timer.start(500)
