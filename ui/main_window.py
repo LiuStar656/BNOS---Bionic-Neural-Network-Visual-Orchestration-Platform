@@ -573,6 +573,15 @@ class BNOSMainWindow(QMainWindow):
         self.show_toast("画布进程已崩溃，正在重启...", "warning")
         logger.warning("画布子进程 %s 崩溃，准备重启", pid)
 
+    def _start_core_process(self):
+        """启动核心业务子进程（可选，默认在主进程跑）"""
+        if not self._ipc_server:
+            return
+        self._process_manager.register("core", "ui/core/core_process.py")
+        proc = self._process_manager.get("core")
+        proc.crashed.connect(lambda pid: logger.warning("核心进程 %s 崩溃，自动重启", pid))
+        proc.start()
+
     def _on_ipc_client_connected(self, client_id):
         logger.info("IPC 客户端已连接: %s", client_id)
 
