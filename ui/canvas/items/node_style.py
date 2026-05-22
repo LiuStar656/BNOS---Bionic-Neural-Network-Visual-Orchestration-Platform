@@ -22,10 +22,12 @@ class NodeStyle:
     selected_border_width: int = 3
     lang_color: str = "#888888"
 
-    status_running: str = "#FF4444"
+    status_stopped: str = "#888888"          # 灰色 = 已停止
+    status_stopped_border: str = "#666666"
+    status_idle: str = "#44FF44"            # 绿色 = 空闲（listener 运行，无任务）
+    status_idle_border: str = "#00CC00"
+    status_running: str = "#FF4444"         # 红色 = 运行中（main 正在执行）
     status_running_border: str = "#CC0000"
-    status_stopped: str = "#44FF44"
-    status_stopped_border: str = "#00CC00"
 
     # ===== 字体 =====
     name_font_family: str = "Arial"
@@ -166,8 +168,12 @@ class RectNodeStyle(NodeStyle):
 
     def apply_status(self, node_item, status):
         from PyQt6.QtGui import QColor, QBrush, QPen
-        c = QColor(self.status_running if status == "running" else self.status_stopped)
-        b = QColor(self.status_running_border if status == "running" else self.status_stopped_border)
+        if status == "running":
+            c, b = QColor(self.status_running), QColor(self.status_running_border)
+        elif status == "idle":
+            c, b = QColor(self.status_idle), QColor(self.status_idle_border)
+        else:
+            c, b = QColor(self.status_stopped), QColor(self.status_stopped_border)
         node_item.status_indicator.setBrush(QBrush(c))
         node_item.status_indicator.setPen(QPen(b, 1.5))
 
@@ -186,10 +192,12 @@ class LightRectNodeStyle(RectNodeStyle):
     lang_color: str = "#999999"
     in_label_color: str = "#388a34"
     out_label_color: str = "#007acc"
+    status_stopped: str = "#888888"
+    status_stopped_border: str = "#666666"
+    status_idle: str = "#44FF44"
+    status_idle_border: str = "#00CC00"
     status_running: str = "#e81123"
     status_running_border: str = "#cc0000"
-    status_stopped: str = "#00cc00"
-    status_stopped_border: str = "#009900"
     expand_bg: str = "#e0e0e0"
     expand_border: str = "#cccccc"
     expand_text: str = "#666666"
@@ -283,8 +291,12 @@ class DotNodeStyle(NodeStyle):
     def apply_status(self, node_item, status):
         from PyQt6.QtGui import QColor, QBrush, QPen
         if hasattr(node_item, '_body') and node_item._body:
-            c = QColor(self.status_running if status == "running" else self.status_stopped)
-            b = QColor(self.status_running_border if status == "running" else self.status_stopped_border)
+            if status == "running":
+                c, b = QColor(self.status_running), QColor(self.status_running_border)
+            elif status == "idle":
+                c, b = QColor(self.status_idle), QColor(self.status_idle_border)
+            else:
+                c, b = QColor(self.status_stopped), QColor(self.status_stopped_border)
             node_item._body.setBrush(QBrush(c))
             node_item._body.setPen(QPen(b, 2.5))
 

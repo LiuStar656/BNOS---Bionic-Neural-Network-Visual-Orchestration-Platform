@@ -56,7 +56,7 @@ class CanvasMenusMixin:
             node_name = node_item.node_name
 
             if self.parent_window and node_name in self.parent_window.nodes_data:
-                if self.parent_window.nodes_data[node_name].get('status') == 'running':
+                if self.parent_window.nodes_data[node_name].get('status') in ('running', 'idle'):
                     a = QAction(t("k_node_stop"), menu); a.triggered.connect(partial(self.stop_single_node, node_name)); menu.addAction(a)
                 else:
                     a = QAction(t("k_node_start"), menu); a.triggered.connect(partial(self.start_single_node, node_name)); menu.addAction(a)

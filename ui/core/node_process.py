@@ -321,30 +321,72 @@ def _read_pid(node_path):
         return None
 
 
+def _get_child_pids(parent_pid):
+    """获取 parent_pid 的所有子进程 PID（使用 psutil 遍历进程树）"""
+    try:
+        import psutil
+        children = []
+        for proc in psutil.process_iter(["pid", "ppid", "name"]):
+            if proc.info["ppid"] == parent_pid:
+                children.append(proc.info["pid"])
+        return children
+    except ImportError:
+        # 无 psutil → 仅检查 PID 存活（退化为二态：运行/停止）
+        return []
+
+
+def _listener_has_active_child(pid):
+    """listener 是否有名为 main 的活跃子进程（正在执行任务）"""
+    child_pids = _get_child_pids(pid)
+    if not child_pids:
+        return False
+    try:
+        import psutil
+        for cp in child_pids:
+            try:
+                proc = psutil.Process(cp)
+                if "main" in proc.name().lower():
+                    return True
+            except psutil.NoSuchProcess:
+                continue
+    except ImportError:
+        pass
+    return False
+
+
 def check_running_processes(nodes_data):
-    """检测所有运行中节点的进程是否仍在运行
+    """检测所有节点进程状态（三态：running/idle/stopped）
     
     先通过 process.poll() / PID 文件检查，再通过进程扫描兜底。
+    区分 idle（listener 运行但无 main 子进程）和 running（listener + main 都在运行）。
     """
     dead_nodes = []
     for name, info in nodes_data.items():
-        if info.get('status') != 'running':
+        if info.get('status') not in ('running', 'idle'):
             continue
 
         node_path = info['path']
         process = info.get('process')
         pid = process.pid if process else _read_pid(node_path)
 
-        # 有 PID 且进程存活 → 继续
+        # PID 存在且进程存活 → 检查子进程区分 idle/running
         if pid is not None and _is_pid_alive(pid):
+            new_status = 'running' if _listener_has_active_child(pid) else 'idle'
+            if info.get('status') != new_status:
+                info['status'] = new_status
+                dead_nodes.append((name, None, new_status))  # None=状态变更,非退出
             continue
 
         # PID 检查失败 → 进程扫描兜底
         orphan_pids = _find_node_processes(node_path)
         if orphan_pids:
-            # 进程实际还在运行（PID 文件可能存了错误 PID）
             _write_pid(node_path, orphan_pids[0])
-            logger.debug("健康检测: %s PID 文件失效，进程扫描发现 %d 个存活进程，已修复", name, len(orphan_pids))
+            orphan_pid = orphan_pids[0]
+            new_status = 'running' if _listener_has_active_child(orphan_pid) else 'idle'
+            if info.get('status') != new_status:
+                info['status'] = new_status
+                dead_nodes.append((name, None, new_status))
+            logger.debug("健康检测: %s PID 失效，进程扫描恢复 (%s)", name, new_status)
             continue
 
         # 确认进程已退出
@@ -352,7 +394,7 @@ def check_running_processes(nodes_data):
         info['process'] = None
         info['status'] = 'stopped'
         _delete_pid(node_path)
-        dead_nodes.append((name, exit_code))
+        dead_nodes.append((name, exit_code, 'stopped'))
         logger.info("节点 %s 进程已退出 (exit code: %s)", name, exit_code)
 
     return dead_nodes

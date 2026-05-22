@@ -134,7 +134,7 @@ class NodeListContextMixin:
             menu.addSeparator()
             
             node_info = self.nodes_data.get(node_name, {})
-            if node_info.get('status') == 'running':
+            if node_info.get('status') in ('running', 'idle'):
                 stop_action = menu.addAction(t("k_node_stop"))
                 stop_action.triggered.connect(lambda: self._stop_single_node(node_name))
             else:
@@ -187,15 +187,15 @@ class NodeListContextMixin:
         menu.addAction(t("_k_group_node_count").format(count=len(group_nodes))).setEnabled(False)
         menu.addSeparator()
         
-        running_count = sum(1 for n in group_nodes if self.nodes_data.get(n, {}).get('status') == 'running')
-        stopped_count = len(group_nodes) - running_count
+        active_count = sum(1 for n in group_nodes if self.nodes_data.get(n, {}).get('status') in ('running', 'idle'))
+        stopped_count = len(group_nodes) - active_count
         
         if stopped_count > 0:
             start_group_action = menu.addAction(t("_k_start_group_nodes").format(count=stopped_count))
             start_group_action.triggered.connect(lambda: self.start_group_nodes(group_name))
         
-        if running_count > 0:
-            stop_group_action = menu.addAction(t("_k_stop_group_nodes").format(count=running_count))
+        if active_count > 0:
+            stop_group_action = menu.addAction(t("_k_stop_group_nodes").format(count=active_count))
             stop_group_action.triggered.connect(lambda: self.stop_group_nodes(group_name))
         
         menu.addSeparator()
@@ -227,9 +227,9 @@ class NodeListContextMixin:
             start_ungrouped_action = menu.addAction(t("_k_start_ungrouped").format(count=stopped_count))
             start_ungrouped_action.triggered.connect(self.start_ungrouped_nodes)
         
-        running_count = sum(1 for n in ungrouped_nodes if self.nodes_data.get(n, {}).get('status') == 'running')
-        if running_count > 0:
-            stop_ungrouped_action = menu.addAction(t("_k_stop_ungrouped").format(count=running_count))
+        active_count = sum(1 for n in ungrouped_nodes if self.nodes_data.get(n, {}).get('status') in ('running', 'idle'))
+        if active_count > 0:
+            stop_ungrouped_action = menu.addAction(t("_k_stop_ungrouped").format(count=active_count))
             stop_ungrouped_action.triggered.connect(self.stop_ungrouped_nodes)
         
         menu.addSeparator()

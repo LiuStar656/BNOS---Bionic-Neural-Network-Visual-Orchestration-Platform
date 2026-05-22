@@ -326,14 +326,14 @@ class BNOSMainWindow(QMainWindow):
         if node_name not in self.nodes_data:
             return
         node_info = self.nodes_data[node_name]
-        if node_info['status'] == 'running':
+        if node_info['status'] in ('running', 'idle'):
             self.show_toast(t("_k_node_running").format(name=node_name), "info")
             return
         
         success, err = start_node_process(node_info)
         if success:
-            self.node_list_panel.update_node_status(node_name, 'running')
-            if self.canvas: self.canvas.update_node_status(node_name, 'running')
+            self.node_list_panel.update_node_status(node_name, 'idle')
+            if self.canvas: self.canvas.update_node_status(node_name, 'idle')
             self.show_toast(t("_k_node_started").format(name=node_name), "success")
         else:
             themed_message(self, t("k_title_error"), t("_k_start_fail").format(err=err), "error")
@@ -361,12 +361,13 @@ class BNOSMainWindow(QMainWindow):
         self.show_toast(t("_k_node_stopped").format(name=node_name), "success")
 
     def _check_node_health(self):
-        """定时检测运行中节点的进程是否仍存活"""
+        """定时检测节点进程状态（三态：running/idle/stopped）"""
         dead = check_running_processes(self.nodes_data)
-        for name, code in dead:
-            self.node_list_panel.update_node_status(name, 'stopped')
-            if self.canvas: self.canvas.update_node_status(name, 'stopped')
-            self.show_toast(t("_k_node_exited").format(name=name, code=code), "warning")
+        for name, code, new_status in dead:
+            self.node_list_panel.update_node_status(name, new_status)
+            if self.canvas: self.canvas.update_node_status(name, new_status)
+            if new_status == 'stopped':
+                self.show_toast(t("_k_node_exited").format(name=name, code=code or '?'), "warning")
 
     def clear_connections(self):
         """清空所有连线"""
