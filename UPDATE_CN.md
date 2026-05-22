@@ -7,6 +7,51 @@
 
 ---
 
+## 🔄 统一轮询管理器 + 全局状态监测重构 (2026-05-23)
+
+### 统一轮询管理器
+
+**新增**: `ui/core/polling_manager.py`（单例模式）
+
+将所有需要定时轮询的任务统一管理：
+
+| 轮询任务 | 间隔 | 描述 |
+|---------|------|------|
+| 节点健康检测 | 3s | 检测节点进程状态 |
+| 全局日志监控 | 2s | 检测全局日志文件变化 |
+| 全局配置监控 | 5s | 检测全局配置文件变化 |
+| 节点日志监控 | 2s | 检测各节点日志变化 |
+| 节点配置监控 | 5s | 检测各节点配置变化 |
+| 节点输出 JSON | 1s | 检测 output.json 变化 |
+| 应用状态监控 | 1s | 监测应用整体状态 |
+
+**核心特性**：
+- 单例模式，全局唯一实例
+- 支持任务注册/取消/暂停/恢复
+- 基于 QTimer 的精准定时
+- 使用 PyQt 信号机制通知各面板
+
+### 模块合并与重构
+
+**删除冗余文件**：
+- `ui/core/system_monitor.py` → 功能合并到 polling_manager
+- `ui/core/global_detector.py` → 功能合并到 polling_manager
+
+### 面板适配更新
+
+| 面板 | 修改内容 |
+|------|---------|
+| `ui/main_window.py` | 替换 SystemMonitor/GlobalDetector 为 polling_manager |
+| `ui/panels/node_monitor.py` | 订阅 polling_manager 日志信号 |
+| `ui/panels/node_expand_panel.py` | 订阅 polling_manager 配置/输出信号 |
+| `ui/dialogs/node_config_dialog.py` | 订阅 polling_manager 配置变化信号 |
+
+### 影响文件
+
+`polling_manager.py`(新增)、`main_window.py`、`node_monitor.py`、`node_expand_panel.py`、`node_config_dialog.py`、`system_monitor.py`(删除)、`global_detector.py`(删除)
+
+---
+
 ## 🔄 独立启动器 + 三态状态灯 + Ctrl+D 删除 + 颜色设置修复 (2026-05-23)
 
 ### 独立 tkinter 启动器
@@ -1741,4 +1786,3 @@ ode_item.py：节点容器，管理标题、标签、选中状态
 - **更准确的坐标计算**：使用 `sceneBoundingRect().center()` 替代 `scenePos() + offset`
 - **更好的用户体验**：工具窗口遵循标准 Windows 窗口行为，不覆盖其他应用
 - **代码质量提升**：通过记忆系统沉淀最佳实践，避免重复踩坑
-
