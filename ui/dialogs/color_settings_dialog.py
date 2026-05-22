@@ -88,7 +88,7 @@ class ColorSettingsDialog(QDialog):
         # 画布背景色
         self.canvas_color_btn = QPushButton(t("k_color_select"))
         self.canvas_color_btn.setStyleSheet(f"background-color: {self.canvas.canvas_bg_color}; min-height: 30px;")
-        self.canvas_color_btn.clicked.connect(lambda: self.choose_color('canvas'))
+        self.canvas_color_btn.clicked.connect(lambda: self.choose_color('canvas_bg'))
         canvas_layout.addRow(t("k_field_bg_color"), self.canvas_color_btn)
         
         # 网格线颜色
@@ -230,12 +230,12 @@ class ColorSettingsDialog(QDialog):
         self.grid_opacity_label.setText(f"{value}%")
         
     def choose_color(self, target):
-        """选择颜色"""
+        """选择颜色 — target 需匹配 collect_settings 的字段名"""
         from PyQt6.QtWidgets import QColorDialog
         
         # 获取当前颜色
         current_colors = {
-            'canvas': self.canvas.canvas_bg_color,
+            'canvas_bg': self.canvas.canvas_bg_color,
             'grid': self.canvas.grid_color,
             'node_bg': self.canvas.node_bg_color,
             'node_border': self.canvas.node_border_color,
@@ -254,7 +254,7 @@ class ColorSettingsDialog(QDialog):
             
             # 更新按钮显示
             btn_map = {
-                'canvas': self.canvas_color_btn,
+                'canvas_bg': self.canvas_color_btn,
                 'grid': self.grid_color_btn,
                 'node_bg': self.node_bg_btn,
                 'node_border': self.node_border_btn,
