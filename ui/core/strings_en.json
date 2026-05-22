@@ -420,6 +420,8 @@
   "_k_settings_title": "Settings",
   "_k_settings_language": "Language",
   "_k_settings_lang_label": "Interface Language:",
+  "_k_lang_cn": "中文",
+  "_k_lang_en": "English",
   "_k_settings_process": "Process Isolation (Debug)",
   "_k_settings_process_label": "Enable canvas process isolation",
   "_k_settings_process_hint": "Canvas will run in a separate process; crashes won't affect the main window. Currently in debugging stage and may be unstable.",

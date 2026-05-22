@@ -64,9 +64,9 @@ class SettingsDialog(QDialog):
         lang_layout = QHBoxLayout(lang_group)
         lang_layout.addWidget(QLabel(t("_k_settings_lang_label")))
         self.lang_combo = QComboBox()
-        self.lang_combo.addItem("中文", "cn")
-        self.lang_combo.addItem("English", "en")
-        # 设置当前语言
+        self.lang_combo.addItem(t("_k_lang_cn"), "cn")
+        self.lang_combo.addItem(t("_k_lang_en"), "en")
+        # 设置当前选中
         for i in range(self.lang_combo.count()):
             if self.lang_combo.itemData(i) == LANG:
                 self.lang_combo.setCurrentIndex(i)
@@ -120,28 +120,27 @@ class SettingsDialog(QDialog):
         proc_changed = (proc_mode != self.main_window.CANVAS_PROCESS_MODE)
 
         if lang_changed or proc_changed:
-            # 写入配置
+            # 先持久化配置到磁盘
             if lang_changed:
-                set_lang(lang)
                 try:
                     self.main_window.app_config.set("language", lang)
                 except Exception:
                     pass
-
             if proc_changed:
                 self.main_window.CANVAS_PROCESS_MODE = proc_mode
                 try:
                     self.main_window.app_config.set("process_mode", proc_mode)
                 except Exception:
                     pass
-
-            # 持久化到磁盘
+            # 强制刷盘到磁盘
             try:
                 self.main_window.app_config.save()
             except Exception:
                 pass
 
-            # 需要重启
+            # 先切语言再显示提示
+            if lang_changed:
+                set_lang(lang)
             themed_message(self, t("_k_settings_restart_title"),
                 t("_k_settings_restart_msg"), "info")
             self.accept()
