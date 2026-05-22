@@ -201,27 +201,25 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         
         # 如果正在连线中，更新临时连线的终点跟随鼠标
         if self.is_connecting and self.temp_edge and self.connect_source:
-            # 获取鼠标在场景中的位置
             scene_pos = self.mapToScene(event.position().toPoint())
-            
-            # 获取源节点的输出锚点位置
             start_pos = self.connect_source.output_anchor.sceneBoundingRect().center()
-            
-            # 创建贝塞尔曲线路径（从源节点到鼠标位置）
-            dx = abs(scene_pos.x() - start_pos.x())
-            ctrl_offset = max(dx * 0.5, 50)
-            
+
+            # ComfyUI 风格直角正交临时连线
+            step = 40
             path = QPainterPath(start_pos)
-            ctrl1 = QPointF(start_pos.x() + ctrl_offset, start_pos.y())
-            ctrl2 = QPointF(scene_pos.x() - ctrl_offset, scene_pos.y())
-            path.cubicTo(ctrl1, ctrl2, scene_pos)
-            
-            # 更新临时连线路径
+            if start_pos.x() + step + 20 < scene_pos.x():
+                path.lineTo(start_pos.x() + step, start_pos.y())
+                path.lineTo(start_pos.x() + step, scene_pos.y())
+            else:
+                mid_y = (start_pos.y() + scene_pos.y()) / 2
+                path.lineTo(start_pos.x() + step, start_pos.y())
+                path.lineTo(start_pos.x() + step, mid_y)
+                path.lineTo(scene_pos.x() - step, mid_y)
+                path.lineTo(scene_pos.x() - step, scene_pos.y())
+            path.lineTo(scene_pos)
+
             self.temp_edge.setPath(path)
-            
-            # 刷新画布显示
             self.viewport().update()
-            
             event.accept()
             return
         
@@ -1014,19 +1012,25 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         pen = QPen(QColor("#4A90E2"), 2, Qt.PenStyle.DashLine)
         self.temp_edge.setPen(pen)
         self.scene.addItem(self.temp_edge)
-        
-        # 立即绘制初始曲线（从输出锚点到鼠标当前位置）
+
+        # 初始直角正交临时连线
         cursor_pos = self.mapFromGlobal(self.cursor().pos())
         scene_pos = self.mapToScene(cursor_pos)
         start = source_node.output_anchor.sceneBoundingRect().center()
-        
+        step = 40
+
         path = QPainterPath()
         path.moveTo(start)
-        dx = abs(scene_pos.x() - start.x())
-        ctrl = max(dx * 0.5, 50)
-        c1 = QPointF(start.x() + ctrl, start.y())
-        c2 = QPointF(scene_pos.x() - ctrl, scene_pos.y())
-        path.cubicTo(c1, c2, scene_pos)
+        if start.x() + step + 20 < scene_pos.x():
+            path.lineTo(start.x() + step, start.y())
+            path.lineTo(start.x() + step, scene_pos.y())
+        else:
+            mid_y = (start.y() + scene_pos.y()) / 2
+            path.lineTo(start.x() + step, start.y())
+            path.lineTo(start.x() + step, mid_y)
+            path.lineTo(scene_pos.x() - step, mid_y)
+            path.lineTo(scene_pos.x() - step, scene_pos.y())
+        path.lineTo(scene_pos)
         self.temp_edge.setPath(path)
         
     def complete_connection_to_input(self, target_node):

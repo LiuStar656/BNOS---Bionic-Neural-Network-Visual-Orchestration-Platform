@@ -71,7 +71,12 @@ class CanvasLayoutMixin:
                 if node == edge.end_node:
                     end_name = name
             if start_name and end_name:
-                layout_data["edges"].append({"source": start_name, "target": end_name})
+                ed = {"source": start_name, "target": end_name}
+                # 保存折叠点
+                wp_data = edge.to_dict() if hasattr(edge, 'to_dict') else {}
+                if wp_data:
+                    ed.update(wp_data)
+                layout_data["edges"].append(ed)
 
         path = os.path.join(project_path, "canvas_layout.json")
         try:
@@ -192,6 +197,9 @@ class CanvasLayoutMixin:
                 if (sn, tn) in existing: continue
                 if sn in self.nodes and tn in self.nodes:
                     edge = EdgeItem(self.nodes[sn], self.nodes[tn])
+                    # 恢复折叠点
+                    if hasattr(edge, 'from_dict'):
+                        edge.from_dict(ed)
                     self.scene.addItem(edge)
                     self.edges.append(edge)
                     edge.update_path()
