@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import QMenuBar as _QMenuBar
 
 from ui.canvas_widget import NodeCanvas
 from ui.panels.node_list_panel import NodeListPanel
-from ui.panels.property_panel import ColorSettingsDialog
+from ui.dialogs.color_settings_dialog import ColorSettingsDialog
 from ui.creators.node_creator_manager import NodeCreatorManager
 from ui.menu.menu_manager import MenuManager
 from ui.core.toast.toast_notification import ToastNotification
