@@ -184,18 +184,26 @@ This documentation provides deep technical insights beyond what's covered in thi
 - **Process Control**: One-click start/stop with process group cleanup
 - **Error Alerts**: Immediate feedback for startup failures and configuration errors
 
-### 📋 Node Registry
+### 📦 Dynamic Resource Manager
 
+BNOS's core resource abstraction layer, treating nodes, groups, and mounts as unified manageable resources with runtime discovery, registration, organization, and lifecycle management.
+
+**Node Registry**
 - **Persistent Records**: `node_registry.json` stores each node's name, path, mount source, and last active time
 - **Scan-First Principle**: On restart, scans `nodes/` directory first; registry serves as auxiliary data source
 - **Missing Detection**: Registered nodes with missing directories auto-marked as `missing`, preserving history
 
-### 🔗 External Node Mounting
-
-- **Cross-Project Reuse**: Select an external node folder; identified via `config.json` and mounted into current project
+**External Node Mounting**
+- **Cross-Project Reuse**: Select an external node folder; identified via `config.json` and mounted into current project (no file copy)
 - **Locked Group Protection**: Auto-creates locked groups (🔒) named by absolute path; nodes cannot be moved in/out; source files preserved
 - **Same-Source Sub-grouping**: Mounted nodes from the same root can freely create sub-groups within the locked group
 - **Safe Unmount**: Right-click unmount keeps source files intact, only removes project association
+
+**Node Group Management**
+- **Flat Organization**: Groups are independent and parallel (like Photoshop layers), no nesting
+- **Drag-to-Group**: Drag nodes in the list to move them in/out of groups; supports batch operations
+- **Auto-Cleanup**: Empty groups are auto-deleted (except locked groups)
+- **Color Coding**: Each group can have a custom color for visual distinction
 
 ### 🎯 Smart UI Features
 
