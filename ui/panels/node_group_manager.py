@@ -29,10 +29,15 @@ class NodeGroupManager:
         self.groups: Dict[str, dict] = {}  # {group_name: {"nodes": [], "color": "#..."}}
         self.node_to_group: Dict[str, str] = {}  # {node_name: group_name}
         self._locked_groups: Set[str] = set()  # 锁定组集合（节点无法移入/移出）
+        self.on_changed = None  # 数据变化回调
         
         # 如果提供了项目路径，立即加载配置
         if project_path:
             self.load_groups(project_path)
+
+    def _notify_changed(self):
+        if self.on_changed:
+            self.on_changed()
     
     def set_project_path(self, project_path: str):
         """设置项目路径并加载配置
@@ -143,6 +148,7 @@ class NodeGroupManager:
         
         self.save_groups()
         logger.info("创建节点组: %s", group_name)
+        self._notify_changed()
         return True
     
     def delete_group(self, group_name: str) -> bool:
@@ -154,6 +160,7 @@ class NodeGroupManager:
         del self.groups[group_name]
         self.save_groups()
         logger.info("删除节点组: %s", group_name)
+        self._notify_changed()
         return True
     
     def rename_group(self, old_name: str, new_name: str) -> bool:
@@ -166,6 +173,7 @@ class NodeGroupManager:
                 self.node_to_group[node_name] = new_name
         self.save_groups()
         logger.info("重命名节点组: %s -> %s", old_name, new_name)
+        self._notify_changed()
         return True
     
     def add_nodes_to_group(self, group_name: str, node_names: List[str]) -> bool:
@@ -199,6 +207,7 @@ class NodeGroupManager:
         if added_count > 0:
             self.save_groups()
             logger.info("添加 %d 个节点到组: %s", added_count, group_name)
+            self._notify_changed()
         
         return added_count > 0
     
@@ -228,6 +237,7 @@ class NodeGroupManager:
         if removed_count > 0:
             self.save_groups()
             logger.info("从组 %s 移除 %d 个节点", group_name, removed_count)
+            self._notify_changed()
         
         return removed_count > 0
     
@@ -285,36 +295,22 @@ class NodeGroupManager:
 
     # ---- 锁定组管理（用于外部挂载节点）----
     def lock_group(self, group_name: str) -> bool:
-        """锁定组，禁止节点移入和移出
-        
-        Args:
-            group_name: 组名称
-            
-        Returns:
-            是否锁定成功
-        """
         if group_name not in self.groups:
             return False
         if group_name not in self._locked_groups:
             self._locked_groups.add(group_name)
             self.save_groups()
             logger.info("已锁定节点组: %s", group_name)
+            self._notify_changed()
         return True
 
     def unlock_group(self, group_name: str) -> bool:
-        """解锁组
-        
-        Args:
-            group_name: 组名称
-            
-        Returns:
-            是否解锁成功
-        """
         if group_name in self._locked_groups:
             self._locked_groups.discard(group_name)
             self.save_groups()
             logger.info("已解锁节点组: %s", group_name)
-            return True
+            self._notify_changed()
+        return True
         return False
 
     def is_group_locked(self, group_name: str) -> bool:

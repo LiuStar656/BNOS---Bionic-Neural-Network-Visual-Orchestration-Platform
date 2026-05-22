@@ -39,6 +39,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         # 初始化节点组管理器
         from ui.panels.node_group_manager import NodeGroupManager
         self.group_manager = NodeGroupManager()
+        self.group_manager.on_changed = lambda: self.update_node_list(self.nodes_data)
         
         # init_ui 使用基类的 content_layout
         self._init_ui()
