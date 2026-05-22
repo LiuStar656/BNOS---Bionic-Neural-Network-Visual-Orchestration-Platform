@@ -302,30 +302,12 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             QMessageBox.information(self, t("k_title_info"), t("k_node_no_log"))
             return
         
-        # 读取日志内容
         try:
             with open(log_file, 'r', encoding='utf-8') as f:
                 log_content = f.read()
             
-            # 显示日志对话框
-            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton
-            
-            dialog = QDialog(self)
-            dialog.setWindowTitle(f"节点日志 - {node_name}")
-            dialog.setGeometry(200, 200, 800, 600)
-            
-            layout = QVBoxLayout(dialog)
-            
-            text_edit = QTextEdit()
-            text_edit.setReadOnly(True)
-            text_edit.setText(log_content)
-            layout.addWidget(text_edit)
-            
-            close_button = QPushButton("关闭")
-            close_button.clicked.connect(dialog.close)
-            layout.addWidget(close_button)
-            
-            dialog.exec()
+            from ui.core.utils.log_viewer import show_log_dialog
+            show_log_dialog(self, f"节点日志 - {node_name}", log_content)
         except Exception as e:
             QMessageBox.critical(self, t("k_title_error"), f"读取日志失败: {str(e)}")
             
@@ -872,19 +854,12 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 self.parent_window.show_toast("请先选中要打开的节点", "warning")
             return
         
-        import platform
+        from ui.core.utils.file_utils import resolve_and_open_folder
         
         for node_name in selected_nodes:
             if node_name in self.nodes_data:
                 node_path = self.nodes_data[node_name]['path']
-                
-                system = platform.system()
-                if system == "Windows":
-                    subprocess.Popen(['explorer', node_path])
-                elif system == "Darwin":  # macOS
-                    subprocess.Popen(['open', node_path])
-                else:  # Linux
-                    subprocess.Popen(['xdg-open', node_path])
+                resolve_and_open_folder(node_path, node_name, self.parent_window, dialog_parent=self)
         
         if self.parent_window:
             self.parent_window.show_toast(f"已打开 {len(selected_nodes)} 个节点文件夹", "success")
@@ -898,7 +873,6 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 self.parent_window.show_toast("请先选中要查看日志的节点", "warning")
             return
         
-        # 收集所有日志内容
         all_logs = []
         missing_logs = []
         
@@ -916,34 +890,16 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             try:
                 with open(log_file, 'r', encoding='utf-8') as f:
                     log_content = f.read()
-                
                 all_logs.append(f"{'='*60}\n节点: {node_name}\n{'='*60}\n{log_content}\n")
             except Exception as e:
-                logger.warning("读取节点 %node_name 日志失败: %e")
+                logger.warning("读取节点 %s 日志失败: %s", node_name, e)
         
         if not all_logs:
             QMessageBox.information(self, t("k_title_info"), t("k_node_no_log_available"))
             return
         
-        # 显示合并的日志内容
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton
-        
-        dialog = QDialog(self)
-        dialog.setWindowTitle(f"批量日志查看 - {len(selected_nodes)} 个节点")
-        dialog.setGeometry(200, 200, 900, 700)
-        
-        layout = QVBoxLayout(dialog)
-        
-        text_edit = QTextEdit()
-        text_edit.setReadOnly(True)
-        text_edit.setText("\n".join(all_logs))
-        layout.addWidget(text_edit)
-        
-        close_button = QPushButton("关闭")
-        close_button.clicked.connect(dialog.close)
-        layout.addWidget(close_button)
-        
-        dialog.exec()
+        from ui.core.utils.log_viewer import show_log_dialog
+        show_log_dialog(self, f"批量日志查看 - {len(selected_nodes)} 个节点", "\n".join(all_logs), width=900, height=700)
     
     def batch_edit_node_configs(self):
         """批量编辑选中的节点配置"""
