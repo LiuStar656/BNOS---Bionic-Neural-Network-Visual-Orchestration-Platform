@@ -229,6 +229,19 @@ class NodeItem(QGraphicsRectItem):
         
         return new_pos
         
+    def shape(self):
+        """返回精确的形状区域用于命中检测
+
+        圆点节点：仅圆点本体可选中，名称文字不计入可选范围
+        方框节点：使用默认矩形
+        """
+        is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
+        if is_dot and self._body:
+            path = QPainterPath()
+            path.addEllipse(self._body.rect())
+            return path
+        return super().shape()
+
     def paint(self, painter, option, widget=None):
         """绘制节点 — 选中环由 _selection_ring 处理（z=10 浮于节点之上）"""
         is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
