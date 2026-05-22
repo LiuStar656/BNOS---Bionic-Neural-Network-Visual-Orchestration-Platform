@@ -17,6 +17,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
 from ui.core.logger import logger
 from ui.core.floating_panel import FloatingPanel
+from ui.core.i18n import t
 
 
 class NodeConfigDialog(FloatingPanel):

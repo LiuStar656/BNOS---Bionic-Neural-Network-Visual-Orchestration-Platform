@@ -7,11 +7,13 @@ import os
 from PyQt6.QtWidgets import QApplication
 from ui.main_window import BNOSMainWindow
 from ui.core.logger import logger
+from ui.core.i18n import init_i18n
 
 
 def main():
     """应用程序主入口"""
     try:
+        init_i18n()
         app = QApplication(sys.argv)
         app.setApplicationName("BNOS 节点编排平台")
         app.setOrganizationName("BNOS")

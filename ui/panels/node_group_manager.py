@@ -6,6 +6,7 @@ import json
 import os
 from typing import Dict, List, Optional, Set
 from ui.core.logger import logger
+from ui.core.i18n import t
 
 
 class NodeGroupManager:
@@ -60,7 +61,7 @@ class NodeGroupManager:
         """
         path = project_path or self.project_path
         if not path:
-            logger.warning("未设置项目路径，无法加载节点组配置")
+            logger.warning(t("k_group_config_load_fail"))
             return
         
         config_file = os.path.join(path, "node_groups.json")
@@ -100,7 +101,7 @@ class NodeGroupManager:
     def save_groups(self):
         """保存节点组信息到配置文件"""
         if not self.project_path:
-            logger.warning("未设置项目路径，无法保存节点组配置")
+            logger.warning(t("k_group_config_save_fail"))
             return False
         
         config_file = self.get_config_file_path()
@@ -280,7 +281,7 @@ class NodeGroupManager:
         self.node_to_group.clear()
         self._locked_groups.clear()
         self.save_groups()
-        logger.info("已清空所有节点组")
+        logger.info(t("k_group_cleared_all"))
 
     # ---- 锁定组管理（用于外部挂载节点）----
     def lock_group(self, group_name: str) -> bool:

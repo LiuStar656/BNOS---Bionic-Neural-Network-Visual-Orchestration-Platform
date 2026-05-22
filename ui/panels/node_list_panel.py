@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont
 from ui.core.logger import logger
+from ui.core.i18n import t
 from ui.core.floating_panel import FloatingPanel
 import subprocess
 import json
@@ -43,7 +44,7 @@ class NodeListPanel(FloatingPanel):
         """初始化UI - 极简设计"""
         
         # 路径显示
-        self.path_label = QLabel("未打开项目")
+        self.path_label = QLabel(t("k_node_no_project"))
         self.path_label.setStyleSheet("color: rgba(255, 255, 255, 120); font-size: 9px; padding: 2px 0;")
         self.content_layout.addWidget(self.path_label)
         
@@ -350,7 +351,7 @@ class NodeListPanel(FloatingPanel):
         if self.parent_window and self.parent_window.current_project_path:
             self.path_label.setText(f"项目: {os.path.basename(self.parent_window.current_project_path)}")
         else:
-            self.path_label.setText("未打开项目")
+            self.path_label.setText(t("k_node_no_project"))
     
     def _setup_node_item(self, item, node_name, node_info):
         """配置节点项"""
@@ -1199,7 +1200,7 @@ class NodeListPanel(FloatingPanel):
         """创建新的节点组"""
         group_name, ok = QInputDialog.getText(
             self, "创建节点组",
-            "请输入组名称:"
+            t("k_node_input_new_group_name")
         )
         
         if not ok or not group_name:

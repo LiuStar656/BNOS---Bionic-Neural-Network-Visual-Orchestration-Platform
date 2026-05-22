@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRectF, QTimer, QThread, QEvent
 from PyQt6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction, QMouseEvent
 from ui.core.logger import logger
+from ui.core.i18n import t
 from ui.core.dark_title_bar import DarkTitleBar
 from PyQt6.QtWidgets import QMenuBar as _QMenuBar
 
@@ -105,7 +106,7 @@ class BNOSMainWindow(QMainWindow):
         
         # 节点列表面板
         self.node_list_panel = NodeListPanel(self)
-        self.node_list_panel.setWindowTitle("节点列表")
+        self.node_list_panel.setWindowTitle(t("k_node_list"))
         
         panel_width = 280
         panel_height = 500
@@ -228,7 +229,7 @@ class BNOSMainWindow(QMainWindow):
             self.canvas.save_layout(self.current_project_path)
         
         project_dir = QFileDialog.getExistingDirectory(
-            self, "选择项目目录", "", 
+            self, t("k_project_select_dir"), "", 
             QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
         )
         
@@ -239,7 +240,7 @@ class BNOSMainWindow(QMainWindow):
         nodes_dir = os.path.join(project_dir, "nodes")
         if not os.path.exists(nodes_dir):
             reply = QMessageBox.question(
-                self, "创建节点目录",
+                self, t("k_project_create_nodes_dir"),
                 f"在 {project_dir} 下创建 nodes/ 目录？",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
@@ -266,7 +267,7 @@ class BNOSMainWindow(QMainWindow):
             self.canvas.save_layout(self.current_project_path)
         
         project_dir = QFileDialog.getExistingDirectory(
-            self, "打开项目目录", "", 
+            self, t("k_project_open_dir"), "", 
             QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
         )
         
@@ -276,7 +277,7 @@ class BNOSMainWindow(QMainWindow):
         nodes_dir = os.path.join(project_dir, "nodes")
         if not os.path.exists(nodes_dir):
             reply = QMessageBox.question(
-                self, "未找到节点目录",
+                self, t("k_project_no_nodes_dir"),
                 f"{project_dir} 下未找到 nodes/ 目录，是否创建？",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
@@ -313,7 +314,7 @@ class BNOSMainWindow(QMainWindow):
     def refresh_nodes(self):
         """刷新节点列表"""
         if not self.current_project_path:
-            self.show_toast("请先打开或新建项目", "warning")
+            self.show_toast(t("k_project_no_project"), "warning")
             return
         
         # 确保项目路径是绝对路径
@@ -321,10 +322,10 @@ class BNOSMainWindow(QMainWindow):
         nodes_dir = os.path.join(project_path, "nodes")
         
         if not os.path.exists(nodes_dir):
-            self.show_toast("nodes/ 目录不存在", "warning")
+            self.show_toast(t("k_project_nodes_not_exist"), "warning")
             return
         
-        logger.info("刷新节点列表")
+        logger.info(t("k_log_load_node"))
         logger.debug("项目路径: %s", project_path)
         logger.debug("Nodes 目录: %s", nodes_dir)
         
@@ -439,7 +440,7 @@ class BNOSMainWindow(QMainWindow):
         自动创建以该节点根目录（绝对路径）命名的锁定组。
         """
         if not self.current_project_path:
-            self.show_toast("请先打开或新建项目", "warning")
+            self.show_toast(t("k_project_no_project"), "warning")
             return
 
         # 选择外部节点文件夹
@@ -566,7 +567,7 @@ class BNOSMainWindow(QMainWindow):
     def create_new_node_with_language(self, language):
         """使用指定语言创建新节点（供菜单调用）"""
         if not self.current_project_path:
-            self.show_toast("请先打开或新建项目", "warning")
+            self.show_toast(t("k_project_no_project"), "warning")
             return
         
         # 弹出对话框输入节点名称
@@ -779,7 +780,7 @@ class BNOSMainWindow(QMainWindow):
         if hasattr(self, 'progress_window'):
             self.progress_window.close()
         
-        self.show_toast("节点创建已取消", "warning")
+        self.show_toast(t("k_node_creation_cancelled"), "warning")
         
         # 终止工作线程
         if hasattr(self, 'node_creation_worker'):
@@ -791,7 +792,7 @@ class BNOSMainWindow(QMainWindow):
         """启动选中的节点"""
         selected = resolve_selected_node(self)
         if not selected:
-            self.show_toast("请先在画布或节点列表中选择一个节点", "warning")
+            self.show_toast(t("k_node_select_first"), "warning")
             return
         self.start_selected_node_by_name(selected)
     
@@ -810,13 +811,13 @@ class BNOSMainWindow(QMainWindow):
             self.canvas.update_node_status(node_name, 'running')
             self.show_toast(f"节点 {node_name} 已启动", "success")
         else:
-            QMessageBox.critical(self, "错误", f"启动节点失败: {err}")
+            QMessageBox.critical(self, t("k_title_error"), f"启动节点失败: {err}")
     
     def stop_selected_node(self):
         """停止选中的节点"""
         selected = resolve_selected_node(self)
         if not selected:
-            self.show_toast("请先在画布或节点列表中选择一个节点", "warning")
+            self.show_toast(t("k_node_select_first"), "warning")
             return
         self.stop_selected_node_by_name(selected)
     
@@ -845,8 +846,8 @@ class BNOSMainWindow(QMainWindow):
     def clear_connections(self):
         """清空所有连线"""
         reply = QMessageBox.question(
-            self, "确认", 
-            "确定要清空所有连线吗？\n这将重置所有节点的 listen_upper_file 配置。",
+            self, t("k_title_confirm"), 
+            t("k_confirm_clear_connections"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
@@ -865,7 +866,7 @@ class BNOSMainWindow(QMainWindow):
         # 清空画布连线
         self.canvas.clear_edges()
         
-        self.show_toast("已清空所有连线", "success")
+        self.show_toast(t("k_canvas_cleared"), "success")
 
     def closeEvent(self, event):
         """窗口关闭事件，保存所有状态"""
@@ -901,7 +902,7 @@ class BNOSMainWindow(QMainWindow):
             
             reply = QMessageBox.question(
                 self, 
-                "检测到运行中的节点",
+                t("k_title_detect_running"),
                 f"以下 {len(running_nodes)} 个节点正在运行：\n\n{nodes_list}\n\n请选择操作：\n• 是：强制停止所有节点并关闭\n• 否：节点继续在后台运行，关闭窗口\n• 取消：返回程序，不关闭窗口",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Yes  # 默认选择"是"

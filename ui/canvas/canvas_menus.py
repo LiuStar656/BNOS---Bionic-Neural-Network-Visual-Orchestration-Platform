@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QGraphicsItem
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.node_style import STYLES
+from ui.core.i18n import t
 
 
 class CanvasMenusMixin:
@@ -43,9 +44,9 @@ class CanvasMenusMixin:
             menu.addSeparator()
             a = QAction(f"移除已选节点 ({count})", menu); a.triggered.connect(self.batch_remove_nodes_from_canvas); menu.addAction(a)
             menu.addSeparator()
-            a = QAction("清除连线配置", menu); a.triggered.connect(self.batch_clear_listen_config); menu.addAction(a)
+            a = QAction(t("k_canvas_clear_config"), menu); a.triggered.connect(self.batch_clear_listen_config); menu.addAction(a)
             menu.addSeparator()
-            a = QAction("清除选择", menu); a.triggered.connect(self.clear_box_selection); menu.addAction(a)
+            a = QAction(t("k_select_clear"), menu); a.triggered.connect(self.clear_box_selection); menu.addAction(a)
             menu.exec(event.globalPos())
             return
 
@@ -56,33 +57,33 @@ class CanvasMenusMixin:
 
             if self.parent_window and node_name in self.parent_window.nodes_data:
                 if self.parent_window.nodes_data[node_name].get('status') == 'running':
-                    a = QAction("停止节点", menu); a.triggered.connect(partial(self.stop_single_node, node_name)); menu.addAction(a)
+                    a = QAction(t("k_node_stop"), menu); a.triggered.connect(partial(self.stop_single_node, node_name)); menu.addAction(a)
                 else:
-                    a = QAction("启动节点", menu); a.triggered.connect(partial(self.start_single_node, node_name)); menu.addAction(a)
+                    a = QAction(t("k_node_start"), menu); a.triggered.connect(partial(self.start_single_node, node_name)); menu.addAction(a)
                 menu.addSeparator()
 
-            a = QAction("开始连线", menu); a.triggered.connect(partial(self._start_connection_by_name, node_name)); menu.addAction(a)
+            a = QAction(t("k_canvas_start_connection"), menu); a.triggered.connect(partial(self._start_connection_by_name, node_name)); menu.addAction(a)
             menu.addSeparator()
 
-            a = QAction("节点配置", menu); a.triggered.connect(partial(self.open_node_config, node_name)); menu.addAction(a)
-            a = QAction("展开节点", menu); a.triggered.connect(partial(self.on_node_expand_requested, node_name)); menu.addAction(a)
+            a = QAction(t("k_node_config"), menu); a.triggered.connect(partial(self.open_node_config, node_name)); menu.addAction(a)
+            a = QAction(t("k_node_expand"), menu); a.triggered.connect(partial(self.on_node_expand_requested, node_name)); menu.addAction(a)
             menu.addSeparator()
 
             # 样式切换
-            style_menu = menu.addMenu("样式")
+            style_menu = menu.addMenu(t("k_node_style"))
             for key, cls in STYLES.items():
                 st = cls()
                 a = QAction(st.style_name, style_menu); a.triggered.connect(partial(self._switch_node_style, key, node_item)); style_menu.addAction(a)
 
             menu.addSeparator()
 
-            color_menu = menu.addMenu("节点颜色")
-            a = QAction("背景颜色", color_menu); a.triggered.connect(partial(self.change_node_background_color, node_item)); color_menu.addAction(a)
-            a = QAction("边框颜色", color_menu); a.triggered.connect(partial(self.change_node_border_color, node_item)); color_menu.addAction(a)
-            a = QAction("文字颜色", color_menu); a.triggered.connect(partial(self.change_node_text_color, node_item)); color_menu.addAction(a)
+            color_menu = menu.addMenu(t("k_node_color"))
+            a = QAction(t("k_node_bg_color"), color_menu); a.triggered.connect(partial(self.change_node_background_color, node_item)); color_menu.addAction(a)
+            a = QAction(t("k_node_border_color"), color_menu); a.triggered.connect(partial(self.change_node_border_color, node_item)); color_menu.addAction(a)
+            a = QAction(t("k_node_text_color"), color_menu); a.triggered.connect(partial(self.change_node_text_color, node_item)); color_menu.addAction(a)
 
             menu.addSeparator()
-            a = QAction("从画布删除", menu); a.triggered.connect(partial(self.remove_node_with_cleanup, node_name)); menu.addAction(a)
+            a = QAction(t("k_canvas_remove_from"), menu); a.triggered.connect(partial(self.remove_node_with_cleanup, node_name)); menu.addAction(a)
             menu.exec(event.globalPos())
 
         elif selected_edge is not None or isinstance(item, EdgeItem):
@@ -90,18 +91,18 @@ class CanvasMenusMixin:
             edge = selected_edge if selected_edge else item
             menu = QMenu(self)
 
-            a = QAction("删除连线", menu)
+            a = QAction(t("k_canvas_delete_edge"), menu)
             a.triggered.connect(lambda: self.remove_edge(edge))
             menu.addAction(a)
 
             menu.addSeparator()
 
-            a = QAction("修改连线颜色", menu)
+            a = QAction(t("k_canvas_change_edge_color"), menu)
             a.triggered.connect(lambda: edge.change_edge_color())
             menu.addAction(a)
 
             menu.addSeparator()
-            a = QAction("清除选择", menu)
+            a = QAction(t("k_select_clear"), menu)
             a.triggered.connect(lambda: self.scene.clearSelection())
             menu.addAction(a)
 
@@ -109,22 +110,22 @@ class CanvasMenusMixin:
 
         else:
             menu = QMenu(self)
-            new_menu = menu.addMenu("新建节点")
+            new_menu = menu.addMenu(t("k_canvas_new_node"))
             for lang in ["Python", "Node.js", "Go", "Java", "C++", "Rust", "Shell"]:
                 a = QAction(lang, self)
                 a.triggered.connect(partial(self.parent_window.create_new_node_with_language, lang))
                 new_menu.addAction(a)
             menu.addSeparator()
-            a = QAction("节点监测", menu); a.triggered.connect(lambda: self.parent_window.show_node_monitor()); menu.addAction(a)
+            a = QAction(t("k_canvas_monitor"), menu); a.triggered.connect(lambda: self.parent_window.show_node_monitor()); menu.addAction(a)
             menu.addSeparator()
-            a = QAction("清空连线", menu); a.triggered.connect(self.clear_edges); menu.addAction(a)
+            a = QAction(t("k_canvas_clear_connections"), menu); a.triggered.connect(self.clear_edges); menu.addAction(a)
             menu.addSeparator()
-            a = QAction("重置视图", menu); a.triggered.connect(self.reset_view); menu.addAction(a)
+            a = QAction(t("k_canvas_reset_view"), menu); a.triggered.connect(self.reset_view); menu.addAction(a)
             menu.addSeparator()
-            color_menu = menu.addMenu("画布颜色")
-            a = QAction("背景颜色", color_menu); a.triggered.connect(self.change_canvas_background_color); color_menu.addAction(a)
-            a = QAction("网格颜色", color_menu); a.triggered.connect(self.change_grid_color); color_menu.addAction(a)
-            a = QAction("连线颜色", color_menu); a.triggered.connect(self.change_edge_color); color_menu.addAction(a)
+            color_menu = menu.addMenu(t("k_canvas_color"))
+            a = QAction(t("k_canvas_bg_color"), color_menu); a.triggered.connect(self.change_canvas_background_color); color_menu.addAction(a)
+            a = QAction(t("k_canvas_grid_color"), color_menu); a.triggered.connect(self.change_grid_color); color_menu.addAction(a)
+            a = QAction(t("k_canvas_edge_color"), color_menu); a.triggered.connect(self.change_edge_color); color_menu.addAction(a)
             menu.exec(event.globalPos())
 
     def _switch_node_style(self, style_key, node_item):

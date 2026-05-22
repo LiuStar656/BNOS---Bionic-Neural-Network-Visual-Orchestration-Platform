@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 from ui.core.logger import logger
+from ui.core.i18n import t
 
 
 class MenuManager:
@@ -23,55 +24,55 @@ class MenuManager:
             menubar = main_window.menuBar()
         
         # ========== 文件菜单 ==========
-        file_menu = menubar.addMenu("文件(&F)")
-        
+        file_menu = menubar.addMenu(t("k_menu_file"))
+
         # 新建项目
-        new_project_action = QAction("新建项目", main_window)
+        new_project_action = QAction(t("k_project_new"), main_window)
         new_project_action.setShortcut("Ctrl+N")
-        new_project_action.setStatusTip("创建新的神经网络项目")
+        new_project_action.setStatusTip(t("k_node_create_desc"))
         new_project_action.triggered.connect(main_window.new_project)
         file_menu.addAction(new_project_action)
-        
+
         # 打开项目
-        open_project_action = QAction("打开项目", main_window)
+        open_project_action = QAction(t("k_project_open"), main_window)
         open_project_action.setShortcut("Ctrl+O")
-        open_project_action.setStatusTip("打开现有的神经网络项目")
+        open_project_action.setStatusTip(t("k_menu_open_project_desc"))
         open_project_action.triggered.connect(main_window.open_project)
         file_menu.addAction(open_project_action)
-        
+
         file_menu.addSeparator()
-        
+
         # 节点列表开关
-        toggle_nodes_action = QAction("节点列表", main_window)
+        toggle_nodes_action = QAction(t("k_node_list"), main_window)
         toggle_nodes_action.setCheckable(True)
         toggle_nodes_action.setChecked(True)
-        toggle_nodes_action.setStatusTip("显示/隐藏节点列表面板")
+        toggle_nodes_action.setStatusTip(t("k_menu_toggle_nodes"))
         toggle_nodes_action.triggered.connect(main_window.toggle_node_list_panel)
         file_menu.addAction(toggle_nodes_action)
         main_window.toggle_nodes_action = toggle_nodes_action
-        
+
         file_menu.addSeparator()
-        
+
         # 颜色设置
-        color_settings_action = QAction("颜色设置", main_window)
-        color_settings_action.setStatusTip("自定义画布和节点颜色")
+        color_settings_action = QAction(t("k_color_settings"), main_window)
+        color_settings_action.setStatusTip(t("k_color_settings_desc"))
         color_settings_action.triggered.connect(main_window.open_color_settings)
         file_menu.addAction(color_settings_action)
-        
+
         file_menu.addSeparator()
-        
+
         # 退出
-        exit_action = QAction("退出", main_window)
+        exit_action = QAction(t("k_menu_exit"), main_window)
         exit_action.setShortcut("Ctrl+Q")
-        exit_action.setStatusTip("退出应用程序")
+        exit_action.setStatusTip(t("k_menu_exit_desc"))
         exit_action.triggered.connect(main_window.close)
         file_menu.addAction(exit_action)
-        
+
         # ========== 编辑菜单 ==========
-        edit_menu = menubar.addMenu("编辑(&E)")
-        
-        new_node_menu = edit_menu.addMenu("新建节点")
-        
+        edit_menu = menubar.addMenu(t("k_menu_edit"))
+
+        new_node_menu = edit_menu.addMenu(t("k_node_create"))
+
         # 为每种语言添加子菜单项
         languages = ["Python", "Node.js", "Go", "Java", "C++", "Rust", "Shell"]
         for lang in languages:
@@ -81,61 +82,61 @@ class MenuManager:
                 lambda checked=None, language=lang: main_window.create_new_node_with_language(language)
             )
             new_node_menu.addAction(action)
-        
+
         edit_menu.addSeparator()
-        
+
         # 刷新节点
-        refresh_action = QAction("刷新节点", main_window)
+        refresh_action = QAction(t("k_node_refresh"), main_window)
         refresh_action.setShortcut("F5")
-        refresh_action.setStatusTip("刷新节点列表")
+        refresh_action.setStatusTip(t("k_node_refresh_list"))
         refresh_action.triggered.connect(main_window.refresh_nodes)
         edit_menu.addAction(refresh_action)
 
         # 挂载外部节点
-        mount_action = QAction("挂载外部节点", main_window)
+        mount_action = QAction(t("k_node_mount"), main_window)
         mount_action.setShortcut("Ctrl+Shift+O")
-        mount_action.setStatusTip("将外部节点文件夹挂载到当前项目")
+        mount_action.setStatusTip(t("k_node_mount_help"))
         mount_action.triggered.connect(main_window.mount_external_node)
         edit_menu.addAction(mount_action)
 
         edit_menu.addSeparator()
 
         # 清空连线
-        clear_connections_action = QAction("清空连线", main_window)
-        clear_connections_action.setStatusTip("清空所有节点连线")
+        clear_connections_action = QAction(t("k_canvas_clear_connections"), main_window)
+        clear_connections_action.setStatusTip(t("k_canvas_clear_connections_desc"))
         clear_connections_action.triggered.connect(main_window.clear_connections)
         edit_menu.addAction(clear_connections_action)
-        
+
         edit_menu.addSeparator()
-        
+
         # 启动节点
-        start_node_action = QAction("启动节点", main_window)
+        start_node_action = QAction(t("k_node_start"), main_window)
         start_node_action.setShortcut("Ctrl+Shift+S")
         start_node_action.setStatusTip("启动选中的节点")
         start_node_action.triggered.connect(main_window.start_selected_node)
         edit_menu.addAction(start_node_action)
-        
+
         # 停止节点
-        stop_node_action = QAction("停止节点", main_window)
+        stop_node_action = QAction(t("k_node_stop"), main_window)
         stop_node_action.setShortcut("Ctrl+Shift+X")
         stop_node_action.setStatusTip("停止选中的节点")
         stop_node_action.triggered.connect(main_window.stop_selected_node)
         edit_menu.addAction(stop_node_action)
-        
-        # ========== 工具菜单 ==========
-        tools_menu = menubar.addMenu("工具(&T)")
 
-        monitor_action = QAction("节点监测", main_window)
+        # ========== 工具菜单 ==========
+        tools_menu = menubar.addMenu(t("k_menu_tools"))
+
+        monitor_action = QAction(t("k_node_monitor"), main_window)
         monitor_action.setShortcut("Ctrl+Shift+M")
-        monitor_action.setStatusTip("实时查看画布上所有节点的日志")
+        monitor_action.setStatusTip(t("k_menu_monitor"))
         monitor_action.triggered.connect(main_window.show_node_monitor)
         tools_menu.addAction(monitor_action)
 
         # ========== 帮助菜单 ==========
-        help_menu = menubar.addMenu("帮助(&H)")
-        
-        about_action = QAction("关于", main_window)
-        about_action.setStatusTip("显示关于信息")
+        help_menu = menubar.addMenu(t("k_menu_help"))
+
+        about_action = QAction(t("k_menu_about"), main_window)
+        about_action.setStatusTip(t("k_menu_about_desc"))
         about_action.triggered.connect(main_window.show_about)
         help_menu.addAction(about_action)
     
@@ -148,12 +149,12 @@ class MenuManager:
             language: 编程语言名称
         """
         if not main_window.current_project_path:
-            main_window.show_toast("请先打开或新建项目", "warning")
+            main_window.show_toast(t("k_project_no_project"), "warning")
             return
-        
+
         # 弹出对话框输入节点名称
         node_name, ok = QInputDialog.getText(
-            main_window, "新建节点", 
+            main_window, t("k_node_create"),
             f"请输入节点名称（{language}）:",
             QLineEdit.EchoMode.Normal
         )
@@ -191,7 +192,7 @@ class MenuManager:
         Args:
             main_window: BNOSMainWindow实例
         """
-        QMessageBox.about(main_window, "关于 BNOS", 
+        QMessageBox.about(main_window, t("k_title_about"), 
             "BNOS - Bionic Neural Network Program Operating System\n\n"
             "版本: 1.0.0\n"
             "仿生神经网络程序操作系统\n\n"

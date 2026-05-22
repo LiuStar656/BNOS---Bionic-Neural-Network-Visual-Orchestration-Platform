@@ -11,6 +11,7 @@ from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.core.logger import logger
 from ui.core.connection_inferrer import ConnectionInferrer
+from ui.core.i18n import t
 
 
 class CanvasLayoutMixin:
@@ -274,7 +275,7 @@ class CanvasLayoutMixin:
                     self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() + int(dx))
                     self.verticalScrollBar().setValue(self.verticalScrollBar().value() + int(dy))
 
-            logger.info("画布视图状态已恢复")
+            logger.info(t("k_log_view_restored"))
 
         except (json.JSONDecodeError, IOError) as e:
             logger.info("布局文件损坏: %s", e)

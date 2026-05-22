@@ -12,6 +12,7 @@ import os
 import re
 import json
 import logging
+from ui.core.i18n import t
 from typing import Dict, List, Tuple, Optional, Set
 
 logger = logging.getLogger(__name__)

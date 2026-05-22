@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTextEdit, QGroupBox, QWidget, QScrollArea, QMessageBox
 )
+from ui.core.i18n import t
+)
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
 from ui.core.floating_panel import FloatingPanel
@@ -52,7 +54,7 @@ class NodeLogSubPanel(QGroupBox):
 
         # ---- 标题栏（可点击折叠）----
         title_row = QHBoxLayout()
-        status_text = "运行中" if status == 'running' else "已停止"
+        status_text = t("k_status_running") if status == 'running' else t("k_status_stopped")
         status_color = "#4CAF50" if status == 'running' else "#999"
         self._title_btn = QPushButton(f"{self.node_name}  [{status_text}]")
         self._title_btn.setStyleSheet(f"""
@@ -102,17 +104,17 @@ class NodeLogSubPanel(QGroupBox):
             "font-size: 9px; border: none; border-radius: 3px;"
         )
 
-        refresh_btn = QPushButton("刷新")
+        refresh_btn = QPushButton(t("k_action_refresh"))
         refresh_btn.setStyleSheet(btn_style)
         refresh_btn.clicked.connect(self._load_log)
         btn_row.addWidget(refresh_btn)
 
-        clear_btn = QPushButton("清空")
+        clear_btn = QPushButton(t("k_action_clear"))
         clear_btn.setStyleSheet(btn_style)
         clear_btn.clicked.connect(self._clear_log)
         btn_row.addWidget(clear_btn)
 
-        open_dir_btn = QPushButton("目录")
+        open_dir_btn = QPushButton(t("k_action_dir"))
         open_dir_btn.setStyleSheet(btn_style)
         open_dir_btn.clicked.connect(self._open_folder)
         btn_row.addWidget(open_dir_btn)
@@ -134,7 +136,7 @@ class NodeLogSubPanel(QGroupBox):
             with open(self._log_file, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
             if not content.strip():
-                self._log_editor.setPlainText("# 日志为空")
+                self._log_editor.setPlainText(t("k_log_empty"))
             else:
                 self._log_editor.setPlainText(content)
             # 滚动到底部
@@ -157,7 +159,7 @@ class NodeLogSubPanel(QGroupBox):
     def _clear_log(self):
         """清空日志文件"""
         reply = QMessageBox.question(
-            self, "确认清空", f"确定要清空 {self.node_name} 的日志文件吗？",
+            self, t("k_title_confirm_clear"), f"确定要清空 {self.node_name} 的日志文件吗？",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -166,10 +168,10 @@ class NodeLogSubPanel(QGroupBox):
             os.makedirs(os.path.dirname(self._log_file), exist_ok=True)
             with open(self._log_file, 'w', encoding='utf-8') as f:
                 f.write("")
-            self._log_editor.setPlainText("# 日志已清空")
+            self._log_editor.setPlainText(t("k_log_cleared"))
             self._last_mtime = os.path.getmtime(self._log_file)
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"清空失败: {e}")
+            QMessageBox.critical(self, t("k_title_error"), f"清空失败: {e}")
 
     def _open_folder(self):
         """打开节点目录"""
@@ -205,7 +207,7 @@ class NodeLogSubPanel(QGroupBox):
 
     def update_status(self, status):
         """外部更新状态显示"""
-        status_text = "运行中" if status == 'running' else "已停止"
+        status_text = t("k_status_running") if status == 'running' else t("k_status_stopped")
         status_color = "#4CAF50" if status == 'running' else "#999"
         self._title_btn.setText(f"{self.node_name}  [{status_text}]")
         self._title_btn.setStyleSheet(f"""
@@ -228,7 +230,7 @@ class NodeMonitor(FloatingPanel):
     """节点监测面板（浮动半透明悬浮窗）"""
 
     def __init__(self, parent=None):
-        super().__init__(parent, title="节点监测")
+        super().__init__(parent, title=t("k_info_monitor"))
         self._sub_panels = {}
 
         self.resize(420, 600)
@@ -276,7 +278,7 @@ class NodeMonitor(FloatingPanel):
         self._scroll.setWidget(self._panel_widget)
         self.content_layout.addWidget(self._scroll, 1)
 
-        self.hint("日志每 2 秒自动刷新")
+        self.hint(t("k_info_monitor_hint"))
 
     # ==================== 同步逻辑 ====================
 

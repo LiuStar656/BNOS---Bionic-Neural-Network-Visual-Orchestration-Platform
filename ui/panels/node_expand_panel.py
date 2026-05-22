@@ -12,13 +12,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
 from ui.core.floating_panel import FloatingPanel
+from ui.core.i18n import t
 
 
 class NodeExpandPanel(FloatingPanel):
     """节点展开面板（浮动半透明悬浮窗，在节点旁展开）"""
 
     def __init__(self, node_name, parent_window=None):
-        super().__init__(parent_window, title="节点详情")
+        super().__init__(parent_window, title=t("k_info_details_title"))
         self.node_name = node_name
         self._output_editable = False
         self._last_mtime = 0
@@ -52,7 +53,7 @@ class NodeExpandPanel(FloatingPanel):
 
         # 工具栏：锁定 + 刷新
         tool_row = QHBoxLayout()
-        self._toggle_btn = QPushButton("解锁编辑")
+        self._toggle_btn = QPushButton(t("k_action_unlock_edit"))
         self._toggle_btn.setStyleSheet(
             "background-color: #555555; color: white; padding: 3px 10px; font-size: 10px;"
             "border: none; border-radius: 3px;"
@@ -60,7 +61,7 @@ class NodeExpandPanel(FloatingPanel):
         self._toggle_btn.clicked.connect(self._toggle_editable)
         tool_row.addWidget(self._toggle_btn)
 
-        refresh_btn = QPushButton("刷新")
+        refresh_btn = QPushButton(t("k_action_refresh"))
         refresh_btn.setStyleSheet(
             "background-color: #555555; color: white; padding: 3px 10px; font-size: 10px;"
             "border: none; border-radius: 3px;"
@@ -69,7 +70,7 @@ class NodeExpandPanel(FloatingPanel):
         tool_row.addWidget(refresh_btn)
 
         # 实时刷新状态指示
-        self._live_indicator = QLabel("实时")
+        self._live_indicator = QLabel(t("k_action_live"))
         self._live_indicator.setStyleSheet(
             "color: #4CAF50; font-size: 10px; padding: 2px 5px;"
         )
@@ -99,7 +100,7 @@ class NodeExpandPanel(FloatingPanel):
         right_layout.setSpacing(6)
 
         # 节点信息
-        info_group = QGroupBox("信息")
+        info_group = QGroupBox(t("k_info_details"))
         info_group.setStyleSheet("""
             QGroupBox {
                 color: rgba(255, 255, 255, 180);
@@ -122,7 +123,7 @@ class NodeExpandPanel(FloatingPanel):
         info_layout.addWidget(name_label)
 
         status = self._node_info.get('status', 'stopped') if self._node_info else 'stopped'
-        status_text = "运行中" if status == 'running' else "已停止"
+        status_text = t("k_status_running") if status == 'running' else t("k_status_stopped")
         status_color = "#4CAF50" if status == 'running' else "#999"
         self._status_label = QLabel(status_text)
         self._status_label.setStyleSheet(f"color: {status_color}; font-size: 10px;")
@@ -130,7 +131,7 @@ class NodeExpandPanel(FloatingPanel):
         right_layout.addWidget(info_group)
 
         # 操作按钮组
-        action_group = QGroupBox("操作")
+        action_group = QGroupBox(t("k_info_actions"))
         action_group.setStyleSheet("""
             QGroupBox {
                 color: rgba(255, 255, 255, 180);
@@ -155,13 +156,13 @@ class NodeExpandPanel(FloatingPanel):
         )
 
         # 启动
-        self._start_btn = QPushButton("启动节点")
+        self._start_btn = QPushButton(t("k_node_start"))
         self._start_btn.setStyleSheet(f"background-color: #333333; {btn_style}")
         self._start_btn.clicked.connect(self._start_node)
         action_layout.addWidget(self._start_btn)
 
         # 停止
-        self._stop_btn = QPushButton("停止节点")
+        self._stop_btn = QPushButton(t("k_node_stop"))
         self._stop_btn.setStyleSheet(f"background-color: #555555; {btn_style}")
         self._stop_btn.clicked.connect(self._stop_node)
         action_layout.addWidget(self._stop_btn)
@@ -175,13 +176,13 @@ class NodeExpandPanel(FloatingPanel):
             self._stop_btn.setStyleSheet(f"background-color: #3a3a3a; color: #888; {btn_style}")
 
         # 节点配置
-        config_btn = QPushButton("节点配置")
+        config_btn = QPushButton(t("k_node_config"))
         config_btn.setStyleSheet(f"background-color: #555555; {btn_style}")
         config_btn.clicked.connect(self._open_config)
         action_layout.addWidget(config_btn)
 
         # 删除节点
-        delete_btn = QPushButton("删除节点")
+        delete_btn = QPushButton(t("k_node_delete"))
         delete_btn.setStyleSheet(f"background-color: #666666; {btn_style}")
         delete_btn.clicked.connect(self._delete_node)
         action_layout.addWidget(delete_btn)
@@ -249,7 +250,7 @@ class NodeExpandPanel(FloatingPanel):
         """切换编辑/只读状态（编辑模式暂停自动刷新）"""
         self._output_editable = not self._output_editable
         self._output_editor.setReadOnly(not self._output_editable)
-        self._toggle_btn.setText("锁定编辑" if self._output_editable else "解锁编辑")
+        self._toggle_btn.setText(t("k_action_lock_edit") if self._output_editable else t("k_action_unlock_edit"))
         self._toggle_btn.setStyleSheet(
             f"background-color: {'#333333' if self._output_editable else '#555555'}; "
             "color: white; padding: 3px 10px; font-size: 10px; "
@@ -257,7 +258,7 @@ class NodeExpandPanel(FloatingPanel):
         )
         # 编辑模式下暂停自动刷新，只读模式下恢复
         self._auto_refresh = not self._output_editable
-        self._live_indicator.setText("编辑" if self._output_editable else "实时")
+        self._live_indicator.setText(t("k_action_edit") if self._output_editable else t("k_action_live"))
         self._live_indicator.setStyleSheet(
             f"color: {'#FF9800' if self._output_editable else '#4CAF50'}; "
             "font-size: 10px; padding: 2px 5px;"
@@ -278,7 +279,7 @@ class NodeExpandPanel(FloatingPanel):
                 with open(output_path, 'w', encoding='utf-8') as f:
                     f.write(content)
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"保存失败: {e}")
+            QMessageBox.critical(self, t("k_title_error"), f"保存失败: {e}")
 
     def _start_node(self):
         """启动节点"""
@@ -299,7 +300,7 @@ class NodeExpandPanel(FloatingPanel):
             status = self._node_info.get('status', 'stopped')
             is_running = status == 'running'
 
-            self._status_label.setText("运行中" if is_running else "已停止")
+            self._status_label.setText(t("k_status_running") if is_running else t("k_status_stopped"))
             self._status_label.setStyleSheet(
                 f"color: {'#4CAF50' if is_running else '#999'}; font-size: 10px;"
             )

@@ -31,6 +31,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtCore import QPointF
 
 from ui.core.logger import logger
+from ui.core.i18n import t
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.anchor_item import AnchorItem
@@ -60,9 +61,8 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)  # 右键拖拽平移
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         
-        # 可视区域渲染优化：只更新变化区域，网格不限制
-        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
-        self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontSavePainterState, True)
+        # 全视口更新模式 — 滚动/缩放时完整重绘，避免网格线残留拖影
+        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
         
         # ===== 颜色配置（支持自定义）— VSCode 深色主题 =====
         self.canvas_bg_color = '#1e1e1e'          # 画布背景（与标题栏统一）
@@ -155,6 +155,11 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         half_w, half_h = cw // 2, ch // 2
         grid = 20
 
+        # DPR 感知线宽：高DPI下保证物理像素 1px 锐利网格线
+        dpr = self.devicePixelRatioF() if hasattr(self, 'devicePixelRatioF') else 1.0
+        line_width = 1.0 / dpr
+
+        # 像素对齐的网格路径
         path = QPainterPath()
         x = -half_w
         while x <= half_w:
@@ -167,12 +172,15 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
 
         gc = QColor(self.grid_color)
         gc.setAlphaF(self.grid_opacity)
-        pen = QPen(gc, 0.5)
+        pen = QPen(gc, line_width)
         pen.setCosmetic(True)
 
         self._grid_item.setPath(path)
         self._grid_item.setPen(pen)
         self._grid_item.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+        # 网格线关闭抗锯齿，保证线条锐利（无模糊/断裂）
+        self._grid_item.setCacheMode(QGraphicsPathItem.CacheMode.NoCache)
+        self._grid_item._cache_key = cache_key
         self._grid_item._cache_key = cache_key
     
     def mouseMoveEvent(self, event):
@@ -509,7 +517,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
     def add_node_to_canvas(self, node_name):
         """添加节点到画布"""
         if node_name in self.nodes:
-            QMessageBox.information(self, "提示", "节点已在画布中")
+            QMessageBox.information(self, t("k_title_info"), t("k_canvas_node_exists"))
             return
         
         # 获取节点信息
@@ -570,7 +578,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
             return
         
         reply = QMessageBox.question(
-            self, "确认删除",
+            self, t("k_title_confirm_delete"),
             f"确定要从画布中删除节点 '{node_name}' 吗？\n\n"
             f"这将：\n"
             f"1. 从画布中移除该节点\n"
@@ -694,7 +702,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         
         # 显示结果
         result_msg = f"批量启动完成\n✅ 成功: {success_count}\n⏭️ 跳过: {skip_count}\n❌ 失败: {fail_count}"
-        QMessageBox.information(self, "批量启动结果", result_msg)
+        QMessageBox.information(self, t("k_title_batch_start_result"), result_msg)
         
         # 清除选择状态
         self.clear_box_selection()
@@ -730,7 +738,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         
         # 显示结果
         result_msg = f"批量停止完成\n✅ 成功: {success_count}\n⏭️ 跳过: {skip_count}\n❌ 失败: {fail_count}"
-        QMessageBox.information(self, "批量停止结果", result_msg)
+        QMessageBox.information(self, t("k_title_batch_stop_result"), result_msg)
         
         # 清除选择状态
         self.clear_box_selection()
@@ -749,7 +757,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
             nodes_preview += f"\n  ... 还有 {count - 10} 个节点"
         
         reply = QMessageBox.question(
-            self, "确认从画布移除",
+            self, t("k_title_confirm_remove_canvas"),
             f"确定要从画布中移除以下 {count} 个节点吗？\n\n"
             f"{nodes_preview}\n\n"
             f"注意：这只会从画布视图中移除节点显示和连线，\n"
@@ -836,7 +844,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         for edge in edges_to_remove:
             self.remove_edge(edge)
         
-        QMessageBox.information(self, "清除配置完成", f"已清除 {cleared_count} 个节点的监听配置")
+        QMessageBox.information(self, t("k_title_clear_complete"), f"已清除 {cleared_count} 个节点的监听配置")
         
         # 清除选择状态
         self.clear_box_selection()
@@ -1061,7 +1069,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         # 检查是否已存在相同连线
         for edge in self.edges:
             if edge.start_node == source_node and edge.end_node == target_node:
-                QMessageBox.information(self, "提示", "该连线已存在")
+                QMessageBox.information(self, t("k_title_info"), t("k_canvas_edge_exists"))
                 return
         
         # 获取节点名称
