@@ -16,14 +16,14 @@ ASCII_BNOS = [
     " ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝  ",
 ]
 
-_TITLE_STYLE = "color: #4fc3f7; background: transparent; font-size: 16px;"
-_LOG_STYLE = ("QTextEdit { background-color: transparent; color: #888; border: none; "
+_TITLE_STYLE = "color: #ffffff; background: transparent; font-size: 16px;"
+_LOG_STYLE = ("QTextEdit { background-color: transparent; color: #aaa; border: none; "
               "font-family: Consolas; font-size: 10px; }")
 _BAR_STYLE = """
-QProgressBar { background: #333; border: 1px solid #555; border-radius: 2px; height: 8px; text-align: center; }
-QProgressBar::chunk { background: #0e639c; border-radius: 1px; }
+QProgressBar { background: #2a2a2a; border: 1px solid #555; border-radius: 2px; height: 8px; text-align: center; }
+QProgressBar::chunk { background: #777; border-radius: 1px; }
 """
-_HINT_STYLE = "color: #666; font-size: 10px; background: transparent;"
+_HINT_STYLE = "color: #888; font-size: 10px; background: transparent;"
 
 
 class SplashScreen(QWidget):
@@ -38,7 +38,7 @@ class SplashScreen(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
         self.setFixedSize(620, 340)
-        self.setStyleSheet("background-color: #1e1e1e; border: 1px solid #3e3e42; border-radius: 6px;")
+        self.setStyleSheet("background-color: #1e1e1e; border: 1px solid #555; border-radius: 6px;")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 14)
@@ -54,7 +54,7 @@ class SplashScreen(QWidget):
         for line in ASCII_BNOS:
             lbl = QLabel(line)
             lbl.setFont(QFont("Consolas", 13, QFont.Weight.Bold))
-            lbl.setStyleSheet("color: #4fc3f7; background: transparent;")
+            lbl.setStyleSheet("color: #ffffff; background: transparent;")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             title_layout.addWidget(lbl)
 
@@ -62,7 +62,7 @@ class SplashScreen(QWidget):
         from ui.core.i18n import t
         sub = QLabel(t("_k_splash_subtitle"))
         sub.setFont(QFont("Consolas", 9))
-        sub.setStyleSheet("color: #888; background: transparent; letter-spacing: 1px;")
+        sub.setStyleSheet("color: #aaa; background: transparent; letter-spacing: 1px;")
         sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_layout.addWidget(sub)
 
