@@ -41,9 +41,11 @@ class CoreProcessApp:
             return
 
         self._init_done = True
+        print("[核心进程] 就绪，监听主进程命令...", flush=True)
         logger.info("核心业务进程就绪（后台无UI）")
 
     def _on_connected(self):
+        print("[核心进程] 已连接到主进程", flush=True)
         logger.info("核心进程已连接到主进程")
 
     def _on_disconnected(self):

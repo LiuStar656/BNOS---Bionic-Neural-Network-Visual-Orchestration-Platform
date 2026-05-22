@@ -40,8 +40,6 @@ class ManagedProcess(QObject):
             self.process = subprocess.Popen(
                 [python, self.script],
                 cwd=_PROJECT_ROOT,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
             )
             self._health_timer.start()
