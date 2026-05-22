@@ -29,6 +29,7 @@
 | 启动时未读保存的语言 | `bnos_gui.py` | `init_i18n()` 无参调用，默认 `cn` |
 | 未知键被 `load()` 过滤 | `app_config.py` | `if key in self.config` 跳过 `language`/`process_mode` |
 | 重启流程不可靠 | `main_window.py` + `bnos_gui.py` | `sys.exit(0)` 在 Qt 事件循环内可能被吞，改用退出码 42 驱动重启 |
+| **Python from-import 值拷贝** | `i18n.py` + `settings_dialog.py` | `from i18n import LANG` 是字符串值拷贝，`init_i18n("en")` 后本模块 LANG 仍为 `"cn"`，导致设置对话框永远显示"当前语言:中文"。新增 `get_lang()` 函数动态读取。 |
 
 ### 侧边栏样式统一
 
