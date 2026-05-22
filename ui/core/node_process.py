@@ -181,6 +181,32 @@ def start_node_process(node_info):
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
 
+        # 启动后短暂等待，检测进程是否立即崩溃（挂载的 venv 可能损坏）
+        import time
+        time.sleep(1.2)
+        exit_code = process.poll()
+        if exit_code is not None:
+            # 进程已退出 → venv 损坏，回退到 start.bat
+            logger.warning("直接启动失败 (exit=%d)，回退到 start.bat: %s", exit_code, node_name)
+            _delete_pid(node_path)
+            start_script = os.path.join(node_path, "start.bat" if os.name == 'nt' else "start.sh")
+            if not os.path.exists(start_script):
+                return False, f"venv 损坏且启动脚本不存在: {start_script}"
+            if os.name == 'nt':
+                process = subprocess.Popen(
+                    [start_script, "--no-pause"],
+                    cwd=node_path,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+            else:
+                os.chmod(start_script, 0o755)
+                process = subprocess.Popen(
+                    ["/bin/bash", start_script, "--no-pause"],
+                    cwd=node_path, start_new_session=True,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+
         node_info['process'] = process
         node_info['status'] = 'running'
         _write_pid(node_path, process.pid)
