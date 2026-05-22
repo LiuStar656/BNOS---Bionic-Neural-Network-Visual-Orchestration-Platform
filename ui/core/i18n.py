@@ -23,6 +23,11 @@ def t(key: str) -> str:
     return STRINGS.get(key, key)
 
 
+def get_lang() -> str:
+    """返回当前语言代码 (cn/en) — 避免 from import 值拷贝问题"""
+    return LANG
+
+
 def set_lang(lang: str):
     """运行时切换语言 (cn/en)"""
     init_i18n(lang)

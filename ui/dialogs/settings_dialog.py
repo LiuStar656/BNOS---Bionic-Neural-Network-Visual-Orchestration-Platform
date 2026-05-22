@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                               QComboBox, QCheckBox, QPushButton, QGroupBox)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
-from ui.core.i18n import t, set_lang, LANG
+from ui.core.i18n import t, set_lang, get_lang
 from ui.core.utils.dialog_utils import themed_message
 
 
@@ -34,7 +34,7 @@ class SettingsDialog(QDialog):
     def __init__(self, main_window, parent=None):
         super().__init__(parent)
         self.main_window = main_window
-        self._orig_lang = LANG
+        self._orig_lang = get_lang()
         self._restart_needed = False
         self.setWindowTitle(t("_k_settings_title"))
         self.setFixedSize(420, 280)
