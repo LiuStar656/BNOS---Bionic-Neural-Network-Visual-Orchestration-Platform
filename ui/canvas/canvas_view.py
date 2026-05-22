@@ -344,7 +344,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
                 self.box_select_rect = QGraphicsRectItem()
                 self.box_select_rect.setPen(QPen(QColor("#2196F3"), 1.5, Qt.PenStyle.DashLine))
                 self.box_select_rect.setBrush(QColor(33, 150, 243, 30))
-                self.box_select_rect.setZValue(0)
+                self.box_select_rect.setZValue(1)
                 self.scene.addItem(self.box_select_rect)
                 
                 logger.debug("开始框选")
@@ -999,6 +999,7 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         self.viewport().setCursor(Qt.CursorShape.CrossCursor)
         
         self.temp_edge = QGraphicsPathItem()
+        self.temp_edge.setZValue(2)  # 浮于网格+节点之上
         pen = QPen(QColor("#4A90E2"), 2, Qt.PenStyle.DashLine)
         self.temp_edge.setPen(pen)
         self.scene.addItem(self.temp_edge)

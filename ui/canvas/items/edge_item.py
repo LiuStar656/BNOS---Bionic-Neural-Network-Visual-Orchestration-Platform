@@ -59,6 +59,7 @@ class EdgeItem(QGraphicsPathItem):
         self._hovered_wp = -1
 
         self.setCacheMode(QGraphicsPathItem.CacheMode.DeviceCoordinateCache)
+        self.setZValue(1)  # 浮于网格之上
         self.update_edge_style()
 
         self.setFlag(QGraphicsPathItem.GraphicsItemFlag.ItemIsSelectable, True)
