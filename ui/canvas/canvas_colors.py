@@ -135,5 +135,9 @@ class CanvasColorsMixin:
         self.setBackgroundBrush(QColor(self.canvas_bg_color))
         self.scene.update()
         self.viewport().update()
+        # 刷新节点显示
         for node in self.nodes.values():
             node.update_display()
+        # 刷新已存在的连线 —— 修复：之前遗漏了这部分
+        for edge in self.edges:
+            edge.update_edge_style()

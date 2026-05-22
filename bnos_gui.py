@@ -14,7 +14,10 @@ from ui.core.i18n import init_i18n, t
 def main():
     """应用程序主入口"""
     try:
-        init_i18n()
+        # 读取保存的语言设置
+        from ui.core.app_config import AppConfig
+        saved_lang = AppConfig().get("language", "cn")
+        init_i18n(saved_lang)
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)
         QApplication.setStyle("Fusion")  # Fusion确保QSS完全控制
         app = QApplication(sys.argv)

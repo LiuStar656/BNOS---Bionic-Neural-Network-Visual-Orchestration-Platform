@@ -7,6 +7,38 @@
 
 ---
 
+## 🔧 颜色设置修复 + 语言切换持久化 + 侧边栏样式统一 (2026-05-22)
+
+### 颜色设置修复
+
+**修复前**：部分颜色重启后丢失、切换后不刷新。
+
+| 修复项 | 根因 | 修复 |
+|--------|------|------|
+| 连线颜色/宽度不刷新 | `apply_color_settings` 未遍历 `self.edges` | 新增 `edge.update_edge_style()` 循环 |
+| 11 个字段只存 7 个 | `_save_color_settings` 缺失 `grid_opacity`/`node_selected`/`anchor`/`edge_width` | 补全为 11 字段 |
+| Apply 按钮自动关闭 | 原逻辑 `apply` → `close()` | Apply 仅应用不关闭，新增 Confirm 按钮 |
+
+### 语言切换持久化修复
+
+**修复前**：切换语言后重启自动回到中文。
+
+| 修复项 | 文件 | 根因 |
+|--------|------|------|
+| 设置未保存到磁盘 | `settings_dialog.py` | `app_config.set()` 后缺 `app_config.save()` |
+| 启动时未读保存的语言 | `bnos_gui.py` | `init_i18n()` 无参调用，默认 `cn` |
+| 未知键被 `load()` 过滤 | `app_config.py` | `if key in self.config` 跳过 `language`/`process_mode` 等新键 |
+
+### 侧边栏样式统一
+
+绘图工具栏按钮颜色 `#252525`→`#2d2d30`，前景 `#aaa`→`#ccc`，hover `#333`→`#3e3e42`，与主 UI 统一。
+
+### 影响文件
+
+`canvas_colors.py`、`app_config.py`、`settings_dialog.py`、`bnos_gui.py`、`draw_toolbar.py`、`color_settings_dialog.py`
+
+---
+
 ## 🌐 国际化体系完善 + 进程隔离切回嵌合 (2026-05-22)
 
 ### 英文语言包

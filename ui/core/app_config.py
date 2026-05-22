@@ -26,7 +26,9 @@ class AppConfig:
             "last_project": None,
             "canvas_view_state": {
                 "scale": 1.0, "scroll_x": 0, "scroll_y": 0
-            }
+            },
+            "language": "cn",
+            "process_mode": False
         }
 
         self.load()
@@ -37,11 +39,10 @@ class AppConfig:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     loaded = json.load(f)
                 for key in loaded:
-                    if key in self.config:
-                        if isinstance(self.config[key], dict) and isinstance(loaded[key], dict):
-                            self.config[key].update(loaded[key])
-                        else:
-                            self.config[key] = loaded[key]
+                    if key in self.config and isinstance(self.config[key], dict) and isinstance(loaded[key], dict):
+                        self.config[key].update(loaded[key])
+                    else:
+                        self.config[key] = loaded[key]
                 logger.info("配置已加载: %s", self.config_file)
             else:
                 logger.info("配置文件不存在，使用默认配置")

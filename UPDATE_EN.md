@@ -4,6 +4,38 @@
 
 ---
 
+## 🔧 Color Settings Fixes + Language Persistence + Sidebar Unification (2026-05-22)
+
+### Color Settings Fixes
+
+**Before**: Some colors lost on restart, no live refresh on existing elements.
+
+| Fix | Root Cause | Solution |
+|-----|-----------|----------|
+| Edge color/width not refreshing | `apply_color_settings` didn't iterate `self.edges` | Added `edge.update_edge_style()` loop |
+| Only 7 of 11 fields saved | `_save_color_settings` missing `grid_opacity`/`node_selected`/`anchor`/`edge_width` | Saved all 11 fields |
+| Apply auto-closed dialog | Old logic `apply` → `close()` | Apply now only applies, Confirm button added |
+
+### Language Switching Persistence Fix
+
+**Before**: Language reset to Chinese after restart.
+
+| Fix | File | Root Cause |
+|-----|------|-----------|
+| Settings not saved to disk | `settings_dialog.py` | Missing `app_config.save()` after `set()` |
+| Saved language not read on startup | `bnos_gui.py` | `init_i18n()` called without reading saved preference |
+| Unknown keys filtered by `load()` | `app_config.py` | `if key in self.config` skipped `language`/`process_mode` |
+
+### Sidebar Style Unification
+
+Draw toolbar button colors: `#252525`→`#2d2d30`, foreground `#aaa`→`#ccc`, hover `#333`→`#3e3e42`, matching main UI.
+
+### Affected Files
+
+`canvas_colors.py`, `app_config.py`, `settings_dialog.py`, `bnos_gui.py`, `draw_toolbar.py`, `color_settings_dialog.py`
+
+---
+
 ## 🌐 i18n System Completion + Process Isolation Rollback (2026-05-22)
 
 ### English Language Pack

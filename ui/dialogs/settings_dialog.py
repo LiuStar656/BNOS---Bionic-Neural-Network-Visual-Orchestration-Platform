@@ -123,7 +123,6 @@ class SettingsDialog(QDialog):
             # 写入配置
             if lang_changed:
                 set_lang(lang)
-                # 持久化语言设置到 app_config
                 try:
                     self.main_window.app_config.set("language", lang)
                 except Exception:
@@ -135,6 +134,12 @@ class SettingsDialog(QDialog):
                     self.main_window.app_config.set("process_mode", proc_mode)
                 except Exception:
                     pass
+
+            # 持久化到磁盘
+            try:
+                self.main_window.app_config.save()
+            except Exception:
+                pass
 
             # 需要重启
             themed_message(self, t("_k_settings_restart_title"),
