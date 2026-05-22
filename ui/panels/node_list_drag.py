@@ -225,6 +225,9 @@ class NodeListDragMixin:
             self.update_node_list(self.nodes_data)
             if self.parent_window:
                 self.parent_window.show_toast(f"已将 {len(node_names)} 个节点移动到组 '{group_name}'", "success")
+        else:
+            # 节点已在目标组或无变更 → 强制刷新恢复树视图
+            self.update_node_list(self.nodes_data)
 
     def _move_nodes_to_ungrouped(self, node_names):
         """将节点移动到未分组状态"""
@@ -246,6 +249,9 @@ class NodeListDragMixin:
         empty_groups_deleted = self._cleanup_empty_groups(refresh=True)
         
         if removed_count > 0 and not empty_groups_deleted:
+             self.update_node_list(self.nodes_data)
+        elif removed_count == 0:
+             # 节点未在任何组中，但 Qt 拖拽可能已损坏树视图 → 强制刷新
              self.update_node_list(self.nodes_data)
         
         if self.parent_window:
