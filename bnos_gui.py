@@ -14,33 +14,59 @@ from ui.core.i18n import init_i18n, t
 def main():
     """应用程序主入口"""
     try:
-        # 读取保存的语言设置
+        # ---- 加载语言（在闪屏之前）----
         from ui.core.app_config import AppConfig
         saved_lang = AppConfig().get("language", "cn")
         init_i18n(saved_lang)
+
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)
-        QApplication.setStyle("Fusion")  # Fusion确保QSS完全控制
+        QApplication.setStyle("Fusion")
         app = QApplication(sys.argv)
         app.setApplicationName(t("_k_app_name"))
         app.setOrganizationName("BNOS")
-        
-        # 创建并显示主窗口
+
+        # ---- 启动闪屏（此时语言已就绪）----
+        from ui.core.splash_screen import SplashScreen
+        splash = SplashScreen()
+        splash.show()
+        splash.append_log(t("_k_splash_starting"))
+
+        # ---- 进度 ----
+        splash.set_progress(10, t("_k_splash_config") % saved_lang)
+        splash.append_log(t("_k_splash_config") % saved_lang)
+
+        splash.set_progress(20, t("_k_splash_logger"))
+        splash.append_log(t("_k_splash_logger"))
+
+        # ---- 创建主窗口 ----
+        splash.set_progress(40, t("_k_splash_main_win"))
+        splash.append_log(t("_k_splash_main_win"))
         window = BNOSMainWindow()
+
+        splash.set_progress(75, t("_k_splash_main_ready"))
+        splash.append_log(t("_k_splash_main_ready"))
+
+        splash.set_progress(90, t("_k_splash_project"))
+        splash.append_log(t("_k_splash_project"))
+
+        # ---- 完成 ----
+        splash.set_progress(100, "BNOS")
+        splash.append_log(t("_k_splash_done"))
+        splash.close_splash()
+
         window.show()
-        
         ret = app.exec()
         if ret == 42:
-            # 重启信号：启动新进程后退出
             import subprocess
             subprocess.Popen([sys.executable, *sys.argv], cwd=os.getcwd())
         sys.exit(ret)
-    
+
     except KeyboardInterrupt:
-        logger.info("BNOS 已安全关闭")
+        logger.info("BNOS shutdown")
         sys.exit(0)
-    
+
     except Exception as e:
-        logger.critical("BNOS 发生错误: %s", e, exc_info=True)
+        logger.critical("BNOS fatal error: %s", e, exc_info=True)
         sys.exit(1)
 
 

@@ -419,6 +419,15 @@
   "_k_canvas_remove_node_confirm": "确定要从画布中删除节点 '{name}' 吗？\n\n",
   "_k_app_name": "BNOS 节点编排平台",
 
+  "_k_splash_starting": "[*] BNOS 正在启动...",
+  "_k_splash_config": "[+] 配置已加载 (语言: %s)",
+  "_k_splash_logger": "[+] 日志模块就绪",
+  "_k_splash_main_win": "[*] 创建主窗口...",
+  "_k_splash_main_ready": "[+] 主窗口就绪",
+  "_k_splash_project": "[*] 加载最近项目...",
+  "_k_splash_done": "[+] BNOS 启动完成",
+  "_k_splash_subtitle": "仿生神经网络程序操作系统",
+
   "_k_settings_title": "设置",
   "_k_settings_language": "语言",
   "_k_settings_lang_label": "当前语言:",
