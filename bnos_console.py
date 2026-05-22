@@ -14,11 +14,14 @@ from ui.core.i18n import init_i18n, t
 
 def _progress(progress_file, pct, msg):
     """向启动器发送进度"""
+    if not progress_file:
+        return
     try:
         with open(progress_file, 'a', encoding='utf-8') as f:
             f.write(f"{pct}|{msg}\n")
-    except Exception:
-        pass
+            f.flush()
+    except Exception as e:
+        print(f"[!] Progress write failed: {e}", file=sys.stderr)
 
 
 def main():
@@ -27,10 +30,14 @@ def main():
         # ---- 进度文件（启动器通过 --progress 传递）----
         progress_file = None
         args = sys.argv[:]
-        for a in args:
+        for i, a in enumerate(args):
             if a.startswith("--progress="):
                 progress_file = a.split("=", 1)[1]
                 args.remove(a)
+                break
+            elif a == "--progress" and i + 1 < len(args):
+                progress_file = args[i + 1]
+                del args[i:i + 2]
                 break
 
         # ---- 加载语言 ----
