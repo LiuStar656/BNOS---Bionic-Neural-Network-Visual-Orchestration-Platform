@@ -17,8 +17,7 @@ class CanvasColorsMixin:
         if color.isValid():
             self.canvas_bg_color = color.name()
             self.setBackgroundBrush(QColor(self.canvas_bg_color))
-            self.resetCachedContent()
-            self.viewport().repaint()
+            self.repaint()
             self._save_color_settings()
             logger.info("画布背景色已更改为: %s", self.canvas_bg_color)
 
@@ -150,9 +149,7 @@ class CanvasColorsMixin:
         for edge in self.edges:
             edge.update_edge_style()
 
-        # 关键：先 setBackgroundBrush 再 resetCachedContent 再 repaint
+        # 背景：直接 repaint 触发 drawBackground（读 self.canvas_bg_color）
         self.setBackgroundBrush(QColor(self.canvas_bg_color))
-        self.resetCachedContent()
-        self.viewport().repaint()
-        logger.info("apply_color_settings: bg=%s grid=%s edge=%s",
-                     self.canvas_bg_color, self.grid_color, self.edge_color)
+        self.repaint()
+        logger.info("apply_color_settings: bg=%s", self.canvas_bg_color)

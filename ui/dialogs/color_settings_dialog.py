@@ -269,6 +269,8 @@ class ColorSettingsDialog(QDialog):
             
             # 临时存储新颜色
             setattr(self, f'temp_{target}_color', color_hex)
+            import logging
+            logging.getLogger(__name__).info("ColorSettings choose_color: %s=%s", target, color_hex)
             
     def apply_preset_theme(self, theme_name):
         """应用预设主题"""
@@ -339,25 +341,23 @@ class ColorSettingsDialog(QDialog):
 
     def apply_settings(self):
         """应用颜色设置（不关闭窗口）"""
-        try:
-            settings = self.collect_settings()
-            self.canvas.apply_color_settings(settings)
-            self.canvas._save_color_settings()
-            themed_message(self, t("k_title_success"), t("k_color_applied"), "info")
-        except Exception as e:
-            themed_message(self, t("k_title_error"),
-                t("_k_config_save_fail").format(err=str(e)), "error")
+        settings = self.collect_settings()
+        import logging
+        log = logging.getLogger(__name__)
+        log.info("ColorSettings apply_settings: canvas_bg=%s", settings.get('canvas_bg_color'))
+        self.canvas.apply_color_settings(settings)
+        self.canvas._save_color_settings()
+        themed_message(self, t("k_title_success"), t("k_color_applied"), "info")
 
     def confirm_and_close(self):
         """确认并关闭：应用设置后关闭窗口"""
-        try:
-            settings = self.collect_settings()
-            self.canvas.apply_color_settings(settings)
-            self.canvas._save_color_settings()
-            self.accept()
-        except Exception as e:
-            themed_message(self, t("k_title_error"),
-                t("_k_config_save_fail").format(err=str(e)), "error")
+        settings = self.collect_settings()
+        import logging
+        log = logging.getLogger(__name__)
+        log.info("ColorSettings confirm_and_close: canvas_bg=%s", settings.get('canvas_bg_color'))
+        self.canvas.apply_color_settings(settings)
+        self.canvas._save_color_settings()
+        self.accept()
             
     def reset_to_default(self):
         """恢复到默认颜色"""
