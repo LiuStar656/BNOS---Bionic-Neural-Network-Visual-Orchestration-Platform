@@ -90,7 +90,16 @@ class MenuManager:
         refresh_action.setStatusTip("刷新节点列表")
         refresh_action.triggered.connect(main_window.refresh_nodes)
         edit_menu.addAction(refresh_action)
-        
+
+        # 挂载外部节点
+        mount_action = QAction("挂载外部节点", main_window)
+        mount_action.setShortcut("Ctrl+Shift+O")
+        mount_action.setStatusTip("将外部节点文件夹挂载到当前项目")
+        mount_action.triggered.connect(main_window.mount_external_node)
+        edit_menu.addAction(mount_action)
+
+        edit_menu.addSeparator()
+
         # 清空连线
         clear_connections_action = QAction("清空连线", main_window)
         clear_connections_action.setStatusTip("清空所有节点连线")

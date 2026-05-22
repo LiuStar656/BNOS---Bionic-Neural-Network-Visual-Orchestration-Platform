@@ -28,6 +28,7 @@ from ui.creators.node_creator_manager import NodeCreatorManager
 from ui.menu.menu_manager import MenuManager
 from ui.core.toast.toast_notification import ToastNotification
 from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node, check_running_processes, detect_running_nodes
+from ui.core.node_registry import NodeRegistry
 from ui.core.app_config import AppConfig
 from ui.core.theme import DARK_QSS
 
@@ -375,6 +376,45 @@ class BNOSMainWindow(QMainWindow):
         
         logger.info("共加载 %d 个节点", len(self.nodes_data))
         
+        # === 同步节点注册表（扫描结果优先，注册表辅助） ===
+        try:
+            registry = NodeRegistry(self.current_project_path)
+            registry.load()
+            # 以当前扫描结果为准同步注册表
+            scan_result = {name: info['path'] for name, info in self.nodes_data.items()}
+            registry.sync_from_scan(scan_result)
+            registry.save()
+            logger.info("节点注册表已同步: active=%d, missing=%d, total=%d",
+                        registry.active_count, registry.missing_count, registry.node_count)
+
+            # === 恢复外部挂载节点 ===
+            mounted_nodes = registry.get_mounted_nodes()
+            for m_name, m_info in mounted_nodes.items():
+                if m_name not in self.nodes_data and m_info.get("status") == "active":
+                    m_path = m_info.get("path", "")
+                    m_config_path = os.path.join(m_path, "config.json")
+                    m_mount_root = m_info.get("mount_root", "")
+                    try:
+                        if os.path.exists(m_config_path):
+                            with open(m_config_path, 'r', encoding='utf-8') as f:
+                                m_config = json.load(f)
+                        else:
+                            m_config = {'node_name': m_name}
+                        self.nodes_data[m_name] = {
+                            'config': m_config,
+                            'path': m_path,
+                            'process': None,
+                            'status': 'stopped',
+                            'mounted': True,
+                            'mount_root': m_mount_root
+                        }
+                        logger.info("恢复挂载节点: %s (mount_root=%s)", m_name, m_mount_root)
+                    except Exception as ex:
+                        logger.warning("恢复挂载节点 %s 失败: %s", m_name, ex)
+            logger.info("共恢复 %d 个挂载节点", len(mounted_nodes))
+        except Exception as e:
+            logger.warning("节点注册表同步失败: %s", e)
+        
         # 更新节点组管理器的项目路径（自动加载配置）
         self.node_list_panel.set_project_path(self.current_project_path)
         
@@ -392,6 +432,133 @@ class BNOSMainWindow(QMainWindow):
                 self.canvas.update_node_status(name, 'running')
             self.show_toast(f"检测到 {len(running)} 个节点在后台运行", "info")
         
+    def mount_external_node(self):
+        """挂载外部节点到当前项目
+        
+        通过选择节点文件夹识别文件夹内的 config.json 挂载到当前项目，
+        自动创建以该节点根目录（绝对路径）命名的锁定组。
+        """
+        if not self.current_project_path:
+            self.show_toast("请先打开或新建项目", "warning")
+            return
+
+        # 选择外部节点文件夹
+        folder_path = QFileDialog.getExistingDirectory(
+            self, "选择外部节点文件夹",
+            "",
+            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
+        )
+
+        if not folder_path:
+            return
+
+        folder_path = os.path.abspath(folder_path)
+        config_path = os.path.join(folder_path, "config.json")
+
+        if not os.path.exists(config_path):
+            self.show_toast(f"所选文件夹中未找到 config.json:\n{folder_path}", "warning")
+            return
+
+        # 读取 config.json
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        except Exception as e:
+            self.show_toast(f"读取 config.json 失败: {e}", "error")
+            return
+
+        node_name = config.get('node_name', os.path.basename(folder_path))
+
+        # 检查是否已存在同名节点
+        if node_name in self.nodes_data:
+            self.show_toast(f"节点 '{node_name}' 已存在，无法重复挂载", "warning")
+            return
+
+        # 确定挂载根目录（节点的父目录绝对路径）
+        mount_root = os.path.dirname(folder_path)
+        mount_root = os.path.abspath(mount_root)
+
+        # 注册到 nodes_data
+        self.nodes_data[node_name] = {
+            'config': config,
+            'path': folder_path,
+            'process': None,
+            'status': 'stopped',
+            'mounted': True,
+            'mount_root': mount_root
+        }
+
+        # 同步到节点注册表（标记为外部挂载）
+        try:
+            registry = NodeRegistry(self.current_project_path)
+            registry.load()
+            registry.register_node(node_name, folder_path, mount_root=mount_root)
+            registry.save()
+            logger.info("挂载节点已注册: name=%s, path=%s, mount_root=%s",
+                        node_name, folder_path, mount_root)
+        except Exception as e:
+            logger.warning("挂载节点注册表同步失败: %s", e)
+
+        # 创建以挂载根目录命名的锁定组
+        # 组名称使用绝对路径作为标识
+        mount_group_name = mount_root
+        if not self.node_list_panel.group_manager.groups.get(mount_group_name):
+            self.node_list_panel.group_manager.create_group(mount_group_name, "#E67E22")
+        self.node_list_panel.group_manager.add_nodes_to_group(mount_group_name, [node_name])
+        self.node_list_panel.group_manager.lock_group(mount_group_name)
+
+        # 刷新 UI
+        self.node_list_panel.set_project_path(self.current_project_path)
+        self.node_list_panel.update_node_list(self.nodes_data)
+        self.canvas.sync_all_nodes_display()
+
+        self.show_toast(f"已挂载外部节点: {node_name}", "success")
+        logger.info("外部节点挂载完成: %s -> %s (group=%s)", node_name, folder_path, mount_group_name)
+
+    def unmount_external_node(self, node_name: str):
+        """卸载外部挂载节点
+
+        Args:
+            node_name: 要卸载的节点名称
+        """
+        if node_name not in self.nodes_data:
+            return
+
+        node_info = self.nodes_data[node_name]
+        if not node_info.get('mounted'):
+            self.show_toast(f"节点 '{node_name}' 不是外部挂载节点", "warning")
+            return
+
+        mount_root = node_info.get('mount_root')
+        mount_group_name = mount_root
+
+        # 从注册表注销
+        try:
+            registry = NodeRegistry(self.current_project_path)
+            registry.load()
+            registry.unregister_node(node_name)
+            registry.save()
+        except Exception:
+            pass
+
+        # 从组中移除
+        if mount_group_name:
+            self.node_list_panel.group_manager.remove_nodes_from_group(mount_group_name, [node_name])
+            # 如果组内没有其他节点，解锁并删除组
+            remaining = self.node_list_panel.group_manager.get_group_nodes(mount_group_name)
+            if not remaining:
+                self.node_list_panel.group_manager.unlock_group(mount_group_name)
+                self.node_list_panel.group_manager.delete_group(mount_group_name)
+
+        # 从数据中移除
+        del self.nodes_data[node_name]
+
+        # 刷新 UI
+        self.node_list_panel.update_node_list(self.nodes_data)
+        self.canvas.remove_node_from_canvas(node_name)
+
+        self.show_toast(f"已卸载外部节点: {node_name}", "success")
+
     def create_new_node(self):
         """创建新节点（默认Python）"""
         self.create_new_node_with_language("Python")

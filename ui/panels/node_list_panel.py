@@ -135,6 +135,38 @@ class NodeListPanel(FloatingPanel):
                         # 检查目标节点是否在某个组中
                         target_group = self.group_manager.get_node_group(target_node)
                         
+                        # 检查锁定组边界：所有被拖拽节点是否来自锁定组
+                        dragged_has_locked = any(
+                            self.group_manager.is_group_locked(self.group_manager.get_node_group(n))
+                            for n in dragged_nodes if self.group_manager.get_node_group(n)
+                        )
+                        target_has_locked = self.group_manager.is_group_locked(target_group) if target_group else False
+                        # 不同锁定域之间禁止跨越（locked↔non-locked, locked_A↔locked_B）
+                        dragged_locked_roots = set()
+                        for n in dragged_nodes:
+                            g = self.group_manager.get_node_group(n)
+                            if g and self.group_manager.is_group_locked(g):
+                                dragged_locked_roots.add(g)
+                        if dragged_locked_roots and target_group not in dragged_locked_roots:
+                            if target_group and self.group_manager.is_group_locked(target_group):
+                                # locked组之间禁止互通
+                                if self.parent_window:
+                                    self.parent_window.show_toast("不同根目录的挂载节点组之间禁止移动", "warning")
+                                event.accept()
+                                return
+                            if target_group and not self.group_manager.is_group_locked(target_group):
+                                # 从locked组移出到普通组，禁止
+                                if self.parent_window:
+                                    self.parent_window.show_toast("挂载组内的节点禁止移出", "warning")
+                                event.accept()
+                                return
+                        if not dragged_locked_roots and target_has_locked:
+                            # 从普通组移入locked组，禁止
+                            if self.parent_window:
+                                self.parent_window.show_toast("禁止将节点移入挂载组", "warning")
+                            event.accept()
+                            return
+                        
                         if target_group:
                             # 目标节点在某个组中，直接将拖拽的节点加入该组
                             logger.debug("✅ 目标节点 '%target_node' 在组 '%target_group' 中，直接融入")
@@ -171,6 +203,14 @@ class NodeListPanel(FloatingPanel):
             
             elif not target_item:
                 # 拖到根级别（空白处）- 将节点移出所有组
+                # 检查是否有锁定组内的节点
+                for n in dragged_nodes:
+                    g = self.group_manager.get_node_group(n)
+                    if g and self.group_manager.is_group_locked(g):
+                        if self.parent_window:
+                            self.parent_window.show_toast("挂载组内的节点禁止移出组", "warning")
+                        event.accept()
+                        return
                 logger.debug("✅ 拖到根级别，将 {len(dragged_nodes)} 个节点移出组")
                 self._move_nodes_to_ungrouped(dragged_nodes)
                 event.accept()
@@ -269,12 +309,18 @@ class NodeListPanel(FloatingPanel):
         # 添加各个组（平行关系，无嵌套）
         for group_name, group_info in sorted(groups.items()):
             group_item = QTreeWidgetItem(self.node_tree)
-            group_item.setText(0, f"{group_name} ({len(group_info['nodes'])})")
+            # 锁定的组显示 🔒 标记
+            lock_indicator = "🔒 " if self.group_manager.is_group_locked(group_name) else ""
+            group_item.setText(0, f"{lock_indicator}{group_name} ({len(group_info['nodes'])})")
             group_item.setForeground(0, QColor(group_info.get('color', '#4A90E2')))
             group_item.setFont(0, QFont("Arial", 10, QFont.Weight.Bold))
             
-            # 标记为组节点
-            group_item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'group', 'name': group_name})
+            # 标记为组节点（含锁定状态）
+            group_item.setData(0, Qt.ItemDataRole.UserRole, {
+                'type': 'group',
+                'name': group_name,
+                'locked': self.group_manager.is_group_locked(group_name)
+            })
             
             # 添加组内节点
             for node_name in sorted(group_info['nodes']):
@@ -474,6 +520,29 @@ class NodeListPanel(FloatingPanel):
             node_names: 节点名称列表
             group_name: 目标组名称
         """
+        # 检查锁定组边界
+        if self.group_manager.is_group_locked(group_name):
+            # 目标组被锁定，禁止移入
+            for node_name in node_names:
+                current_group = self.group_manager.get_node_group(node_name)
+                if not current_group or not self.group_manager.is_group_locked(current_group):
+                    if self.parent_window:
+                        self.parent_window.show_toast("禁止将节点移入挂载组", "warning")
+                    return
+        
+        # 检查被拖拽节点是否来自锁定组（不同锁定组之间禁止移动）
+        dragged_locked_groups = set()
+        for node_name in node_names:
+            g = self.group_manager.get_node_group(node_name)
+            if g and self.group_manager.is_group_locked(g):
+                dragged_locked_groups.add(g)
+        if dragged_locked_groups:
+            for locked_g in dragged_locked_groups:
+                if locked_g != group_name:
+                    if self.parent_window:
+                        self.parent_window.show_toast(f"挂载组'{locked_g}'内的节点禁止移入其他组", "warning")
+                    return
+        
         if self.group_manager.add_nodes_to_group(group_name, node_names):
             # 清理空组（不刷新列表）
             self._cleanup_empty_groups(refresh=False)
@@ -491,6 +560,14 @@ class NodeListPanel(FloatingPanel):
         Args:
             node_names: 节点名称列表
         """
+        # 不允许从锁定组移出节点
+        for node_name in node_names:
+            current_group = self.group_manager.get_node_group(node_name)
+            if current_group and self.group_manager.is_group_locked(current_group):
+                if self.parent_window:
+                    self.parent_window.show_toast("挂载组内的节点禁止移出组", "warning")
+                return
+        
         # 从当前组中移除（如果节点在某个组中）
         removed_count = 0
         for node_name in node_names:
@@ -516,6 +593,7 @@ class NodeListPanel(FloatingPanel):
     
     def _cleanup_empty_groups(self, refresh=True):
         """清理空的节点组（自动删除，无需确认）
+        注意：锁定的组（挂载组）不会被自动清理
         
         Args:
             refresh: 是否刷新列表，默认为True
@@ -528,7 +606,9 @@ class NodeListPanel(FloatingPanel):
         
         for group_name, group_info in groups.items():
             if len(group_info['nodes']) == 0:
-                empty_groups.append(group_name)
+                # 锁定的组（挂载组）不自动删除
+                if not self.group_manager.is_group_locked(group_name):
+                    empty_groups.append(group_name)
         
         if empty_groups:
             # 自动删除所有空组，无需用户确认
@@ -567,7 +647,6 @@ class NodeListPanel(FloatingPanel):
         
         menu.addSeparator()
         
-        # 刷新列表
         refresh_action = menu.addAction("刷新列表")
         refresh_action.triggered.connect(lambda: self.update_node_list(self.nodes_data))
         
@@ -692,16 +771,36 @@ class NodeListPanel(FloatingPanel):
             edit_config_action = menu.addAction("编辑配置")
             edit_config_action.triggered.connect(lambda: self.edit_node_config(node_name))
             
-            # 删除节点
-            delete_action = menu.addAction("删除节点")
-            delete_action.triggered.connect(lambda: self.delete_node(node_name))
+            # 卸载外部节点（仅挂载节点显示）
+            node_info = self.nodes_data.get(node_name, {})
+            if node_info.get('mounted'):
+                unmount_action = menu.addAction("卸载外部节点")
+                unmount_action.triggered.connect(lambda: self._unmount_node(node_name))
+            
+            # 删除节点（挂载节点不可删除）
+            if not node_info.get('mounted'):
+                delete_action = menu.addAction("删除节点")
+                delete_action.triggered.connect(lambda: self.delete_node(node_name))
     
+    def _unmount_node(self, node_name):
+        """卸载外部挂载节点（委托给主窗口）"""
+        if self.parent_window and hasattr(self.parent_window, 'unmount_external_node'):
+            reply = QMessageBox.question(
+                self, "确认卸载",
+                f"确定要卸载外部节点 '{node_name}' 吗？\n节点文件夹不会被删除。",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.parent_window.unmount_external_node(node_name)
+
     def _show_group_context_menu(self, menu, group_name):
         """显示组右键菜单"""
         group_nodes = self.group_manager.get_group_nodes(group_name)
+        is_locked = self.group_manager.is_group_locked(group_name)
         
         # 组信息
-        menu.addAction(f"组: {group_name}").setEnabled(False)
+        lock_tag = "🔒 " if is_locked else ""
+        menu.addAction(f"{lock_tag}组: {group_name}").setEnabled(False)
         menu.addAction(f"   节点数: {len(group_nodes)}").setEnabled(False)
         menu.addSeparator()
         
@@ -719,13 +818,15 @@ class NodeListPanel(FloatingPanel):
         
         menu.addSeparator()
         
-        # 重命名组
-        rename_group_action = menu.addAction("重命名组")
-        rename_group_action.triggered.connect(lambda: self.rename_group(group_name))
+        # 重命名组（锁定组不可重命名）
+        if not is_locked:
+            rename_group_action = menu.addAction("重命名组")
+            rename_group_action.triggered.connect(lambda: self.rename_group(group_name))
         
-        # 删除组
-        delete_group_action = menu.addAction("删除组")
-        delete_group_action.triggered.connect(lambda: self.delete_group(group_name))
+        # 删除组（锁定组不可删除）
+        if not is_locked:
+            delete_group_action = menu.addAction("删除组")
+            delete_group_action.triggered.connect(lambda: self.delete_group(group_name))
         
         menu.addSeparator()
         
@@ -907,6 +1008,12 @@ class NodeListPanel(FloatingPanel):
         if node_name not in self.nodes_data:
             return
         
+        # 挂载节点不允许删除（只能卸载）
+        if self.nodes_data[node_name].get('mounted'):
+            if self.parent_window:
+                self.parent_window.show_toast("外部挂载节点请使用「卸载」功能，禁止删除", "warning")
+            return
+        
         reply = QMessageBox.question(
             self, "确认删除",
             f"确定要删除节点 '{node_name}' 吗？\n这将删除整个节点文件夹！",
@@ -963,6 +1070,17 @@ class NodeListPanel(FloatingPanel):
             
             # 从数据中移除
             del self.nodes_data[node_name]
+            
+            # 从节点注册表中注销
+            try:
+                if self.parent_window and hasattr(self.parent_window, 'current_project_path') and self.parent_window.current_project_path:
+                    from ui.core.node_registry import NodeRegistry
+                    registry = NodeRegistry(self.parent_window.current_project_path)
+                    registry.load()
+                    registry.unregister_node(node_name)
+                    registry.save()
+            except Exception:
+                pass
             
             # 从画布中移除
             if self.parent_window:
@@ -1137,6 +1255,10 @@ class NodeListPanel(FloatingPanel):
         """从组中移除节点"""
         current_group = self.group_manager.get_node_group(node_name)
         if current_group:
+            if self.group_manager.is_group_locked(current_group):
+                if self.parent_window:
+                    self.parent_window.show_toast("挂载组内的节点禁止移出", "warning")
+                return
             if self.group_manager.remove_nodes_from_group(current_group, [node_name]):
                 self.update_node_list(self.nodes_data)
                 if self.parent_window:
@@ -1144,6 +1266,10 @@ class NodeListPanel(FloatingPanel):
     
     def rename_group(self, group_name):
         """重命名组"""
+        if self.group_manager.is_group_locked(group_name):
+            if self.parent_window:
+                self.parent_window.show_toast("挂载组禁止重命名", "warning")
+            return
         new_name, ok = QInputDialog.getText(
             self, "重命名组",
             f"请输入新的组名称:",
@@ -1163,6 +1289,10 @@ class NodeListPanel(FloatingPanel):
     
     def delete_group(self, group_name):
         """删除组（保留节点）"""
+        if self.group_manager.is_group_locked(group_name):
+            if self.parent_window:
+                self.parent_window.show_toast("挂载组禁止删除，请先卸载外部节点", "warning")
+            return
         reply = QMessageBox.question(
             self, "确认删除",
             f"确定要删除组 '{group_name}' 吗？\n组内节点不会被删除。",
@@ -1261,6 +1391,16 @@ class NodeListPanel(FloatingPanel):
         fail_count = 0
         failed_nodes = []
         
+        # 预加载节点注册表，批量注销后统一保存
+        registry = None
+        if self.parent_window and hasattr(self.parent_window, 'current_project_path') and self.parent_window.current_project_path:
+            try:
+                from ui.core.node_registry import NodeRegistry
+                registry = NodeRegistry(self.parent_window.current_project_path)
+                registry.load()
+            except Exception:
+                registry = None
+        
         for node_name in selected_nodes:
             if node_name not in self.nodes_data:
                 fail_count += 1
@@ -1315,6 +1455,10 @@ class NodeListPanel(FloatingPanel):
                 # 从数据中移除
                 del self.nodes_data[node_name]
                 
+                # 从节点注册表中注销
+                if registry:
+                    registry.unregister_node(node_name)
+                
                 # 从画布中移除
                 if self.parent_window:
                     self.parent_window.canvas.remove_node_from_canvas(node_name)
@@ -1325,6 +1469,13 @@ class NodeListPanel(FloatingPanel):
                 logger.warning("删除节点 %node_name 失败: %e")
                 fail_count += 1
                 failed_nodes.append(node_name)
+        
+        # 保存注册表变更
+        if registry:
+            try:
+                registry.save()
+            except Exception:
+                pass
         
         # 刷新列表
         self.update_node_list(self.nodes_data)

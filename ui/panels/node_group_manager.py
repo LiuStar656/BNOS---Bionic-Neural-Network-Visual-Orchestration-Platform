@@ -4,7 +4,7 @@
 """
 import json
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 from ui.core.logger import logger
 
 
@@ -27,6 +27,7 @@ class NodeGroupManager:
         self.project_path = project_path
         self.groups: Dict[str, dict] = {}  # {group_name: {"nodes": [], "color": "#..."}}
         self.node_to_group: Dict[str, str] = {}  # {node_name: group_name}
+        self._locked_groups: Set[str] = set()  # 锁定组集合（节点无法移入/移出）
         
         # 如果提供了项目路径，立即加载配置
         if project_path:
@@ -76,6 +77,9 @@ class NodeGroupManager:
             
             self.groups = data.get('groups', {})
             self.node_to_group = data.get('node_to_group', {})
+            # 加载锁定组列表
+            locked_data = data.get('locked_groups', [])
+            self._locked_groups = set(locked_data) if isinstance(locked_data, list) else set()
             
             logger.info("已加载 %d 个节点组", len(self.groups))
             
@@ -104,7 +108,8 @@ class NodeGroupManager:
         try:
             data = {
                 'groups': self.groups,
-                'node_to_group': self.node_to_group
+                'node_to_group': self.node_to_group,
+                'locked_groups': list(self._locked_groups)
             }
             
             with open(config_file, 'w', encoding='utf-8') as f:
@@ -273,5 +278,55 @@ class NodeGroupManager:
         """清空所有分组（不删除节点）"""
         self.groups.clear()
         self.node_to_group.clear()
+        self._locked_groups.clear()
         self.save_groups()
         logger.info("已清空所有节点组")
+
+    # ---- 锁定组管理（用于外部挂载节点）----
+    def lock_group(self, group_name: str) -> bool:
+        """锁定组，禁止节点移入和移出
+        
+        Args:
+            group_name: 组名称
+            
+        Returns:
+            是否锁定成功
+        """
+        if group_name not in self.groups:
+            return False
+        if group_name not in self._locked_groups:
+            self._locked_groups.add(group_name)
+            self.save_groups()
+            logger.info("已锁定节点组: %s", group_name)
+        return True
+
+    def unlock_group(self, group_name: str) -> bool:
+        """解锁组
+        
+        Args:
+            group_name: 组名称
+            
+        Returns:
+            是否解锁成功
+        """
+        if group_name in self._locked_groups:
+            self._locked_groups.discard(group_name)
+            self.save_groups()
+            logger.info("已解锁节点组: %s", group_name)
+            return True
+        return False
+
+    def is_group_locked(self, group_name: str) -> bool:
+        """检查组是否被锁定
+        
+        Args:
+            group_name: 组名称
+            
+        Returns:
+            是否被锁定
+        """
+        return group_name in self._locked_groups
+
+    def get_locked_groups(self) -> Set[str]:
+        """获取所有锁定组名称"""
+        return self._locked_groups.copy()
