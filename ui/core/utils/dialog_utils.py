@@ -3,9 +3,10 @@
 """
 import os
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout,
-                               QWidget, QLineEdit, QTreeWidget, QTreeWidgetItem, QHeaderView)
-from PyQt6.QtCore import Qt, QDir
-from PyQt6.QtGui import QFont, QIcon
+                               QWidget, QLineEdit, QTreeWidget, QTreeWidgetItem,
+                               QComboBox, QHeaderView)
+from PyQt6.QtCore import Qt, QDir, QTimer
+from PyQt6.QtGui import QFont
 
 
 _STYLE_CONTAINER = "QWidget { background-color: rgba(30,30,30,220); border-radius: 8px; border: 1px solid rgba(255,255,255,25); }"
@@ -14,13 +15,17 @@ _STYLE_LABEL    = "color: rgba(255,255,255,180); font-size: 12px; background: tr
 _STYLE_INPUT    = "background: rgba(255,255,255,10); color: #d4d4d4; border: 1px solid rgba(255,255,255,15); border-radius: 4px; padding: 6px 10px; font-size: 13px;"
 _STYLE_BTN_OK   = "QPushButton { background: rgba(0,120,212,200); color: white; border: none; border-radius: 4px; padding: 6px 20px; } QPushButton:hover { background: rgba(0,140,240,220); }"
 _STYLE_BTN_GREY = "QPushButton { background: rgba(255,255,255,10); color: #ccc; border: 1px solid rgba(255,255,255,15); border-radius: 4px; padding: 6px 20px; } QPushButton:hover { background: rgba(255,255,255,20); }"
+_STYLE_TREE     = ("QTreeWidget { background-color: #252526; color: #cccccc; border: 1px solid rgba(255,255,255,10); border-radius: 4px; font-size: 12px; } "
+                   "QTreeWidget::item { padding: 3px 4px; } QTreeWidget::item:hover { background: #2a2d2e; } "
+                   "QTreeWidget::item:selected { background: #094771; } "
+                   "QHeaderView::section { background: #333; color: #aaa; border: none; padding: 3px; font-size: 11px; }")
 
 
-def _make_dialog(parent, title, width, height):
+def _make_dialog(parent, title, w, h):
     dlg = QDialog(parent)
     dlg.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
     dlg.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-    dlg.resize(width, height)
+    dlg.resize(w, h)
     outer = QVBoxLayout(dlg); outer.setContentsMargins(0,0,0,0)
     c = QWidget(); c.setStyleSheet(_STYLE_CONTAINER); outer.addWidget(c)
     lay = QVBoxLayout(c); lay.setContentsMargins(14,10,14,10); lay.setSpacing(6)
@@ -31,84 +36,154 @@ def _make_dialog(parent, title, width, height):
     return dlg, lay
 
 
+def _get_drives():
+    """获取 Windows 驱动器列表"""
+    drives = []
+    if os.name == 'nt':
+        import string
+        from ctypes import windll
+        bitmap = windll.kernel32.GetLogicalDrives()
+        for letter in string.ascii_uppercase:
+            if bitmap & 1:
+                p = f"{letter}:\\"
+                if os.path.exists(p):
+                    label = f"{letter}:"
+                    drives.append((p, label))
+            bitmap >>= 1
+    if not drives:
+        drives.append(("/", "根"))
+    return drives
+
+
+def _add_dir_items(parent_item, path, depth=0, max_depth=3):
+    """递归添加子目录（限制深度）"""
+    if depth >= max_depth:
+        return
+    try:
+        for name in sorted(os.listdir(path)):
+            full = os.path.join(path, name)
+            if os.path.isdir(full) and not name.startswith('.') and not name.startswith('$'):
+                child = QTreeWidgetItem(parent_item, [name, full])
+                if depth < max_depth - 1:
+                    # 只预展开前几个子目录
+                    _add_dir_items(child, full, depth + 1, 2 if depth == 0 else 1)
+    except (PermissionError, OSError):
+        pass
+
+
 def pick_folder(parent, title, start=""):
-    """自绘文件夹选择器"""
-    dlg, lay = _make_dialog(parent, title, 600, 420)
-    # 路径快捷
-    path_bar = QHBoxLayout()
-    current = QLabel(start or os.path.expanduser("~"))
-    current.setStyleSheet("color: rgba(255,255,255,120); font-size: 11px; background: transparent;")
-    path_bar.addWidget(current)
-    up_btn = QPushButton("↑ 上级"); up_btn.setStyleSheet(_STYLE_BTN_GREY)
-    path_bar.addWidget(up_btn)
-    lay.addLayout(path_bar)
+    """自绘文件夹选择器 — 树形展开 + 驱动器切换"""
+    dlg, lay = _make_dialog(parent, title, 620, 440)
+
+    # 驱动器选择（仅 Windows）
+    drives = _get_drives()
+    drive_bar = QHBoxLayout()
+    drive_lbl = QLabel("分区:"); drive_lbl.setStyleSheet("color: rgba(255,255,255,150); font-size: 11px; background: transparent;")
+    drive_bar.addWidget(drive_lbl)
+    drive_combo = QComboBox()
+    drive_combo.setStyleSheet("QComboBox { background: #3c3c3c; color: #ccc; border: 1px solid #555; border-radius: 3px; padding: 3px 6px; font-size: 11px; } QComboBox QAbstractItemView { background: #252526; color: #ccc; }")
+    for p, label in drives:
+        drive_combo.addItem(f"  {label}  ", p)
+    drive_bar.addWidget(drive_combo)
+    lay.addLayout(drive_bar)
+
+    # 路径面包屑
+    current = QLabel("")
+    current.setStyleSheet("color: rgba(255,255,255,120); font-size: 11px; background: transparent; padding: 2px 0;")
+    lay.addWidget(current)
+
     # 目录树
     tree = QTreeWidget()
-    tree.setHeaderLabels(["名称", "修改时间"])
-    tree.setColumnWidth(0, 400)
+    tree.setHeaderLabels(["📁 文件夹", "路径"])
+    tree.setColumnWidth(0, 300)
     tree.header().setStretchLastSection(True)
-    tree.setStyleSheet("QTreeWidget { background-color: #252526; color: #cccccc; border: 1px solid rgba(255,255,255,10); border-radius: 4px; } QTreeWidget::item { padding: 3px; } QTreeWidget::item:hover { background: #2a2d2e; } QTreeWidget::item:selected { background: #094771; } QHeaderView::section { background: #333; color: #aaa; border: none; padding: 3px; }")
+    tree.setStyleSheet(_STYLE_TREE)
+    tree.setIndentation(16)
     lay.addWidget(tree, 1)
+
     # 按钮
     br = QHBoxLayout(); br.addStretch()
     cancel = QPushButton("取消"); cancel.setStyleSheet(_STYLE_BTN_GREY)
-    confirm = QPushButton("选择"); confirm.setStyleSheet(_STYLE_BTN_OK)
+    confirm = QPushButton("选择此文件夹"); confirm.setStyleSheet(_STYLE_BTN_OK)
     br.addWidget(cancel); br.addWidget(confirm); lay.addLayout(br)
-    cancel.clicked.connect(dlg.reject); confirm.clicked.connect(dlg.accept)
-    tree.itemDoubleClicked.connect(dlg.accept)
+    cancel.clicked.connect(dlg.reject)
 
-    def load_dir(path):
-        current.setText(path)
+    sel_path = [os.path.expanduser("~")]
+
+    def load_tree(root_path):
+        root_path = os.path.normpath(root_path)
+        sel_path[0] = root_path
+        current.setText(f"📂 当前: {root_path}")
         tree.clear()
-        try:
-            tree.addTopLevelItem(_make_item("📁 ..", os.path.dirname(path), True))
-            items = sorted(os.listdir(path))
-            dirs, files = [], []
-            for n in items:
-                p = os.path.join(path, n)
-                if os.path.isdir(p) and not n.startswith('.'): dirs.append(n)
-                elif os.path.isfile(p) and not n.startswith('.'): files.append(n)
-            for name in dirs:
-                tree.addTopLevelItem(_make_item(f"📁 {name}", os.path.join(path, name), True))
-            for name in files:
-                tree.addTopLevelItem(_make_item(f"📄 {name}", os.path.join(path, name), False))
-        except PermissionError:
-            tree.addTopLevelItem(QTreeWidgetItem(["❌ 无权限", ""]))
+        if os.path.isdir(root_path):
+            try:
+                for name in sorted(os.listdir(root_path)):
+                    full = os.path.join(root_path, name)
+                    if os.path.isdir(full) and not name.startswith('.') and not name.startswith('$'):
+                        item = QTreeWidgetItem(tree, [name, full])
+                        item.setData(0, 1, full)  # store full path
+                        # 预加载一级子目录（显示展开箭头）
+                        try:
+                            for sub in sorted(os.listdir(full)):
+                                sub_full = os.path.join(full, sub)
+                                if os.path.isdir(sub_full) and not sub.startswith('.') and not sub.startswith('$'):
+                                    QTreeWidgetItem(item, [sub, sub_full])
+                                    break  # 只加一个来显示展开箭头
+                        except:
+                            pass
+            except PermissionError:
+                tree.addTopLevelItem(QTreeWidgetItem(["❌ 无权限", root_path]))
 
-    def _make_item(text, full, is_dir):
-        item = QTreeWidgetItem([text, ""])
-        item.setData(0, 1, full)
-        item.setData(0, 2, is_dir)
-        return item
+    def on_drive_change(idx):
+        path = drive_combo.itemData(idx)
+        load_tree(path)
 
-    up_btn.clicked.connect(lambda: load_dir(os.path.dirname(current.text())))
+    drive_combo.currentIndexChanged.connect(on_drive_change)
 
-    def on_select_item(item, col):
+    def on_item_expanded(item):
+        # 展开时加载子目录
+        if item.childCount() == 1 and item.child(0).text(0) != "❌":
+            item.removeChild(item.child(0))
+            full = item.data(0, 1)
+            try:
+                for name in sorted(os.listdir(full)):
+                    sub_full = os.path.join(full, name)
+                    if os.path.isdir(sub_full) and not name.startswith('.') and not name.startswith('$'):
+                        sub_item = QTreeWidgetItem(item, [name, sub_full])
+                        sub_item.setData(0, 1, sub_full)
+            except:
+                pass
+
+    tree.itemExpanded.connect(on_item_expanded)
+
+    def on_select(item):
         path = item.data(0, 1)
-        is_dir = item.data(0, 2)
-        if is_dir:
-            load_dir(path)
+        if path and os.path.isdir(path):
+            sel_path[0] = os.path.normpath(path)
+            current.setText(f"📂 当前: {sel_path[0]}")
 
-    tree.itemClicked.connect(on_select_item)
+    tree.currentItemChanged.connect(lambda cur, prev: on_select(cur) if cur else None)
 
-    sel_path = [start or os.path.expanduser("~")]
     def on_confirm():
-        item = tree.currentItem()
-        if item:
-            p = item.data(0, 1)
-            if item.data(0, 2):
-                sel_path[0] = os.path.normpath(p)
-            else:
-                sel_path[0] = os.path.normpath(os.path.dirname(p))
         dlg.accept()
 
-    confirm.clicked.disconnect()
     confirm.clicked.connect(on_confirm)
-    tree.itemDoubleClicked.disconnect()
     tree.itemDoubleClicked.connect(on_confirm)
 
-    load_dir(start or os.path.expanduser("~"))
-    dlg.move(parent.geometry().center() - dlg.rect().center()) if parent else None
+    # 初始加载
+    initial = start or os.path.expanduser("~")
+    # 匹配驱动器
+    for i in range(drive_combo.count()):
+        d = drive_combo.itemData(i)
+        if initial.lower().startswith(d.lower()):
+            drive_combo.blockSignals(True)
+            drive_combo.setCurrentIndex(i)
+            drive_combo.blockSignals(False)
+            break
+    load_tree(initial)
+    if parent:
+        dlg.move(parent.geometry().center() - dlg.rect().center())
+
     if dlg.exec() == QDialog.DialogCode.Accepted:
         return os.path.normpath(sel_path[0])
     return None
