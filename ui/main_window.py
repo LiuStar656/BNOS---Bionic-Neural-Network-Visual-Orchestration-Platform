@@ -372,8 +372,7 @@ class BNOSMainWindow(QMainWindow):
 
     def clear_connections(self):
         """清空所有连线"""
-        reply = themed_message(self, t("k_title_confirm"), t("k_confirm_clear_connections"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, "question")
+        reply = themed_message(self, t("k_title_confirm"), t("k_confirm_clear_connections"), "question")
         
         if not reply:
             return
