@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QPointF, QRectF, QTimer
 from PyQt6.QtGui import (
     QPainter, QPen, QColor, QBrush, QFont, QPainterPath,
-    QPolygonF, QAction
+    QPolygonF, QAction, QPixmap
 )
 from PyQt6.QtCore import QPointF
 
@@ -63,6 +63,12 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         # 可视区域渲染优化：只更新变化区域，网格不限制
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontSavePainterState, True)
+        self.setOptimizationFlag(QGraphicsView.OptimizationFlag.IndirectPainting, True)
+        self.setCacheMode(QGraphicsView.CacheModeFlag.CacheBackground)
+
+        # 网格纹理缓存
+        self._grid_texture = None
+        self._grid_texture_key = None
         
         # ===== 颜色配置（支持自定义）— VSCode 深色主题 =====
         self.canvas_bg_color = '#1e1e1e'          # 画布背景（与标题栏统一）
@@ -117,35 +123,54 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         self._save_timer.setSingleShot(True)
         self._save_timer.timeout.connect(self._auto_save_layout)
 
+    def _build_grid_texture(self, tile_size=200):
+        """预渲染网格纹理图块（一次性，后续平铺复用）"""
+        grid = 20
+        pix = QPixmap(tile_size, tile_size)
+        pix.fill(QColor(self.canvas_bg_color))
+
+        p = QPainter(pix)
+        gc = QColor(self.grid_color)
+        gc.setAlphaF(self.grid_opacity)
+        p.setPen(QPen(gc, 0.5))
+
+        for i in range(0, tile_size, grid):
+            p.drawLine(i, 0, i, tile_size)
+            p.drawLine(0, i, tile_size, i)
+        p.end()
+        return pix
+
     def drawBackground(self, painter, rect):
-        """绘制背景网格"""
+        """网格固定渲染：预烘焙纹理 → 平铺，不逐线重绘"""
         super().drawBackground(painter, rect)
-        
+
         if not self.draw_grid:
             return
-        
-        # 绘制网格（使用自定义颜色和透明度）
-        grid_size = 20
-        left = int(rect.left()) - (int(rect.left()) % grid_size)
-        top = int(rect.top()) - (int(rect.top()) % grid_size)
-        
-        # 计算带透明度的网格线颜色
-        grid_color = QColor(self.grid_color)
-        grid_color.setAlphaF(self.grid_opacity)
-        
-        painter.setPen(QPen(grid_color, 0.5))
-        
-        # 垂直线
-        x = left
-        while x < int(rect.right()):
-            painter.drawLine(int(x), int(rect.top()), int(x), int(rect.bottom()))
-            x += grid_size
-        
-        # 水平线
-        y = top
-        while y < int(rect.bottom()):
-            painter.drawLine(int(rect.left()), int(y), int(rect.right()), int(y))
-            y += grid_size
+
+        # 缓存键：颜色+透明度变化时重建纹理
+        cache_key = (self.grid_color, self.grid_opacity)
+        if self._grid_texture is None or self._grid_texture_key != cache_key:
+            self._grid_texture = self._build_grid_texture()
+            self._grid_texture_key = cache_key
+
+        tex = self._grid_texture
+        tw, th = tex.width(), tex.height()
+
+        # 计算可见场景区域的平铺范围
+        vp = self.viewport()
+        if not vp:
+            return
+        vr = self.mapToScene(vp.rect()).boundingRect()
+
+        left = int(vr.left() // tw) * tw
+        top = int(vr.top() // th) * th
+        x, y = left, top
+        while y < vr.bottom() + th:
+            while x < vr.right() + tw:
+                painter.drawPixmap(int(x), int(y), tex)
+                x += tw
+            x = left
+            y += th
     
     def mouseMoveEvent(self, event):
         """鼠标移动事件 - 处理平移、框选和连线拖拽"""
