@@ -2,6 +2,7 @@
 节点展开面板 - 浮动在画布节点旁的半透明悬浮窗
 参照 NodeListPanel 样式：无边框、半透明深色背景、可拖动
 展开坐标以节点在画布上的位置为基准
+output.json 编辑区：始终可编辑，输入自动保存到文件，外部变化自动刷新
 """
 import os
 import json
@@ -10,20 +11,22 @@ from PyQt6.QtWidgets import (
     QTextEdit, QGroupBox, QMessageBox
 )
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtGui import QFont
 from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t
+from ui.core.logger import logger
 
 
 class NodeExpandPanel(FloatingPanel):
-    """节点展开面板（浮动半透明悬浮窗，在节点旁展开）"""
+    """节点展开面板 - output.json 双向实时同步编辑"""
 
     def __init__(self, node_name, parent_window=None):
         super().__init__(parent_window, title=t("k_info_details_title"))
         self.node_name = node_name
-        self._output_editable = False
-        self._last_mtime = 0
-        self._auto_refresh = True
+        self._save_timer = None      # 防抖保存定时器
+        self._last_content = ""      # 上次写入文件的内容（阻止回环刷新）
+        self._ignore_external = False  # 正在自行保存时忽略外部变化
+        self._output_path = ""
 
         # 获取节点数据
         self._node_info = None
@@ -32,16 +35,24 @@ class NodeExpandPanel(FloatingPanel):
             self._node_info = parent_window.nodes_data[node_name]
             self._node_path = self._node_info.get('path', '')
 
+        if self._node_path:
+            self._output_path = os.path.join(self._node_path, "output.json")
+
         self.resize(620, 380)
         self.setMinimumSize(480, 300)
         self._init_ui()
         self._load_output_json()
 
-        # 自动刷新定时器（每 2 秒检测 output.json 变化）
+        # 自动刷新定时器（每 1.5 秒检测外部文件变化）
         self._refresh_timer = QTimer(self)
         self._refresh_timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self._refresh_timer.timeout.connect(self._auto_refresh_output)
-        self._refresh_timer.start(2000)
+        self._refresh_timer.timeout.connect(self._check_external_change)
+        self._refresh_timer.start(1500)
+
+        # 防抖保存定时器（用户停止输入 800ms 后自动保存）
+        self._save_timer = QTimer(self)
+        self._save_timer.setSingleShot(True)
+        self._save_timer.timeout.connect(self._write_to_file)
 
     def _init_ui(self):
         """初始化UI — 使用基类 content_layout"""
@@ -51,36 +62,27 @@ class NodeExpandPanel(FloatingPanel):
         # ===== 左侧：output.json 编辑区 =====
         left_layout = QVBoxLayout()
 
-        # 工具栏：锁定 + 刷新
+        # 工具栏：状态指示 + 手动刷新
         tool_row = QHBoxLayout()
-        self._toggle_btn = QPushButton(t("k_action_unlock_edit"))
-        self._toggle_btn.setStyleSheet(
-            "background-color: #555555; color: white; padding: 3px 10px; font-size: 10px;"
-            "border: none; border-radius: 3px;"
+
+        self._status_indicator = QLabel(t("k_action_live"))
+        self._status_indicator.setStyleSheet(
+            "color: #4CAF50; font-size: 10px; padding: 2px 5px;"
         )
-        self._toggle_btn.clicked.connect(self._toggle_editable)
-        tool_row.addWidget(self._toggle_btn)
+        tool_row.addWidget(self._status_indicator)
 
         refresh_btn = QPushButton(t("k_action_refresh"))
         refresh_btn.setStyleSheet(
             "background-color: #555555; color: white; padding: 3px 10px; font-size: 10px;"
             "border: none; border-radius: 3px;"
         )
-        refresh_btn.clicked.connect(self._load_output_json)
+        refresh_btn.clicked.connect(self._on_manual_refresh)
         tool_row.addWidget(refresh_btn)
-
-        # 实时刷新状态指示
-        self._live_indicator = QLabel(t("k_action_live"))
-        self._live_indicator.setStyleSheet(
-            "color: #4CAF50; font-size: 10px; padding: 2px 5px;"
-        )
-        tool_row.addWidget(self._live_indicator)
         tool_row.addStretch()
         left_layout.addLayout(tool_row)
 
-        # JSON 编辑器（深色主题）
+        # JSON 编辑器（始终可编辑，直接对接文件）
         self._output_editor = QTextEdit()
-        self._output_editor.setReadOnly(True)
         self._output_editor.setFont(QFont("Consolas", 9))
         self._output_editor.setStyleSheet("""
             QTextEdit {
@@ -91,6 +93,7 @@ class NodeExpandPanel(FloatingPanel):
                 selection-background-color: #264f78;
             }
         """)
+        self._output_editor.textChanged.connect(self._on_user_edit)
         left_layout.addWidget(self._output_editor, 1)
 
         main_h_layout.addLayout(left_layout, 3)
@@ -194,92 +197,153 @@ class NodeExpandPanel(FloatingPanel):
 
         self.content_layout.addLayout(main_h_layout)
 
-    # ==================== 功能方法 ====================
+    # ==================== output.json 双向同步 ====================
 
     def _load_output_json(self):
-        """加载 output.json 文件内容"""
-        if not self._node_path:
+        """从文件加载内容到编辑器（不触发 textChanged 保存）"""
+        if not self._output_path:
             self._output_editor.setPlainText("# 节点路径无效")
-            self._last_mtime = 0
+            self._last_content = ""
             return
 
-        output_path = os.path.join(self._node_path, "output.json")
-        if not os.path.exists(output_path):
-            self._output_editor.setPlainText("# output.json 不存在\n# 节点运行后将自动生成")
-            self._last_mtime = 0
+        if not os.path.exists(self._output_path):
+            self._output_editor.setPlainText("")
+            self._last_content = ""
             return
-
-        # 记录文件当前修改时间
-        self._last_mtime = os.path.getmtime(output_path)
 
         try:
-            with open(output_path, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
-            if not content:
-                self._output_editor.setPlainText("# output.json 为空")
+            with open(self._output_path, 'r', encoding='utf-8') as f:
+                raw = f.read()
+
+            if not raw.strip():
+                display = ""
+                self._last_content = ""
             else:
                 try:
-                    data = json.loads(content)
-                    self._output_editor.setPlainText(
-                        json.dumps(data, indent=2, ensure_ascii=False)
-                    )
+                    data = json.loads(raw)
+                    display = json.dumps(data, indent=2, ensure_ascii=False)
                 except json.JSONDecodeError:
-                    self._output_editor.setPlainText(content)
+                    display = raw
+                self._last_content = display
         except Exception as e:
-            self._output_editor.setPlainText(f"# 读取失败: {e}")
+            display = f"# 读取失败: {e}"
+            self._last_content = ""
 
-    def _auto_refresh_output(self):
-        """定时检测 output.json 是否变化，变化且非编辑模式时自动刷新"""
-        if not self._auto_refresh or not self._node_path:
+        # 阻止 textChanged 触发保存
+        self._output_editor.blockSignals(True)
+        self._output_editor.setPlainText(display)
+        self._output_editor.blockSignals(False)
+
+    def _on_user_edit(self):
+        """用户编辑文本 → 启动防抖保存定时器"""
+        self._save_timer.start(800)
+
+    def _write_to_file(self):
+        """将编辑器内容写入 output.json 文件，同步更新编辑器显示"""
+        if not self._output_path or self._ignore_external:
             return
 
-        output_path = os.path.join(self._node_path, "output.json")
-        if not os.path.exists(output_path):
+        content = self._output_editor.toPlainText()
+
+        # 跳过占位提示文本（以 # 开头）
+        if content.startswith("#"):
+            return
+
+        # 若内容与上次写入一致，跳过
+        if content == self._last_content:
             return
 
         try:
-            current_mtime = os.path.getmtime(output_path)
-        except OSError:
-            return
-
-        if current_mtime > self._last_mtime:
-            # 文件有更新，自动重新加载
-            self._load_output_json()
-
-    def _toggle_editable(self):
-        """切换编辑/只读状态（编辑模式暂停自动刷新）"""
-        self._output_editable = not self._output_editable
-        self._output_editor.setReadOnly(not self._output_editable)
-        self._toggle_btn.setText(t("k_action_lock_edit") if self._output_editable else t("k_action_unlock_edit"))
-        self._toggle_btn.setStyleSheet(
-            f"background-color: {'#333333' if self._output_editable else '#555555'}; "
-            "color: white; padding: 3px 10px; font-size: 10px; "
-            "border: none; border-radius: 3px;"
-        )
-        # 编辑模式下暂停自动刷新，只读模式下恢复
-        self._auto_refresh = not self._output_editable
-        self._live_indicator.setText(t("k_action_edit") if self._output_editable else t("k_action_live"))
-        self._live_indicator.setStyleSheet(
-            f"color: {'#FF9800' if self._output_editable else '#4CAF50'}; "
-            "font-size: 10px; padding: 2px 5px;"
-        )
-
-    def _save_output_json(self):
-        """保存 output.json"""
-        if not self._output_editable or not self._node_path:
-            return
-        output_path = os.path.join(self._node_path, "output.json")
-        content = self._output_editor.toPlainText().strip()
-        try:
+            # 尝试格式化 JSON
             try:
                 data = json.loads(content)
-                with open(output_path, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, indent=2, ensure_ascii=False)
+                formatted = json.dumps(data, indent=2, ensure_ascii=False)
             except json.JSONDecodeError:
-                with open(output_path, 'w', encoding='utf-8') as f:
-                    f.write(content)
+                formatted = content
+
+            self._last_content = formatted
+            self._ignore_external = True
+
+            with open(self._output_path, 'w', encoding='utf-8') as f:
+                f.write(formatted)
+
+            # 编辑器同步为格式化后的内容（阻止回环保存）
+            self._output_editor.blockSignals(True)
+            self._output_editor.setPlainText(formatted)
+            self._output_editor.blockSignals(False)
+
+            self._set_status(t("k_status_saved"), "#4CAF50")
+            logger.debug("output.json 已保存: %s", self._output_path)
+
         except Exception as e:
-            QMessageBox.critical(self, t("k_title_error"), f"保存失败: {e}")
+            self._set_status(t("k_status_save_failed"), "#F44336")
+            logger.error("保存 output.json 失败: %s", e)
+        finally:
+            QTimer.singleShot(500, self._reset_ignore_flag)
+
+    def _reset_ignore_flag(self):
+        self._ignore_external = False
+
+    def _check_external_change(self):
+        """检测文件是否存在外部变更，有则刷新编辑器"""
+        if self._ignore_external or not self._output_path:
+            return
+
+        if not os.path.exists(self._output_path):
+            return
+
+        try:
+            with open(self._output_path, 'r', encoding='utf-8') as f:
+                file_content = f.read()
+
+            if not file_content.strip():
+                file_display = ""
+            else:
+                try:
+                    data = json.loads(file_content)
+                    file_display = json.dumps(data, indent=2, ensure_ascii=False)
+                except json.JSONDecodeError:
+                    file_display = file_content
+        except Exception:
+            return
+
+        # 文件内容跟上次写入一致 → 是自己保存的，跳过
+        if file_display == self._last_content:
+            return
+
+        editor_content = self._output_editor.toPlainText()
+
+        # 字符串不同但语义相同（仅格式差异）→ 跳过，不刷新
+        if self._same_json(file_display, editor_content):
+            return
+
+        # 真正的外部修改 → 刷新编辑器
+        self._load_output_json()
+        self._set_status(t("k_status_updated"), "#2196F3")
+
+    @staticmethod
+    def _same_json(a, b):
+        """比较两个 JSON 字符串是否语义等价（忽略格式差异）"""
+        if a == b:
+            return True
+        try:
+            da = json.loads(a)
+            db = json.loads(b)
+            return da == db
+        except json.JSONDecodeError:
+            return False
+
+    def _on_manual_refresh(self):
+        """手动刷新：强制从文件重新加载"""
+        self._save_timer.stop()  # 取消待处理的保存
+        self._load_output_json()
+        self._set_status(t("k_status_refreshed"), "#2196F3")
+
+    def _set_status(self, text, color):
+        self._status_indicator.setText(text)
+        self._status_indicator.setStyleSheet(
+            f"color: {color}; font-size: 10px; padding: 2px 5px;"
+        )
 
     def _start_node(self):
         """启动节点"""
@@ -353,7 +417,9 @@ class NodeExpandPanel(FloatingPanel):
     def _close(self):
         """关闭面板前停止定时器并保存编辑"""
         self._refresh_timer.stop()
-        self._save_output_json()
+        self._save_timer.stop()
+        # 确保最终写入
+        self._write_to_file()
         self.close()
 
     # ==================== 鼠标拖动支持（与 NodeListPanel 一致）====================
@@ -373,7 +439,8 @@ class NodeExpandPanel(FloatingPanel):
     # ==================== 生命周期 ====================
 
     def closeEvent(self, event):
-        """关闭时停止定时器并保存"""
+        """关闭时停止定时器并最终保存"""
         self._refresh_timer.stop()
-        self._save_output_json()
+        self._save_timer.stop()
+        self._write_to_file()
         super().closeEvent(event)

@@ -255,5 +255,12 @@
   "k_group_cleared_all": "已清空所有节点组",
 
   "k_style_rect": "方形",
-  "k_style_light_rect": "浅色方块"
+  "k_style_light_rect": "浅色方块",
+
+  "k_status_saved": "已保存",
+  "k_status_save_failed": "保存失败",
+  "k_status_updated": "已更新",
+  "k_status_refreshed": "已刷新",
+  "k_status_running": "运行中",
+  "k_status_stopped": "已停止"
 }
