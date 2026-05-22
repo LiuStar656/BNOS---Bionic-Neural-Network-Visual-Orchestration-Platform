@@ -141,13 +141,15 @@ def main():
         stderr=subprocess.DEVNULL,
     )
 
-    # ── 步骤 3: 等待主程序就绪（读取进度文件）──
-    last_pct = 25
+    # ── 步骤 3: 等待主程序就绪（平滑动画进度条）──
+    target_pct = 25          # 目标进度（从文件读取）
+    display_pct = 25         # 当前显示进度（动画过渡）
     last_read_pos = 0
     start_time = time.time()
+    finish_time = None       # 主程序完成时间
 
-    while proc.poll() is None:
-        # 读取进度文件
+    while True:
+        # 读取进度文件（更新目标值）
         if os.path.exists(progress_file):
             try:
                 with open(progress_file, 'r', encoding='utf-8') as f:
@@ -158,36 +160,41 @@ def main():
                             p_str, msg = line.split('|', 1)
                             try:
                                 p = int(p_str)
-                                if p > last_pct:
-                                    progress(p, msg)
+                                if p > target_pct:
+                                    target_pct = p
                                     log("[*] " + msg)
-                                    last_pct = p
                             except ValueError:
                                 pass
-                        else:
-                            log("[*] " + line)
                     last_read_pos = f.tell()
             except Exception:
                 pass
 
-        # 超时兜底：超过 60 秒自动渐增
+        # 平滑动画：每帧向目标前进
+        if display_pct < target_pct:
+            display_pct = min(display_pct + 2, target_pct)
+            progress(display_pct, "")
+            if display_pct >= 100 and finish_time is None:
+                finish_time = time.time()
+
+        # 主程序已退出 → 强制目标 100%
+        if proc.poll() is not None and finish_time is None:
+            target_pct = 100
+
+        # 动画跑完 1 秒后关闭（无论主程序是否仍在运行）
+        if finish_time and time.time() - finish_time > 1.0:
+            break
+
+        # 超时兜底
         elapsed = time.time() - start_time
-        if last_pct < 90 and elapsed > 10 + (last_pct - 25) * 0.3:
-            last_pct = min(90, last_pct + 5)
-            progress(last_pct, "Loading...")
+        if target_pct < 90 and elapsed > 8:
+            target_pct = min(90, target_pct + 5)
 
         root.update()
-        time.sleep(0.1)
+        time.sleep(0.03)
 
-    # 进程退出
-    if proc.poll() == 0:
-        progress(100, "Ready")
-        log("[+] BNOS launched successfully")
-    else:
-        log("[!] Main process exited with code " + str(proc.poll()))
-
+    progress(100, "Ready")
     root.update()
-    time.sleep(0.8)
+    time.sleep(0.4)
     root.destroy()
 
     # 清理
