@@ -31,16 +31,23 @@ TOOLS = [
 
 BTN_BASE = f"""
 QPushButton {{
-    background: {BG_BTN}; color: {FG_BTN}; border: none;
-    border-radius: 3px; font-size: 14px; font-weight: bold;
+    background: {BG_BTN}; color: {FG_BTN};
+    border: none; border-left: 3px solid transparent;
+    font-size: 14px; font-weight: bold;
     min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
+    padding-left: 2px; text-align: left;
 }}
-QPushButton:hover {{ background: #3c3c3c; }}
+QPushButton:hover {{ background: #333333; }}
 """
 
 BTN_ON = f"""
-QPushButton {{ background: {BG_BTN_ON}; color: {FG_BTN_ON};
-    border: none; border-radius: 3px; font-size: 14px; font-weight: bold; }}
+QPushButton {{
+    background: {BG_BTN}; color: {FG_BTN_ON};
+    border: none; border-left: 3px solid {BG_BTN_ON};
+    font-size: 14px; font-weight: bold;
+    min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
+    padding-left: 2px; text-align: left;
+}}
 """
 
 
@@ -93,9 +100,9 @@ class DrawToolbar(QWidget):
 
         self._sep(layout)
 
-        self._stroke_btn = self._mk_btn("⚫", "描边颜色", layout)
+        self._stroke_btn = self._mk_btn("S", "描边颜色", layout)
         self._stroke_btn.clicked.connect(self._pick_stroke)
-        self._fill_btn = self._mk_btn("◉", "填充颜色", layout)
+        self._fill_btn = self._mk_btn("F", "填充颜色", layout)
         self._fill_btn.clicked.connect(self._pick_fill)
 
         self._sep(layout)
@@ -155,14 +162,22 @@ class DrawToolbar(QWidget):
 
     def _toggle_lock(self):
         self._locked = not self._locked
-        c = BG_BTN_ON if self._locked else BG_BTN
-        self._lock_btn.setStyleSheet(f"QPushButton {{ background: {c}; color: #fff; font-size: 14px; font-weight: bold; border-radius: 3px; }}")
+        if self._locked:
+            self._lock_btn.setStyleSheet(BTN_ON)
+        else:
+            self._lock_btn.setStyleSheet(BTN_BASE)
+        self.layer_locked.emit(self._locked)
 
     def _toggle_visible(self):
         self._visible = not self._visible
-        c = "#3c3c3c" if not self._visible else BG_BTN
-        t = "#666" if not self._visible else FG_BTN
-        self._hide_btn.setStyleSheet(f"QPushButton {{ background: {c}; color: {t}; font-size: 14px; font-weight: bold; border-radius: 3px; }}")
+        if not self._visible:
+            self._hide_btn.setStyleSheet(f"""
+                QPushButton {{ background: {BG_BTN}; color: #555555;
+                    border: none; border-left: 3px solid transparent;
+                    font-size: 14px; font-weight: bold; min-height: 30px; max-height: 30px; }}
+            """)
+        else:
+            self._hide_btn.setStyleSheet(BTN_BASE)
         self.layer_visible.emit(self._visible)
 
     def _pick_stroke(self):

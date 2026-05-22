@@ -123,7 +123,7 @@ class BNOSMainWindow(QMainWindow):
         panel_width = 280
         panel_height = 500
         window_pos = self.pos()
-        panel_x = window_pos.x() + 20
+        panel_x = window_pos.x() + 60  # 避开左侧40px工具栏
         panel_y = window_pos.y() + 40
         self.node_list_panel.setGeometry(panel_x, panel_y, panel_width, panel_height)
         self.node_list_panel.show()
@@ -135,7 +135,7 @@ class BNOSMainWindow(QMainWindow):
         
         if hasattr(self, 'node_list_panel') and self.node_list_panel.isVisible():
             p = self.pos()
-            self.node_list_panel.move(p.x() + 20, p.y() + off)
+            self.node_list_panel.move(p.x() + 60, p.y() + off)
 
         if hasattr(self, 'node_monitor') and self.node_monitor is not None and self.node_monitor.isVisible():
             p = self.pos()
@@ -152,7 +152,7 @@ class BNOSMainWindow(QMainWindow):
         
         if hasattr(self, 'node_list_panel') and self.node_list_panel.isVisible():
             p = self.pos()
-            self.node_list_panel.move(p.x() + 20, p.y() + off)
+            self.node_list_panel.move(p.x() + 60, p.y() + off)
 
         if hasattr(self, 'node_monitor') and self.node_monitor is not None and self.node_monitor.isVisible():
             p = self.pos()
