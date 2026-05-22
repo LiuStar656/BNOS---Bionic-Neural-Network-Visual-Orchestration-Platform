@@ -186,21 +186,23 @@ def main():
             except Exception:
                 pass
 
-        # 平滑动画：快速追赶目标进度
+        # 进度条：新数据立即跳到目标，最后 5% 平滑收尾
         if display_pct < target_pct:
             gap = target_pct - display_pct
-            step = max(1, gap // 3)  # 大步快追，小步精调
-            display_pct = min(display_pct + step, target_pct)
+            if gap > 5:
+                display_pct = target_pct  # 大步直接跳跃
+            else:
+                display_pct = min(display_pct + 1, target_pct)  # 收尾 1% 精调
             progress(display_pct, "")
             if display_pct >= 100 and finish_time is None:
                 finish_time = time.time()
 
-        # 主程序已退出 → 强制目标 100%
+        # 主程序已退出 → 强制 100%
         if proc.poll() is not None and finish_time is None:
             target_pct = 100
 
-        # 动画跑完 1 秒后关闭（无论主程序是否仍在运行）
-        if finish_time and time.time() - finish_time > 1.0:
+        # 100% 后短暂延迟关闭
+        if finish_time and time.time() - finish_time > 0.2:
             break
 
         # 超时兜底
