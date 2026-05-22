@@ -42,6 +42,7 @@ from ui.canvas.canvas_menus import CanvasMenusMixin
 from ui.canvas.canvas_connections import CanvasConnectionsMixin
 from ui.canvas.canvas_box_select import CanvasBoxSelectMixin
 from ui.canvas.canvas_batch_ops import CanvasBatchOpsMixin
+from ui.canvas.draw_layer import DrawLayer
 
 class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMixin, CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphicsView):
     """节点画布（VueFlow风格）"""
@@ -91,6 +92,10 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         # 节点和连线存储
         self.nodes = {}  # {node_name: NodeItem}
         self.edges = []  # [EdgeItem]
+        
+        # 绘图层
+        self.draw_layer = DrawLayer(self)
+        self._draw_toolbar = None
         
         # 连线状态
         self.is_connecting = False
@@ -189,6 +194,8 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
     
     def mouseMoveEvent(self, event):
         """鼠标移动事件 - 处理平移、框选和连线拖拽"""
+        if self.draw_layer.mouse_move(event):
+            return
         # 如果正在平移（空格+左键拖拽）
         if self.is_pan_mode and self.pan_start_pos:
             # 计算偏移量（使用 widget 坐标）
@@ -314,6 +321,8 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
     
     def mousePressEvent(self, event):
         """鼠标按下事件 - 处理空格+左键平移、左键长按框选"""
+        if self.draw_layer.mouse_press(event):
+            return
         # 获取点击位置的项
         item = self.itemAt(event.position().toPoint())
         
@@ -405,6 +414,8 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
     
     def mouseReleaseEvent(self, event):
         """鼠标释放事件 - 结束平移或框选"""
+        if self.draw_layer.mouse_release(event):
+            return
         # 结束平移模式（第二阶段退出）
         if self.is_pan_mode and event.button() == Qt.MouseButton.LeftButton:
             self.is_pan_mode = False
@@ -453,7 +464,8 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
 
     def mouseDoubleClickEvent(self, event):
         """鼠标双击事件 - 双击节点打开配置对话框"""
-        # 获取双击位置的项
+        if self.draw_layer.mouse_double_click(event):
+            return
         item = self.itemAt(event.position().toPoint())
         
         # 如果双击的是节点，打开配置对话框
@@ -473,6 +485,8 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
 
     def keyPressEvent(self, event):
         """键盘按下事件 - 跟踪空格键状态"""
+        if self.draw_layer.key_press(event):
+            return
         if event.key() == Qt.Key.Key_Space:
             # ✅ 关键修复：使用Qt内置的isAutoRepeat()过滤系统自动重复事件
             if event.isAutoRepeat():
@@ -495,6 +509,8 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
     
     def keyReleaseEvent(self, event):
         """键盘释放事件 - 跟踪空格键状态"""
+        if self.draw_layer.key_release(event):
+            return
         if event.key() == Qt.Key.Key_Space:
             # ✅ 关键修复：使用Qt内置的isAutoRepeat()过滤虚假释放事件
             if event.isAutoRepeat():

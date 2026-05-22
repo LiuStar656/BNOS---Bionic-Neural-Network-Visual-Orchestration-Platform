@@ -4,6 +4,40 @@
 
 ---
 
+## 🏗️ Process Isolation Architecture + Drawing Tools Plan (2026-05-22)
+
+### Process Isolation Infrastructure
+
+Four-process architecture (Main / Canvas / Panel / Core), IPC communication ready:
+
+| New File | Responsibility |
+|----------|---------------|
+| `ui/core/ipc.py` | QLocalServer/Client + JSON codec, 7 Action constants |
+| `ui/core/process_manager.py` | Subprocess start/stop/crash detection/auto-restart (max 5) |
+| `ui/canvas/canvas_process.py` | Canvas subprocess entry |
+| `ui/panels/panel_process.py` | Panel subprocess entry |
+| `ui/core/core_process.py` | Core business backend entry |
+| `tests/` | 3 test scripts |
+
+- Communication: QLocalSocket + JSON, cross-platform, no dependencies
+- Embedded mode (default) works normally, remote mode infrastructure ready
+- Subprocess crash auto-restart, main process unaffected
+
+### Drawing Tools Development Plan
+
+PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-key to toggle edit mode.
+
+**To be developed**:
+
+| File | Responsibility |
+|------|---------------|
+| `graphic_items.py` | Graphics base class + 5 shape subclasses |
+| `draw_layer.py` | Unified graphics rendering/selection/drag/undo-redo |
+| `draw_toolbar.py` | PS-style left vertical toolbar (scrollable) |
+
+---
+
+
 ## 🏗️ Major Decoupling Refactor + Bug Fixes (2026-05-22)
 
 ### Refactor Results: 4 Large Files → 16 Modules
