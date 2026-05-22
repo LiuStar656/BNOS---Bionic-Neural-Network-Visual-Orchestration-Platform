@@ -45,7 +45,7 @@ class NodeConfigDialog(FloatingPanel):
         left_layout.setSpacing(10)
         
         # 上半部分：config.json 编辑器
-        config_group = QGroupBox("配置编辑")
+        config_group = QGroupBox(t("k_config_edit"))
         config_layout = QVBoxLayout(config_group)
         
         self.config_text = QTextEdit()
@@ -223,7 +223,7 @@ class NodeConfigDialog(FloatingPanel):
         
         node_data = self.parent_window.nodes_data.get(self.node_name)
         if node_data and node_data.get('status') == 'running':
-            QMessageBox.information(self, "提示", "节点已在运行中")
+            QMessageBox.information(self, t("k_title_info"), t("k_node_already_running"))
             return
         
         try:
@@ -231,7 +231,7 @@ class NodeConfigDialog(FloatingPanel):
             self.parent_window.start_selected_node_by_name(self.node_name)
             self.close()
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"启动节点失败: {str(e)}")
     
     def stop_node(self):
         """停止节点"""
@@ -240,14 +240,14 @@ class NodeConfigDialog(FloatingPanel):
         
         node_data = self.parent_window.nodes_data.get(self.node_name)
         if not node_data or node_data.get('status') == 'stopped':
-            QMessageBox.information(self, "提示", "节点未在运行")
+            QMessageBox.information(self, t("k_title_info"), t("k_node_not_running"))
             return
         
         try:
             # 使用主窗口的停止方法
             self.parent_window.stop_selected_node_by_name(self.node_name)
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"停止节点失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"停止节点失败: {str(e)}")
     
     def open_node_folder(self):
         """打开节点文件夹"""
@@ -304,7 +304,7 @@ class NodeConfigDialog(FloatingPanel):
                 if not os.path.exists(self.node_path):
                     QMessageBox.warning(
                         self, 
-                        "警告", 
+                        t("k_title_warning"), 
                         f"⚠️ 节点文件夹不存在！\n\n路径: {self.node_path}\n\n"
                         f"可能原因：\n"
                         f"1. 节点已被删除\n"
@@ -325,7 +325,7 @@ class NodeConfigDialog(FloatingPanel):
             logger.debug("已打开节点文件夹: %s", self.node_path)
         except Exception as e:
             logger.error("打开文件夹异常: %s", e)
-            QMessageBox.critical(self, "错误", f"打开文件夹失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"打开文件夹失败: {str(e)}")
             import traceback
             traceback.print_exc()
     
@@ -353,7 +353,7 @@ class NodeConfigDialog(FloatingPanel):
         try:
             # 容错：检查文件夹是否存在
             if not os.path.exists(self.node_path) or not os.path.isdir(self.node_path):
-                QMessageBox.warning(self, "警告", f"节点文件夹不存在:\n{self.node_path}")
+                QMessageBox.warning(self, t("k_title_warning"), f"节点文件夹不存在:\n{self.node_path}")
                 return
             
             # 预检测 VSCode 是否安装
@@ -405,25 +405,25 @@ class NodeConfigDialog(FloatingPanel):
                     else:  # Linux
                         subprocess.Popen(['code', workspace_file])
                     
-                    QMessageBox.information(self, "成功", 
+                    QMessageBox.information(self, t("k_title_success"), 
                         f"✅ 已创建 VSCode 工作区并自动打开\n\n"
                         f"工作区文件：{workspace_file}\n"
                         f"使用相对路径配置，可安全迁移项目")
                 except Exception as e:
-                    QMessageBox.information(self, "工作区已创建", 
+                    QMessageBox.information(self, t("k_title_workspace_created"), 
                         f"✅ VSCode 工作区文件已创建\n\n"
                         f"工作区文件：{workspace_file}\n\n"
                         f"⚠️ 自动打开失败：{str(e)}\n\n"
                         f"请手动用 VSCode 打开该文件")
             else:
-                QMessageBox.information(self, "工作区已创建", 
+                QMessageBox.information(self, t("k_title_workspace_created"), 
                     f"✅ VSCode 工作区文件已创建\n\n"
                     f"工作区文件：{workspace_file}\n\n"
                     f"💡 提示：安装 VSCode 并添加 'code' 命令到 PATH 后，\n"
                     f"可以双击此文件直接用 VSCode 打开")
             
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"创建 VSCode 工作区失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"创建 VSCode 工作区失败: {str(e)}")
             import traceback
             traceback.print_exc()
     
@@ -437,7 +437,7 @@ class NodeConfigDialog(FloatingPanel):
                 activate_script = os.path.join(self.node_path, "venv", "bin", "activate")
             
             if not os.path.exists(activate_script):
-                QMessageBox.warning(self, "警告", f"虚拟环境不存在:\n{activate_script}")
+                QMessageBox.warning(self, t("k_title_warning"), f"虚拟环境不存在:\n{activate_script}")
                 return
             
             # 打开命令行
@@ -461,7 +461,7 @@ class NodeConfigDialog(FloatingPanel):
                     except:
                         continue
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"打开命令行失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"打开命令行失败: {str(e)}")
             import traceback
             traceback.print_exc()
     
@@ -515,11 +515,11 @@ class NodeConfigDialog(FloatingPanel):
                     if hasattr(self.parent_window, 'canvas'):
                         self.parent_window.canvas.sync_node_display(self.node_name)
                 
-                QMessageBox.information(self, "成功", "✅ config.json 已保存")
+                QMessageBox.information(self, t("k_title_success"), "✅ config.json 已保存")
             except json.JSONDecodeError as e:
                 reply = QMessageBox.question(
                     self, 
-                    "JSON 格式错误",
+                    t("k_title_json_error"),
                     f"⚠️ 当前内容不是有效的 JSON 格式：\n\n{str(e)}\n\n是否仍要保存？",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No
@@ -535,10 +535,10 @@ class NodeConfigDialog(FloatingPanel):
                         except:
                             pass
                     
-                    QMessageBox.information(self, "成功", "✅ 已保存（未格式化）")
+                    QMessageBox.information(self, t("k_title_success"), "✅ 已保存（未格式化）")
                     
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"❌ 保存 config.json 失败:\n{str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"❌ 保存 config.json 失败:\n{str(e)}")
 
     def load_log_files(self):
         """加载 logs 目录下的所有 .log 文件"""
@@ -611,12 +611,12 @@ class NodeConfigDialog(FloatingPanel):
     def refresh_log_files(self):
         """刷新日志文件列表"""
         self.load_log_files()
-        QMessageBox.information(self, "成功", "✅ 日志文件列表已刷新")
+        QMessageBox.information(self, t("k_title_success"), "✅ 日志文件列表已刷新")
     
     def clear_current_log(self):
         """清空当前日志文件"""
         if self.log_file_combo.count() == 0:
-            QMessageBox.warning(self, "警告", "没有可清空的日志文件")
+            QMessageBox.warning(self, t("k_title_warning"), t("k_log_no_clear"))
             return
         
         log_filename = self.log_file_combo.currentText()
@@ -625,7 +625,7 @@ class NodeConfigDialog(FloatingPanel):
         
         reply = QMessageBox.question(
             self, 
-            "确认清空",
+            t("k_title_confirm_clear"),
             f"确定要清空日志文件 '{log_filename}' 吗？\n\n此操作不可恢复！",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
@@ -636,9 +636,9 @@ class NodeConfigDialog(FloatingPanel):
                 with open(log_path, 'w', encoding='utf-8') as f:
                     f.write("")
                 self.output_text.setPlainText(f"📭 日志文件已清空: {log_filename}")
-                QMessageBox.information(self, "成功", f"✅ 日志文件 '{log_filename}' 已清空")
+                QMessageBox.information(self, t("k_title_success"), f"✅ 日志文件 '{log_filename}' 已清空")
             except Exception as e:
-                QMessageBox.critical(self, "错误", f"❌ 清空日志文件失败:\n{str(e)}")
+                QMessageBox.critical(self, t("k_title_error"), f"❌ 清空日志文件失败:\n{str(e)}")
 
 class PropertyPanel(QWidget):
     """属性配置面板"""
@@ -657,7 +657,7 @@ class PropertyPanel(QWidget):
         layout.setContentsMargins(5, 5, 5, 5)
         
         # 标题
-        title_label = QLabel("属性配置")
+        title_label = QLabel(t("k_properties"))
         title_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
         layout.addWidget(title_label)
         
@@ -681,7 +681,7 @@ class PropertyPanel(QWidget):
         """显示默认信息"""
         self.clear_content()
         
-        info_label = QLabel("未选中任何元素")
+        info_label = QLabel(t("k_no_selection"))
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         info_label.setStyleSheet("color: gray; padding: 20px;")
         self.content_layout.addWidget(info_label)
@@ -714,31 +714,31 @@ class PropertyPanel(QWidget):
         self.content_layout.addWidget(title)
         
         # 配置表单
-        form_group = QGroupBox("基本配置")
+        form_group = QGroupBox(t("k_basic_config"))
         form_layout = QFormLayout(form_group)
         
         # node_name（只读）
         node_name_edit = QLineEdit(config.get('node_name', ''))
         node_name_edit.setReadOnly(True)
-        form_layout.addRow("节点名称:", node_name_edit)
+        form_layout.addRow(t("k_field_node_name"), node_name_edit)
         
         # listen_upper_file
         self.listen_file_edit = QLineEdit(config.get('listen_upper_file', ''))
-        form_layout.addRow("监听文件:", self.listen_file_edit)
+        form_layout.addRow(t("k_field_listen_file"), self.listen_file_edit)
         
         # output_file（只读）
         output_file_edit = QLineEdit(config.get('output_file', './output.json'))
         output_file_edit.setReadOnly(True)
-        form_layout.addRow("输出文件:", output_file_edit)
+        form_layout.addRow(t("k_field_output_file"), output_file_edit)
         
         # output_type
         self.output_type_edit = QLineEdit(config.get('output_type', ''))
-        form_layout.addRow("输出类型:", self.output_type_edit)
+        form_layout.addRow(t("k_field_output_type"), self.output_type_edit)
         
         self.content_layout.addWidget(form_group)
         
         # Filter配置
-        filter_group = QGroupBox("Filter注意力规则")
+        filter_group = QGroupBox(t("k_filter_rules"))
         filter_layout = QVBoxLayout(filter_group)
         
         # 使用表格显示filter
@@ -758,11 +758,11 @@ class PropertyPanel(QWidget):
         
         # 添加/删除按钮
         btn_layout = QVBoxLayout()
-        add_btn = QPushButton("添加规则")
+        add_btn = QPushButton(t("k_add_rule"))
         add_btn.clicked.connect(self.add_filter_rule)
         btn_layout.addWidget(add_btn)
         
-        del_btn = QPushButton("删除选中")
+        del_btn = QPushButton(t("k_delete_selected"))
         del_btn.clicked.connect(self.delete_filter_rule)
         btn_layout.addWidget(del_btn)
         
@@ -771,19 +771,19 @@ class PropertyPanel(QWidget):
         self.content_layout.addWidget(filter_group)
         
         # 节点控制按钮组
-        control_group = QGroupBox("节点控制")
+        control_group = QGroupBox(t("k_node_control"))
         control_layout = QVBoxLayout(control_group)
         
         btn_row_layout = QVBoxLayout()
         
         # 启动按钮
-        start_btn = QPushButton("启动节点")
+        start_btn = QPushButton(t("k_node_start"))
         start_btn.setStyleSheet("background-color: #333333; color: white; padding: 8px; font-weight: bold;")
         start_btn.clicked.connect(self.start_node)
         btn_row_layout.addWidget(start_btn)
         
         # 停止按钮
-        stop_btn = QPushButton("停止节点")
+        stop_btn = QPushButton(t("k_node_stop"))
         stop_btn.setStyleSheet("background-color: #555555; color: white; padding: 8px; font-weight: bold;")
         stop_btn.clicked.connect(self.stop_node)
         btn_row_layout.addWidget(stop_btn)
@@ -792,7 +792,7 @@ class PropertyPanel(QWidget):
         self.content_layout.addWidget(control_group)
         
         # 保存按钮
-        save_btn = QPushButton("保存配置")
+        save_btn = QPushButton(t("k_config_save"))
         save_btn.setStyleSheet("background-color: #333333; color: white; padding: 10px; font-weight: bold;")
         save_btn.clicked.connect(self.save_config)
         self.content_layout.addWidget(save_btn)
@@ -803,7 +803,7 @@ class PropertyPanel(QWidget):
     def start_node(self):
         """启动节点"""
         if not self.current_node_name or not self.current_node_path:
-            QMessageBox.warning(self, "警告", "请先选择一个节点")
+            QMessageBox.warning(self, t("k_title_warning"), t("k_node_select_one"))
             return
         
         if not self.parent_window:
@@ -812,7 +812,7 @@ class PropertyPanel(QWidget):
         # 检查节点是否已在运行
         node_data = self.parent_window.nodes_data.get(self.current_node_name)
         if node_data and node_data.get('process'):
-            QMessageBox.information(self, "提示", "节点已在运行中")
+            QMessageBox.information(self, t("k_title_info"), t("k_node_already_running"))
             return
         
         try:
@@ -825,7 +825,7 @@ class PropertyPanel(QWidget):
                 start_script = os.path.join(self.current_node_path, "start.sh")
             
             if not os.path.exists(start_script):
-                QMessageBox.critical(self, "错误", f"启动脚本不存在: {start_script}")
+                QMessageBox.critical(self, t("k_title_error"), f"启动脚本不存在: {start_script}")
                 return
             
             # 启动节点进程 - 使用启动脚本
@@ -848,15 +848,15 @@ class PropertyPanel(QWidget):
             # 更新状态
             self.parent_window.update_node_status(self.current_node_name, 'running')
             
-            QMessageBox.information(self, "成功", f"节点 '{self.current_node_name}' 已启动")
+            QMessageBox.information(self, t("k_title_success"), f"节点 '{self.current_node_name}' 已启动")
             
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"启动节点失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"启动节点失败: {str(e)}")
             
     def stop_node(self):
         """停止节点 - 强制关闭进程"""
         if not self.current_node_name or not self.current_node_path:
-            QMessageBox.warning(self, "警告", "请先选择一个节点")
+            QMessageBox.warning(self, t("k_title_warning"), t("k_node_select_one"))
             return
         
         if not self.parent_window:
@@ -865,7 +865,7 @@ class PropertyPanel(QWidget):
         # 检查节点是否在运行
         node_data = self.parent_window.nodes_data.get(self.current_node_name)
         if not node_data or not node_data.get('process'):
-            QMessageBox.information(self, "提示", "节点未在运行")
+            QMessageBox.information(self, t("k_title_info"), t("k_node_not_running"))
             return
         
         try:
@@ -892,10 +892,10 @@ class PropertyPanel(QWidget):
             # 更新状态
             self.parent_window.update_node_status(self.current_node_name, 'stopped')
             
-            QMessageBox.information(self, "成功", f"节点 '{self.current_node_name}' 已强制停止")
+            QMessageBox.information(self, t("k_title_success"), f"节点 '{self.current_node_name}' 已强制停止")
             
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"停止节点失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"停止节点失败: {str(e)}")
 
     def add_filter_rule(self):
         """添加filter规则"""
@@ -950,9 +950,9 @@ class PropertyPanel(QWidget):
                 if hasattr(self.parent_window, 'canvas'):
                     self.parent_window.canvas.sync_node_display(self.current_node_name)
             
-            QMessageBox.information(self, "成功", "配置已保存")
+            QMessageBox.information(self, t("k_title_success"), t("k_config_saved"))
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"保存配置失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"保存配置失败: {str(e)}")
             
     def load_connection_info(self, source_name, target_name, source_output_path):
         """加载连线配置信息"""
@@ -961,23 +961,23 @@ class PropertyPanel(QWidget):
         self.current_node_path = None
         
         # 标题
-        title = QLabel(f"连线配置")
+        title = QLabel(ft("k_connection_config"))
         title.setFont(QFont("Arial", 11, QFont.Weight.Bold))
         self.content_layout.addWidget(title)
         
         # 连线信息
-        info_group = QGroupBox("连线详情")
+        info_group = QGroupBox(t("k_connection_details"))
         info_layout = QFormLayout(info_group)
         
         upstream_label = QLabel(source_name)
-        info_layout.addRow("上游节点:", upstream_label)
+        info_layout.addRow(t("k_upstream_node"), upstream_label)
         
         downstream_label = QLabel(target_name)
-        info_layout.addRow("下游节点:", downstream_label)
+        info_layout.addRow(t("k_downstream_node"), downstream_label)
         
         path_label = QLabel(source_output_path)
         path_label.setWordWrap(True)
-        info_layout.addRow("上游输出路径:", path_label)
+        info_layout.addRow(t("k_upstream_path"), path_label)
         
         self.content_layout.addWidget(info_group)
         
@@ -1001,7 +1001,7 @@ class ColorSettingsDialog(QDialog):
     def __init__(self, canvas, parent=None):
         super().__init__(parent)
         self.canvas = canvas
-        self.setWindowTitle("颜色设置")
+        self.setWindowTitle(t("k_color_settings"))
         self.setGeometry(300, 200, 500, 600)
         
         self.init_ui()
@@ -1012,7 +1012,7 @@ class ColorSettingsDialog(QDialog):
         layout.setSpacing(15)
         
         # 标题
-        title = QLabel("自定义外观")
+        title = QLabel(t("k_custom_appearance"))
         title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
@@ -1030,20 +1030,20 @@ class ColorSettingsDialog(QDialog):
         layout.addWidget(scroll)
         
         # ===== 画布背景色设置 =====
-        canvas_group = QGroupBox("画布背景")
+        canvas_group = QGroupBox(t("k_color_canvas_bg"))
         canvas_layout = QFormLayout(canvas_group)
         
         # 画布背景色
-        self.canvas_color_btn = QPushButton("选择颜色")
+        self.canvas_color_btn = QPushButton(t("k_color_select"))
         self.canvas_color_btn.setStyleSheet(f"background-color: {self.canvas.canvas_bg_color}; min-height: 30px;")
         self.canvas_color_btn.clicked.connect(lambda: self.choose_color('canvas'))
-        canvas_layout.addRow("背景颜色:", self.canvas_color_btn)
+        canvas_layout.addRow(t("k_field_bg_color"), self.canvas_color_btn)
         
         # 网格线颜色
-        self.grid_color_btn = QPushButton("选择颜色")
+        self.grid_color_btn = QPushButton(t("k_color_select"))
         self.grid_color_btn.setStyleSheet(f"background-color: {self.canvas.grid_color}; min-height: 30px;")
         self.grid_color_btn.clicked.connect(lambda: self.choose_color('grid'))
-        canvas_layout.addRow("网格线颜色:", self.grid_color_btn)
+        canvas_layout.addRow(t("k_field_grid_color"), self.grid_color_btn)
         
         # 网格线透明度
         self.grid_opacity_slider = QSlider(Qt.Orientation.Horizontal)
@@ -1054,89 +1054,89 @@ class ColorSettingsDialog(QDialog):
         grid_opacity_layout = QVBoxLayout()
         grid_opacity_layout.addWidget(self.grid_opacity_slider)
         grid_opacity_layout.addWidget(self.grid_opacity_label)
-        canvas_layout.addRow("网格线透明度:", grid_opacity_layout)
+        canvas_layout.addRow(t("k_field_grid_opacity"), grid_opacity_layout)
         
         content_layout.addWidget(canvas_group)
         
         # ===== 节点样式设置 =====
-        node_group = QGroupBox("节点样式")
+        node_group = QGroupBox(t("k_color_node_style"))
         node_layout = QFormLayout(node_group)
         
         # 节点背景色
-        self.node_bg_btn = QPushButton("选择颜色")
+        self.node_bg_btn = QPushButton(t("k_color_select"))
         self.node_bg_btn.setStyleSheet(f"background-color: {self.canvas.node_bg_color}; min-height: 30px;")
         self.node_bg_btn.clicked.connect(lambda: self.choose_color('node_bg'))
-        node_layout.addRow("节点背景:", self.node_bg_btn)
+        node_layout.addRow(t("k_field_node_bg"), self.node_bg_btn)
         
         # 节点边框色
-        self.node_border_btn = QPushButton("选择颜色")
+        self.node_border_btn = QPushButton(t("k_color_select"))
         self.node_border_btn.setStyleSheet(f"background-color: {self.canvas.node_border_color}; min-height: 30px;")
         self.node_border_btn.clicked.connect(lambda: self.choose_color('node_border'))
-        node_layout.addRow("节点边框:", self.node_border_btn)
+        node_layout.addRow(t("k_field_node_border"), self.node_border_btn)
         
         # 节点文字颜色
-        self.node_text_btn = QPushButton("选择颜色")
+        self.node_text_btn = QPushButton(t("k_color_select"))
         self.node_text_btn.setStyleSheet(f"background-color: {self.canvas.node_text_color}; min-height: 30px;")
         self.node_text_btn.clicked.connect(lambda: self.choose_color('node_text'))
-        node_layout.addRow("节点文字:", self.node_text_btn)
+        node_layout.addRow(t("k_field_node_text"), self.node_text_btn)
         
         # 选中节点边框色
-        self.node_selected_btn = QPushButton("选择颜色")
+        self.node_selected_btn = QPushButton(t("k_color_select"))
         self.node_selected_btn.setStyleSheet(f"background-color: {self.canvas.node_selected_color}; min-height: 30px;")
         self.node_selected_btn.clicked.connect(lambda: self.choose_color('node_selected'))
-        node_layout.addRow("选中边框:", self.node_selected_btn)
+        node_layout.addRow(t("k_field_selected_border"), self.node_selected_btn)
         
         content_layout.addWidget(node_group)
         
         # ===== 锚点样式设置 =====
-        anchor_group = QGroupBox("锚点样式")
+        anchor_group = QGroupBox(t("k_color_anchor_style"))
         anchor_layout = QFormLayout(anchor_group)
         
         # 输入锚点颜色
-        self.input_anchor_btn = QPushButton("选择颜色")
+        self.input_anchor_btn = QPushButton(t("k_color_select"))
         self.input_anchor_btn.setStyleSheet(f"background-color: {self.canvas.input_anchor_color}; min-height: 30px;")
         self.input_anchor_btn.clicked.connect(lambda: self.choose_color('input_anchor'))
-        anchor_layout.addRow("输入锚点 (IN):", self.input_anchor_btn)
+        anchor_layout.addRow(t("k_field_input_anchor"), self.input_anchor_btn)
         
         # 输出锚点颜色
-        self.output_anchor_btn = QPushButton("选择颜色")
+        self.output_anchor_btn = QPushButton(t("k_color_select"))
         self.output_anchor_btn.setStyleSheet(f"background-color: {self.canvas.output_anchor_color}; min-height: 30px;")
         self.output_anchor_btn.clicked.connect(lambda: self.choose_color('output_anchor'))
-        anchor_layout.addRow("输出锚点 (OUT):", self.output_anchor_btn)
+        anchor_layout.addRow(t("k_field_output_anchor"), self.output_anchor_btn)
         
         content_layout.addWidget(anchor_group)
         
         # ===== 连线样式设置 =====
-        edge_group = QGroupBox("连线样式")
+        edge_group = QGroupBox(t("k_color_edge_style"))
         edge_layout = QFormLayout(edge_group)
         
         # 连线颜色
-        self.edge_color_btn = QPushButton("选择颜色")
+        self.edge_color_btn = QPushButton(t("k_color_select"))
         self.edge_color_btn.setStyleSheet(f"background-color: {self.canvas.edge_color}; min-height: 30px;")
         self.edge_color_btn.clicked.connect(lambda: self.choose_color('edge'))
-        edge_layout.addRow("连线颜色:", self.edge_color_btn)
+        edge_layout.addRow(t("k_field_edge_color"), self.edge_color_btn)
         
         # 连线宽度
         self.edge_width_spinbox = QSpinBox()
         self.edge_width_spinbox.setRange(1, 10)
         self.edge_width_spinbox.setValue(self.canvas.edge_width)
-        edge_layout.addRow("连线宽度:", self.edge_width_spinbox)
+        edge_layout.addRow(t("k_field_edge_width"), self.edge_width_spinbox)
         
         content_layout.addWidget(edge_group)
         
         # ===== 预设主题 =====
-        theme_group = QGroupBox("快速主题")
+        theme_group = QGroupBox(t("k_color_quick_theme"))
         theme_layout = QVBoxLayout(theme_group)
         
         theme_btn_layout = QVBoxLayout()
         
         # 深色主题（VSCode 默认）
-        dark_theme_btn = QPushButton("深色主题（默认）")
+        dark_theme_btn = QPushButton(t("k_color_dark_theme"))
         dark_theme_btn.clicked.connect(lambda: self.apply_preset_theme('dark'))
         theme_btn_layout.addWidget(dark_theme_btn)
         
         # 浅色主题
-        light_theme_btn = QPushButton("浅色主题")
+        light_theme_btn = QPushButton(t("k_color_light_theme"))
         light_theme_btn.clicked.connect(lambda: self.apply_preset_theme('light'))
         theme_btn_layout.addWidget(light_theme_btn)
         
@@ -1148,13 +1148,13 @@ class ColorSettingsDialog(QDialog):
         button_layout = QVBoxLayout()
         
         # 应用按钮
-        apply_btn = QPushButton("应用更改")
+        apply_btn = QPushButton(t("k_color_apply"))
         apply_btn.setStyleSheet("background-color: #333333; color: white; padding: 10px; font-weight: bold;")
         apply_btn.clicked.connect(self.apply_settings)
         button_layout.addWidget(apply_btn)
         
         # 重置按钮
-        reset_btn = QPushButton("恢复默认")
+        reset_btn = QPushButton(t("k_color_reset"))
         reset_btn.setStyleSheet("background-color: #666666; color: white; padding: 10px;")
         reset_btn.clicked.connect(self.reset_to_default)
         button_layout.addWidget(reset_btn)
@@ -1188,7 +1188,7 @@ class ColorSettingsDialog(QDialog):
         }
         
         current_color = QColor(current_colors[target])
-        new_color = QColorDialog.getColor(current_color, self, "选择颜色")
+        new_color = QColorDialog.getColor(current_color, self, t("k_color_select"))
         
         if new_color.isValid():
             color_hex = new_color.name()
@@ -1286,13 +1286,13 @@ class ColorSettingsDialog(QDialog):
             # 立即保存到项目文件
             self.canvas._save_color_settings()
             
-            QMessageBox.information(self, "成功", "颜色设置已应用并保存")
+            QMessageBox.information(self, t("k_title_success"), t("k_color_applied"))
             self.close()
             
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"应用设置失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"应用设置失败: {str(e)}")
             
     def reset_to_default(self):
         """恢复到默认颜色"""
         self.apply_preset_theme('dark')
-        QMessageBox.information(self, "提示", "已恢复默认颜色设置（深色主题）")
+        QMessageBox.information(self, t("k_title_info"), t("k_color_reset_done"))

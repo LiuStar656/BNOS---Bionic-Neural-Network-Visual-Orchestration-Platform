@@ -30,7 +30,7 @@ class NodeListPanel(FloatingPanel):
     node_right_clicked = pyqtSignal(str, object)  # 节点右键信号
     
     def __init__(self, parent=None):
-        super().__init__(parent, title="节点列表")
+        super().__init__(parent, title=t("k_node_list"))
         self.nodes_data = {}
         
         # 初始化节点组管理器
@@ -718,7 +718,7 @@ class NodeListPanel(FloatingPanel):
         
         else:
             # 单个节点操作
-            add_to_canvas_action = menu.addAction("添加画布")
+            add_to_canvas_action = menu.addAction(t("k_canvas_add_to"))
             add_to_canvas_action.triggered.connect(lambda: self.add_node_to_canvas(node_name))
             
             menu.addSeparator()
@@ -744,22 +744,22 @@ class NodeListPanel(FloatingPanel):
             # 启动/停止
             node_info = self.nodes_data.get(node_name, {})
             if node_info.get('status') == 'running':
-                stop_action = menu.addAction("停止节点")
+                stop_action = menu.addAction(t("k_node_stop"))
                 stop_action.triggered.connect(lambda: self._stop_single_node(node_name))
             else:
-                start_action = menu.addAction("启动节点")
+                start_action = menu.addAction(t("k_node_start"))
                 start_action.triggered.connect(lambda: self._start_single_node(node_name))
             
             menu.addSeparator()
             
             # 重命名节点
-            rename_action = menu.addAction("重命名节点")
+            rename_action = menu.addAction(t("k_node_rename"))
             rename_action.triggered.connect(lambda: self.rename_node(node_name))
             
             menu.addSeparator()
             
             # 打开节点文件夹
-            open_folder_action = menu.addAction("打开目录")
+            open_folder_action = menu.addAction(t("k_open_dir"))
             open_folder_action.triggered.connect(lambda: self.open_node_folder(node_name))
             
             # 查看日志
@@ -870,7 +870,7 @@ class NodeListPanel(FloatingPanel):
     def open_node_folder(self, node_name):
         """打开节点文件夹"""
         if node_name not in self.nodes_data:
-            QMessageBox.warning(self, "警告", f"⚠️ 节点 '{node_name}' 未找到！")
+            QMessageBox.warning(self, t("k_title_warning"), f"⚠️ 节点 '{node_name}' 未找到！")
             return
         
         node_path = self.nodes_data[node_name]['path']
@@ -928,7 +928,7 @@ class NodeListPanel(FloatingPanel):
             if not os.path.exists(node_path):
                 QMessageBox.warning(
                     self, 
-                    "警告", 
+                    t("k_title_warning"), 
                     f"⚠️ 节点文件夹不存在！\n\n路径: {node_path}\n\n"
                     f"可能原因：\n"
                     f"1. 节点已被删除\n"
@@ -960,7 +960,7 @@ class NodeListPanel(FloatingPanel):
         log_file = os.path.join(node_path, "logs", "listener.log")
         
         if not os.path.exists(log_file):
-            QMessageBox.information(self, "提示", "日志文件不存在")
+            QMessageBox.information(self, t("k_title_info"), t("k_node_no_log"))
             return
         
         # 读取日志内容
@@ -988,7 +988,7 @@ class NodeListPanel(FloatingPanel):
             
             dialog.exec()
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"读取日志失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"读取日志失败: {str(e)}")
             
     def edit_node_config(self, node_name):
         """编辑节点配置"""
@@ -1090,9 +1090,9 @@ class NodeListPanel(FloatingPanel):
             # 刷新列表
             self.update_node_list(self.nodes_data)
             
-            QMessageBox.information(self, "成功", f"节点 {node_name} 已删除")
+            QMessageBox.information(self, t("k_title_success"), f"节点 {node_name} 已删除")
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"删除节点失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"删除节点失败: {str(e)}")
     
     def rename_node(self, old_name):
         """重命名节点"""
@@ -1101,8 +1101,8 @@ class NodeListPanel(FloatingPanel):
         
         # 输入新名称
         new_name, ok = QInputDialog.getText(
-            self, "重命名节点",
-            f"请输入新的节点名称:",
+            self, t("k_node_rename"),
+            ft("k_node_input_new_name"),
             text=old_name
         )
         
@@ -1112,12 +1112,12 @@ class NodeListPanel(FloatingPanel):
         # 验证名称格式
         import re
         if not re.match(r'^[a-zA-Z0-9_-]+$', new_name):
-            QMessageBox.warning(self, "警告", "节点名称只能包含字母、数字、下划线和连字符")
+            QMessageBox.warning(self, t("k_title_warning"), t("k_node_name_invalid"))
             return
         
         # 检查名称是否已存在
         if new_name != old_name and new_name in self.nodes_data:
-            QMessageBox.warning(self, "警告", f"节点名称 '{new_name}' 已存在")
+            QMessageBox.warning(self, t("k_title_warning"), f"节点名称 '{new_name}' 已存在")
             return
         
         try:
@@ -1127,7 +1127,7 @@ class NodeListPanel(FloatingPanel):
             
             # 1. 重命名文件夹
             if os.path.exists(new_path):
-                QMessageBox.warning(self, "警告", f"文件夹 '{new_name}' 已存在")
+                QMessageBox.warning(self, t("k_title_warning"), f"文件夹 '{new_name}' 已存在")
                 return
             
             os.rename(old_path, new_path)
@@ -1179,10 +1179,10 @@ class NodeListPanel(FloatingPanel):
                 # 如果没有父窗口，只更新本地列表
                 self.update_node_list(self.nodes_data)
 
-            QMessageBox.information(self, "成功", f"节点已重命名为: {new_name}")
+            QMessageBox.information(self, t("k_title_success"), f"节点已重命名为: {new_name}")
             
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"重命名失败: {str(e)}")
+            QMessageBox.critical(self, t("k_title_error"), f"重命名失败: {str(e)}")
             import traceback
             traceback.print_exc()
     
@@ -1199,7 +1199,7 @@ class NodeListPanel(FloatingPanel):
     def create_node_group(self):
         """创建新的节点组"""
         group_name, ok = QInputDialog.getText(
-            self, "创建节点组",
+            self, t("k_group_create_group"),
             t("k_node_input_new_group_name")
         )
         
@@ -1208,7 +1208,7 @@ class NodeListPanel(FloatingPanel):
         
         # 选择颜色
         from PyQt6.QtWidgets import QColorDialog
-        color = QColorDialog.getColor(QColor("#4A90E2"), self, "选择组颜色")
+        color = QColorDialog.getColor(QColor("#4A90E2"), self, t("k_color_select_group"))
         
         if not color.isValid():
             color = QColor("#4A90E2")
@@ -1273,7 +1273,7 @@ class NodeListPanel(FloatingPanel):
             return
         new_name, ok = QInputDialog.getText(
             self, "重命名组",
-            f"请输入新的组名称:",
+            ft("k_group_input_new_name"),
             text=group_name
         )
         
@@ -1380,7 +1380,7 @@ class NodeListPanel(FloatingPanel):
         
         # 确认删除
         reply = QMessageBox.question(
-            self, "确认批量删除",
+            self, t("k_title_confirm_batch_delete"),
             f"确定要删除选中的 {len(selected_nodes)} 个节点吗？\n这将删除所有选中节点的文件夹！\n\n节点列表:\n" + "\n".join(selected_nodes[:10]) + ("..." if len(selected_nodes) > 10 else ""),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
@@ -1488,7 +1488,7 @@ class NodeListPanel(FloatingPanel):
             if len(failed_nodes) > 5:
                 msg += f"\n...等{len(failed_nodes)}个"
         
-        QMessageBox.information(self, "批量删除完成", msg)
+        QMessageBox.information(self, t("k_title_batch_delete_result"), msg)
         
         if self.parent_window:
             self.parent_window.show_toast(f"已删除 {success_count} 个节点", "success")
@@ -1583,7 +1583,7 @@ class NodeListPanel(FloatingPanel):
                 logger.warning("读取节点 %node_name 日志失败: %e")
         
         if not all_logs:
-            QMessageBox.information(self, "提示", "没有可用的日志文件")
+            QMessageBox.information(self, t("k_title_info"), t("k_node_no_log_available"))
             return
         
         # 显示合并的日志内容
@@ -1771,7 +1771,7 @@ class NodeListPanel(FloatingPanel):
             return
         
         group_name, ok = QInputDialog.getText(
-            self, "创建新组",
+            self, t("k_group_create_new"),
             f"将为 {len(ungrouped_nodes)} 个未分组节点创建新组\n请输入组名称:"
         )
         
@@ -1780,7 +1780,7 @@ class NodeListPanel(FloatingPanel):
         
         # 选择颜色
         from PyQt6.QtWidgets import QColorDialog
-        color = QColorDialog.getColor(QColor("#7ED321"), self, "选择组颜色")
+        color = QColorDialog.getColor(QColor("#7ED321"), self, t("k_color_select_group"))
         
         if not color.isValid():
             color = QColor("#7ED321")

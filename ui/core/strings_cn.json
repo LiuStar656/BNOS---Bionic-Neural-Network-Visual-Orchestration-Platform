@@ -252,5 +252,8 @@
   "k_title_detect_running": "检测到运行中的节点",
   "k_group_config_load_fail": "未设置项目路径，无法加载节点组配置",
   "k_group_config_save_fail": "未设置项目路径，无法保存节点组配置",
-  "k_group_cleared_all": "已清空所有节点组"
+  "k_group_cleared_all": "已清空所有节点组",
+
+  "k_style_rect": "方形",
+  "k_style_light_rect": "浅色方块"
 }
