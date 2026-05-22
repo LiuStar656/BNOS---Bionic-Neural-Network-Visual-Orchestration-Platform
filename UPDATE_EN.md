@@ -4,6 +4,54 @@
 
 ---
 
+## 🪟 Unified Window Styling + Process Isolation Activation + Window Geometry Sync (2026-05-22)
+
+### All Dialogs & Popups Unified
+
+Completely eliminated all native Windows dialogs, achieving full application-wide window style uniformity.
+
+| New File | Responsibility |
+|----------|---------------|
+| `ui/core/utils/dialog_utils.py` | `themed_message()` / `themed_input()` / `pick_folder()` — 3 universal components |
+
+**`themed_message()` — replaces QMessageBox**:
+- 5 modes: `info` / `warning` / `error` / `question` / `question3` (three-button)
+- All 71 QMessageBox calls fully migrated
+- Unified `FramelessWindowHint` translucent style, auto-centered on parent
+
+**`pick_folder()` — self-drawn folder picker**:
+- QTreeWidget tree view with lazy-loaded subdirectories
+- Path bar + parent button (⬆) + drive switching (C:/D:/...)
+- Double-click to expand/select, confirm to return path
+- Fully breaks free from QFileDialog native style limitations
+
+**`themed_input()` — unified input dialog**:
+- Replaces QInputDialog for new node/new group creation scenarios
+- Supports input validation + placeholder text
+
+### Process Isolation (Debugging Stage — Switched Back to Embedded Mode)
+
+| Key Change | File |
+|-----------|------|
+| `CANVAS_PROCESS_MODE = True` | `main_window.py` |
+| `A_WIN_SYNC` IPC command | `ipc.py` + `main_window.py` + `canvas_process.py` |
+| Placeholder QWidget replacing empty canvas | `main_window.py` |
+| 6× `canvas=None` safety guards | `node_list_panel.py` |
+
+**Window Geometry Sync**: When the main window moves or resizes, `A_WIN_SYNC` IPC auto-syncs the canvas subprocess window position and size, ensuring the independent window always aligns with the main window's canvas area.
+
+**Isolation Effect**: Canvas crash no longer brings down the main window; subprocess auto-restarts (max 5 attempts).
+
+### Global Style Unification
+
+- `bnos_gui.py`: `AA_DontUseNativeDialogs` set before `QApplication()` creation
+- `bnos_gui.py`: Global `setStyle("Fusion")` forces all widgets through Qt render pipeline
+- All dialogs unified to `FramelessWindowHint` + custom title bar, color `rgba(30,30,30,220)`
+
+**Affected files**: `main_window.py`, `ipc.py`, `canvas_process.py`, `dialog_utils.py`(new), `node_list_panel.py`, `project_manager.py`, `external_node_manager.py`, `bnos_gui.py`
+
+---
+
 ## 🎨 Drawing Toolbar — PS-Style Left Vertical Toolbar (2026-05-22)
 
 ### New Modules

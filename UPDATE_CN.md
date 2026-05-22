@@ -7,6 +7,54 @@
 
 ---
 
+## 🪟 统一窗口样式 + 进程隔离激活 + 窗口几何同步 (2026-05-22)
+
+### 统一全部弹窗与对话框样式
+
+彻底消除所有原生 Windows 对话框，实现全应用窗口样式统一。
+
+| 新增文件 | 职责 |
+|---------|------|
+| `ui/core/utils/dialog_utils.py` | `themed_message()` / `themed_input()` / `pick_folder()` 三大通用组件 |
+
+**`themed_message()` — 替代 QMessageBox**：
+- 5 种模式：`info` / `warning` / `error` / `question` / `question3`（三按钮）
+- 全部 71 处 QMessageBox 调用已迁移完成
+- 统一 `FramelessWindowHint` 无边框半透明风格，自动居中于父窗口
+
+**`pick_folder()` — 自绘文件夹选择器**：
+- QTreeWidget 树形目录，懒加载子目录
+- 顶部路径栏 + 父目录按钮（⬆）+ 盘符切换（C:/D:/...）
+- 双击展开/选中，确认返回路径
+- 彻底摆脱 QFileDialog 原生样式不可控问题
+
+**`themed_input()` — 统一输入对话框**：
+- 新建节点/新建组等场景统一使用，替代 QInputDialog
+- 支持输入验证 + 占位提示文字
+
+### 进程隔离（调试阶段，当前已切回嵌合模式）
+
+| 关键改动 | 文件 |
+|---------|------|
+| `CANVAS_PROCESS_MODE = True` | `main_window.py` |
+| `A_WIN_SYNC` IPC 命令 | `ipc.py` + `main_window.py` + `canvas_process.py` |
+| 占位 QWidget 替代 canvas 空位 | `main_window.py` |
+| 6 处 `canvas=None` 安全守卫 | `node_list_panel.py` |
+
+**窗口几何同步**：主窗口移动/缩放时，通过 `A_WIN_SYNC` IPC 自动同步画布子进程窗口位置和大小，确保独立窗口始终对齐主窗口画布区域。
+
+**进程隔离效果**：画布崩溃不再导致主窗口闪退，子进程自动重启（最多 5 次）。
+
+### 全局样式统一
+
+- `bnos_gui.py`：`AA_DontUseNativeDialogs` 在 QApplication 创建前设置
+- `bnos_gui.py`：全局 `setStyle("Fusion")` 确保所有控件走 Qt 渲染管线
+- 所有对话框统一 `FramelessWindowHint` + 自定义标题栏，颜色 `rgba(30,30,30,220)`
+
+**影响文件**：`main_window.py`、`ipc.py`、`canvas_process.py`、`dialog_utils.py`(新增)、`node_list_panel.py`、`project_manager.py`、`external_node_manager.py`、`bnos_gui.py`
+
+---
+
 ## 🎨 绘图工具栏落地 — PS风格左侧竖式工具条 (2026-05-22)
 
 ### 新增模块

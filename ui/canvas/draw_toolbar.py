@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QScrollArea,
                               QColorDialog, QLabel)
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+from ui.core.i18n import t
 
 
 TOOL_W = 40          # 工具栏宽度（够按钮显示）
@@ -22,11 +23,11 @@ BORDER       = "#3e3e42"
 SEPARATOR    = "#3e3e42"
 
 TOOLS = [
-    ("rect",       "▯",  "矩形"),
-    ("round_rect", "◰",  "圆角矩形"),
-    ("polygon",    "⬠",  "多边形"),
-    ("arrow",      "➤",  "箭头"),
-    ("text",       "T",  "文字"),
+    ("rect",       "▯",  "_k_draw_rect"),
+    ("round_rect", "◰",  "_k_draw_round_rect"),
+    ("polygon",    "⬠",  "_k_draw_polygon"),
+    ("arrow",      "➤",  "_k_draw_arrow"),
+    ("text",       "T",  "_k_draw_text"),
 ]
 
 BTN_BASE = f"""
@@ -88,11 +89,11 @@ class DrawToolbar(QWidget):
         self._btns = {}
         self._current_tool = None
 
-        for tid, icon, tip in TOOLS:
+        for tid, icon, tip_key in TOOLS:
             btn = QPushButton(icon)
             btn.setFont(FONT)
             btn.setFixedHeight(BTN_H)
-            btn.setToolTip(tip)
+            btn.setToolTip(t(tip_key))
             btn.setStyleSheet(BTN_BASE)
             btn.clicked.connect(lambda checked, t=tid: self._pick(t))
             layout.addWidget(btn)
@@ -100,30 +101,30 @@ class DrawToolbar(QWidget):
 
         self._sep(layout)
 
-        self._stroke_btn = self._mk_btn("S", "描边颜色", layout)
+        self._stroke_btn = self._mk_btn("S", t("_k_draw_stroke"), layout)
         self._stroke_btn.clicked.connect(self._pick_stroke)
-        self._fill_btn = self._mk_btn("F", "填充颜色", layout)
+        self._fill_btn = self._mk_btn("F", t("_k_draw_fill"), layout)
         self._fill_btn.clicked.connect(self._pick_fill)
 
         self._sep(layout)
 
-        self._lock_btn = self._mk_btn("L", "锁定绘图层", layout)
+        self._lock_btn = self._mk_btn("L", t("_k_draw_lock"), layout)
         self._lock_btn.clicked.connect(lambda: self._toggle_lock())
-        self._hide_btn = self._mk_btn("V", "显示/隐藏", layout)
+        self._hide_btn = self._mk_btn("V", t("_k_draw_show_hide"), layout)
         self._hide_btn.clicked.connect(lambda: self._toggle_visible())
 
         self._sep(layout)
 
-        self._mk_btn("<", "撤销", layout).clicked.connect(lambda: self.undo_requested.emit())
-        self._mk_btn(">", "重做", layout).clicked.connect(lambda: self.redo_requested.emit())
+        self._mk_btn("<", t("_k_draw_undo"), layout).clicked.connect(lambda: self.undo_requested.emit())
+        self._mk_btn(">", t("_k_draw_redo"), layout).clicked.connect(lambda: self.redo_requested.emit())
 
         self._sep(layout)
 
-        d = self._mk_btn("X", "删除选中", layout)
+        d = self._mk_btn("X", t("_k_draw_delete_sel"), layout)
         d.setStyleSheet(BTN_BASE + f"QPushButton:hover {{ background: {BG_DANGER}; color: #fff; }}")
         d.clicked.connect(lambda: self.delete_requested.emit())
 
-        c = self._mk_btn("C", "清空全部", layout)
+        c = self._mk_btn("C", t("_k_draw_clear_all"), layout)
         c.setStyleSheet(BTN_BASE + f"QPushButton:hover {{ background: {BG_DANGER}; color: #fff; }}")
         c.clicked.connect(lambda: self.clear_requested.emit())
 

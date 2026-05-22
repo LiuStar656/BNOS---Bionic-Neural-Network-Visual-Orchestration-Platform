@@ -129,14 +129,14 @@ class MenuManager:
         # 启动节点
         start_node_action = QAction(t("k_node_start"), main_window)
         start_node_action.setShortcut("Ctrl+Shift+S")
-        start_node_action.setStatusTip("启动选中的节点")
+        start_node_action.setStatusTip(t("_k_start_node_tip"))
         start_node_action.triggered.connect(main_window.start_selected_node)
         edit_menu.addAction(start_node_action)
 
         # 停止节点
         stop_node_action = QAction(t("k_node_stop"), main_window)
         stop_node_action.setShortcut("Ctrl+Shift+X")
-        stop_node_action.setStatusTip("停止选中的节点")
+        stop_node_action.setStatusTip(t("_k_stop_node_tip"))
         stop_node_action.triggered.connect(main_window.stop_selected_node)
         edit_menu.addAction(stop_node_action)
 
@@ -164,17 +164,5 @@ class MenuManager:
         Args:
             main_window: BNOSMainWindow实例
         """
-        QMessageBox.about(main_window, t("k_title_about"), 
-            "BNOS - Bionic Neural Network Program Operating System\n\n"
-            "版本: 1.0.0\n"
-            "仿生神经网络程序操作系统\n\n"
-            "一款基于 PyQt6 的纯桌面端可视化节点编排平台。\n\n"
-            "核心特性:\n"
-            "• 项目管理：仿 VSCode 模式，打开文件夹即项目\n"
-            "• 可视化编排：无限平移画布，拖拽节点，智能连线\n"
-            "• 多语言支持：Python、Node.js、Go、Java、C++、Rust、Shell\n"
-            "• 环境隔离：每个节点拥有独立虚拟环境\n"
-            "• 配置编辑：图形化编辑 config.json\n"
-            "• 实时监控：状态指示灯，实时日志查看\n"
-            "• 状态持久化：自动保存布局，重启完整恢复"
-        )
+        from ui.core.utils.dialog_utils import themed_message
+        themed_message(main_window, t("k_title_about"), t("_k_about_text"), "info")

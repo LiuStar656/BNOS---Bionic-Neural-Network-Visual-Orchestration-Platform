@@ -9,12 +9,15 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
+from ui.core.i18n import t
 
 
 class FloatingPanel(QDialog):
     """浮动面板基类"""
 
-    def __init__(self, parent=None, title="面板"):
+    def __init__(self, parent=None, title=None):
+        if title is None:
+            title = t("_k_panel")
         super().__init__(parent)
         self.parent_window = parent
         self.drag_position = None

@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLay
                                QComboBox, QHeaderView)
 from PyQt6.QtCore import Qt, QDir, QTimer
 from PyQt6.QtGui import QFont
+from ui.core.i18n import t
 
 
 _STYLE_CONTAINER = "QWidget { background-color: rgba(30,30,30,220); border-radius: 8px; border: 1px solid rgba(255,255,255,25); }"
@@ -39,19 +40,22 @@ def _make_dialog(parent, title, w, h):
 def _get_drives():
     """获取 Windows 驱动器列表"""
     drives = []
-    if os.name == 'nt':
-        import string
-        from ctypes import windll
-        bitmap = windll.kernel32.GetLogicalDrives()
-        for letter in string.ascii_uppercase:
-            if bitmap & 1:
-                p = f"{letter}:\\"
-                if os.path.exists(p):
-                    label = f"{letter}:"
-                    drives.append((p, label))
-            bitmap >>= 1
+    try:
+        if os.name == 'nt':
+            import string
+            from ctypes import windll
+            bitmap = windll.kernel32.GetLogicalDrives()
+            for letter in string.ascii_uppercase:
+                if bitmap & 1:
+                    p = f"{letter}:\\"
+                    if os.path.exists(p):
+                        label = f"{letter}:"
+                        drives.append((p, label))
+                bitmap >>= 1
+    except Exception:
+        pass
     if not drives:
-        drives.append(("/", "根"))
+        drives.append(("/", "/"))
     return drives
 
 
@@ -84,8 +88,8 @@ def pick_folder(parent, title, start=""):
     for p, label in drives:
         drive_combo.addItem(f"  {label}  ", p)
     nav_bar.addWidget(drive_combo)
-    up_btn = QPushButton("↑ 上级")
-    up_btn.setFixedWidth(60)
+    up_btn = QPushButton(f"↑ {t('_k_btn_up')}")
+    up_btn.setFixedWidth(80)
     up_btn.setStyleSheet(_STYLE_BTN_GREY + "QPushButton { font-size: 11px; padding: 3px 8px; }")
     nav_bar.addWidget(up_btn)
     nav_bar.addStretch()
@@ -98,7 +102,7 @@ def pick_folder(parent, title, start=""):
 
     # 目录树
     tree = QTreeWidget()
-    tree.setHeaderLabels(["📁 文件夹", "路径"])
+    tree.setHeaderLabels([t("_k_folder_picker_header"), t("_k_folder_picker_path")])
     tree.setColumnWidth(0, 300)
     tree.header().setStretchLastSection(True)
     tree.setStyleSheet(_STYLE_TREE)
@@ -107,8 +111,8 @@ def pick_folder(parent, title, start=""):
 
     # 按钮
     br = QHBoxLayout(); br.addStretch()
-    cancel = QPushButton("取消"); cancel.setStyleSheet(_STYLE_BTN_GREY)
-    confirm = QPushButton("选择此文件夹"); confirm.setStyleSheet(_STYLE_BTN_OK)
+    cancel = QPushButton(t("k_cancel")); cancel.setStyleSheet(_STYLE_BTN_GREY)
+    confirm = QPushButton(t("_k_btn_select")); confirm.setStyleSheet(_STYLE_BTN_OK)
     br.addWidget(cancel); br.addWidget(confirm); lay.addLayout(br)
     cancel.clicked.connect(dlg.reject)
 
@@ -225,8 +229,8 @@ def themed_input(parent, title, prompt, default=""):
     lb = QLabel(prompt); lb.setStyleSheet(_STYLE_LABEL); lay.addWidget(lb)
     e = QLineEdit(default); e.setStyleSheet(_STYLE_INPUT); lay.addWidget(e)
     br = QHBoxLayout(); br.addStretch()
-    ob = QPushButton("确定"); ob.setStyleSheet(_STYLE_BTN_OK)
-    cb = QPushButton("取消"); cb.setStyleSheet(_STYLE_BTN_GREY)
+    ob = QPushButton(t("k_ok")); ob.setStyleSheet(_STYLE_BTN_OK)
+    cb = QPushButton(t("k_cancel")); cb.setStyleSheet(_STYLE_BTN_GREY)
     br.addWidget(ob); br.addWidget(cb); lay.addLayout(br)
     ob.clicked.connect(dlg.accept); cb.clicked.connect(dlg.reject); e.returnPressed.connect(dlg.accept)
     if parent: dlg.move(parent.geometry().center() - dlg.rect().center())
@@ -252,19 +256,19 @@ def themed_message(parent, title, text, mode="info"):
     result = MSG_ACCEPT
 
     if mode in ("info", "warning", "error"):
-        ok = QPushButton("确定"); ok.setStyleSheet(_STYLE_BTN_OK)
+        ok = QPushButton(t("k_ok")); ok.setStyleSheet(_STYLE_BTN_OK)
         br.addWidget(ok); ok.clicked.connect(dlg.accept)
     elif mode == "question":
-        no = QPushButton("否"); no.setStyleSheet(_STYLE_BTN_GREY)
-        yes = QPushButton("是"); yes.setStyleSheet(_STYLE_BTN_OK)
+        no = QPushButton(t("_k_btn_no")); no.setStyleSheet(_STYLE_BTN_GREY)
+        yes = QPushButton(t("_k_btn_yes")); yes.setStyleSheet(_STYLE_BTN_OK)
         br.addWidget(no); br.addWidget(yes)
         no.clicked.connect(dlg.reject)
         yes.clicked.connect(dlg.accept)
         result = MSG_REJECT  # default to no
     elif mode == "question3":
-        cancel = QPushButton("取消"); cancel.setStyleSheet(_STYLE_BTN_GREY)
-        no = QPushButton("否"); no.setStyleSheet(_STYLE_BTN_GREY)
-        yes = QPushButton("是"); yes.setStyleSheet(_STYLE_BTN_OK)
+        cancel = QPushButton(t("k_cancel")); cancel.setStyleSheet(_STYLE_BTN_GREY)
+        no = QPushButton(t("_k_btn_no")); no.setStyleSheet(_STYLE_BTN_GREY)
+        yes = QPushButton(t("_k_btn_yes")); yes.setStyleSheet(_STYLE_BTN_OK)
         br.addWidget(cancel); br.addWidget(no); br.addWidget(yes)
         cancel.clicked.connect(lambda: setattr(dlg, '_result', MSG_CANCEL) or dlg.reject())
         no.clicked.connect(dlg.reject)

@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 from ui.main_window import BNOSMainWindow
 from ui.core.logger import logger
-from ui.core.i18n import init_i18n
+from ui.core.i18n import init_i18n, t
 
 
 def main():
@@ -18,7 +18,7 @@ def main():
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)
         QApplication.setStyle("Fusion")  # Fusion确保QSS完全控制
         app = QApplication(sys.argv)
-        app.setApplicationName("BNOS 节点编排平台")
+        app.setApplicationName(t("_k_app_name"))
         app.setOrganizationName("BNOS")
         
         # 创建并显示主窗口

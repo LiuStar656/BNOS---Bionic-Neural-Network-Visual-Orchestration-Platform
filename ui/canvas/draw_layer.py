@@ -5,6 +5,7 @@
 """
 from PyQt6.QtCore import Qt, QPointF
 from PyQt6.QtWidgets import QGraphicsItem
+from ui.core.i18n import t
 from ui.canvas.graphic_items import (
     RectGraphic, RoundRectGraphic, PolygonGraphic, ArrowGraphic, TextGraphic,
     GraphicBase, C_STROKE, C_FILL, STROKE_W
@@ -221,8 +222,8 @@ class DrawLayer:
         elif self._tool == "arrow":
             g = ArrowGraphic([(pos.x(), pos.y()), (pos.x(), pos.y())])
         elif self._tool == "text":
-            from ui.core.floating_panel import themed_input_dialog
-            text = themed_input_dialog(self.canvas, "文本", "输入文字:")
+            from ui.core.utils.dialog_utils import themed_input
+            text = themed_input(self.canvas, t("_k_draw_text_title"), t("_k_draw_text_input"))
             if not text or not text.strip():
                 return False
             g = TextGraphic(text.strip(), pos.x(), pos.y())

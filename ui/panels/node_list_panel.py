@@ -52,7 +52,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         self.content_layout.addWidget(self.path_label)
         
         # 提示文本
-        hint_label = QLabel("右键查看操作")
+        hint_label = QLabel(t("k_node_right_click"))
         hint_label.setStyleSheet("color: rgba(255, 255, 255, 100); font-size: 10px; font-style: italic; padding: 2px 0;")
         self.content_layout.addWidget(hint_label)
         
@@ -229,7 +229,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         node_name = data['name']
         if self.parent_window:
             if self.parent_window.canvas and node_name in self.parent_window.canvas.nodes:
-                self.parent_window.show_toast(f"节点 {node_name} 已在画布上", "warning")
+                self.parent_window.show_toast(t("_k_node_canvas_exists").format(name=node_name), "warning")
                 return
             
             # 添加到画布
@@ -264,7 +264,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 self.update_node_list(self.nodes_data)
             
             if self.parent_window and refresh:
-                self.parent_window.show_toast(f"已自动删除 {len(empty_groups)} 个空节点组", "info")
+                self.parent_window.show_toast(t("_k_auto_deleted_groups").format(count=len(empty_groups)), "info")
             
             logger.debug("✅ 自动删除空节点组: {', '.join(empty_groups)}")
             return True

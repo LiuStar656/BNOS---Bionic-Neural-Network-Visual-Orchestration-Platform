@@ -45,7 +45,7 @@ class BNOSMainWindow(QMainWindow):
     """BNOS主窗口类"""
     
     _RESIZE_MARGIN = 6
-    CANVAS_PROCESS_MODE = True  # 画布进程隔离+窗口对齐同步
+    CANVAS_PROCESS_MODE = False  # 【调试中】画布进程隔离+窗口对齐同步
     
     def __init__(self):
         super().__init__()
@@ -314,16 +314,16 @@ class BNOSMainWindow(QMainWindow):
             return
         node_info = self.nodes_data[node_name]
         if node_info['status'] == 'running':
-            self.show_toast(f"节点 {node_name} 已在运行中", "info")
+            self.show_toast(t("_k_node_running").format(name=node_name), "info")
             return
         
         success, err = start_node_process(node_info)
         if success:
             self.node_list_panel.update_node_status(node_name, 'running')
             if self.canvas: self.canvas.update_node_status(node_name, 'running')
-            self.show_toast(f"节点 {node_name} 已启动", "success")
+            self.show_toast(t("_k_node_started").format(name=node_name), "success")
         else:
-            themed_message(self, t("k_title_error"), f"启动节点失败: {err}", "error")
+            themed_message(self, t("k_title_error"), t("_k_start_fail").format(err=err), "error")
     
     def stop_selected_node(self):
         """停止选中的节点"""
@@ -339,13 +339,13 @@ class BNOSMainWindow(QMainWindow):
             return
         node_info = self.nodes_data[node_name]
         if node_info['status'] == 'stopped':
-            self.show_toast(f"节点 {node_name} 未在运行", "info")
+            self.show_toast(t("_k_node_not_running_toast").format(name=node_name), "info")
             return
         
         stop_node_process(node_info)
         self.node_list_panel.update_node_status(node_name, 'stopped')
         if self.canvas: self.canvas.update_node_status(node_name, 'stopped')
-        self.show_toast(f"节点 {node_name} 已停止", "success")
+        self.show_toast(t("_k_node_stopped").format(name=node_name), "success")
 
     def _check_node_health(self):
         """定时检测运行中节点的进程是否仍存活"""
@@ -353,7 +353,7 @@ class BNOSMainWindow(QMainWindow):
         for name, code in dead:
             self.node_list_panel.update_node_status(name, 'stopped')
             if self.canvas: self.canvas.update_node_status(name, 'stopped')
-            self.show_toast(f"节点 {name} 已意外退出 (code: {code})", "warning")
+            self.show_toast(t("_k_node_exited").format(name=name, code=code), "warning")
 
     def clear_connections(self):
         """清空所有连线"""
@@ -411,18 +411,18 @@ class BNOSMainWindow(QMainWindow):
             from ui.core.utils.dialog_utils import themed_message, MSG_ACCEPT, MSG_REJECT, MSG_CANCEL
             reply = themed_message(
                 self, t("k_title_detect_running"),
-                f"以下 {len(running_nodes)} 个节点正在运行：\n\n{nodes_list}\n\n请选择操作：\n• 是：强制停止所有节点并关闭\n• 否：节点继续在后台运行，关闭窗口\n• 取消：返回程序，不关闭窗口",
+                t("_k_close_running_nodes").format(count=len(running_nodes), nodes=nodes_list),
                 "question3"
             )
             
             if reply == MSG_ACCEPT:
                 logger.info("正在关闭 %d 个运行中的节点...", len(running_nodes))
                 self._force_stop_all_nodes(running_nodes)
-                self.show_toast(f"已关闭 {len(running_nodes)} 个节点", "success")
+                self.show_toast(t("_k_nodes_closed").format(count=len(running_nodes)), "success")
             elif reply == MSG_REJECT:
                 # 用户选择不关闭，让进程继续运行
                 logger.info("%d 个节点将继续在后台运行", len(running_nodes))
-                self.show_toast(f"{len(running_nodes)} 个节点将在后台继续运行", "info")
+                self.show_toast(t("_k_nodes_background").format(count=len(running_nodes)), "info")
                 # 继续执行后续的保存和关闭逻辑
             else:
                 # 用户选择取消，中止关闭操作
@@ -566,7 +566,7 @@ class BNOSMainWindow(QMainWindow):
 
     def _on_canvas_crashed(self, pid):
         """画布崩溃 → 自动重启"""
-        self.show_toast("画布进程已崩溃，正在重启...", "warning")
+        self.show_toast(t("_k_canvas_crashed"), "warning")
         logger.warning("画布子进程 %s 崩溃，准备重启", pid)
 
     def _start_core_process(self):
