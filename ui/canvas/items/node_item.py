@@ -35,36 +35,41 @@ class NodeItem(QGraphicsRectItem):
             QGraphicsRectItem.GraphicsItemFlag.ItemSendsGeometryChanges
         )
         
-        self.setZValue(1)
+        self.setZValue(2)  # 节点层：线条(z=0) < 锚点(z=1) < 节点(z=2) < 指示灯(z=3) < 文字(z=4)
         self.setRect(QRectF(0, 0, w, h))
         
-        # 锚点（初始位置由样式设置）
+        # 锚点（节点下一层，初始位置由样式设置）
         self.input_anchor = AnchorItem(0, 0, "input", self)
         self.output_anchor = AnchorItem(0, 0, "output", self)
         
-        # IN / OUT 标签
+        # IN / OUT 标签（文字层）
         self._in_label = QGraphicsTextItem("IN", self)
+        self._in_label.setZValue(4)
         self._out_label = QGraphicsTextItem("OUT", self)
+        self._out_label.setZValue(4)
         
-        # 名称
+        # 名称（文字层）
         self.name_text = QGraphicsTextItem(node_name, self)
+        self.name_text.setZValue(4)
         
-        # 状态灯
+        # 状态灯（指示灯层）
         self.status_indicator = QGraphicsEllipseItem(8, 8, 10, 10, self)
+        self.status_indicator.setZValue(3)
         
-        # 语言标签
+        # 语言标签（文字层）
         self.lang_text = QGraphicsTextItem(language, self)
+        self.lang_text.setZValue(4)
         
-        # 展开按钮
+        # 展开按钮（文字层）
         self._expand_btn = QGraphicsRectItem(0, 0, 14, 14, self)
-        self._expand_btn.setZValue(2)
+        self._expand_btn.setZValue(4)
         self._expand_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._expand_btn_rect = QRectF(0, 0, 14, 14)
         
         self._expand_label = QGraphicsTextItem(">>", self)
-        self._expand_label.setZValue(3)
+        self._expand_label.setZValue(5)
         
-        # 选中环（z=10，浮于节点本体之上）
+        # 选中环（最顶）
         self._selection_ring = QGraphicsEllipseItem(self)
         self._selection_ring.setZValue(10)
         self._selection_ring.setVisible(False)

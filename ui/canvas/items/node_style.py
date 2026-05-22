@@ -135,12 +135,14 @@ class RectNodeStyle(NodeStyle):
             node_item._out_label.setPos(w + self.out_label_x, h / 2 + self.label_y)
             node_item._out_label.setVisible(True)
 
-        # 锚点
+        # 锚点（在节点本体上方一线）
         if hasattr(node_item, 'input_anchor'):
             node_item.input_anchor.setPos(self.anchor_in_x, h / 2 - 8)
+            node_item.input_anchor.setZValue(1)
             node_item.input_anchor.setVisible(True)
         if hasattr(node_item, 'output_anchor'):
             node_item.output_anchor.setPos(w - 8, h / 2 - 8)
+            node_item.output_anchor.setZValue(1)
             node_item.output_anchor.setVisible(True)
 
         # 展开按钮

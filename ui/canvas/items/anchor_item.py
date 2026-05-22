@@ -18,7 +18,6 @@ class AnchorItem(QGraphicsEllipseItem):
         self.update_anchor_color()
         
         self.setPen(QPen(QColor("#333"), 2))  # 加粗边框
-        self.setZValue(10)  # 确保在最上层
         
         # 悬停效果
         self.setAcceptHoverEvents(True)

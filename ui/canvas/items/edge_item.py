@@ -60,7 +60,7 @@ class EdgeItem(QGraphicsPathItem):
 
         # NoCache: 每次直接绘制，手动清旧区域防拖影
         self.setCacheMode(QGraphicsPathItem.CacheMode.NoCache)
-        self.setZValue(1)  # 浮于网格之上
+        self.setZValue(0)  # 线条层：最低
         self.update_edge_style()
 
         self.setFlag(QGraphicsPathItem.GraphicsItemFlag.ItemIsSelectable, True)
