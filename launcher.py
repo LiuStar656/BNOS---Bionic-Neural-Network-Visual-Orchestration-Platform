@@ -1,6 +1,14 @@
 """
-BNOS Launcher — 纯 tkinter 启动动画，不依赖任何虚拟环境/PyQt6
-打包: pyinstaller --onefile --windowed --name BNOS_Launcher launcher.py
+BNOS Launcher — 纯 tkinter 启动动画 (系统 Python 内置，零依赖)
+
+运行方式:
+  1. 直接运行:   python launcher.py
+  2. 打包成 EXE: pyinstaller --onefile --windowed --name "BNOS Console" launcher.py
+     然后双击 BNOS_Console.exe 即可启动
+
+工作原理:
+  launcher.py (tkinter 闪屏) → 后台启动 myenv_new\Scripts\python.exe bnos_console.py
+  → 主程序就绪后创建标记文件 → launcher 检测到自动关闭
 """
 import tkinter as tk
 from tkinter import ttk

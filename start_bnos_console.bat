@@ -71,7 +71,7 @@ echo Starting BNOS Console...
 echo ======================================
 echo.
 
-:: 启动器（tkinter，系统 Python 即可）独立管理动画 + 后台启动主程序
+:: 启动 launcher (tkinter 闪屏 → 后台启动 venv 主程序)
 %PYTHON% launcher.py
 
 :: ==================== EXIT ====================
