@@ -11,10 +11,20 @@ from ui.core.node_process import detect_running_nodes
 from ui.core.utils.dialog_utils import pick_folder, themed_input, themed_message
 
 
+def _canvas(mw):
+    """安全访问 canvas，进程模式返回 None"""
+    return getattr(mw, 'canvas', None)
+
+def _canvas_call(mw, method, *args, **kwargs):
+    c = _canvas(mw)
+    if c and hasattr(c, method):
+        return getattr(c, method)(*args, **kwargs)
+
+
 def project_new(main_window):
     """新建项目：选父目录 → 输入名称 → 创建文件夹+nodes/"""
     if main_window.current_project_path:
-        main_window.canvas.save_layout(main_window.current_project_path)
+        _canvas_call(main_window, 'save_layout', main_window.current_project_path)
 
     # 1. 选上级目录
     parent_dir = pick_folder(main_window, t("k_project_select_parent_dir"))
@@ -38,7 +48,7 @@ def project_new(main_window):
     main_window.current_project_path = project_dir
     main_window.nodes_data.clear()
     main_window.connections.clear()
-    main_window.canvas.clear_canvas()
+    _canvas_call(main_window, 'clear_canvas')
     project_refresh(main_window)
     main_window.show_toast(f"已创建项目: {proj_name.strip()}", "success")
 
@@ -46,7 +56,7 @@ def project_new(main_window):
 def project_open(main_window):
     """打开项目：选文件夹 → 识别项目结构 → 加载"""
     if main_window.current_project_path:
-        main_window.canvas.save_layout(main_window.current_project_path)
+        _canvas_call(main_window, 'save_layout', main_window.current_project_path)
 
     project_dir = pick_folder(main_window, t("k_project_open_dir"))
     if not project_dir:
@@ -69,10 +79,10 @@ def project_open(main_window):
     main_window.current_project_path = project_dir
     main_window.nodes_data.clear()
     main_window.connections.clear()
-    main_window.canvas.clear_canvas()
+    _canvas_call(main_window, 'clear_canvas')
 
     project_refresh(main_window)
-    main_window.canvas.load_layout(project_dir)
+    _canvas_call(main_window, 'load_layout', project_dir)
     main_window.show_toast(f"已打开项目: {os.path.basename(project_dir)}", "success")
 
 
@@ -183,11 +193,11 @@ def project_refresh(main_window):
 
     main_window.node_list_panel.set_project_path(main_window.current_project_path)
     main_window.node_list_panel.update_node_list(main_window.nodes_data)
-    main_window.canvas.sync_all_nodes_display()
+    _canvas_call(main_window, 'sync_all_nodes_display')
 
     running = detect_running_nodes(main_window.nodes_data)
     if running:
         for name, pid in running:
             main_window.node_list_panel.update_node_status(name, 'running')
-            main_window.canvas.update_node_status(name, 'running')
+            _canvas_call(main_window, 'update_node_status', name, 'running')
         main_window.show_toast(f"检测到 {len(running)} 个节点在后台运行", "info")

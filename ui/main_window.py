@@ -249,11 +249,7 @@ class BNOSMainWindow(QMainWindow):
         """更新节点状态并同步UI"""
         if node_name in self.nodes_data:
             self.nodes_data[node_name]['status'] = status
-            
-            # 同步更新画布上的节点显示
-            self.canvas.sync_node_display(node_name)
-            
-            # 更新节点列表面板
+            if self.canvas: self.canvas.sync_node_display(node_name)
             self.node_list_panel.update_node_list(self.nodes_data)
         
     def refresh_nodes(self):
@@ -318,7 +314,7 @@ class BNOSMainWindow(QMainWindow):
         success, err = start_node_process(node_info)
         if success:
             self.node_list_panel.update_node_status(node_name, 'running')
-            self.canvas.update_node_status(node_name, 'running')
+            if self.canvas: self.canvas.update_node_status(node_name, 'running')
             self.show_toast(f"节点 {node_name} 已启动", "success")
         else:
             themed_message(self, t("k_title_error"), f"启动节点失败: {err}", "error")
@@ -342,7 +338,7 @@ class BNOSMainWindow(QMainWindow):
         
         stop_node_process(node_info)
         self.node_list_panel.update_node_status(node_name, 'stopped')
-        self.canvas.update_node_status(node_name, 'stopped')
+        if self.canvas: self.canvas.update_node_status(node_name, 'stopped')
         self.show_toast(f"节点 {node_name} 已停止", "success")
 
     def _check_node_health(self):
@@ -350,7 +346,7 @@ class BNOSMainWindow(QMainWindow):
         dead = check_running_processes(self.nodes_data)
         for name, code in dead:
             self.node_list_panel.update_node_status(name, 'stopped')
-            self.canvas.update_node_status(name, 'stopped')
+            if self.canvas: self.canvas.update_node_status(name, 'stopped')
             self.show_toast(f"节点 {name} 已意外退出 (code: {code})", "warning")
 
     def clear_connections(self):
@@ -370,8 +366,7 @@ class BNOSMainWindow(QMainWindow):
             with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
         
-        # 清空画布连线
-        self.canvas.clear_edges()
+        if self.canvas: self.canvas.clear_edges()
         
         self.show_toast(t("k_canvas_cleared"), "success")
 
@@ -430,7 +425,7 @@ class BNOSMainWindow(QMainWindow):
                 return
         
         # 保存当前项目布局
-        if self.current_project_path:
+        if self.current_project_path and self.canvas:
             self.canvas.save_layout(self.current_project_path)
         
         # 保存应用配置
@@ -454,7 +449,7 @@ class BNOSMainWindow(QMainWindow):
                 stop_node_process(self.nodes_data[node_name])
                 logger.info("节点 %s 已停止", node_name)
         self.node_list_panel.update_node_list(self.nodes_data)
-        self.canvas.sync_all_nodes_display()
+        if self.canvas: self.canvas.sync_all_nodes_display()
     
     def save_window_state(self):
         save_state(self)

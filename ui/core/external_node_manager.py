@@ -7,6 +7,7 @@ from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.node_registry import NodeRegistry
 from ui.core.utils.dialog_utils import pick_folder
+from ui.core.project_manager import _canvas_call
 
 
 def mount_node(main_window):
@@ -76,7 +77,7 @@ def mount_node(main_window):
 
     # 刷新 UI
     main_window.node_list_panel.update_node_list(main_window.nodes_data)
-    main_window.canvas.sync_all_nodes_display()
+    _canvas_call(main_window, 'sync_all_nodes_display')
 
     main_window.show_toast(f"已挂载外部节点: {node_name}", "success")
     logger.info("外部节点挂载完成: %s -> %s (group=%s)", node_name, folder_path, mount_group_name)
@@ -113,6 +114,6 @@ def unmount_node(main_window, node_name):
     del main_window.nodes_data[node_name]
     main_window.node_list_panel.group_manager.save_groups()
     main_window.node_list_panel.update_node_list(main_window.nodes_data)
-    main_window.canvas.remove_node_from_canvas(node_name)
+    _canvas_call(main_window, 'remove_node_from_canvas', node_name)
 
     main_window.show_toast(f"已卸载外部节点: {node_name}", "success")
