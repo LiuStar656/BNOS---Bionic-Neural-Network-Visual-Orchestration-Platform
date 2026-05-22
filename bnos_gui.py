@@ -5,6 +5,7 @@ BNOS 桌面可视化节点编排平台 - 主入口
 import sys
 import os
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import Qt
 from ui.main_window import BNOSMainWindow
 from ui.core.logger import logger
 from ui.core.i18n import init_i18n
@@ -15,6 +16,7 @@ def main():
     try:
         init_i18n()
         app = QApplication(sys.argv)
+        app.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)  # 统一深色主题
         app.setApplicationName("BNOS 节点编排平台")
         app.setOrganizationName("BNOS")
         
