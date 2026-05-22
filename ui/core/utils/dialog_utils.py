@@ -233,14 +233,62 @@ def themed_input(parent, title, prompt, default=""):
     return e.text().strip() if dlg.exec() == QDialog.DialogCode.Accepted else None
 
 
-def themed_question(parent, title, text):
-    """自绘确认弹窗（是/否）"""
-    dlg, lay = _make_dialog(parent, title, 420, 160)
-    lb = QLabel(text); lb.setWordWrap(True); lb.setStyleSheet(_STYLE_LABEL); lay.addWidget(lb)
+# 返回值常量
+MSG_ACCEPT = 1   # 确定/是
+MSG_REJECT = 0   # 取消/否
+MSG_CANCEL = -1  # 第三个按钮
+
+def themed_message(parent, title, text, mode="info"):
+    """
+    统一消息弹窗，替代 QMessageBox。
+    mode: "info" | "warning" | "error" | "question" | "question3"
+    question → 是/否
+    question3 → 是/否/取消
+    """
+    dlg, lay = _make_dialog(parent, title, 440, 180)
+    lb = QLabel(text); lb.setWordWrap(True); lb.setStyleSheet(_STYLE_LABEL)
+    lay.addWidget(lb, 1)
     br = QHBoxLayout(); br.addStretch()
-    no = QPushButton("否"); no.setStyleSheet(_STYLE_BTN_GREY)
-    yes = QPushButton("是"); yes.setStyleSheet(_STYLE_BTN_OK)
-    br.addWidget(no); br.addWidget(yes); lay.addLayout(br)
-    no.clicked.connect(dlg.reject); yes.clicked.connect(dlg.accept)
+    result = MSG_ACCEPT
+
+    if mode in ("info", "warning", "error"):
+        ok = QPushButton("确定"); ok.setStyleSheet(_STYLE_BTN_OK)
+        br.addWidget(ok); ok.clicked.connect(dlg.accept)
+    elif mode == "question":
+        no = QPushButton("否"); no.setStyleSheet(_STYLE_BTN_GREY)
+        yes = QPushButton("是"); yes.setStyleSheet(_STYLE_BTN_OK)
+        br.addWidget(no); br.addWidget(yes)
+        no.clicked.connect(dlg.reject)
+        yes.clicked.connect(dlg.accept)
+        result = MSG_REJECT  # default to no
+    elif mode == "question3":
+        cancel = QPushButton("取消"); cancel.setStyleSheet(_STYLE_BTN_GREY)
+        no = QPushButton("否"); no.setStyleSheet(_STYLE_BTN_GREY)
+        yes = QPushButton("是"); yes.setStyleSheet(_STYLE_BTN_OK)
+        br.addWidget(cancel); br.addWidget(no); br.addWidget(yes)
+        cancel.clicked.connect(lambda: setattr(dlg, '_result', MSG_CANCEL) or dlg.reject())
+        no.clicked.connect(dlg.reject)
+        yes.clicked.connect(dlg.accept)
+        result = MSG_REJECT
+        dlg._result = MSG_REJECT
+        # Override exec to return custom codes
+        orig_exec = dlg.exec
+        def custom_exec():
+            code = orig_exec()
+            if hasattr(dlg, '_result') and code == 0:
+                return dlg._result
+            return MSG_ACCEPT if code == 1 else MSG_CANCEL
+        dlg.exec = custom_exec
+
+    lay.addLayout(br)
     if parent: dlg.move(parent.geometry().center() - dlg.rect().center())
-    return True if dlg.exec() == QDialog.DialogCode.Accepted else False
+    rc = dlg.exec()
+    if mode == "question3":
+        return rc if isinstance(rc, int) else MSG_CANCEL
+    if mode == "question":
+        return True if rc == QDialog.DialogCode.Accepted else False
+    return None
+
+
+# 向后兼容
+themed_question = lambda p, t, x: themed_message(p, t, x, "question")

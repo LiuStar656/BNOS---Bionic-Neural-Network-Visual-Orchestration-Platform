@@ -405,21 +405,18 @@ class BNOSMainWindow(QMainWindow):
             if len(running_nodes) > 10:
                 nodes_list += f"\n... 还有 {len(running_nodes) - 10} 个节点"
             
-            reply = QMessageBox.question(
-                self, 
-                t("k_title_detect_running"),
+            from ui.core.utils.dialog_utils import themed_message, MSG_ACCEPT, MSG_REJECT, MSG_CANCEL
+            reply = themed_message(
+                self, t("k_title_detect_running"),
                 f"以下 {len(running_nodes)} 个节点正在运行：\n\n{nodes_list}\n\n请选择操作：\n• 是：强制停止所有节点并关闭\n• 否：节点继续在后台运行，关闭窗口\n• 取消：返回程序，不关闭窗口",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
-                QMessageBox.StandardButton.Yes  # 默认选择"是"
+                "question3"
             )
             
-            if reply == QMessageBox.StandardButton.Yes:
-                # 用户选择关闭所有进程
+            if reply == MSG_ACCEPT:
                 logger.info("正在关闭 %d 个运行中的节点...", len(running_nodes))
                 self._force_stop_all_nodes(running_nodes)
                 self.show_toast(f"已关闭 {len(running_nodes)} 个节点", "success")
-                # 继续执行后续的保存和关闭逻辑
-            elif reply == QMessageBox.StandardButton.No:
+            elif reply == MSG_REJECT:
                 # 用户选择不关闭，让进程继续运行
                 logger.info("%d 个节点将继续在后台运行", len(running_nodes))
                 self.show_toast(f"{len(running_nodes)} 个节点将在后台继续运行", "info")
