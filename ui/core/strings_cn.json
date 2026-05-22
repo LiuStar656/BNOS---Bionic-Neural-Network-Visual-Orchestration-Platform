@@ -262,5 +262,15 @@
   "k_status_updated": "已更新",
   "k_status_refreshed": "已刷新",
   "k_status_running": "运行中",
-  "k_status_stopped": "已停止"
+  "k_status_stopped": "已停止",
+
+  "k_lang_python": "Python",
+  "k_lang_rust": "Rust",
+  "k_lang_nodejs": "Node.js (开发中)",
+  "k_lang_go": "Go (开发中)",
+  "k_lang_java": "Java (开发中)",
+  "k_lang_cpp": "C++ (开发中)",
+  "k_lang_shell": "Shell (开发中)",
+  "k_node_enter_name": "请输入节点名称（{lang}）:",
+  "k_node_lang_unsupported": "暂不支持创建 {lang} 节点，仅 Python 和 Rust 可用"
 }

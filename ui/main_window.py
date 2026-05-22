@@ -261,37 +261,28 @@ class BNOSMainWindow(QMainWindow):
         if not self.current_project_path:
             self.show_toast(t("k_project_no_project"), "warning")
             return
-        
-        # 弹出对话框输入节点名称
+
+        # 仅 Python 和 Rust 可用
+        if language not in ("Python", "Rust"):
+            self.show_toast(t("k_node_lang_unsupported").replace("{lang}", language), "warning")
+            return
+
+        prompt = t("k_node_enter_name").replace("{lang}", language)
         node_name, ok = QInputDialog.getText(
-            self, t("k_node_create"), 
-            f"请输入节点名称（{language}）:",
+            self, t("k_node_create"), prompt,
             QLineEdit.EchoMode.Normal
         )
         
         if not ok or not node_name:
             return
         
-        # 映射语言标识
-        lang_map = {
-            "Python": "python",
-            "Node.js": "nodejs",
-            "Go": "go",
-            "Java": "java",
-            "C++": "cpp",
-            "Rust": "rust",
-            "Shell": "shell"
-        }
-        
+        lang_map = {"Python": "python", "Rust": "rust"}
         lang_key = lang_map.get(language, language.lower())
         
-        # 检查是否支持该语言
         if not self.node_creator.has_creator(lang_key):
-            self.show_toast(f"暂不支持创建 {language} 节点", "warning")
-            logger.warning("未注册的语言创建器: %s, 当前支持: %s", lang_key, self.node_creator.get_supported_languages())
+            self.show_toast(t("k_node_lang_unsupported").replace("{lang}", language), "warning")
             return
         
-        # 启动异步创建流程
         self._start_async_node_creation(node_name, lang_key, language)
     
     def _start_async_node_creation(self, node_name, lang_key, display_language):

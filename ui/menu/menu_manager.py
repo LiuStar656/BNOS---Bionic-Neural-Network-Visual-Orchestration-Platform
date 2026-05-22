@@ -73,11 +73,19 @@ class MenuManager:
 
         new_node_menu = edit_menu.addMenu(t("k_node_create"))
 
-        # 为每种语言添加子菜单项
-        languages = ["Python", "Node.js", "Go", "Java", "C++", "Rust", "Shell"]
-        for lang in languages:
-            action = QAction(lang, main_window)
-            action.setStatusTip(f"创建新的 {lang} 节点")
+        language_keys = [
+            ("k_lang_python", "Python"),
+            ("k_lang_rust", "Rust"),
+            ("k_lang_nodejs", "Node.js"),
+            ("k_lang_go", "Go"),
+            ("k_lang_java", "Java"),
+            ("k_lang_cpp", "C++"),
+            ("k_lang_shell", "Shell"),
+        ]
+        for k, lang in language_keys:
+            label = t(k)
+            action = QAction(label, main_window)
+            action.setStatusTip(t("k_node_enter_name").replace("{lang}", lang))
             action.triggered.connect(
                 lambda checked=None, language=lang: main_window.create_new_node_with_language(language)
             )
@@ -152,37 +160,29 @@ class MenuManager:
             main_window.show_toast(t("k_project_no_project"), "warning")
             return
 
-        # 弹出对话框输入节点名称
+        # 仅 Python 和 Rust 可用
+        if language not in ("Python", "Rust"):
+            main_window.show_toast(t("k_node_lang_unsupported").replace("{lang}", language), "warning")
+            logger.info("暂不支持创建 %s 节点", language)
+            return
+
+        prompt = t("k_node_enter_name").replace("{lang}", language)
         node_name, ok = QInputDialog.getText(
             main_window, t("k_node_create"),
-            f"请输入节点名称（{language}）:",
+            prompt,
             QLineEdit.EchoMode.Normal
         )
         
         if not ok or not node_name:
             return
         
-        # 映射语言标识
-        lang_map = {
-            "Python": "python",
-            "Node.js": "nodejs",
-            "Go": "go",
-            "Java": "java",
-            "C++": "cpp",
-            "Rust": "rust",
-            "Shell": "shell"
-        }
-        
+        lang_map = {"Python": "python", "Rust": "rust"}
         lang_key = lang_map.get(language, language.lower())
         
-        # 检查是否支持该语言
         if not main_window.node_creator.has_creator(lang_key):
-            main_window.show_toast(f"暂不支持创建 {language} 节点", "warning")
-            logger.warning("未注册的语言创建器: %s", lang_key)
-            logger.info("   当前支持: %s", main_window.node_creator.get_supported_languages())
+            main_window.show_toast(t("k_node_lang_unsupported").replace("{lang}", language), "warning")
             return
         
-        # 启动异步创建流程
         main_window._start_async_node_creation(node_name, lang_key, language)
     
     @staticmethod

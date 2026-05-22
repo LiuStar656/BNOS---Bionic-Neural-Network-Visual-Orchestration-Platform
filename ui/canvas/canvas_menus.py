@@ -111,8 +111,8 @@ class CanvasMenusMixin:
         else:
             menu = QMenu(self)
             new_menu = menu.addMenu(t("k_canvas_new_node"))
-            for lang in ["Python", "Node.js", "Go", "Java", "C++", "Rust", "Shell"]:
-                a = QAction(lang, self)
+            for k, lang in [("k_lang_python","Python"), ("k_lang_rust","Rust"), ("k_lang_nodejs","Node.js"), ("k_lang_go","Go"), ("k_lang_java","Java"), ("k_lang_cpp","C++"), ("k_lang_shell","Shell")]:
+                a = QAction(t(k), self)
                 a.triggered.connect(partial(self.parent_window.create_new_node_with_language, lang))
                 new_menu.addAction(a)
             menu.addSeparator()
