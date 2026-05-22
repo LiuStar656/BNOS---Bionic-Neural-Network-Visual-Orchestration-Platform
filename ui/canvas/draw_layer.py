@@ -115,17 +115,8 @@ class DrawLayer:
             return False
         pos = self.canvas.mapToScene(event.pos())
 
-        # 右键 → 删除图形
+        # 右键交给画布上下文菜单（不再直接删除图形）
         if event.button() == Qt.MouseButton.RightButton:
-            item = self.canvas.scene.itemAt(pos, self.canvas.transform())
-            while item:
-                if isinstance(item, (GraphicBase, TextGraphic)) and item in self.graphics:
-                    self._save_undo()
-                    self.canvas.scene.removeItem(item)
-                    self.graphics.remove(item)
-                    self.canvas._save_timer.start(500)
-                    return True
-                item = item.parentItem()
             return False
 
         # 已有图形 → 拖拽控制点或移动

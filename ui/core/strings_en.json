@@ -423,6 +423,7 @@
   "_k_splash_main_win": "[*] Creating main window...",
   "_k_splash_main_ready": "[+] Main window ready",
   "_k_splash_project": "[*] Loading last project...",
+  "_k_delete_selected_graphics": "Delete Selected Graphics",
   "_k_splash_done": "[+] BNOS launched successfully",
   "_k_splash_subtitle": "Bionic Neural Network Program Operating System",
 

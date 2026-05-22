@@ -16,6 +16,7 @@ DEFAULTS = {
     "start_node":      ("Ctrl+Shift+S",  "k_node_start"),
     "stop_node":       ("Ctrl+Shift+X",  "k_node_stop"),
     "node_monitor":    ("Ctrl+Shift+M",  "k_node_monitor"),
+    "delete_graphics": ("Ctrl+D",        "_k_delete_selected_graphics"),
 }
 
 # 需要 QAction.setShortcut(hotkey) 处理空快捷键

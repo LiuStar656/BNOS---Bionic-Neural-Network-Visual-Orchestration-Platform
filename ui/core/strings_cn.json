@@ -425,6 +425,7 @@
   "_k_splash_main_win": "[*] 创建主窗口...",
   "_k_splash_main_ready": "[+] 主窗口就绪",
   "_k_splash_project": "[*] 加载最近项目...",
+  "_k_delete_selected_graphics": "删除选中图形",
   "_k_splash_done": "[+] BNOS 启动完成",
   "_k_splash_subtitle": "仿生神经网络程序操作系统",
 

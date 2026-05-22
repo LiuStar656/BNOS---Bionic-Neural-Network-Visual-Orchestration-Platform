@@ -249,6 +249,15 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
                 else:
                     node.setPen(QPen(QColor(self.node_border_color), 2))
                     node.setSelected(False)
+
+            # 同时框选绘图图形（带控制点高亮）
+            from ui.canvas.graphic_items import GraphicBase
+            for g in self.draw_layer.graphics:
+                if scene_rect.intersects(g.sceneBoundingRect()):
+                    g.setSelected(True)
+                else:
+                    g.setSelected(False)
+                    g.selected_handle = -1
             
             event.accept()
             return
@@ -505,8 +514,15 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         super().mouseDoubleClickEvent(event)
 
     def keyPressEvent(self, event):
-        """键盘按下事件 - 跟踪空格键状态"""
+        """键盘按下事件 - 空格/Alt/Ctrl+D"""
         if self.draw_layer.key_press(event):
+            return
+        # Ctrl+D: 删除选中图形
+        if (event.key() == Qt.Key.Key_D
+                and event.modifiers() & Qt.KeyboardModifier.ControlModifier
+                and not event.modifiers() & Qt.KeyboardModifier.ShiftModifier):
+            self.draw_layer.delete_selected()
+            event.accept()
             return
         if event.key() == Qt.Key.Key_Space:
             # ✅ 关键修复：使用Qt内置的isAutoRepeat()过滤系统自动重复事件

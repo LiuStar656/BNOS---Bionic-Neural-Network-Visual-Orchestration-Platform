@@ -18,6 +18,11 @@ class CanvasBoxSelectMixin:
             node.setPen(QPen(QColor(self.node_border_color), 2))
             node.setSelected(False)
 
+        # 同时清除图形选中
+        for g in self.draw_layer.graphics:
+            g.setSelected(False)
+            g.selected_handle = -1
+
         self.box_selected_nodes = []
         self.is_box_selecting = False
         self.box_select_start_pos = None
