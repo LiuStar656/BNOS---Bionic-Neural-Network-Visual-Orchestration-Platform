@@ -45,6 +45,7 @@ class BNOSMainWindow(QMainWindow):
     """BNOS主窗口类"""
     
     _RESIZE_MARGIN = 6
+    CANVAS_PROCESS_MODE = True  # 画布进程隔离：True=子进程, False=嵌入式
     
     def __init__(self):
         super().__init__()
@@ -108,8 +109,12 @@ class BNOSMainWindow(QMainWindow):
         main_layout.addWidget(self._title_bar)
         
         # 画布
-        self.canvas = NodeCanvas(self)
-        main_layout.addWidget(self.canvas, 1)
+        if self.CANVAS_PROCESS_MODE:
+            self.canvas = None  # 不嵌入，用子进程
+            self.setWindowTitle("BnosGui")
+        else:
+            self.canvas = NodeCanvas(self)
+            main_layout.addWidget(self.canvas, 1)
         
         # IPC 进程间通信（主进程 = Server）
         self._ipc_server = None
@@ -458,20 +463,19 @@ class BNOSMainWindow(QMainWindow):
         restore_state(self)
     
     def auto_open_last_project(self):
-        """自动打开最后的项目 - 只加载数据，不自动添加节点到画布"""
+        """自动打开最后的项目"""
         last_project = self.app_config.get("last_project")
         if last_project and os.path.exists(last_project):
             nodes_dir = os.path.join(last_project, "nodes")
             if os.path.exists(nodes_dir):
                 self.current_project_path = last_project
-                
                 logger.info("自动打开项目: %s", last_project)
-                
-                # 1. 刷新节点列表（加载所有节点数据）
                 self.refresh_nodes()
-                
-                # 2. 加载画布布局（包含节点位置、连线关系、视图状态的完整恢复）
-                self.canvas.load_layout(last_project)
+                # 画布进程模式下先启动子进程再加载布局
+                if self._canvas_mode:
+                    QTimer.singleShot(500, lambda: self._start_canvas_and_load(last_project))
+                elif self.canvas:
+                    self.canvas.load_layout(last_project)
     
     def _toggle_maximize(self):
         if self.isMaximized():
@@ -588,6 +592,11 @@ class BNOSMainWindow(QMainWindow):
 
     # ── 画布命令代理（嵌入/远程通用）──
 
+    def _start_canvas_and_load(self, project_path):
+        """启动画布子进程并加载布局"""
+        self._start_canvas_process()
+        QTimer.singleShot(800, lambda: self._canvas_ipc_sync() if self._ipc_server else None)
+
     def _canvas_ipc_sync(self):
         """同步 nodes_data 到画布（嵌入式绕过IPC直接用canvas）"""
         if self.canvas and self.canvas.parent_window:
@@ -613,6 +622,10 @@ class BNOSMainWindow(QMainWindow):
         # 新进程启动（与原参数一致）
         subprocess.Popen([sys.executable, *sys.argv], cwd=os.getcwd())
         sys.exit(0)
+
+    @property
+    def _canvas_mode(self):
+        return self.CANVAS_PROCESS_MODE and self._process_manager is not None
 
     def _apply_dark_theme(self):
         self.setStyleSheet(DARK_QSS)
