@@ -36,6 +36,9 @@ from ui.core.node_creation_worker import start_async_node_creation
 from ui.core.node_registry import NodeRegistry
 from ui.core.app_config import AppConfig
 from ui.core.theme import DARK_QSS
+from ui.core.ipc import IPCServer, A_ADD_NODE, A_REMOVE_NODE, A_UPDATE_STATUS
+from ui.core.ipc import A_CREATE_EDGE, A_REMOVE_EDGE, A_SYNC_DATA, A_CLEAR_ALL
+from ui.core.process_manager import ProcessManager
 
 
 class BNOSMainWindow(QMainWindow):
@@ -107,6 +110,11 @@ class BNOSMainWindow(QMainWindow):
         # 画布
         self.canvas = NodeCanvas(self)
         main_layout.addWidget(self.canvas, 1)
+        
+        # IPC 进程间通信（主进程 = Server）
+        self._ipc_server = None
+        self._process_manager = ProcessManager(self)
+        self._init_ipc()
         
         # 节点列表面板
         self.node_list_panel = NodeListPanel(self)
@@ -434,6 +442,12 @@ class BNOSMainWindow(QMainWindow):
         self.app_config.set("last_project", self.current_project_path)
         self.app_config.save()
         
+        # 停止 IPC 和子进程
+        if self._process_manager:
+            self._process_manager.stop_all()
+        if self._ipc_server:
+            self._ipc_server.stop()
+
         logger.info("窗口关闭流程完成")
         event.accept()
     
@@ -523,6 +537,63 @@ class BNOSMainWindow(QMainWindow):
             else: self.unsetCursor()
         super().mouseMoveEvent(event)
     
+    # ── 进程间通信 (IPC) ──
+
+    def _init_ipc(self):
+        """初始化 IPC Server，接收子进程连接"""
+        self._ipc_server = IPCServer(self)
+        if not self._ipc_server.start():
+            logger.warning("IPC Server 启动失败，进程隔离不可用")
+            return
+        self._ipc_server.client_connected.connect(self._on_ipc_client_connected)
+        self._ipc_server.message_received.connect(self._on_ipc_message)
+        self._ipc_server.client_disconnected.connect(self._on_ipc_client_disconnected)
+        logger.info("进程间通信已就绪")
+
+    def _start_canvas_process(self):
+        """启动画布子进程（可选，默认使用内嵌画布）"""
+        if not self._ipc_server:
+            return
+        self._process_manager.register("canvas", "ui/canvas/canvas_process.py")
+        proc = self._process_manager.get("canvas")
+        proc.crashed.connect(self._on_canvas_crashed)
+        proc.start()
+        logger.info("画布子进程已启动")
+
+    def _on_canvas_crashed(self, pid):
+        """画布崩溃 → 自动重启"""
+        self.show_toast("画布进程已崩溃，正在重启...", "warning")
+        logger.warning("画布子进程 %s 崩溃，准备重启", pid)
+
+    def _on_ipc_client_connected(self, client_id):
+        logger.info("IPC 客户端已连接: %s", client_id)
+
+    def _on_ipc_client_disconnected(self, client_id):
+        logger.info("IPC 客户端已断开: %s", client_id)
+
+    def _on_ipc_message(self, client_id, msg):
+        """处理子进程发来的事件"""
+        action = msg.get("action")
+        params = msg.get("params", {})
+        logger.debug("IPC 收到: %s ← %s", action, client_id)
+        # TODO: 根据 action 分发事件
+
+    # ── 画布命令代理（嵌入/远程通用）──
+
+    def _canvas_ipc_sync(self):
+        """同步 nodes_data 到画布（嵌入式绕过IPC直接用canvas）"""
+        if self.canvas and self.canvas.parent_window:
+            # 嵌入式模式
+            self.canvas.sync_all_nodes_display()
+        elif self._ipc_server:
+            self._ipc_server.broadcast(A_SYNC_DATA, {"nodes_data": self.nodes_data})
+
+    def _canvas_ipc_update_status(self, node_name, status):
+        if self.canvas and self.canvas.parent_window:
+            self.canvas.update_node_status(node_name, status)
+        elif self._ipc_server:
+            self._ipc_server.broadcast(A_UPDATE_STATUS, {"node_name": node_name, "status": status})
+
     def _apply_dark_theme(self):
         self.setStyleSheet(DARK_QSS)
     
