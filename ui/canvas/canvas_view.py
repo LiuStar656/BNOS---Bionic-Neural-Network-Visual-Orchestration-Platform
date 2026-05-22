@@ -63,7 +63,6 @@ class NodeCanvas(CanvasMenusMixin, CanvasLayoutMixin, CanvasColorsMixin, QGraphi
         # 可视区域渲染优化：只更新变化区域，网格不限制
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontSavePainterState, True)
-        self.setCacheMode(QGraphicsView.CacheModeFlag.CacheBackground)
         
         # ===== 颜色配置（支持自定义）— VSCode 深色主题 =====
         self.canvas_bg_color = '#1e1e1e'          # 画布背景（与标题栏统一）
