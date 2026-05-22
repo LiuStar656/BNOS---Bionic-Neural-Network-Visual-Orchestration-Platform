@@ -421,7 +421,8 @@
 
   "_k_settings_title": "设置",
   "_k_settings_language": "语言",
-  "_k_settings_lang_label": "界面语言:",
+  "_k_settings_lang_label": "当前语言:",
+  "_k_settings_switch_lang": "切换为:",
   "_k_lang_cn": "中文",
   "_k_lang_en": "English",
   "_k_settings_process": "进程隔离（调试）",

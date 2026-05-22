@@ -419,7 +419,8 @@
 
   "_k_settings_title": "Settings",
   "_k_settings_language": "Language",
-  "_k_settings_lang_label": "Interface Language:",
+  "_k_settings_lang_label": "Current Language:",
+  "_k_settings_switch_lang": "Switch to:",
   "_k_lang_cn": "中文",
   "_k_lang_en": "English",
   "_k_settings_process": "Process Isolation (Debug)",
