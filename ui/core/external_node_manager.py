@@ -3,10 +3,10 @@
 """
 import os
 import json
-from PyQt6.QtWidgets import QFileDialog
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.node_registry import NodeRegistry
+from ui.core.utils.dialog_utils import pick_folder
 
 
 def mount_node(main_window):
@@ -15,10 +15,7 @@ def mount_node(main_window):
         main_window.show_toast(t("k_project_no_project"), "warning")
         return
 
-    folder_path = QFileDialog.getExistingDirectory(
-        main_window, t("k_node_select_external"), "",
-        QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks | QFileDialog.Option.DontUseNativeDialog
-    )
+    folder_path = pick_folder(main_window, t("k_node_select_external"))
 
     if not folder_path:
         return

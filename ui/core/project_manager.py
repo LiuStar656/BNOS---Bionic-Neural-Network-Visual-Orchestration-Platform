@@ -3,11 +3,12 @@
 """
 import os
 import json
-from PyQt6.QtWidgets import QFileDialog, QMessageBox
+from PyQt6.QtWidgets import QMessageBox
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.node_registry import NodeRegistry
 from ui.core.node_process import detect_running_nodes
+from ui.core.utils.dialog_utils import pick_folder
 
 
 def project_new(main_window):
@@ -15,10 +16,7 @@ def project_new(main_window):
     if main_window.current_project_path:
         main_window.canvas.save_layout(main_window.current_project_path)
 
-    project_dir = QFileDialog.getExistingDirectory(
-        main_window, t("k_project_select_dir"), "",
-        QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
-    )
+    project_dir = pick_folder(main_window, t("k_project_select_dir"))
 
     if not project_dir:
         return
@@ -50,10 +48,7 @@ def project_open(main_window):
     if main_window.current_project_path:
         main_window.canvas.save_layout(main_window.current_project_path)
 
-    project_dir = QFileDialog.getExistingDirectory(
-        main_window, t("k_project_open_dir"), "",
-        QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks
-    )
+    project_dir = pick_folder(main_window, t("k_project_open_dir"))
 
     if not project_dir:
         return
