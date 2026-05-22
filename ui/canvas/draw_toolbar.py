@@ -13,13 +13,13 @@ FONT   = QFont("Consolas", 12)
 
 # 配色：与菜单栏/标题栏统一
 BG_TOOLBAR   = "#1e1e1e"
-BG_BTN       = "#2d2d2d"
-FG_BTN       = "#cccccc"
+BG_BTN       = "#252525"      # 按键融入工具栏
+FG_BTN       = "#aaaaaa"
 BG_BTN_ON    = "#007acc"
 FG_BTN_ON    = "#ffffff"
-BG_DANGER    = "#a02020"
-BORDER       = "#333333"
-SEPARATOR    = "#444444"
+BG_DANGER    = "#c03030"
+BORDER       = "#3e3e42"
+SEPARATOR    = "#3e3e42"
 
 TOOLS = [
     ("rect",       "▯",  "矩形"),
@@ -59,8 +59,7 @@ class DrawToolbar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedWidth(TOOL_W)
-        bg = f"background-color: {BG_TOOLBAR}; border-right: 1px solid {BORDER};"
-        self.setStyleSheet(f"QWidget {{ {bg} }}")
+        self.setStyleSheet(f"DrawToolbar {{ background-color: {BG_TOOLBAR}; border-right: 2px solid {BORDER}; }}")
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -74,7 +73,7 @@ class DrawToolbar(QWidget):
         self._scroll = scroll
 
         container = QWidget()
-        container.setStyleSheet(f"background-color: {BG_TOOLBAR};")
+        container.setStyleSheet(f"background-color: transparent;")
         layout = QVBoxLayout(container)
         layout.setContentsMargins(3, 4, 3, 4)
         layout.setSpacing(2)
