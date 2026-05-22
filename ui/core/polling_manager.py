@@ -216,15 +216,19 @@ class PollingManager(QObject):
     
     def _poll(self):
         """主轮询回调 - 按间隔分发任务"""
-        self._tick_count += 1
-        
-        # 执行所有到期的任务
-        for task_name, task_info in list(self._tasks.items()):
-            if task_info['enabled'] and self._tick_count % task_info['interval'] == 0:
-                try:
-                    task_info['callback']()
-                except Exception as e:
-                    logger.error(f"Polling task {task_name} failed: {e}")
+        try:
+            self._tick_count += 1
+            
+            # 执行所有到期的任务
+            for task_name, task_info in list(self._tasks.items()):
+                if task_info['enabled'] and self._tick_count % task_info['interval'] == 0:
+                    try:
+                        task_info['callback']()
+                    except Exception as e:
+                        logger.error(f"Polling task {task_name} failed: {e}")
+        except KeyboardInterrupt:
+            logger.info("Polling interrupted by user")
+            self.stop()
     
     # ==================== 节点级检测任务 ====================
     

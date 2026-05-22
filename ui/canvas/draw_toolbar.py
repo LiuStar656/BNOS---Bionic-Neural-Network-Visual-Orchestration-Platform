@@ -6,11 +6,11 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QScrollArea,
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from ui.core.i18n import t
-
+from ui.icons import codicon, get_icon, get_icon_font
 
 TOOL_W = 40          # 工具栏宽度（够按钮显示）
 BTN_H  = 34          # 按钮高度
-FONT   = QFont("Consolas", 12)
+FONT   = get_icon_font(14) or QFont("Segoe MDL2 Assets", 14)
 
 # 配色：与菜单栏/标题栏统一
 BG_TOOLBAR   = "#1e1e1e"
@@ -23,11 +23,11 @@ BORDER       = "#3e3e42"
 SEPARATOR    = "#454545"
 
 TOOLS = [
-    ("rect",       "▯",  "_k_draw_rect"),
-    ("round_rect", "◰",  "_k_draw_round_rect"),
-    ("polygon",    "⬠",  "_k_draw_polygon"),
-    ("arrow",      "➤",  "_k_draw_arrow"),
-    ("text",       "T",  "_k_draw_text"),
+    ("rect",       get_icon("square"),   "_k_draw_rect"),
+    ("round_rect", get_icon("circle"),   "_k_draw_round_rect"),
+    ("polygon",    get_icon("triangle-up"), "_k_draw_polygon"),
+    ("arrow",      get_icon("arrow-right"), "_k_draw_arrow"),
+    ("text",       get_icon("type"),     "_k_draw_text"),
 ]
 
 BTN_BASE = f"""

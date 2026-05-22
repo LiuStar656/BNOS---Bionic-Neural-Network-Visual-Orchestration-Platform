@@ -10,6 +10,7 @@ from PyQt6.QtCore import Qt
 from ui.main_window import BNOSMainWindow
 from ui.core.logger import logger
 from ui.core.i18n import init_i18n, t
+from ui.icons import codicon
 
 
 def _progress(progress_file, pct, msg):
@@ -52,6 +53,9 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName(t("_k_app_name"))
         app.setOrganizationName("BNOS")
+
+        # 初始化图标系统（加载 Codicon 字体）
+        codicon.init()
 
         if progress_file:
             _progress(progress_file, 45, "Qt initialized")

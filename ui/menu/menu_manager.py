@@ -1,8 +1,9 @@
 """
 BNOS 菜单管理器 - 快捷键由 ShortcutManager 统一管理
 """
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QFont
 from ui.core.i18n import t
+from ui.icons import get_icon, get_icon_font
 
 
 def _shortcut(main_window, sid: str) -> str:
@@ -22,18 +23,22 @@ class MenuManager:
             menubar = main_window.menuBar()
         sc = main_window.shortcut_mgr if hasattr(main_window, 'shortcut_mgr') else None
         actions = {}  # sid → QAction 注册表
+        
+        icon_font = get_icon_font(12)
 
         # ========== 文件 ==========
         file_menu = menubar.addMenu(t("k_menu_file"))
 
-        a = QAction(t("k_project_new"), main_window)
+        a = QAction(f"{get_icon('new-file')} {t('k_project_new')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "new_project"))
         a.setStatusTip(t("k_node_create_desc"))
         a.triggered.connect(main_window.new_project)
         file_menu.addAction(a)
         actions["new_project"] = a
 
-        a = QAction(t("k_project_open"), main_window)
+        a = QAction(f"{get_icon('folder-open')} {t('k_project_open')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "open_project"))
         a.setStatusTip(t("k_menu_open_project_desc"))
         a.triggered.connect(main_window.open_project)
@@ -42,7 +47,8 @@ class MenuManager:
 
         file_menu.addSeparator()
 
-        a = QAction(t("k_node_list"), main_window)
+        a = QAction(f"{get_icon('list')} {t('k_node_list')}", main_window)
+        a.setFont(icon_font)
         a.setCheckable(True)
         a.setChecked(True)
         a.setStatusTip(t("k_menu_toggle_nodes"))
@@ -52,12 +58,14 @@ class MenuManager:
 
         file_menu.addSeparator()
 
-        a = QAction(t("k_color_settings"), main_window)
+        a = QAction(f"{get_icon('palette')} {t('k_color_settings')}", main_window)
+        a.setFont(icon_font)
         a.setStatusTip(t("k_color_settings_desc"))
         a.triggered.connect(main_window.open_color_settings)
         file_menu.addAction(a)
 
-        a = QAction(t("_k_settings_title"), main_window)
+        a = QAction(f"{get_icon('settings')} {t('_k_settings_title')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "settings"))
         a.setStatusTip(t("_k_settings_title"))
         a.triggered.connect(main_window.open_settings)
@@ -66,14 +74,16 @@ class MenuManager:
 
         file_menu.addSeparator()
 
-        a = QAction(t("k_menu_restart"), main_window)
+        a = QAction(f"{get_icon('refresh')} {t('k_menu_restart')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "restart"))
         a.setStatusTip(t("k_menu_restart_desc"))
         a.triggered.connect(main_window._restart_application)
         file_menu.addAction(a)
         actions["restart"] = a
 
-        a = QAction(t("k_menu_exit"), main_window)
+        a = QAction(f"{get_icon('log-out')} {t('k_menu_exit')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "exit_app"))
         a.setStatusTip(t("k_menu_exit_desc"))
         a.triggered.connect(main_window.close)
@@ -83,7 +93,8 @@ class MenuManager:
         # ========== 编辑 ==========
         edit_menu = menubar.addMenu(t("k_menu_edit"))
 
-        new_node_menu = edit_menu.addMenu(t("k_node_create"))
+        new_node_menu = edit_menu.addMenu(f"{get_icon('new-file')} {t('k_node_create')}")
+        new_node_menu.setFont(icon_font)
         for k, lang in [("k_lang_python","Python"),("k_lang_rust","Rust"),
                          ("k_lang_nodejs","Node.js"),("k_lang_go","Go"),
                          ("k_lang_java","Java"),("k_lang_cpp","C++"),
@@ -95,14 +106,16 @@ class MenuManager:
 
         edit_menu.addSeparator()
 
-        a = QAction(t("k_node_refresh"), main_window)
+        a = QAction(f"{get_icon('refresh')} {t('k_node_refresh')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "refresh_nodes"))
         a.setStatusTip(t("k_node_refresh_list"))
         a.triggered.connect(main_window.refresh_nodes)
         edit_menu.addAction(a)
         actions["refresh_nodes"] = a
 
-        a = QAction(t("k_node_mount"), main_window)
+        a = QAction(f"{get_icon('link')} {t('k_node_mount')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "mount_external"))
         a.setStatusTip(t("k_node_mount_help"))
         a.triggered.connect(main_window.mount_external_node)
@@ -111,7 +124,8 @@ class MenuManager:
 
         edit_menu.addSeparator()
 
-        a = QAction(t("k_canvas_clear_connections"), main_window)
+        a = QAction(f"{get_icon('x')} {t('k_canvas_clear_connections')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "clear_connections"))
         a.setStatusTip(t("k_canvas_clear_connections_desc"))
         a.triggered.connect(main_window.clear_connections)
@@ -120,14 +134,16 @@ class MenuManager:
 
         edit_menu.addSeparator()
 
-        a = QAction(t("k_node_start"), main_window)
+        a = QAction(f"{get_icon('play')} {t('k_node_start')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "start_node"))
         a.setStatusTip(t("_k_start_node_tip"))
         a.triggered.connect(main_window.start_selected_node)
         edit_menu.addAction(a)
         actions["start_node"] = a
 
-        a = QAction(t("k_node_stop"), main_window)
+        a = QAction(f"{get_icon('stop')} {t('k_node_stop')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "stop_node"))
         a.setStatusTip(t("_k_stop_node_tip"))
         a.triggered.connect(main_window.stop_selected_node)
@@ -137,7 +153,8 @@ class MenuManager:
         # ========== 工具 ==========
         tools_menu = menubar.addMenu(t("k_menu_tools"))
 
-        a = QAction(t("k_node_monitor"), main_window)
+        a = QAction(f"{get_icon('monitor')} {t('k_node_monitor')}", main_window)
+        a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "node_monitor"))
         a.setStatusTip(t("k_menu_monitor"))
         a.triggered.connect(main_window.show_node_monitor)
@@ -147,7 +164,8 @@ class MenuManager:
         # ========== 帮助 ==========
         help_menu = menubar.addMenu(t("k_menu_help"))
 
-        a = QAction(t("k_menu_about"), main_window)
+        a = QAction(f"{get_icon('help-circle')} {t('k_menu_about')}", main_window)
+        a.setFont(icon_font)
         a.setStatusTip(t("k_menu_about_desc"))
         a.triggered.connect(main_window.show_about)
         help_menu.addAction(a)
