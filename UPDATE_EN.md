@@ -18,13 +18,14 @@
 
 ### Language Switching Persistence Fix
 
-**Before**: Language reset to Chinese after restart.
+**Before**: Language reset to Chinese after restart (en→cn direction failed).
 
 | Fix | File | Root Cause |
 |-----|------|-----------|
 | Settings not saved to disk | `settings_dialog.py` | Missing `app_config.save()` after `set()` |
 | Saved language not read on startup | `bnos_gui.py` | `init_i18n()` called without reading saved preference |
 | Unknown keys filtered by `load()` | `app_config.py` | `if key in self.config` skipped `language`/`process_mode` |
+| Unreliable restart flow | `main_window.py` + `bnos_gui.py` | `sys.exit(0)` could be swallowed by Qt event loop; switched to exit code 42 restart |
 
 ### Sidebar Style Unification
 

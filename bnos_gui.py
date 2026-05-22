@@ -28,7 +28,12 @@ def main():
         window = BNOSMainWindow()
         window.show()
         
-        sys.exit(app.exec())
+        ret = app.exec()
+        if ret == 42:
+            # 重启信号：启动新进程后退出
+            import subprocess
+            subprocess.Popen([sys.executable, *sys.argv], cwd=os.getcwd())
+        sys.exit(ret)
     
     except KeyboardInterrupt:
         logger.info("BNOS 已安全关闭")

@@ -638,10 +638,13 @@ class BNOSMainWindow(QMainWindow):
         self._process_manager.stop_all()
         if self._ipc_server:
             self._ipc_server.stop()
-        QApplication.quit()
-        # 新进程启动（与原参数一致）
-        subprocess.Popen([sys.executable, *sys.argv], cwd=os.getcwd())
-        sys.exit(0)
+        # 确保配置已刷盘
+        try:
+            self.app_config.save()
+        except Exception:
+            pass
+        # 使用退出码 42 驱动主函数重启（避免 sys.exit 被 Qt 事件循环吞掉）
+        QApplication.instance().exit(42)
 
     @property
     def _canvas_mode(self):

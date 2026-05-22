@@ -21,13 +21,14 @@
 
 ### 语言切换持久化修复
 
-**修复前**：切换语言后重启自动回到中文。
+**修复前**：切换语言后重启自动回到中文（en→cn 方向失败）。
 
 | 修复项 | 文件 | 根因 |
 |--------|------|------|
 | 设置未保存到磁盘 | `settings_dialog.py` | `app_config.set()` 后缺 `app_config.save()` |
 | 启动时未读保存的语言 | `bnos_gui.py` | `init_i18n()` 无参调用，默认 `cn` |
-| 未知键被 `load()` 过滤 | `app_config.py` | `if key in self.config` 跳过 `language`/`process_mode` 等新键 |
+| 未知键被 `load()` 过滤 | `app_config.py` | `if key in self.config` 跳过 `language`/`process_mode` |
+| 重启流程不可靠 | `main_window.py` + `bnos_gui.py` | `sys.exit(0)` 在 Qt 事件循环内可能被吞，改用退出码 42 驱动重启 |
 
 ### 侧边栏样式统一
 
