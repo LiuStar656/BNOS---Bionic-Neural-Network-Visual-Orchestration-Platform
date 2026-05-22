@@ -53,6 +53,8 @@ class BNOSMainWindow(QMainWindow):
         
         # 应用配置
         self.app_config = AppConfig()
+        from ui.core.shortcut_manager import ShortcutManager
+        self.shortcut_mgr = ShortcutManager(self.app_config)
         
         # 项目状态
         self.current_project_path = None

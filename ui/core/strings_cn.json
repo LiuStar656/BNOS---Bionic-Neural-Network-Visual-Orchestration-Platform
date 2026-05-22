@@ -438,5 +438,17 @@
   "_k_settings_process_label": "启用画布进程隔离模式",
   "_k_settings_process_hint": "画布将在独立进程中运行，崩溃不影响主窗口。当前处于调试阶段，可能不稳定。",
   "_k_settings_restart_title": "需要重启",
-  "_k_settings_restart_msg": "设置已更改，部分设置需要重启应用才能生效。\n\n即将自动重启..."
+  "_k_settings_restart_msg": "设置已更改，部分设置需要重启应用才能生效。\n\n即将自动重启...",
+  "_k_settings_tab_general": "常规",
+  "_k_settings_tab_shortcuts": "快捷键",
+  "_k_settings_shortcut_hint": "双击行可重新绑定快捷键。删除快捷键请按下 Backspace。修改立即生效，无需重启。",
+  "_k_settings_sc_action": "操作",
+  "_k_settings_sc_current": "当前快捷键",
+  "_k_settings_sc_default": "默认",
+  "_k_settings_sc_reset_all": "恢复全部默认",
+  "_k_settings_sc_reset": "恢复默认",
+  "_k_settings_sc_empty": "（无）",
+  "_k_settings_sc_capture": "捕获快捷键",
+  "_k_settings_sc_capture_info": "请按下新的快捷键组合\n操作: {action}",
+  "_k_settings_sc_default_label": "默认"
 }

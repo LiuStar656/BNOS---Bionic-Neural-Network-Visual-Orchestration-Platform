@@ -436,6 +436,18 @@
   "_k_settings_process_label": "Enable canvas process isolation",
   "_k_settings_process_hint": "Canvas will run in a separate process; crashes won't affect the main window. Currently in debugging stage and may be unstable.",
   "_k_settings_restart_title": "Restart Required",
-  "_k_settings_restart_msg": "Settings have been changed. Some settings require a restart to take effect.\n\nThe application will restart automatically..."
+  "_k_settings_restart_msg": "Settings have been changed. Some settings require a restart to take effect.\n\nThe application will restart automatically...",
+  "_k_settings_tab_general": "General",
+  "_k_settings_tab_shortcuts": "Shortcuts",
+  "_k_settings_shortcut_hint": "Double-click a row to rebind a shortcut. Press Backspace to clear. Changes apply immediately, no restart needed.",
+  "_k_settings_sc_action": "Action",
+  "_k_settings_sc_current": "Current",
+  "_k_settings_sc_default": "Default",
+  "_k_settings_sc_reset_all": "Reset All",
+  "_k_settings_sc_reset": "Reset",
+  "_k_settings_sc_empty": "(none)",
+  "_k_settings_sc_capture": "Capture Shortcut",
+  "_k_settings_sc_capture_info": "Press new key combination\nAction: {action}",
+  "_k_settings_sc_default_label": "Default"
 
 }
