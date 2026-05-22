@@ -42,14 +42,18 @@ class DrawToolbar(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(TOOL_W)
+        self.setMinimumWidth(TOOL_W)
+        self.setMaximumWidth(TOOL_W)
         self.setStyleSheet("background-color: #2d2d30; border-right: 1px solid #3e3e42;")
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
 
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet("QScrollArea { border: none; } QScrollBar:vertical { width: 4px; }")
-        scroll.setGeometry(0, 0, TOOL_W, parent.height() if parent else 600)
+        main_layout.addWidget(scroll)
         self._scroll = scroll
 
         container = QWidget()
@@ -154,10 +158,6 @@ class DrawToolbar(QWidget):
         c = QColorDialog.getColor()
         if c.isValid():
             self.style_changed.emit("fill", c.name())
-
-    def resizeEvent(self, event):
-        if self._scroll:
-            self._scroll.setGeometry(0, 0, TOOL_W, self.height())
 
     def wheelEvent(self, event):
         if self._scroll:
