@@ -240,6 +240,28 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 - **Color Settings**: Customizable node colors persisted per project
 - **Config Validation**: `canvas_layout.json` loading cross-validates against each node's `config.json` `listen_upper_file`, auto-repairing missing edges — config is the source of truth
 
+### 🌐 Multi-Language Support
+
+- **CN/EN bilingual**: 408 i18n key-values in `strings_cn.json` / `strings_en.json`
+- **Runtime switch**: File → Settings → Switch language, auto-restart
+- **Persistent**: Choice saved to `app_config.json`
+
+### 🎨 PS-Style Drawing Tools
+
+- **5 shapes**: Rectangle, Rounded rect, Polygon (double-click close), Arrow, Text
+- **Alt-key toggle**: Default mouse for nodes, Alt for graphics edit (select/drag/scale)
+- **Left vertical toolbar**: 40px wide, VSCode theme, undo/redo stack
+- **Right-click delete**: Delete graphics directly on canvas
+
+### 🛠️ Other Features
+
+- **Splash screen**: ASCII art BNOS + live log + progress bar, centered, 2s fade
+- **Process isolation**: Optional canvas subprocess mode, crash-safe (debug stage)
+- **Settings dialog**: Language + process isolation toggle (Ctrl+,)
+- **Unified dialogs**: All popups self-drawn dark, `themed_message` replaces QMessageBox
+- **External node mounting**: Mount external project nodes without copying
+- **Color settings**: 11 canvas/node/anchor/edge color adjustments, Apply preview, Confirm close
+
 
 ---
 
