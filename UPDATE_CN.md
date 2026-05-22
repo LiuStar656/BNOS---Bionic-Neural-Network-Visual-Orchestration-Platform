@@ -7,6 +7,36 @@
 
 ---
 
+## 🏗️ 大规模解耦重构 + 多项 Bug 修复 (2026-05-22)
+
+### 重构成果：4 大文件 → 16 个模块
+
+| 文件 | 改造前 | 改造后 | 减少 |
+|------|--------|--------|------|
+| `node_list_panel.py` | 1741 | **1105** | -636 |
+| `canvas_view.py` | 1239 | **882** | -357 |
+| `property_panel.py` | ~1298 | **~363** | ✅ |
+| `main_window.py` | 1125 | **553** | -572 |
+
+**新增模块**：
+
+| 管理层 (`core/`) | 画布 Mixin (`canvas/`) | 面板 Mixin (`panels/`) | 工具 (`core/utils/`) |
+|---|---|---|---|
+| `project_manager.py` | `canvas_connections.py` | `node_list_drag.py` | `file_utils.py` |
+| `node_creation_worker.py` | `canvas_box_select.py` | `node_list_context.py` | `log_viewer.py` |
+| `external_node_manager.py` | `canvas_batch_ops.py` | | |
+| `window_state_manager.py` | | | |
+
+### Bug 修复
+
+- **进程管理**：`start_node_process` 直接运行 `python.exe listener.py` 获取真实 PID，`stop_node_process` 通过 `taskkill` 精确终止
+- **孤儿进程清理**：新增 PowerShell 进程扫描兜底，自动检测并清理残留 `listener.py` 进程
+- **挂载 Python 节点**：启动后 1.2s 检测存活，venv 损坏自动回退 `start.bat`；挂载组持久化防止被 `load_groups` 覆盖
+- **output.json 编辑**：双向实时同步，编辑自动保存到文件，外部变更自动刷新编辑器
+- **i18n 国际化**：全部 256 条 UI 字符串转为 k-value JSON 加载 (`ui/core/strings_cn.json`)，支持多语言扩展
+
+---
+
 ## 🔧 ComfyUI 风格连线重构 + 人工折叠交互 (2026-05-22)
 
 ### 贝塞尔曲线 → 直角直线 + 人工折叠 📏

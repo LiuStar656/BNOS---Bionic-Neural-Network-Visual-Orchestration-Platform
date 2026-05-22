@@ -4,6 +4,36 @@
 
 ---
 
+## 🏗️ Major Decoupling Refactor + Bug Fixes (2026-05-22)
+
+### Refactor Results: 4 Large Files → 16 Modules
+
+| File | Before | After | Reduced |
+|------|--------|-------|---------|
+| `node_list_panel.py` | 1741 | **1105** | -636 |
+| `canvas_view.py` | 1239 | **882** | -357 |
+| `property_panel.py` | ~1298 | **~363** | ✅ |
+| `main_window.py` | 1125 | **553** | -572 |
+
+**New Modules**:
+
+| Managers (`core/`) | Canvas Mixins (`canvas/`) | Panel Mixins (`panels/`) | Utils (`core/utils/`) |
+|---|---|---|---|
+| `project_manager.py` | `canvas_connections.py` | `node_list_drag.py` | `file_utils.py` |
+| `node_creation_worker.py` | `canvas_box_select.py` | `node_list_context.py` | `log_viewer.py` |
+| `external_node_manager.py` | `canvas_batch_ops.py` | | |
+| `window_state_manager.py` | | | |
+
+### Bug Fixes
+
+- **Process Management**: `start_node_process` now runs `python.exe listener.py` directly for real PID tracking; `stop_node_process` uses `taskkill` for precise termination
+- **Orphan Process Cleanup**: PowerShell process scanning as fallback; auto-detects and kills leftover `listener.py` orphans
+- **Python Node Mount**: Post-launch 1.2s health check; auto-fallback to `start.bat` if venv is corrupted; group persistence prevents `load_groups` overwrite
+- **output.json Editing**: Bidirectional real-time sync — edits auto-save to file, external changes auto-refresh editor
+- **i18n**: All 256 UI strings converted to k-value JSON loading (`ui/core/strings_cn.json`), multi-language ready
+
+---
+
 ## 🔧 ComfyUI-Style Line Refactor + Manual Fold (2026-05-22)
 
 ### Bezier → Orthogonal Lines + Manual Folding 📏
