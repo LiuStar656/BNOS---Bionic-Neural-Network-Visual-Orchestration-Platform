@@ -2,8 +2,16 @@
 画布子进程入口 — 独立 QApplication + NodeCanvas + IPC 通信
 
 主进程通过 QLocalSocket 发送命令，本进程回传事件。
+作为子进程运行时，需确保项目根目录在 sys.path 中。
 """
 import sys
+import os
+
+# 确保项目根目录在 sys.path（子进程启动时 cwd 不一定包含）
+_proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _proj_root not in sys.path:
+    sys.path.insert(0, _proj_root)
+
 import json
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer

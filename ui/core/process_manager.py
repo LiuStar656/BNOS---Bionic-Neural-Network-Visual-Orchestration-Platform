@@ -9,6 +9,10 @@ import subprocess
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from ui.core.logger import logger
 
+# 项目根目录（从 process_manager.py: ui/core/ → 项目根）
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(_THIS_DIR))
+
 
 class ManagedProcess(QObject):
     """受管理的子进程"""
@@ -32,11 +36,10 @@ class ManagedProcess(QObject):
         if self.process and self.process.poll() is None:
             return True
         try:
-            pwd = os.path.dirname(os.path.abspath(sys.argv[0]))
             python = sys.executable
             self.process = subprocess.Popen(
                 [python, self.script],
-                cwd=pwd,
+                cwd=_PROJECT_ROOT,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
