@@ -16,11 +16,8 @@ from PyQt6.QtGui import QFont, QColor
 from ui.core.logger import logger
 from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t
-
-from ui.core.logger import logger
-from ui.core.floating_panel import FloatingPanel
-from ui.core.i18n import t
 from ui.core.utils.file_utils import resolve_and_open_folder
+from ui.core.utils.dialog_utils import themed_message
 
 class NodeConfigDialog(FloatingPanel):
     """节点配置对话框（双击节点打开）"""

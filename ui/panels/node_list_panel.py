@@ -11,6 +11,7 @@ from PyQt6.QtGui import QColor, QFont
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.floating_panel import FloatingPanel
+from ui.core.utils.dialog_utils import themed_message
 from ui.panels.node_list_drag import NodeListDragMixin
 from ui.panels.node_list_context import NodeListContextMixin
 import subprocess

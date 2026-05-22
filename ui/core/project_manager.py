@@ -8,7 +8,7 @@ from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.node_registry import NodeRegistry
 from ui.core.node_process import detect_running_nodes
-from ui.core.utils.dialog_utils import pick_folder, themed_input
+from ui.core.utils.dialog_utils import pick_folder, themed_input, themed_message
 
 
 def project_new(main_window):

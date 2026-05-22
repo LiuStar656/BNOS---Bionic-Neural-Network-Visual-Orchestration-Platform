@@ -32,6 +32,7 @@ from PyQt6.QtCore import QPointF
 
 from ui.core.logger import logger
 from ui.core.i18n import t
+from ui.core.utils.dialog_utils import themed_message
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.anchor_item import AnchorItem
