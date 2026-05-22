@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import QMenuBar as _QMenuBar
 from ui.canvas_widget import NodeCanvas
 from ui.panels.node_list_panel import NodeListPanel
 from ui.dialogs.color_settings_dialog import ColorSettingsDialog
+from ui.dialogs.settings_dialog import SettingsDialog
 from ui.creators.node_creator_manager import NodeCreatorManager
 from ui.menu.menu_manager import MenuManager
 from ui.core.toast.toast_notification import ToastNotification
@@ -243,6 +244,11 @@ class BNOSMainWindow(QMainWindow):
     def open_color_settings(self):
         """打开颜色设置对话框"""
         dialog = ColorSettingsDialog(self.canvas, self)
+        dialog.exec()
+
+    def open_settings(self):
+        """打开设置对话框"""
+        dialog = SettingsDialog(self, self)
         dialog.exec()
     
     def new_project(self):
@@ -646,17 +652,5 @@ class BNOSMainWindow(QMainWindow):
     
     def show_about(self):
         """显示关于对话框"""
-        QMessageBox.about(self, t("k_title_about"), 
-            "BNOS - Bionic Neural Network Program Operating System\n\n"
-            "版本: 1.0.0\n"
-            "仿生神经网络程序操作系统\n\n"
-            "一款基于 PyQt6 的纯桌面端可视化节点编排平台。\n\n"
-            "核心特性:\n"
-            "• 项目管理：仿 VSCode 模式，打开文件夹即项目\n"
-            "• 可视化编排：无限平移画布，拖拽节点，智能连线\n"
-            "• 多语言支持：Python、Node.js、Go、Java、C++、Rust、Shell\n"
-            "• 环境隔离：每个节点拥有独立虚拟环境\n"
-            "• 配置编辑：图形化编辑 config.json\n"
-            "• 实时监控：状态指示灯，实时日志查看\n"
-            "• 状态持久化：自动保存布局，重启完整恢复"
-        )
+        from ui.core.utils.dialog_utils import themed_message
+        themed_message(self, t("k_title_about"), t("_k_about_text"), "info")

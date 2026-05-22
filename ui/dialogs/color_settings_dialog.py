@@ -155,25 +155,38 @@ class ColorSettingsDialog(QDialog):
         content_layout.addWidget(theme_group)
         
         # 按钮区域
-        button_layout = QVBoxLayout()
-        
-        # 应用按钮
+        button_layout = QHBoxLayout()
+
+        # 应用按钮（不关闭）
         apply_btn = QPushButton(t("k_color_apply"))
-        apply_btn.setStyleSheet("background-color: #333333; color: white; padding: 10px; font-weight: bold;")
+        apply_btn.setStyleSheet("background-color: #333333; color: white; padding: 8px 16px; font-weight: bold;")
         apply_btn.clicked.connect(self.apply_settings)
         button_layout.addWidget(apply_btn)
-        
+
+        # 确认按钮（应用+关闭）
+        confirm_btn = QPushButton(t("k_ok"))
+        confirm_btn.setStyleSheet("background-color: #0e639c; color: white; padding: 8px 24px; font-weight: bold;")
+        confirm_btn.clicked.connect(self.confirm_and_close)
+        button_layout.addWidget(confirm_btn)
+
         # 重置按钮
         reset_btn = QPushButton(t("k_color_reset"))
-        reset_btn.setStyleSheet("background-color: #666666; color: white; padding: 10px;")
+        reset_btn.setStyleSheet("background-color: #555555; color: white; padding: 8px 16px;")
         reset_btn.clicked.connect(self.reset_to_default)
         button_layout.addWidget(reset_btn)
-        
-        content_layout.addLayout(button_layout)
-        
+
         # 关闭按钮
+        close_btn = QPushButton(t("k_cancel"))
+        close_btn.setStyleSheet("background-color: #444444; color: #ccc; padding: 8px 16px;")
+        close_btn.clicked.connect(self.reject)
+        button_layout.addWidget(close_btn)
+
+        content_layout.addLayout(button_layout)
+
+        # ===== 关闭按钮（旧保留兼容）=====
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         button_box.rejected.connect(self.reject)
+        button_box.setVisible(False)  # 隐藏旧的关闭按钮，用上方的新按钮
         layout.addWidget(button_box)
         
     def update_grid_opacity_label(self, value):
@@ -272,35 +285,43 @@ class ColorSettingsDialog(QDialog):
             self.edge_color_btn.setStyleSheet(f"background-color: {theme['edge_color']}; min-height: 30px;")
             self.edge_width_spinbox.setValue(theme['edge_width'])
             
+    def collect_settings(self):
+        """收集当前所有颜色设置（供 apply 和 confirm 共用）"""
+        return {
+            'canvas_bg_color': getattr(self, 'temp_canvas_bg_color', self.canvas.canvas_bg_color),
+            'grid_color': getattr(self, 'temp_grid_color', self.canvas.grid_color),
+            'grid_opacity': self.grid_opacity_slider.value() / 100.0,
+            'node_bg_color': getattr(self, 'temp_node_bg_color', self.canvas.node_bg_color),
+            'node_border_color': getattr(self, 'temp_node_border_color', self.canvas.node_border_color),
+            'node_text_color': getattr(self, 'temp_node_text_color', self.canvas.node_text_color),
+            'node_selected_color': getattr(self, 'temp_node_selected_color', self.canvas.node_selected_color),
+            'input_anchor_color': getattr(self, 'temp_input_anchor_color', self.canvas.input_anchor_color),
+            'output_anchor_color': getattr(self, 'temp_output_anchor_color', self.canvas.output_anchor_color),
+            'edge_color': getattr(self, 'temp_edge_color', self.canvas.edge_color),
+            'edge_width': self.edge_width_spinbox.value()
+        }
+
     def apply_settings(self):
-        """应用颜色设置"""
+        """应用颜色设置（不关闭窗口）"""
         try:
-            # 收集所有颜色设置
-            settings = {
-                'canvas_bg_color': getattr(self, 'temp_canvas_bg_color', self.canvas.canvas_bg_color),
-                'grid_color': getattr(self, 'temp_grid_color', self.canvas.grid_color),
-                'grid_opacity': self.grid_opacity_slider.value() / 100.0,
-                'node_bg_color': getattr(self, 'temp_node_bg_color', self.canvas.node_bg_color),
-                'node_border_color': getattr(self, 'temp_node_border_color', self.canvas.node_border_color),
-                'node_text_color': getattr(self, 'temp_node_text_color', self.canvas.node_text_color),
-                'node_selected_color': getattr(self, 'temp_node_selected_color', self.canvas.node_selected_color),
-                'input_anchor_color': getattr(self, 'temp_input_anchor_color', self.canvas.input_anchor_color),
-                'output_anchor_color': getattr(self, 'temp_output_anchor_color', self.canvas.output_anchor_color),
-                'edge_color': getattr(self, 'temp_edge_color', self.canvas.edge_color),
-                'edge_width': self.edge_width_spinbox.value()
-            }
-            
-            # 应用到画布
+            settings = self.collect_settings()
             self.canvas.apply_color_settings(settings)
-            
-            # 立即保存到项目文件
             self.canvas._save_color_settings()
-            
             themed_message(self, t("k_title_success"), t("k_color_applied"), "info")
-            self.close()
-            
         except Exception as e:
-            themed_message(self, t("k_title_error"), f"应用设置失败: {str(e)}", "error")
+            themed_message(self, t("k_title_error"),
+                t("_k_config_save_fail").format(err=str(e)), "error")
+
+    def confirm_and_close(self):
+        """确认并关闭：应用设置后关闭窗口"""
+        try:
+            settings = self.collect_settings()
+            self.canvas.apply_color_settings(settings)
+            self.canvas._save_color_settings()
+            self.accept()
+        except Exception as e:
+            themed_message(self, t("k_title_error"),
+                t("_k_config_save_fail").format(err=str(e)), "error")
             
     def reset_to_default(self):
         """恢复到默认颜色"""

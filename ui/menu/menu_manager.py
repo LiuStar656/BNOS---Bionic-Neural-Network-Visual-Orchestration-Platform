@@ -59,7 +59,12 @@ class MenuManager:
         color_settings_action.triggered.connect(main_window.open_color_settings)
         file_menu.addAction(color_settings_action)
 
-        file_menu.addSeparator()
+        # 设置
+        settings_action = QAction(t("_k_settings_title"), main_window)
+        settings_action.setShortcut("Ctrl+,")
+        settings_action.setStatusTip(t("_k_settings_title"))
+        settings_action.triggered.connect(main_window.open_settings)
+        file_menu.addAction(settings_action)
 
         file_menu.addSeparator()
 

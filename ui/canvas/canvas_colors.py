@@ -88,10 +88,15 @@ class CanvasColorsMixin:
         data = {
             'canvas_bg_color': self.canvas_bg_color,
             'grid_color': self.grid_color,
+            'grid_opacity': self.grid_opacity,
             'edge_color': self.edge_color,
+            'edge_width': self.edge_width,
             'node_bg_color': self.node_bg_color,
             'node_border_color': self.node_border_color,
             'node_text_color': self.node_text_color,
+            'node_selected_color': self.node_selected_color,
+            'input_anchor_color': self.input_anchor_color,
+            'output_anchor_color': self.output_anchor_color,
         }
         path = os.path.join(self.parent_window.current_project_path, "color_settings.json")
         try:

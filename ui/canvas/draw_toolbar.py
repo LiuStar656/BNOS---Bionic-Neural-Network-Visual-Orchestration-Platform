@@ -14,13 +14,13 @@ FONT   = QFont("Consolas", 12)
 
 # 配色：与菜单栏/标题栏统一
 BG_TOOLBAR   = "#1e1e1e"
-BG_BTN       = "#252525"      # 按键融入工具栏
-FG_BTN       = "#aaaaaa"
+BG_BTN       = "#2d2d30"      # 与主UI按钮一致
+FG_BTN       = "#cccccc"
 BG_BTN_ON    = "#007acc"
 FG_BTN_ON    = "#ffffff"
 BG_DANGER    = "#c03030"
 BORDER       = "#3e3e42"
-SEPARATOR    = "#3e3e42"
+SEPARATOR    = "#454545"
 
 TOOLS = [
     ("rect",       "▯",  "_k_draw_rect"),
@@ -34,20 +34,20 @@ BTN_BASE = f"""
 QPushButton {{
     background: {BG_BTN}; color: {FG_BTN};
     border: none; border-left: 3px solid transparent;
-    font-size: 14px; font-weight: bold;
+    font-size: 12px; font-weight: bold;
     min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
-    text-align: center;
+    padding: 0px 4px;
 }}
-QPushButton:hover {{ background: #333333; }}
+QPushButton:hover {{ background: #3e3e42; }}
 """
 
 BTN_ON = f"""
 QPushButton {{
     background: {BG_BTN}; color: {FG_BTN_ON};
     border: none; border-left: 3px solid {BG_BTN_ON};
-    font-size: 14px; font-weight: bold;
+    font-size: 12px; font-weight: bold;
     min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
-    text-align: center;
+    padding: 0px 4px;
 }}
 """
 
@@ -146,6 +146,8 @@ class DrawToolbar(QWidget):
         btn.setFixedHeight(BTN_H)
         btn.setToolTip(tip)
         btn.setStyleSheet(BTN_BASE)
+        from PyQt6.QtCore import Qt as QtAlign
+        btn.setProperty("class", "toolbar-btn")
         layout.addWidget(btn)
         return btn
 
@@ -175,7 +177,9 @@ class DrawToolbar(QWidget):
             self._hide_btn.setStyleSheet(f"""
                 QPushButton {{ background: {BG_BTN}; color: #555555;
                     border: none; border-left: 3px solid transparent;
-                    font-size: 14px; font-weight: bold; min-height: 30px; max-height: 30px; }}
+                    font-size: 12px; font-weight: bold;
+                    min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
+                    padding: 0px 4px; }}
             """)
         else:
             self._hide_btn.setStyleSheet(BTN_BASE)

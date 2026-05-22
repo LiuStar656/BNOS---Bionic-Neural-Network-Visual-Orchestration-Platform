@@ -417,5 +417,14 @@
   "_k_property_help": "说明:\n- 上游节点的 output.json 路径已自动配置到下游节点\n- 删除连线将清空下游节点的 listen_upper_file 配置",
   "_k_connected_to": "➤ 已连接: {name} ↔ {name2}",
   "_k_canvas_remove_node_confirm": "确定要从画布中删除节点 '{name}' 吗？\n\n",
-  "_k_app_name": "BNOS 节点编排平台"
+  "_k_app_name": "BNOS 节点编排平台",
+
+  "_k_settings_title": "设置",
+  "_k_settings_language": "语言",
+  "_k_settings_lang_label": "界面语言:",
+  "_k_settings_process": "进程隔离（调试）",
+  "_k_settings_process_label": "启用画布进程隔离模式",
+  "_k_settings_process_hint": "画布将在独立进程中运行，崩溃不影响主窗口。当前处于调试阶段，可能不稳定。",
+  "_k_settings_restart_title": "需要重启",
+  "_k_settings_restart_msg": "设置已更改，部分设置需要重启应用才能生效。\n\n即将自动重启..."
 }
