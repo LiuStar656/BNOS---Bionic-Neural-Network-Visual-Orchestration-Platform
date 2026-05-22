@@ -20,6 +20,7 @@ A_REMOVE_EDGE   = "canvas.remove_edge"
 A_UPDATE_STATUS = "canvas.update_status"
 A_SYNC_DATA     = "canvas.sync_data"
 A_CLEAR_ALL     = "canvas.clear_all"
+A_WIN_SYNC      = "canvas.win_sync"
 
 E_NODE_SELECTED    = "canvas.node_selected"
 E_NODE_DBLCLICKED  = "canvas.node_dblclicked"

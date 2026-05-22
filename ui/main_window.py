@@ -45,7 +45,7 @@ class BNOSMainWindow(QMainWindow):
     """BNOS主窗口类"""
     
     _RESIZE_MARGIN = 6
-    CANVAS_PROCESS_MODE = False  # True=画布独立子进程(崩溃隔离), False=嵌入式(正常布局)
+    CANVAS_PROCESS_MODE = True  # 画布进程隔离+窗口对齐同步
     
     def __init__(self):
         super().__init__()
@@ -136,6 +136,8 @@ class BNOSMainWindow(QMainWindow):
     def moveEvent(self, event):
         """窗口移动事件"""
         super().moveEvent(event)
+        if self.CANVAS_PROCESS_MODE:
+            self._sync_canvas_geometry()
         off = 40
         
         if hasattr(self, 'node_list_panel') and self.node_list_panel.isVisible():
@@ -153,6 +155,8 @@ class BNOSMainWindow(QMainWindow):
     def resizeEvent(self, event):
         """窗口大小改变事件"""
         super().resizeEvent(event)
+        if self.CANVAS_PROCESS_MODE:
+            self._sync_canvas_geometry()
         off = 40
         
         if hasattr(self, 'node_list_panel') and self.node_list_panel.isVisible():
@@ -590,7 +594,20 @@ class BNOSMainWindow(QMainWindow):
     def _start_canvas_and_load(self, project_path):
         """启动画布子进程并加载布局"""
         self._start_canvas_process()
+        # 延迟布局同步
+        QTimer.singleShot(600, lambda: self._sync_canvas_geometry())
         QTimer.singleShot(800, lambda: self._canvas_ipc_sync() if self._ipc_server else None)
+
+    def _sync_canvas_geometry(self):
+        """发送主窗口几何信息给画布子进程，实现视觉一体化"""
+        if not self._ipc_server:
+            return
+        g = self.geometry()
+        # 画布应在标题栏下方
+        self._ipc_server.broadcast(A_WIN_SYNC, {
+            "x": g.x(), "y": g.y() + 40,    # 40 = 标题栏高度
+            "w": g.width(), "h": g.height() - 40,
+        })
 
     def _canvas_ipc_sync(self):
         """同步 nodes_data 到画布（嵌入式绕过IPC直接用canvas）"""

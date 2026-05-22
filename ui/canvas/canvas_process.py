@@ -14,9 +14,9 @@ if _proj_root not in sys.path:
 
 import json
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, Qt
 from ui.core.ipc import IPCClient, A_ADD_NODE, A_REMOVE_NODE, A_UPDATE_STATUS
-from ui.core.ipc import A_CREATE_EDGE, A_REMOVE_EDGE, A_SYNC_DATA, A_CLEAR_ALL
+from ui.core.ipc import A_CREATE_EDGE, A_REMOVE_EDGE, A_SYNC_DATA, A_CLEAR_ALL, A_WIN_SYNC
 from ui.core.ipc import E_NODE_SELECTED, E_NODE_DBLCLICKED, E_EDGE_CREATED, E_EDGE_REMOVED
 from ui.core.logger import logger
 from ui.core.i18n import init_i18n
@@ -51,10 +51,10 @@ class CanvasProcessApp:
     def _setup_canvas(self):
         from ui.canvas.canvas_view import NodeCanvas
         self.canvas = NodeCanvas(None)
+        self.canvas.setWindowFlags(self.canvas.windowFlags() | Qt.WindowType.FramelessWindowHint)
         self.canvas.setWindowTitle("BNOS Canvas")
         self.canvas.resize(1200, 800)
         self.canvas.show()
-
         self._init_done = True
         logger.info("画布子进程就绪")
 
@@ -93,6 +93,12 @@ class CanvasProcessApp:
             for name, info in self._main_data.items():
                 self.canvas.nodes[name] = info
             self.canvas.sync_all_nodes_display()
+        elif action == A_WIN_SYNC:
+            x = params.get("x", 100)
+            y = params.get("y", 100)
+            w = params.get("w", 1200)
+            h = params.get("h", 800)
+            self.canvas.setGeometry(x, y, w, h)
         elif action == A_CLEAR_ALL:
             self.canvas.clear_canvas()
 
