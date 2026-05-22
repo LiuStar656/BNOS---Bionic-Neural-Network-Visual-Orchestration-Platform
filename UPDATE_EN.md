@@ -4,6 +4,43 @@
 
 ---
 
+## 🌐 i18n System Completion + Process Isolation Rollback (2026-05-22)
+
+### English Language Pack
+
+**New**: `ui/core/strings_en.json` with 389 key-value pairs. Full coverage of:
+
+- All existing k-value keys (105) → English translations
+- New `_k_` template keys (120+) → for `format()` dynamic strings
+
+**i18n Module Upgrade**:
+- `init_i18n(lang)` loads by language (`cn`/`en`), auto-falls back to Chinese
+- `set_lang(lang)` switches language at runtime
+- `t(key)` interface unchanged
+
+### Multi-language Ready Modules
+
+| Module | Replaced | Status |
+|--------|----------|--------|
+| `node_list_context.py` | ~30 | ✅ Complete |
+| `dialog_utils.py` | 12 | ✅ All buttons/headers |
+| `main_window.py` | 10 | ✅ Key paths |
+| `draw_toolbar.py` | 13 | ✅ Tool names |
+| `menu_manager.py` | 3 | ✅ Status bar + About |
+| `draw_layer.py` | 2 | ✅ Text input |
+| `floating_panel.py` | 1 | ✅ Default title |
+| `node_list_panel.py` | 2 | 🔄 Partial (30+ remaining keys defined) |
+
+### Process Isolation Rollback
+
+`CANVAS_PROCESS_MODE = False` — main window embeds canvas normally. Process isolation architecture retained for future stabilization.
+
+### Affected Files
+
+`strings_en.json`(new), `strings_cn.json`(expanded), `i18n.py`, `bnos_gui.py`, `dialog_utils.py`, `node_list_context.py`, `main_window.py`, `menu_manager.py`, `draw_toolbar.py`, `draw_layer.py`, `floating_panel.py`, `node_list_panel.py`, `UPDATE_CN.md`, `UPDATE_EN.md`
+
+---
+
 ## 🪟 Unified Window Styling + Process Isolation Activation + Window Geometry Sync (2026-05-22)
 
 ### All Dialogs & Popups Unified

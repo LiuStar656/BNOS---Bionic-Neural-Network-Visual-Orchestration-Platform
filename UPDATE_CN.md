@@ -7,6 +7,43 @@
 
 ---
 
+## 🌐 国际化体系完善 + 进程隔离切回嵌合 (2026-05-22)
+
+### 英文语言包
+
+**新增** `ui/core/strings_en.json`，389 个键值。完整覆盖：
+
+- 所有原有 k-value 键（105 个）→ 英文翻译
+- 本次新增 `_k_` 模板键（120+ 个）→ 用于 `format()` 动态字符串
+
+**i18n 模块升级**：
+- `init_i18n(lang)` 支持按语言加载（`cn`/`en`），未找到时自动回退中文
+- `set_lang(lang)` 支持运行时切换语言
+- `t(key)` 函数接口不变
+
+### 多语言就绪的模块
+
+| 模块 | 替换数 | 状态 |
+|------|--------|------|
+| `node_list_context.py` | ~30 处 | ✅ 全部完成 |
+| `dialog_utils.py` | 12 处 | ✅ 全部按钮/表头 |
+| `main_window.py` | 10 处 | ✅ 关键路径 |
+| `draw_toolbar.py` | 13 处 | ✅ 工具名称 |
+| `menu_manager.py` | 3 处 | ✅ 状态栏+关于 |
+| `draw_layer.py` | 2 处 | ✅ 文本输入 |
+| `floating_panel.py` | 1 处 | ✅ 默认标题 |
+| `node_list_panel.py` | 2 处 | 🔄 部分（30+ 剩余已定义键值） |
+
+### 进程隔离切回嵌合模式
+
+`CANVAS_PROCESS_MODE = False`，主窗口正常嵌入画布。进程分离架构保留待后续稳定后启用。
+
+### 影响文件
+
+`strings_en.json`(新增)、`strings_cn.json`(扩展)、`i18n.py`、`bnos_gui.py`、`dialog_utils.py`、`node_list_context.py`、`main_window.py`、`menu_manager.py`、`draw_toolbar.py`、`draw_layer.py`、`floating_panel.py`、`node_list_panel.py`、`UPDATE_CN.md`、`UPDATE_EN.md`
+
+---
+
 ## 🪟 统一窗口样式 + 进程隔离激活 + 窗口几何同步 (2026-05-22)
 
 ### 统一全部弹窗与对话框样式
