@@ -558,7 +558,15 @@ class BNOSMainWindow(QMainWindow):
         proc = self._process_manager.get("canvas")
         proc.crashed.connect(self._on_canvas_crashed)
         proc.start()
-        logger.info("画布子进程已启动")
+
+    def _start_panel_process(self):
+        """启动面板子进程（可选，默认使用内嵌面板）"""
+        if not self._ipc_server:
+            return
+        self._process_manager.register("panel", "ui/panels/panel_process.py")
+        proc = self._process_manager.get("panel")
+        proc.crashed.connect(lambda pid: logger.warning("面板进程 %s 崩溃，自动重启", pid))
+        proc.start()
 
     def _on_canvas_crashed(self, pid):
         """画布崩溃 → 自动重启"""
