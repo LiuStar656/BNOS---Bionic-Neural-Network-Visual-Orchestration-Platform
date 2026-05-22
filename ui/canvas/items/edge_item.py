@@ -255,6 +255,11 @@ class EdgeItem(QGraphicsPathItem):
         stroker.setWidth(self.SHAPE_HIT_WIDTH)
         return stroker.createStroke(self.path())
 
+    def boundingRect(self):
+        """覆盖手柄+折叠点范围，确保任何方向拖拽都能触发旧区域重绘"""
+        r = max(self.HANDLE_RADIUS + 3, self.WAYPOINT_RADIUS + 2) + 4
+        return self.path().boundingRect().adjusted(-r, -r, r, r)
+
     # ═══════════════════════════════════════════
     #  命中检测
     # ═══════════════════════════════════════════
