@@ -8,9 +8,9 @@ import os
 import json
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTextEdit, QGroupBox, QMessageBox
-from ui.core.utils.dialog_utils import themed_message
+    QTextEdit, QGroupBox, QMessageBox,
 )
+from ui.core.utils.dialog_utils import themed_message
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 from ui.core.floating_panel import FloatingPanel
