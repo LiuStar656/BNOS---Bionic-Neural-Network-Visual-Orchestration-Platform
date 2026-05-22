@@ -173,6 +173,13 @@ def project_refresh(main_window):
                         'mount_root': m_mount_root
                     }
                     logger.info("恢复挂载节点: %s (mount_root=%s)", m_name, m_mount_root)
+
+                    # 恢复锁定组
+                    gm = main_window.node_list_panel.group_manager
+                    if not gm.groups.get(m_mount_root):
+                        gm.create_group(m_mount_root, "#E67E22")
+                    gm.add_nodes_to_group(m_mount_root, [m_name])
+                    gm.lock_group(m_mount_root)
                 except Exception as ex:
                     logger.warning("恢复挂载节点 %s 失败: %s", m_name, ex)
         logger.info("共恢复 %d 个挂载节点", len(mounted_nodes))

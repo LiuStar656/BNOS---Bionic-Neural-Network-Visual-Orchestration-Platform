@@ -65,13 +65,19 @@ def mount_node(main_window):
     except Exception as e:
         logger.warning("挂载节点注册表同步失败: %s", e)
 
+    # 先建立项目路径（后续 save_groups 需要），再创建组
+    main_window.node_list_panel.set_project_path(main_window.current_project_path)
+
     mount_group_name = mount_root
     if not main_window.node_list_panel.group_manager.groups.get(mount_group_name):
         main_window.node_list_panel.group_manager.create_group(mount_group_name, "#E67E22")
     main_window.node_list_panel.group_manager.add_nodes_to_group(mount_group_name, [node_name])
     main_window.node_list_panel.group_manager.lock_group(mount_group_name)
 
-    main_window.node_list_panel.set_project_path(main_window.current_project_path)
+    # 持久化组配置，防止后续 set_project_path → load_groups 覆盖
+    main_window.node_list_panel.group_manager.save_groups()
+
+    # 刷新 UI
     main_window.node_list_panel.update_node_list(main_window.nodes_data)
     main_window.canvas.sync_all_nodes_display()
 
@@ -108,6 +114,7 @@ def unmount_node(main_window, node_name):
             main_window.node_list_panel.group_manager.delete_group(mount_group_name)
 
     del main_window.nodes_data[node_name]
+    main_window.node_list_panel.group_manager.save_groups()
     main_window.node_list_panel.update_node_list(main_window.nodes_data)
     main_window.canvas.remove_node_from_canvas(node_name)
 
