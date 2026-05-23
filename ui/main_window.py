@@ -243,6 +243,7 @@ class BNOSMainWindow(QMainWindow):
         """创建新的画布标签页"""
         index, canvas = self._tab_manager.add_new_tab(name=name)
         self._context_manager.add_context(index)
+        return canvas
         
     def _on_tab_changed(self, index, project_path):
         """标签切换事件处理"""
@@ -253,6 +254,7 @@ class BNOSMainWindow(QMainWindow):
         canvas = self._tab_manager.get_current_canvas()
         if canvas:
             canvas.parent_window = self
+            self.canvas = canvas
         
         # 刷新所有面板
         self._refresh_panels()
