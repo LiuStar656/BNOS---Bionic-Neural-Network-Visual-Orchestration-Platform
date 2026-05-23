@@ -320,15 +320,24 @@ class CanvasTabManager(QTabWidget):
     
     def restore_tab_state(self, state):
         """从配置恢复标签状态"""
+        logger.info(f"=== 开始恢复标签页状态 ===")
+        logger.info(f"待恢复的标签页数量: {len(state)}")
+        
         # 清空现有标签
         while self.count() > 0:
             self._close_tab(0)
         
         # 恢复标签
-        for item in state:
+        for i, item in enumerate(state):
+            project_path = item.get('project_path')
+            name = item.get('name')
+            logger.info(f"恢复标签页 {i}: name={name}, project_path={project_path}")
+            
             index, _ = self.add_new_tab(
-                project_path=item.get('project_path'),
-                name=item.get('name')
+                project_path=project_path,
+                name=name
             )
             if item.get('is_pinned'):
                 self._toggle_pin(index, True)
+        
+        logger.info(f"标签页状态恢复完成，当前标签页数量: {self.count()}")
