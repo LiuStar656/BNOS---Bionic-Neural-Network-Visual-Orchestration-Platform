@@ -8,9 +8,9 @@ from PyQt6.QtGui import QFont
 from ui.core.i18n import t
 from ui.icons import codicon, get_icon, get_icon_font
 
-TOOL_W = 40          # 工具栏宽度（够按钮显示）
-BTN_H  = 34          # 按钮高度
-FONT   = get_icon_font(14) or QFont("Segoe MDL2 Assets", 14)
+TOOL_W = 56          # 工具栏宽度（适配放大后的按钮）
+BTN_H  = 44          # 按钮高度（放大后）
+FONT   = get_icon_font(18) or QFont("Segoe MDL2 Assets", 18)
 
 # 配色：与菜单栏/标题栏统一
 BG_TOOLBAR   = "#1e1e1e"
@@ -23,18 +23,18 @@ BORDER       = "#3e3e42"
 SEPARATOR    = "#454545"
 
 TOOLS = [
-    ("rect",       get_icon("square"),   "_k_draw_rect"),
-    ("round_rect", get_icon("circle"),   "_k_draw_round_rect"),
-    ("polygon",    get_icon("triangle-up"), "_k_draw_polygon"),
-    ("arrow",      get_icon("arrow-right"), "_k_draw_arrow"),
-    ("text",       get_icon("type"),     "_k_draw_text"),
+    ("rect",       get_icon("layout-panel"), "_k_draw_rect"),           # 矩形 - 面板图标
+    ("round_rect", get_icon("circle"),       "_k_draw_round_rect"),     # 圆角矩形 - 圆形图标
+    ("polygon",    get_icon("triangle-up"),  "_k_draw_polygon"),        # 多边形 - 三角形图标
+    ("arrow",      get_icon("arrow-right"),  "_k_draw_arrow"),          # 箭头 - 箭头图标
+    ("text",       get_icon("file-text"),    "_k_draw_text"),           # 文本 - 文本文件图标
 ]
 
 BTN_BASE = f"""
 QPushButton {{
     background: {BG_BTN}; color: {FG_BTN};
     border: none; border-left: 3px solid transparent;
-    font-size: 12px; font-weight: bold;
+    font-size: 18px; font-weight: bold;
     min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
     padding: 0px 4px;
 }}
@@ -45,7 +45,7 @@ BTN_ON = f"""
 QPushButton {{
     background: {BG_BTN}; color: {FG_BTN_ON};
     border: none; border-left: 3px solid {BG_BTN_ON};
-    font-size: 12px; font-weight: bold;
+    font-size: 18px; font-weight: bold;
     min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
     padding: 0px 4px;
 }}
@@ -101,30 +101,30 @@ class DrawToolbar(QWidget):
 
         self._sep(layout)
 
-        self._stroke_btn = self._mk_btn("S", t("_k_draw_stroke"), layout)
+        self._stroke_btn = self._mk_btn(get_icon("pencil"), t("_k_draw_stroke"), layout)
         self._stroke_btn.clicked.connect(self._pick_stroke)
-        self._fill_btn = self._mk_btn("F", t("_k_draw_fill"), layout)
+        self._fill_btn = self._mk_btn(get_icon("paintcan"), t("_k_draw_fill"), layout)
         self._fill_btn.clicked.connect(self._pick_fill)
 
         self._sep(layout)
 
-        self._lock_btn = self._mk_btn("L", t("_k_draw_lock"), layout)
+        self._lock_btn = self._mk_btn(get_icon("lock"), t("_k_draw_lock"), layout)
         self._lock_btn.clicked.connect(lambda: self._toggle_lock())
-        self._hide_btn = self._mk_btn("V", t("_k_draw_show_hide"), layout)
+        self._hide_btn = self._mk_btn(get_icon("eye"), t("_k_draw_show_hide"), layout)
         self._hide_btn.clicked.connect(lambda: self._toggle_visible())
 
         self._sep(layout)
 
-        self._mk_btn("<", t("_k_draw_undo"), layout).clicked.connect(lambda: self.undo_requested.emit())
-        self._mk_btn(">", t("_k_draw_redo"), layout).clicked.connect(lambda: self.redo_requested.emit())
+        self._mk_btn(get_icon("chevron-left"), t("_k_draw_undo"), layout).clicked.connect(lambda: self.undo_requested.emit())
+        self._mk_btn(get_icon("chevron-right"), t("_k_draw_redo"), layout).clicked.connect(lambda: self.redo_requested.emit())
 
         self._sep(layout)
 
-        d = self._mk_btn("X", t("_k_draw_delete_sel"), layout)
+        d = self._mk_btn(get_icon("trash"), t("_k_draw_delete_sel"), layout)
         d.setStyleSheet(BTN_BASE + f"QPushButton:hover {{ background: {BG_DANGER}; color: #fff; }}")
         d.clicked.connect(lambda: self.delete_requested.emit())
 
-        c = self._mk_btn("C", t("_k_draw_clear_all"), layout)
+        c = self._mk_btn(get_icon("close"), t("_k_draw_clear_all"), layout)
         c.setStyleSheet(BTN_BASE + f"QPushButton:hover {{ background: {BG_DANGER}; color: #fff; }}")
         c.clicked.connect(lambda: self.clear_requested.emit())
 
@@ -175,7 +175,7 @@ class DrawToolbar(QWidget):
             self._hide_btn.setStyleSheet(f"""
                 QPushButton {{ background: {BG_BTN}; color: #555555;
                     border: none; border-left: 3px solid transparent;
-                    font-size: 12px; font-weight: bold;
+                    font-size: 18px; font-weight: bold;
                     min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
                     padding: 0px 4px; }}
             """)

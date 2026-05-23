@@ -119,32 +119,66 @@ class BNOSMainWindow(QMainWindow):
         self._title_bar.close_clicked.connect(self.close)
         main_layout.addWidget(self._title_bar)
         
-        # 画布
-        if self.CANVAS_PROCESS_MODE:
-            self.canvas = None  # 不嵌入，用子进程
-            placeholder = QWidget()
-            placeholder.setStyleSheet("background-color: #1e1e1e;")
-            main_layout.addWidget(placeholder, 1)
-        else:
-            self.canvas = NodeCanvas(self)
-            main_layout.addWidget(self.canvas, 1)
+        # ========== 停靠管理器 ==========
+        from ui.core.dock_manager import DockManager
+        self._dock_manager = DockManager(self)
+        
+        # 创建编辑器区域
+        editor_widget = QWidget()
+        editor_layout = QVBoxLayout(editor_widget)
+        editor_layout.setContentsMargins(0, 0, 0, 0)
+        editor_layout.setSpacing(0)
+        
+        # 标签栏 (Tab Bar) - VS Code风格
+        self._tab_bar = QTabWidget()
+        self._tab_bar.setTabsClosable(True)
+        self._tab_bar.setMovable(True)
+        self._tab_bar.setStyleSheet("""
+            QTabWidget::tab-bar {
+                alignment: left;
+                height: 22px;
+            }
+            QTabBar::tab {
+                background-color: #252526;
+                color: #858585;
+                padding: 4px 24px 4px 12px;
+                margin-right: 1px;
+                margin-bottom: 1px;
+                font-size: 11px;
+                border: none;
+                min-width: 100px;
+            }
+            QTabBar::tab:selected {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border-top: 1px solid #007acc;
+            }
+            QTabBar::tab:hover {
+                color: #d4d4d4;
+            }
+            QTabWidget::pane {
+                background-color: #1e1e1e;
+                border: none;
+            }
+        """)
+        editor_layout.addWidget(self._tab_bar)
+        
+        # 创建第一个画布标签页
+        self.new_canvas_tab()
+        
+        # 将编辑器区域设置到停靠管理器的中央
+        self._dock_manager.set_center_widget(editor_widget)
+        main_layout.addWidget(self._dock_manager)
         
         # IPC 进程间通信（主进程 = Server）
         self._ipc_server = None
         self._process_manager = ProcessManager(self)
         self._init_ipc()
         
-        # 节点列表面板
+        # 面板实例（初始创建但隐藏）
         self.node_list_panel = NodeListPanel(self)
-        self.node_list_panel.setWindowTitle(t("k_node_list"))
-        
-        panel_width = 280
-        panel_height = 500
-        window_pos = self.pos()
-        panel_x = window_pos.x() + 60  # 避开左侧40px工具栏
-        panel_y = window_pos.y() + 40
-        self.node_list_panel.setGeometry(panel_x, panel_y, panel_width, panel_height)
-        self.node_list_panel.show()
+        self.node_list_panel.hide()
+        self.resource_monitor = None
     
     def moveEvent(self, event):
         """窗口移动事件"""
@@ -230,14 +264,27 @@ class BNOSMainWindow(QMainWindow):
         
         toast.close = custom_close
     
+    def new_canvas_tab(self):
+        """创建新的画布标签页"""
+        # 创建画布组件
+        canvas = NodeCanvas(self)
+        canvas.parent_window = self
+        
+        # 添加到标签栏
+        index = self._tab_bar.addTab(canvas, t("k_canvas") + f" {self._tab_bar.count() + 1}")
+        self._tab_bar.setCurrentIndex(index)
+        
+        # 更新当前画布引用
+        self.canvas = canvas
+        
     def toggle_node_list_panel(self, checked):
         """切换节点列表面板的显示/隐藏"""
         if checked:
-            self.node_list_panel.show()
-            self.node_list_panel.raise_()
-            self.node_list_panel.activateWindow()
-        else:
-            self.node_list_panel.hide()
+            # 创建并停靠节点列表到左侧
+            if self.node_list_panel is None:
+                self.node_list_panel = NodeListPanel(self)
+            self._dock_manager.add_panel_to_dock(self.node_list_panel, t("k_node_list"), edge='left')
+        # 关闭由停靠面板自己处理
 
     def show_node_monitor(self):
         """打开节点监测面板"""
@@ -250,6 +297,13 @@ class BNOSMainWindow(QMainWindow):
             self.node_monitor.move(monitor_x, monitor_y)
         self.node_monitor.show()
         self.node_monitor.raise_()
+
+    def show_resource_monitor(self):
+        """打开资源监测面板 - 停靠到左侧"""
+        if self.resource_monitor is None:
+            from ui.panels.resource_monitor import ResourceMonitor
+            self.resource_monitor = ResourceMonitor(self)
+        self._dock_manager.add_panel_to_dock(self.resource_monitor, t("k_resource_monitor"), edge='left')
 
     def open_color_settings(self):
         """打开颜色设置对话框"""

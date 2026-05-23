@@ -37,6 +37,14 @@ class MenuManager:
         file_menu.addAction(a)
         actions["new_project"] = a
 
+        a = QAction(f"{get_icon('layout-sidebar-left')} {t('k_new_canvas_tab')}", main_window)
+        a.setFont(icon_font)
+        a.setShortcut(_shortcut(main_window, "new_canvas_tab"))
+        a.setStatusTip(t("k_new_canvas_tab_desc"))
+        a.triggered.connect(main_window.new_canvas_tab)
+        file_menu.addAction(a)
+        actions["new_canvas_tab"] = a
+
         a = QAction(f"{get_icon('folder-open')} {t('k_project_open')}", main_window)
         a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "open_project"))
@@ -160,6 +168,14 @@ class MenuManager:
         a.triggered.connect(main_window.show_node_monitor)
         tools_menu.addAction(a)
         actions["node_monitor"] = a
+
+        a = QAction(f"{get_icon('activity')} {t('k_resource_monitor')}", main_window)
+        a.setFont(icon_font)
+        a.setShortcut(_shortcut(main_window, "resource_monitor"))
+        a.setStatusTip(t("k_resource_monitor_desc"))
+        a.triggered.connect(main_window.show_resource_monitor)
+        tools_menu.addAction(a)
+        actions["resource_monitor"] = a
 
         # ========== 帮助 ==========
         help_menu = menubar.addMenu(t("k_menu_help"))

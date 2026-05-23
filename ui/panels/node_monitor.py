@@ -2,12 +2,14 @@
 节点监测面板 - 全局实时日志查看组件
 参照 NodeListPanel 样式：无边框、半透明深色背景、可拖动
 父窗口 + QScrollArea + 多个 NodeLogSubPanel 子窗口
+支持节点资源占用检测
 """
 import os
 import subprocess
+import psutil
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTextEdit, QGroupBox, QWidget, QScrollArea, QMessageBox
+    QTextEdit, QGroupBox, QWidget, QScrollArea, QProgressBar
 )
 from ui.core.i18n import t
 from PyQt6.QtCore import Qt, QTimer
@@ -26,6 +28,9 @@ class NodeLogSubPanel(QGroupBox):
         self.node_path = node_path
         self._collapsed = False
         self._log_file = os.path.join(node_path, "logs", "listener.log")
+        self._resource_timer = None
+        self._last_cpu = 0
+        self._last_memory = 0
 
         self.setStyleSheet("""
             QGroupBox {
@@ -49,6 +54,9 @@ class NodeLogSubPanel(QGroupBox):
         # 订阅 polling_manager 日志变更信号（替代独立定时器）
         polling_manager.watch_log(node_path, "listener.log")
         polling_manager.log_file_changed.connect(self._on_external_log_change)
+
+        # 启动资源监测定时器（每秒更新）
+        self._start_resource_timer()
 
     def _init_ui(self, status):
         layout = QVBoxLayout(self)
@@ -85,10 +93,63 @@ class NodeLogSubPanel(QGroupBox):
         title_row.addWidget(self._collapse_indicator)
         layout.addLayout(title_row)
 
+        # ---- 资源占用显示 ----
+        resource_row = QHBoxLayout()
+        resource_row.setSpacing(8)
+
+        # CPU
+        cpu_layout = QVBoxLayout()
+        self._cpu_label = QLabel("CPU: 0%")
+        self._cpu_label.setStyleSheet("color: #4CAF50; font-size: 9px;")
+        self._cpu_bar = QProgressBar()
+        self._cpu_bar.setRange(0, 100)
+        self._cpu_bar.setValue(0)
+        self._cpu_bar.setMaximumWidth(80)
+        self._cpu_bar.setStyleSheet("""
+            QProgressBar {
+                background-color: rgba(255, 255, 255, 10);
+                border-radius: 3px;
+                height: 6px;
+            }
+            QProgressBar::chunk {
+                background-color: #4CAF50;
+                border-radius: 3px;
+            }
+        """)
+        cpu_layout.addWidget(self._cpu_label)
+        cpu_layout.addWidget(self._cpu_bar)
+        resource_row.addLayout(cpu_layout)
+
+        # 内存
+        mem_layout = QVBoxLayout()
+        self._mem_label = QLabel("MEM: 0 MB")
+        self._mem_label.setStyleSheet("color: #2196F3; font-size: 9px;")
+        self._mem_bar = QProgressBar()
+        self._mem_bar.setRange(0, 100)
+        self._mem_bar.setValue(0)
+        self._mem_bar.setMaximumWidth(80)
+        self._mem_bar.setStyleSheet("""
+            QProgressBar {
+                background-color: rgba(255, 255, 255, 10);
+                border-radius: 3px;
+                height: 6px;
+            }
+            QProgressBar::chunk {
+                background-color: #2196F3;
+                border-radius: 3px;
+            }
+        """)
+        mem_layout.addWidget(self._mem_label)
+        mem_layout.addWidget(self._mem_bar)
+        resource_row.addLayout(mem_layout)
+
+        resource_row.addStretch()
+        layout.addLayout(resource_row)
+
         # 日志内容区
         self._log_editor = QTextEdit()
         self._log_editor.setReadOnly(True)
-        self._log_editor.setMaximumHeight(180)
+        self._log_editor.setMaximumHeight(160)
         self._log_editor.setFont(QFont("Consolas", 8))
         self._log_editor.setStyleSheet("""
             QTextEdit {
@@ -124,6 +185,96 @@ class NodeLogSubPanel(QGroupBox):
 
         btn_row.addStretch()
         layout.addLayout(btn_row)
+
+    def _start_resource_timer(self):
+        """启动资源监测定时器"""
+        self._resource_timer = QTimer(self)
+        self._resource_timer.timeout.connect(self._update_resources)
+        self._resource_timer.start(1000)
+
+    def _update_resources(self):
+        """更新节点资源占用信息"""
+        pid = self._get_node_pid()
+        if not pid:
+            self._cpu_label.setText("CPU: -")
+            self._cpu_bar.setValue(0)
+            self._mem_label.setText("MEM: -")
+            self._mem_bar.setValue(0)
+            return
+
+        try:
+            if not psutil.pid_exists(pid):
+                self._cpu_label.setText("CPU: -")
+                self._cpu_bar.setValue(0)
+                self._mem_label.setText("MEM: -")
+                self._mem_bar.setValue(0)
+                return
+
+            process = psutil.Process(pid)
+            cpu_total = 0
+            mem_total = 0
+
+            # 获取进程及其所有子进程的资源占用
+            for child in process.children(recursive=True):
+                try:
+                    cpu_total += child.cpu_percent()
+                    mem_total += child.memory_info().rss
+                except:
+                    pass
+
+            try:
+                cpu_total += process.cpu_percent()
+                mem_total += process.memory_info().rss
+            except:
+                pass
+
+            mem_mb = mem_total / (1024 ** 2)
+            mem_percent = (mem_total / psutil.virtual_memory().total) * 100
+
+            self._cpu_label.setText(f"CPU: {cpu_total:.1f}%")
+            self._cpu_bar.setValue(min(int(cpu_total), 100))
+            self._mem_label.setText(f"MEM: {mem_mb:.1f} MB")
+            self._mem_bar.setValue(min(int(mem_percent), 100))
+
+            # 更新进度条颜色（高占用时变红）
+            if cpu_total > 80:
+                self._cpu_bar.setStyleSheet("""
+                    QProgressBar {
+                        background-color: rgba(255, 255, 255, 10);
+                        border-radius: 3px;
+                        height: 6px;
+                    }
+                    QProgressBar::chunk {
+                        background-color: #F44336;
+                        border-radius: 3px;
+                    }
+                """)
+            else:
+                self._cpu_bar.setStyleSheet("""
+                    QProgressBar {
+                        background-color: rgba(255, 255, 255, 10);
+                        border-radius: 3px;
+                        height: 6px;
+                    }
+                    QProgressBar::chunk {
+                        background-color: #4CAF50;
+                        border-radius: 3px;
+                    }
+                """)
+
+        except Exception as e:
+            pass
+
+    def _get_node_pid(self):
+        """获取节点进程 PID"""
+        pid_file = os.path.join(self.node_path, ".pid")
+        if os.path.exists(pid_file):
+            try:
+                with open(pid_file, 'r') as f:
+                    return int(f.read().strip())
+            except:
+                pass
+        return None
 
     # ==================== 功能 ====================
 
@@ -185,6 +336,9 @@ class NodeLogSubPanel(QGroupBox):
     def unsubscribe_monitor(self):
         """取消订阅 polling_manager（面板移除时调用）"""
         polling_manager.unwatch_log(self.node_path, "listener.log")
+        if self._resource_timer:
+            self._resource_timer.stop()
+            self._resource_timer = None
 
     # ==================== 状态更新 ====================
 

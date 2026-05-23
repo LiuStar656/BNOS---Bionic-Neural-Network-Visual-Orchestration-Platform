@@ -320,6 +320,22 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 - **OS**: Windows 10/11 (primary), Linux/macOS (partial support)
 - **Disk Space**: 500MB+ (for virtual environments)
 
+### Multi-Language Node Support
+
+BNOS supports nodes implemented in multiple programming languages. The following toolchains are required based on your node language choice:
+
+| Language | Required Toolchain | Notes |
+|----------|-------------------|-------|
+| **Python** | Python 3.8+ + venv | Built-in support |
+| **Rust** | Rust toolchain (rustc/cargo) | Auto-detects and rebuilds |
+| **Node.js** | Node.js 16+ | npm packages auto-install |
+| **Go** | Go 1.18+ | `go mod` support |
+| **Java** | JDK 11+ | Maven/Gradle optional |
+| **C++** | MSVC/GCC/Clang | CMake optional |
+| **Ruby** | Ruby 2.7+ | Bundler support |
+
+> **Note**: Only Python is required to run the BNOS Console itself. Other language toolchains are only needed when creating nodes in those languages.
+
 ### Installation
 
 #### Option 1: From Source (Recommended for Development)
@@ -866,4 +882,3 @@ Contributions welcome! Please read our guidelines:
 </div>
 
 ---
-

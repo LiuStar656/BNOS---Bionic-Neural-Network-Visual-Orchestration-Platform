@@ -16,6 +16,8 @@ DEFAULTS = {
     "start_node":      ("Ctrl+Shift+S",  "k_node_start"),
     "stop_node":       ("Ctrl+Shift+X",  "k_node_stop"),
     "node_monitor":    ("Ctrl+Shift+M",  "k_node_monitor"),
+    "resource_monitor":("Ctrl+Shift+R",  "k_resource_monitor"),
+    "new_canvas_tab":  ("Ctrl+T",        "k_new_canvas_tab"),
 }
 
 # 需要 QAction.setShortcut(hotkey) 处理空快捷键

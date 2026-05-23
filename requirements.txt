@@ -1,4 +1,17 @@
+# BNOS Console Dependencies
+
+# Core GUI framework
 pyqt6>=6.4.0
+
+# Process management (required for node health detection)
+psutil>=5.9.0
+
+# Packaging
 pyinstaller>=5.0.0
+
+# Virtual environment management
 virtualenv>=20.0.0
 
+# Optional: For development/testing
+# pytest>=7.0.0
+# pytest-qt>=4.0.0

@@ -22,10 +22,7 @@ def _canvas_call(mw, method, *args, **kwargs):
 
 
 def project_new(main_window):
-    """新建项目：选父目录 → 输入名称 → 创建文件夹+nodes/"""
-    if main_window.current_project_path:
-        _canvas_call(main_window, 'save_layout', main_window.current_project_path)
-
+    """新建项目：选父目录 → 输入名称 → 创建文件夹+nodes/ → 创建新标签页"""
     # 1. 选上级目录
     parent_dir = pick_folder(main_window, t("k_project_select_parent_dir"))
     if not parent_dir:
@@ -45,6 +42,10 @@ def project_new(main_window):
     nodes_dir = os.path.join(project_dir, "nodes")
     os.makedirs(nodes_dir, exist_ok=True)
 
+    # 4. 创建新标签页，使用项目名作为标签名
+    main_window._add_new_canvas_tab(proj_name.strip())
+    
+    # 5. 更新项目状态
     main_window.current_project_path = project_dir
     main_window.nodes_data.clear()
     main_window.connections.clear()
@@ -54,10 +55,7 @@ def project_new(main_window):
 
 
 def project_open(main_window):
-    """打开项目：选文件夹 → 识别项目结构 → 加载"""
-    if main_window.current_project_path:
-        _canvas_call(main_window, 'save_layout', main_window.current_project_path)
-
+    """打开项目：选文件夹 → 创建新标签页 → 识别项目结构 → 加载"""
     project_dir = pick_folder(main_window, t("k_project_open_dir"))
     if not project_dir:
         return
@@ -76,14 +74,19 @@ def project_open(main_window):
     if not has_nodes:
         os.makedirs(nodes_dir, exist_ok=True)
 
+    # 创建新标签页，使用项目名作为标签名
+    project_name = os.path.basename(project_dir)
+    canvas = main_window._add_new_canvas_tab(project_name)
+    
+    # 更新当前项目路径
     main_window.current_project_path = project_dir
     main_window.nodes_data.clear()
     main_window.connections.clear()
-    _canvas_call(main_window, 'clear_canvas')
-
+    
+    # 加载项目
     project_refresh(main_window)
     _canvas_call(main_window, 'load_layout', project_dir)
-    main_window.show_toast(f"已打开项目: {os.path.basename(project_dir)}", "success")
+    main_window.show_toast(f"已打开项目: {project_name}", "success")
 
 
 def project_refresh(main_window):
