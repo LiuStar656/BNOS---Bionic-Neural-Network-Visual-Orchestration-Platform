@@ -842,6 +842,17 @@ class BNOSMainWindow(QMainWindow):
             if os.path.exists(nodes_dir):
                 self.current_project_path = last_project
                 logger.info("自动打开项目: %s", last_project)
+                
+                # 更新当前标签页名称为项目名
+                current_index = self._tab_manager.currentIndex()
+                project_name = os.path.basename(last_project)
+                self._tab_manager.setTabText(current_index, project_name)
+                
+                # 更新标签页上下文
+                if current_index in self._tab_manager._tab_contexts:
+                    self._tab_manager._tab_contexts[current_index]['project_path'] = last_project
+                    self._tab_manager._tab_contexts[current_index]['name'] = project_name
+                
                 self.refresh_nodes()
                 # 画布进程模式下先启动子进程再加载布局
                 if self._canvas_mode:
