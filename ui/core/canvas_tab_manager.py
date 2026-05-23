@@ -191,9 +191,18 @@ class CanvasTabManager(QTabWidget):
         # 保存布局
         self._save_canvas_layout(index)
         
-        # 删除上下文
+        # 删除上下文并重新编号
         if index in self._tab_contexts:
             del self._tab_contexts[index]
+        
+        # 重新编号剩余标签的上下文
+        new_contexts = {}
+        for i in list(self._tab_contexts.keys()):
+            if i < index:
+                new_contexts[i] = self._tab_contexts[i]
+            elif i > index:
+                new_contexts[i - 1] = self._tab_contexts[i]
+        self._tab_contexts = new_contexts
         
         # 更新固定标签索引
         new_fixed = set()
