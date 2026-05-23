@@ -141,10 +141,7 @@ class BNOSMainWindow(QMainWindow):
             current_index = self._tab_manager.currentIndex()
             context = self._tab_manager._tab_contexts.get(current_index, {})
             self.current_project_path = context.get('project_path', '')
-            
-            # 刷新当前项目的节点列表
-            if self.current_project_path:
-                self.refresh_nodes()
+            # 节点刷新将在 auto_open_last_project() 中处理（如果 _has_restored_tabs 为 True，会跳过自动打开但刷新节点）
         else:
             # 创建第一个画布标签页（先不连接信号）
             self._tab_manager.add_new_tab()
@@ -847,9 +844,11 @@ class BNOSMainWindow(QMainWindow):
     
     def auto_open_last_project(self):
         """自动打开最后的项目"""
-        # 如果已经从标签页状态恢复了项目，直接跳过
+        # 如果已经从标签页状态恢复了项目，刷新节点列表后返回
         if getattr(self, '_has_restored_tabs', False):
-            logger.info("标签页状态已恢复，跳过自动打开项目")
+            logger.info("标签页状态已恢复，刷新当前项目节点列表")
+            if self.current_project_path:
+                self.refresh_nodes()
             return
         
         last_project = self.app_config.get("last_project")
