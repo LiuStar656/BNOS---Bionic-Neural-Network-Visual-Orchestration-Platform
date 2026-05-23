@@ -844,11 +844,13 @@ class BNOSMainWindow(QMainWindow):
     
     def auto_open_last_project(self):
         """自动打开最后的项目"""
-        # 如果已经从标签页状态恢复了项目，刷新节点列表后返回
+        # 如果已经从标签页状态恢复了项目
         if getattr(self, '_has_restored_tabs', False):
             logger.info("标签页状态已恢复，刷新当前项目节点列表")
             if self.current_project_path:
                 self.refresh_nodes()
+            # 恢复面板状态
+            QTimer.singleShot(100, self._restore_panel_state)
             return
         
         last_project = self.app_config.get("last_project")
