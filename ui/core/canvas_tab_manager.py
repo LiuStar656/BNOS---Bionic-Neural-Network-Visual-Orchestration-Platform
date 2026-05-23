@@ -301,6 +301,10 @@ class CanvasTabManager(QTabWidget):
     def save_tab_state(self):
         """保存标签状态到配置"""
         state = []
+        logger.info(f"=== 开始保存标签页状态 ===")
+        logger.info(f"当前标签页数量: {self.count()}")
+        logger.info(f"当前上下文数量: {len(self._tab_contexts)}")
+        
         # 确保遍历所有实际存在的标签页
         for index in range(self.count()):
             # 从上下文获取数据，如果上下文不存在则使用默认值
@@ -309,12 +313,17 @@ class CanvasTabManager(QTabWidget):
             name = context.get('name', self.tabText(index))
             is_pinned = index in self._fixed_tabs
             
+            # 检查项目路径是否为空
+            if project_path is None:
+                logger.warning(f"标签页 {index} 的项目路径为空！name={name}")
+            
             state.append({
                 'project_path': project_path,
                 'name': name,
                 'is_pinned': is_pinned
             })
-            logger.debug(f"保存标签页 {index}: name={name}, project_path={project_path}")
+            logger.info(f"保存标签页 {index}: name={name}, project_path={project_path}")
+        
         logger.info(f"共保存 {len(state)} 个标签页状态")
         return state
     

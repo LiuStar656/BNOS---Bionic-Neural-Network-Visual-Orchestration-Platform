@@ -135,6 +135,7 @@ class CanvasLayoutMixin:
             # ---- 节点位置 + 颜色 ----
             for node_name, pos_data in layout_data.get("nodes", {}).items():
                 if node_name in self.nodes:
+                    # 节点已存在，更新位置和样式
                     node = self.nodes[node_name]
                     node.setPos(pos_data["x"], pos_data["y"])
                     # 恢复节点样式
@@ -162,6 +163,43 @@ class CanvasLayoutMixin:
                                     if color.isValid():
                                         action(color)
                                         config[cfg_key] = cc[key]
+                elif self.parent_window and node_name in self.parent_window.nodes_data:
+                    # 节点不存在但存在于项目数据中，添加到画布
+                    from ui.canvas.items.node_item import NodeItem
+                    config = self.parent_window.nodes_data[node_name]['config']
+                    node_lang = config.get('language', 'python')
+                    
+                    # 创建节点
+                    node = NodeItem(node_name, node_lang)
+                    node.setPos(pos_data["x"], pos_data["y"])
+                    
+                    # 应用样式
+                    sk = pos_data.get("style", "rect")
+                    from ui.canvas.items.node_style import STYLES
+                    st_cls = STYLES.get(sk, STYLES["rect"])
+                    node._style = st_cls()
+                    node._style.apply(node)
+                    
+                    # 应用颜色
+                    cc = pos_data.get("custom_colors")
+                    if cc:
+                        for key, cfg_key, action in [
+                            ("bg", "custom_bg_color", lambda c: node.setBrush(QBrush(c))),
+                            ("border", "custom_border_color", lambda c: node.setPen(QPen(c, 2))),
+                            ("text", "custom_text_color", lambda c: node.name_text.setDefaultTextColor(c)),
+                        ]:
+                            if key in cc:
+                                try:
+                                    color = QColor(cc[key])
+                                    if color.isValid():
+                                        action(color)
+                                except:
+                                    pass
+                    
+                    # 添加到画布和节点字典
+                    self.scene.addItem(node)
+                    self.nodes[node_name] = node
+                    logger.info(f"从布局文件添加节点: {node_name} (位置: {pos_data['x']}, {pos_data['y']})")
                                 except Exception:
                                     pass
 
