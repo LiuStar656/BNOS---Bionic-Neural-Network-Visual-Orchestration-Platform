@@ -163,6 +163,8 @@ class CanvasLayoutMixin:
                                     if color.isValid():
                                         action(color)
                                         config[cfg_key] = cc[key]
+                                except Exception:
+                                    pass
                 elif self.parent_window and node_name in self.parent_window.nodes_data:
                     # 节点不存在但存在于项目数据中，添加到画布
                     from ui.canvas.items.node_item import NodeItem
@@ -200,8 +202,6 @@ class CanvasLayoutMixin:
                     self.scene.addItem(node)
                     self.nodes[node_name] = node
                     logger.info(f"从布局文件添加节点: {node_name} (位置: {pos_data['x']}, {pos_data['y']})")
-                                except Exception:
-                                    pass
 
             # ---- 自动添加缺失节点 ----
             nodes_added = 0
