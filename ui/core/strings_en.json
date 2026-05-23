@@ -166,7 +166,7 @@
   "k_resource_monitor": "Resource Monitor(Floating)",
   "k_resource_monitor_dock": "Resource Monitor(Dock)",
   "k_resource_monitor_desc": "Real-time monitoring of CPU, memory, disk, network usage and node resource consumption",
-  "k_node_list": "Node List(Floating)",
+  "k_node_list_floating": "Node List(Floating)",
   "k_node_list_dock": "Node List(Dock)",
 
   "k_sys_resources": "System Resources",

@@ -430,7 +430,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         
         # 输入新名称
         from ui.core.floating_panel import themed_input_dialog
-        new_name = themed_input_dialog(self, t("k_node_rename"), ft("k_node_input_new_name"), old_name)
+        new_name = themed_input_dialog(self, t("k_node_rename"), t("k_node_input_new_name"), old_name)
         if not new_name:
             return
         
@@ -591,7 +591,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 self.parent_window.show_toast("挂载组禁止重命名", "warning")
             return
         from ui.core.floating_panel import themed_input_dialog
-        new_name = themed_input_dialog(self, "重命名组", ft("k_group_input_new_name"), group_name)
+        new_name = themed_input_dialog(self, t("k_group_rename"), t("k_group_input_new_name"), group_name)
         if not new_name:
             return
         
