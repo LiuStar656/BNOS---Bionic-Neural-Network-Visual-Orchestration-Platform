@@ -53,6 +53,12 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName(t("_k_app_name"))
         app.setOrganizationName("BNOS")
+        
+        # 设置应用程序默认字体（避免系统缺少特定字体导致警告）
+        from PyQt6.QtGui import QFont
+        default_font = QFont()
+        default_font.setFamilies(["Segoe UI", "Microsoft YaHei", "Arial", "Helvetica", "sans-serif"])
+        app.setFont(default_font)
 
         # 初始化图标系统（加载 Codicon 字体）
         codicon.init()

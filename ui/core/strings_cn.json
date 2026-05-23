@@ -160,9 +160,14 @@
   "k_color_applied": "颜色设置已应用并保存",
   "k_color_reset_done": "已恢复默认颜色设置（深色主题）",
 
-  "k_node_monitor": "节点监测",
-  "k_resource_monitor": "资源监测",
+  "k_node_monitor": "节点监测(浮动)",
+  "k_node_monitor_dock": "节点监测(Dock)",
+  "k_node_monitor_dock_desc": "停靠式节点日志监测面板",
+  "k_resource_monitor": "资源监测(浮动)",
+  "k_resource_monitor_dock": "资源监测(Dock)",
   "k_resource_monitor_desc": "实时监控系统CPU、内存、磁盘、网络占用及节点资源消耗",
+  "k_node_list": "节点列表(浮动)",
+  "k_node_list_dock": "节点列表(Dock)",
 
   "k_sys_resources": "系统资源",
   "k_node_resources": "节点资源",

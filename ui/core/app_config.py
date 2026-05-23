@@ -1,6 +1,7 @@
 """
 应用配置管理 - 全局配置记忆系统
 负责窗口几何、分割器比例、最后项目等持久化
+使用单例模式确保全局只有一个配置实例
 """
 import os
 import json
@@ -8,9 +9,20 @@ from ui.core.logger import logger
 
 
 class AppConfig:
-    """应用配置管理"""
+    """应用配置管理 - 单例模式"""
+    
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(AppConfig, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
+        if self._initialized:
+            return
+        
         self.config_file = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             "..", "..",
@@ -28,10 +40,30 @@ class AppConfig:
                 "scale": 1.0, "scroll_x": 0, "scroll_y": 0
             },
             "language": "cn",
-            "process_mode": False
+            "process_mode": False,
+            "panel_positions": {
+                "node_list_floating": {"x": 10, "y": 100},
+                "resource_monitor_floating": {"x": 10, "y": 100},
+                "node_monitor_floating": {"x": 10, "y": 100},
+                "node_list_dock": {"x": 0, "y": 0},
+                "resource_monitor_dock": {"x": 0, "y": 0},
+                "node_monitor_dock": {"x": 0, "y": 0}
+            },
+            "panel_visibility": {
+                "node_list": False,
+                "resource_monitor": False,
+                "node_monitor": False,
+                "node_list_dock": False,
+                "resource_monitor_dock": False,
+                "node_monitor_dock": False,
+                "node_list_floating": False,
+                "resource_monitor_floating": False,
+                "node_monitor_floating": False
+            }
         }
 
         self.load()
+        self._initialized = True
 
     def load(self):
         try:

@@ -160,9 +160,14 @@
   "k_color_applied": "Color settings applied and saved",
   "k_color_reset_done": "Default color settings restored (Dark theme)",
 
-  "k_node_monitor": "Node Monitor",
-  "k_resource_monitor": "Resource Monitor",
+  "k_node_monitor": "Node Monitor(Floating)",
+  "k_node_monitor_dock": "Node Monitor(Dock)",
+  "k_node_monitor_dock_desc": "Dockable node log monitoring panel",
+  "k_resource_monitor": "Resource Monitor(Floating)",
+  "k_resource_monitor_dock": "Resource Monitor(Dock)",
   "k_resource_monitor_desc": "Real-time monitoring of CPU, memory, disk, network usage and node resource consumption",
+  "k_node_list": "Node List(Floating)",
+  "k_node_list_dock": "Node List(Dock)",
 
   "k_sys_resources": "System Resources",
   "k_node_resources": "Node Resources",

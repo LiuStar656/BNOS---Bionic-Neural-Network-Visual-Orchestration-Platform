@@ -80,24 +80,133 @@ class ResourceMonitor(FloatingPanel):
         sys_layout.setContentsMargins(8, 4, 8, 8)
         sys_layout.setSpacing(6)
 
+        # 第一行：CPU、RAM、Disk 水平排列
+        top_row = QHBoxLayout()
+        top_row.setSpacing(8)
+
         # CPU
-        self._cpu_bar = self._create_progress_bar("CPU", "#4CAF50")
-        sys_layout.addLayout(self._cpu_bar)
+        cpu_widget = QWidget()
+        cpu_layout = QVBoxLayout(cpu_widget)
+        cpu_layout.setContentsMargins(0, 0, 0, 0)
+        cpu_layout.setSpacing(2)
+        cpu_label = QLabel("CPU")
+        cpu_label.setStyleSheet("color: #4CAF50; font-size: 11px; font-weight: bold;")
+        cpu_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._cpu_bar_widget = QProgressBar()
+        self._cpu_bar_widget.setRange(0, 100)
+        self._cpu_bar_widget.setValue(0)
+        self._cpu_bar_widget.setFixedWidth(90)
+        self._cpu_bar_widget.setStyleSheet("""
+            QProgressBar {
+                height: 10px;
+                border-radius: 5px;
+                background-color: rgba(255, 255, 255, 10);
+            }
+            QProgressBar::chunk {
+                background-color: #4CAF50;
+                border-radius: 5px;
+            }
+        """)
+        self._cpu_value_label = QLabel("0%")
+        self._cpu_value_label.setStyleSheet("color: rgba(255,255,255,120); font-size: 9px;")
+        self._cpu_value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cpu_layout.addWidget(cpu_label)
+        cpu_layout.addWidget(self._cpu_bar_widget)
+        cpu_layout.addWidget(self._cpu_value_label)
+        top_row.addWidget(cpu_widget)
 
-        # 内存
-        self._memory_bar = self._create_progress_bar("RAM", "#2196F3")
-        sys_layout.addLayout(self._memory_bar)
+        # RAM
+        ram_widget = QWidget()
+        ram_layout = QVBoxLayout(ram_widget)
+        ram_layout.setContentsMargins(0, 0, 0, 0)
+        ram_layout.setSpacing(2)
+        ram_label = QLabel("RAM")
+        ram_label.setStyleSheet("color: #2196F3; font-size: 11px; font-weight: bold;")
+        ram_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._ram_bar_widget = QProgressBar()
+        self._ram_bar_widget.setRange(0, 100)
+        self._ram_bar_widget.setValue(0)
+        self._ram_bar_widget.setFixedWidth(90)
+        self._ram_bar_widget.setStyleSheet("""
+            QProgressBar {
+                height: 10px;
+                border-radius: 5px;
+                background-color: rgba(255, 255, 255, 10);
+            }
+            QProgressBar::chunk {
+                background-color: #2196F3;
+                border-radius: 5px;
+            }
+        """)
+        self._ram_value_label = QLabel("0%")
+        self._ram_value_label.setStyleSheet("color: rgba(255,255,255,120); font-size: 9px;")
+        self._ram_value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ram_layout.addWidget(ram_label)
+        ram_layout.addWidget(self._ram_bar_widget)
+        ram_layout.addWidget(self._ram_value_label)
+        top_row.addWidget(ram_widget)
 
-        # 磁盘
-        self._disk_bar = self._create_progress_bar("Disk", "#FF9800")
-        sys_layout.addLayout(self._disk_bar)
+        # Disk
+        disk_widget = QWidget()
+        disk_layout = QVBoxLayout(disk_widget)
+        disk_layout.setContentsMargins(0, 0, 0, 0)
+        disk_layout.setSpacing(2)
+        disk_label = QLabel("Disk")
+        disk_label.setStyleSheet("color: #FF9800; font-size: 11px; font-weight: bold;")
+        disk_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._disk_bar_widget = QProgressBar()
+        self._disk_bar_widget.setRange(0, 100)
+        self._disk_bar_widget.setValue(0)
+        self._disk_bar_widget.setFixedWidth(90)
+        self._disk_bar_widget.setStyleSheet("""
+            QProgressBar {
+                height: 10px;
+                border-radius: 5px;
+                background-color: rgba(255, 255, 255, 10);
+            }
+            QProgressBar::chunk {
+                background-color: #FF9800;
+                border-radius: 5px;
+            }
+        """)
+        self._disk_value_label = QLabel("0%")
+        self._disk_value_label.setStyleSheet("color: rgba(255,255,255,120); font-size: 9px;")
+        self._disk_value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        disk_layout.addWidget(disk_label)
+        disk_layout.addWidget(self._disk_bar_widget)
+        disk_layout.addWidget(self._disk_value_label)
+        top_row.addWidget(disk_widget)
 
-        # 网络
-        net_bar_layout = self._create_progress_bar("Net", "#9C27B0")
-        self._net_bar = net_bar_layout.bar
-        self._net_bar.setValue(0)
-        sys_layout.addLayout(net_bar_layout)
-        
+        top_row.addStretch()
+        sys_layout.addLayout(top_row)
+
+        # 第二行：网络
+        net_layout = QHBoxLayout()
+        net_label = QLabel("Net")
+        net_label.setStyleSheet("color: #9C27B0; font-size: 11px; font-weight: bold;")
+        self._net_bar_widget = QProgressBar()
+        self._net_bar_widget.setRange(0, 100)
+        self._net_bar_widget.setValue(0)
+        self._net_bar_widget.setStyleSheet("""
+            QProgressBar {
+                height: 8px;
+                border-radius: 4px;
+                background-color: rgba(255, 255, 255, 10);
+            }
+            QProgressBar::chunk {
+                background-color: #9C27B0;
+                border-radius: 4px;
+            }
+        """)
+        self._net_value_label = QLabel("0 KB/s")
+        self._net_value_label.setStyleSheet("color: rgba(255,255,255,120); font-size: 10px;")
+        net_layout.addWidget(net_label)
+        net_layout.addWidget(self._net_bar_widget)
+        net_layout.addWidget(self._net_value_label)
+        net_layout.addStretch()
+        sys_layout.addLayout(net_layout)
+
+        # 网络详情
         self._net_layout = QHBoxLayout()
         self._net_sent_label = QLabel("↓ 0 KB/s")
         self._net_recv_label = QLabel("↑ 0 KB/s")
@@ -208,28 +317,28 @@ class ResourceMonitor(FloatingPanel):
         try:
             # CPU
             self._system_stats['cpu_percent'] = psutil.cpu_percent()
-            self._cpu_bar.bar.setValue(int(self._system_stats['cpu_percent']))
-            self._cpu_bar.value_widget.setText(f"{self._system_stats['cpu_percent']}%")
+            self._cpu_bar_widget.setValue(int(self._system_stats['cpu_percent']))
+            self._cpu_value_label.setText(f"{self._system_stats['cpu_percent']}%")
 
             # 内存
             mem = psutil.virtual_memory()
             self._system_stats['memory_percent'] = mem.percent
             self._system_stats['memory_used'] = mem.used
             self._system_stats['memory_total'] = mem.total
-            self._memory_bar.bar.setValue(int(self._system_stats['memory_percent']))
+            self._ram_bar_widget.setValue(int(self._system_stats['memory_percent']))
             used_gb = self._system_stats['memory_used'] / (1024 ** 3)
             total_gb = self._system_stats['memory_total'] / (1024 ** 3)
-            self._memory_bar.value_widget.setText(f"{used_gb:.1f}/{total_gb:.1f} GB ({self._system_stats['memory_percent']}%)")
+            self._ram_value_label.setText(f"{used_gb:.1f}/{total_gb:.1f} GB ({self._system_stats['memory_percent']}%)")
 
             # 磁盘
             disk = psutil.disk_usage('/')
             self._system_stats['disk_percent'] = disk.percent
             self._system_stats['disk_used'] = disk.used
             self._system_stats['disk_total'] = disk.total
-            self._disk_bar.bar.setValue(int(self._system_stats['disk_percent']))
+            self._disk_bar_widget.setValue(int(self._system_stats['disk_percent']))
             used_gb = self._system_stats['disk_used'] / (1024 ** 3)
             total_gb = self._system_stats['disk_total'] / (1024 ** 3)
-            self._disk_bar.value_widget.setText(f"{used_gb:.1f}/{total_gb:.1f} GB ({self._system_stats['disk_percent']}%)")
+            self._disk_value_label.setText(f"{used_gb:.1f}/{total_gb:.1f} GB ({self._system_stats['disk_percent']}%)")
 
             # 网络
             net = psutil.net_io_counters()
@@ -246,7 +355,8 @@ class ResourceMonitor(FloatingPanel):
             max_bandwidth_kb = 100000  # 假设最大100MB/s
             net_percent = min((total_kb / max_bandwidth_kb) * 100, 100)
             
-            self._net_bar.setValue(int(net_percent))
+            self._net_bar_widget.setValue(int(net_percent))
+            self._net_value_label.setText(f"{total_kb:.1f} KB/s")
             self._net_sent_label.setText(f"↓ {recv_kb:.1f} KB/s")
             self._net_recv_label.setText(f"↑ {sent_kb:.1f} KB/s")
 

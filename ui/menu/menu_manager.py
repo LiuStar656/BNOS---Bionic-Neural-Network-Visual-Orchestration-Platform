@@ -55,10 +55,13 @@ class MenuManager:
 
         file_menu.addSeparator()
 
-        a = QAction(f"{get_icon('list')} {t('k_node_list')}", main_window)
+        a = QAction(f"{get_icon('list')} {t('k_node_list_dock')}", main_window)
         a.setFont(icon_font)
         a.setCheckable(True)
-        a.setChecked(True)
+        # 从配置读取初始状态，而不是硬编码为 True
+        visibility = main_window.app_config.get('panel_visibility', {})
+        is_visible = visibility.get('node_list_dock', visibility.get('node_list', False))
+        a.setChecked(is_visible)
         a.setStatusTip(t("k_menu_toggle_nodes"))
         a.triggered.connect(main_window.toggle_node_list_panel)
         file_menu.addAction(a)
@@ -158,6 +161,29 @@ class MenuManager:
         edit_menu.addAction(a)
         actions["stop_node"] = a
 
+        edit_menu.addSeparator()
+
+        a = QAction(f"{get_icon('monitor')} {t('k_node_monitor_dock')}", main_window)
+        a.setFont(icon_font)
+        a.setStatusTip(t("k_node_monitor_dock_desc"))
+        a.triggered.connect(main_window.show_node_monitor_dock)
+        edit_menu.addAction(a)
+        actions["node_monitor_dock"] = a
+
+        a = QAction(f"{get_icon('list')} {t('k_node_list_dock')}", main_window)
+        a.setFont(icon_font)
+        a.setStatusTip(t("k_menu_toggle_nodes"))
+        a.triggered.connect(lambda: main_window.toggle_node_list_panel(True))
+        edit_menu.addAction(a)
+        actions["node_list_dock"] = a
+
+        a = QAction(f"{get_icon('activity')} {t('k_resource_monitor_dock')}", main_window)
+        a.setFont(icon_font)
+        a.setStatusTip(t("k_resource_monitor_desc"))
+        a.triggered.connect(main_window.show_resource_monitor_dock)
+        edit_menu.addAction(a)
+        actions["resource_monitor_dock"] = a
+
         # ========== 工具 ==========
         tools_menu = menubar.addMenu(t("k_menu_tools"))
 
@@ -176,6 +202,13 @@ class MenuManager:
         a.triggered.connect(main_window.show_resource_monitor)
         tools_menu.addAction(a)
         actions["resource_monitor"] = a
+
+        a = QAction(f"{get_icon('list')} {t('k_node_list')}", main_window)
+        a.setFont(icon_font)
+        a.setStatusTip(t("k_menu_toggle_nodes"))
+        a.triggered.connect(main_window.show_node_list_floating)
+        tools_menu.addAction(a)
+        actions["node_list_floating"] = a
 
         # ========== 帮助 ==========
         help_menu = menubar.addMenu(t("k_menu_help"))

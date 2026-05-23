@@ -182,25 +182,30 @@ def project_refresh(main_window):
                     }
                     logger.info("恢复挂载节点: %s (mount_root=%s)", m_name, m_mount_root)
 
-                    # 恢复锁定组
-                    gm = main_window.node_list_panel.group_manager
-                    if not gm.groups.get(m_mount_root):
-                        gm.create_group(m_mount_root, "#E67E22")
-                    gm.add_nodes_to_group(m_mount_root, [m_name])
-                    gm.lock_group(m_mount_root)
+                    # 恢复锁定组（只有当节点列表面板已创建时）
+                    if main_window.node_list_panel:
+                        gm = main_window.node_list_panel.group_manager
+                        if not gm.groups.get(m_mount_root):
+                            gm.create_group(m_mount_root, "#E67E22")
+                        gm.add_nodes_to_group(m_mount_root, [m_name])
+                        gm.lock_group(m_mount_root)
                 except Exception as ex:
                     logger.warning("恢复挂载节点 %s 失败: %s", m_name, ex)
         logger.info("共恢复 %d 个挂载节点", len(mounted_nodes))
     except Exception as e:
         logger.warning("节点注册表同步失败: %s", e)
 
-    main_window.node_list_panel.set_project_path(main_window.current_project_path)
-    main_window.node_list_panel.update_node_list(main_window.nodes_data)
+    # 更新节点列表面板（如果已创建）
+    if main_window.node_list_panel:
+        main_window.node_list_panel.set_project_path(main_window.current_project_path)
+        main_window.node_list_panel.update_node_list(main_window.nodes_data)
+    
     _canvas_call(main_window, 'sync_all_nodes_display')
 
     running = detect_running_nodes(main_window.nodes_data)
     if running:
         for name, pid in running:
-            main_window.node_list_panel.update_node_status(name, 'running')
+            if main_window.node_list_panel:
+                main_window.node_list_panel.update_node_status(name, 'running')
             _canvas_call(main_window, 'update_node_status', name, 'running')
         main_window.show_toast(f"检测到 {len(running)} 个节点在后台运行", "info")

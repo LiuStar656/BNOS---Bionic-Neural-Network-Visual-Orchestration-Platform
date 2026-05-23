@@ -26,14 +26,8 @@ def save_state(main_window):
             }
             main_window.app_config.set("canvas_view_state", view_state)
 
-            panel_state = {
-                "visible": main_window.node_list_panel.isVisible(),
-                "x": main_window.node_list_panel.geometry().x(),
-                "y": main_window.node_list_panel.geometry().y(),
-                "width": main_window.node_list_panel.geometry().width(),
-                "height": main_window.node_list_panel.geometry().height()
-            }
-            main_window.app_config.set("node_list_panel", panel_state)
+            # 节点列表面板状态由 _save_panel_visibility 处理，这里不再重复保存
+            # 保留 node_list_panel 配置项用于向后兼容
 
             main_window.canvas.save_layout(main_window.current_project_path)
 
@@ -56,22 +50,8 @@ def restore_state(main_window):
                     geom.get("width", 1400), geom.get("height", 900)
                 )
 
-        panel_state = main_window.app_config.get("node_list_panel")
-        if panel_state and hasattr(main_window, 'node_list_panel'):
-            if isinstance(panel_state, dict):
-                x = panel_state.get("x", 50)
-                y = panel_state.get("y", 100)
-                w = panel_state.get("width", 280)
-                h = panel_state.get("height", 600)
-                main_window.node_list_panel.setGeometry(x, y, w, h)
-
-                visible = panel_state.get("visible", False)
-                if visible:
-                    main_window.node_list_panel.show()
-                    main_window.toggle_nodes_action.setChecked(True)
-                else:
-                    main_window.node_list_panel.hide()
-                    main_window.toggle_nodes_action.setChecked(False)
+        # 节点列表面板的恢复由 _restore_panel_state 处理，这里不再重复处理
+        # 保留旧配置项的读取但不进行操作，避免与 _restore_panel_state 冲突
 
         logger.info("窗口状态已恢复")
     except Exception as e:

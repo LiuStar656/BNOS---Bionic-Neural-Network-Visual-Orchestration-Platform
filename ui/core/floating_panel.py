@@ -7,13 +7,15 @@
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QWidget
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from ui.core.i18n import t
 
 
 class FloatingPanel(QDialog):
     """浮动面板基类"""
+    
+    closed = pyqtSignal()  # 关闭信号
 
     def __init__(self, parent=None, title=None):
         if title is None:
@@ -155,6 +157,7 @@ class FloatingPanel(QDialog):
 
     def closeEvent(self, event):
         self._on_close()
+        self.closed.emit()
         super().closeEvent(event)
 
     def showEvent(self, event):

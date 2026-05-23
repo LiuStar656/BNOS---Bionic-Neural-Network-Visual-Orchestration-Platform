@@ -7,6 +7,56 @@
 
 ---
 
+## 🛠️ 面板状态持久化与资源监测修复 (2026-05-23)
+
+### 已修复的问题
+
+**1. 面板自启冲突问题**
+- 修复开机自启浮动面板导致Dock面板消失的问题
+- 修复Dock面板自启时浮动面板无法自启的问题
+- 修改文件：`ui/main_window.py`
+
+**2. 空指针错误修复**
+- 修复 `AttributeError: 'NoneType' object has no attribute 'update_node_status'`
+- 在访问面板前添加空值检查
+- 修改文件：`ui/main_window.py`
+
+**3. 资源监测Dock面板节点数据加载**
+- 修复节点资源占用信息未正常显示的问题
+- 添加 `parent_window` 引用，实现自动获取节点数据
+- 修改文件：`ui/panels/resource_monitor_dock.py`
+
+**4. Dock面板关闭处理**
+- 修复关闭Dock面板后访问已删除对象的问题
+- 连接 `panel_closed` 信号，在关闭时清除引用
+- 修改文件：`ui/main_window.py`
+
+**5. 节点监测面板状态同步**
+- 修复PID文件路径错误（优先读取 `.pid` 文件）
+- 在资源监测时同步更新状态标题显示
+- 修改文件：`ui/panels/node_monitor_dock.py`
+
+### 功能改进
+
+**面板状态持久化**
+- 支持Dock版和浮动版面板的独立可见性状态保存
+- 支持面板位置坐标持久化
+- 重启后自动恢复之前打开的面板状态和位置
+
+**资源监测布局优化**
+- CPU、RAM、Disk 水平排列并居中显示
+- 节点资源列表垂直排列
+- Dock版和浮动版布局保持一致
+
+### 修改的文件
+- `ui/main_window.py` - 面板状态恢复、空值检查、Dock关闭处理
+- `ui/panels/resource_monitor_dock.py` - 节点数据加载、状态同步
+- `ui/panels/node_monitor_dock.py` - PID文件路径修复、状态同步
+- `ui/core/app_config.py` - 单例模式
+- `ui/core/dock_manager.py` - 重复创建防护
+
+---
+
 ## 🖼️ 侧边工具栏尺寸放大与图标修复 (2026-05-23)
 
 ### 尺寸调整
