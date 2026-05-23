@@ -265,6 +265,9 @@ class BNOSMainWindow(QMainWindow):
         
     def _on_tab_changed(self, index, project_path):
         """标签切换事件处理"""
+        logger.info(f"=== 标签页切换 ===")
+        logger.info(f"索引: {index}, 项目路径: {project_path}")
+        
         # 更新上下文
         self._context_manager.set_current_index(index)
         
@@ -279,25 +282,34 @@ class BNOSMainWindow(QMainWindow):
         
         # 更新当前项目路径
         self.current_project_path = project_path
+        logger.info(f"当前项目路径已设置: {self.current_project_path}")
         
         # 如果有项目路径，从项目目录加载数据
         if project_path and os.path.exists(project_path):
+            logger.info(f"项目路径存在，开始加载数据")
+            
             # 清空当前节点数据
             self.nodes_data.clear()
             self.connections.clear()
             
             # 刷新节点列表（从项目目录扫描）
             self.refresh_nodes()
+            logger.info(f"节点列表已刷新，共 {len(self.nodes_data)} 个节点")
             
             # 更新上下文管理器中的节点数据
             if context:
                 context.nodes_data = self.nodes_data.copy()
+                logger.info(f"上下文节点数据已更新")
             
             # 加载画布布局
             self.canvas.load_layout(project_path)
+            logger.info(f"画布布局已加载")
+        else:
+            logger.warning(f"项目路径为空或不存在: {project_path}")
         
         # 刷新所有面板
         self._refresh_panels()
+        logger.info(f"所有面板已刷新")
     
     def _on_tab_closed(self, index):
         """标签关闭事件处理"""
