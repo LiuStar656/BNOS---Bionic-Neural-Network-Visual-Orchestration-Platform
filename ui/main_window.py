@@ -132,9 +132,11 @@ class BNOSMainWindow(QMainWindow):
         
         if self._has_restored_tabs:
             self._tab_manager.restore_tab_state(tab_state)
-            # 同步上下文管理器
+            # 同步上下文管理器（带项目路径）
             for i in range(self._tab_manager.count()):
-                self._context_manager.add_context(i)
+                tab_context = self._tab_manager._tab_contexts.get(i, {})
+                project_path = tab_context.get('project_path')
+                self._context_manager.add_context(i, project_path)
             # 设置当前画布引用
             self.canvas = self._tab_manager.get_current_canvas()
             # 更新当前项目路径（从当前标签页上下文获取）
