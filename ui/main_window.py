@@ -128,7 +128,9 @@ class BNOSMainWindow(QMainWindow):
         
         # 恢复标签页状态（如果有保存的状态）
         tab_state = self.app_config.get("tab_state", [])
-        if tab_state and isinstance(tab_state, list) and len(tab_state) > 0:
+        self._has_restored_tabs = tab_state and isinstance(tab_state, list) and len(tab_state) > 0
+        
+        if self._has_restored_tabs:
             self._tab_manager.restore_tab_state(tab_state)
             # 同步上下文管理器
             for i in range(self._tab_manager.count()):
@@ -139,6 +141,10 @@ class BNOSMainWindow(QMainWindow):
             current_index = self._tab_manager.currentIndex()
             context = self._tab_manager._tab_contexts.get(current_index, {})
             self.current_project_path = context.get('project_path', '')
+            
+            # 刷新当前项目的节点列表
+            if self.current_project_path:
+                self.refresh_nodes()
         else:
             # 创建第一个画布标签页（先不连接信号）
             self._tab_manager.add_new_tab()
@@ -841,38 +847,35 @@ class BNOSMainWindow(QMainWindow):
     
     def auto_open_last_project(self):
         """自动打开最后的项目"""
+        # 如果已经从标签页状态恢复了项目，直接跳过
+        if getattr(self, '_has_restored_tabs', False):
+            logger.info("标签页状态已恢复，跳过自动打开项目")
+            return
+        
         last_project = self.app_config.get("last_project")
         if last_project and os.path.exists(last_project):
             nodes_dir = os.path.join(last_project, "nodes")
             if os.path.exists(nodes_dir):
-                # 检查是否已经从标签页状态恢复了项目
-                tab_state = self.app_config.get("tab_state", [])
-                has_restored_tabs = tab_state and isinstance(tab_state, list) and len(tab_state) > 0
+                # 如果没有恢复标签页状态，才需要设置项目路径和加载布局
+                self.current_project_path = last_project
+                logger.info("自动打开项目: %s", last_project)
                 
-                if not has_restored_tabs:
-                    # 如果没有恢复标签页状态，才需要设置项目路径和加载布局
-                    self.current_project_path = last_project
-                    logger.info("自动打开项目: %s", last_project)
-                    
-                    # 更新当前标签页名称为项目名
-                    current_index = self._tab_manager.currentIndex()
-                    project_name = os.path.basename(last_project)
-                    self._tab_manager.setTabText(current_index, project_name)
-                    
-                    # 更新标签页上下文
-                    if current_index in self._tab_manager._tab_contexts:
-                        self._tab_manager._tab_contexts[current_index]['project_path'] = last_project
-                        self._tab_manager._tab_contexts[current_index]['name'] = project_name
-                    
-                    self.refresh_nodes()
-                    # 画布进程模式下先启动子进程再加载布局
-                    if self._canvas_mode:
-                        QTimer.singleShot(500, lambda: self._start_canvas_and_load(last_project))
-                    elif self.canvas:
-                        self.canvas.load_layout(last_project)
-                else:
-                    # 如果已经恢复了标签页状态，只需刷新节点列表
-                    logger.info("标签页状态已恢复，跳过自动打开项目")
+                # 更新当前标签页名称为项目名
+                current_index = self._tab_manager.currentIndex()
+                project_name = os.path.basename(last_project)
+                self._tab_manager.setTabText(current_index, project_name)
+                
+                # 更新标签页上下文
+                if current_index in self._tab_manager._tab_contexts:
+                    self._tab_manager._tab_contexts[current_index]['project_path'] = last_project
+                    self._tab_manager._tab_contexts[current_index]['name'] = project_name
+                
+                self.refresh_nodes()
+                # 画布进程模式下先启动子进程再加载布局
+                if self._canvas_mode:
+                    QTimer.singleShot(500, lambda: self._start_canvas_and_load(last_project))
+                elif self.canvas:
+                    self.canvas.load_layout(last_project)
                     if self.current_project_path:
                         self.refresh_nodes()
             
