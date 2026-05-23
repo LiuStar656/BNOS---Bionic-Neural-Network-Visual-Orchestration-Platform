@@ -257,10 +257,10 @@ class BNOSMainWindow(QMainWindow):
         
         toast.close = custom_close
     
-    def new_canvas_tab(self, name=None):
+    def new_canvas_tab(self, name=None, project_path=None):
         """创建新的画布标签页"""
-        index, canvas = self._tab_manager.add_new_tab(name=name)
-        self._context_manager.add_context(index)
+        index, canvas = self._tab_manager.add_new_tab(name=name, project_path=project_path)
+        self._context_manager.add_context(index, project_path)
         return canvas
         
     def _on_tab_changed(self, index, project_path):

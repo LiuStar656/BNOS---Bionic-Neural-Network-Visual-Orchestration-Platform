@@ -74,9 +74,9 @@ def project_open(main_window):
     if not has_nodes:
         os.makedirs(nodes_dir, exist_ok=True)
 
-    # 创建新标签页，使用项目名作为标签名
+    # 创建新标签页，使用项目名作为标签名，并传递项目路径
     project_name = os.path.basename(project_dir)
-    canvas = main_window.new_canvas_tab(project_name)
+    canvas = main_window.new_canvas_tab(project_name, project_dir)
     
     # 更新当前项目路径
     main_window.current_project_path = project_dir
