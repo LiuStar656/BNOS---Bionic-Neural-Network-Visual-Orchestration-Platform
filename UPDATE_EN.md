@@ -4,6 +4,48 @@
 
 ---
 
+## 🌐 Global State Sync Implementation (2026-05-23)
+
+### Feature Improvements
+
+**Global State Subscription Mechanism**
+- All panels now subscribe to `polling_manager.node_status_changed` signal
+- Implemented true global state synchronization
+- All panels automatically update when node status changes
+
+**Modified Panels**
+| Panel | File Path |
+|-------|----------|
+| Node List Panel (Floating) | `ui/panels/node_list_panel.py` |
+| Node List Dock Panel | `ui/panels/node_list_dock.py` |
+| Resource Monitor (Floating) | `ui/panels/resource_monitor.py` |
+| Resource Monitor Dock | `ui/panels/resource_monitor_dock.py` |
+| Node Monitor (Floating) | `ui/panels/node_monitor.py` |
+| Node Monitor Dock | `ui/panels/node_monitor_dock.py` |
+
+### Technical Implementation
+
+```python
+# Add subscription in each panel
+from ui.core.polling_manager import polling_manager
+
+# Subscribe to node status changes
+polling_manager.node_status_changed.connect(self._on_node_status_changed)
+
+# Handle status changes
+def _on_node_status_changed(self, node_name, new_status):
+    """Handle global node status change signal"""
+    # Update corresponding node status display
+```
+
+### Benefits
+- **Consistency**: All panels get status from the same global source
+- **Real-time Updates**: Automatic sync when node status changes
+- **Decoupling**: Panels no longer directly access nodes_data
+- **Unified Management**: Node health check managed by PollingManager
+
+---
+
 ## 🛠️ Panel State Persistence & Resource Monitor Fixes (2026-05-23)
 
 ### Fixed Issues

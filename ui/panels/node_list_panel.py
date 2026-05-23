@@ -12,6 +12,7 @@ from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.floating_panel import FloatingPanel
 from ui.core.utils.dialog_utils import themed_message
+from ui.core.polling_manager import polling_manager
 from ui.panels.node_list_drag import NodeListDragMixin
 from ui.panels.node_list_context import NodeListContextMixin
 import subprocess
@@ -26,6 +27,7 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
     - 树形结构显示节点和组
     - 支持Ctrl/Shift多选
     - 所有功能集成到右键菜单
+    - 订阅全局状态变化，保持与其他面板同步
     """
     
     # 信号
@@ -40,6 +42,9 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         from ui.panels.node_group_manager import NodeGroupManager
         self.group_manager = NodeGroupManager()
         self.group_manager.on_changed = lambda: self.update_node_list(self.nodes_data)
+        
+        # 订阅全局节点状态变化
+        polling_manager.node_status_changed.connect(self._on_node_status_changed)
         
         # init_ui 使用基类的 content_layout
         self._init_ui()
@@ -196,6 +201,10 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                         node_item.setText(0, f"○ {node_name}")
                         node_item.setForeground(0, QColor("gray"))
                     return
+
+    def _on_node_status_changed(self, node_name, new_status):
+        """处理全局节点状态变化信号"""
+        self.update_node_status(node_name, new_status)
     
     def get_selected_nodes(self):
         """获取所有选中的节点名称"""
@@ -1080,4 +1089,3 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
     def set_project_path(self, project_path):
         """设置项目路径并加载节点组配置"""
         self.group_manager.set_project_path(project_path)
-

@@ -15,6 +15,7 @@ from PyQt6.QtGui import QColor, QFont
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
+from ui.core.polling_manager import polling_manager
 from ui.panels.node_list_drag import NodeListDragMixin
 from ui.panels.node_list_context import NodeListContextMixin
 
@@ -34,6 +35,9 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
         from ui.panels.node_group_manager import NodeGroupManager
         self.group_manager = NodeGroupManager()
         self.group_manager.on_changed = lambda: self.update_node_list(self.nodes_data)
+        
+        # 订阅全局节点状态变化
+        polling_manager.node_status_changed.connect(self._on_node_status_changed)
         
         self._init_ui()
     
@@ -194,6 +198,10 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
                         node_item.setText(0, f"○ {node_name}")
                         node_item.setForeground(0, QColor("gray"))
                     return
+
+    def _on_node_status_changed(self, node_name, new_status):
+        """处理全局节点状态变化信号"""
+        self.update_node_status(node_name, new_status)
     
     def get_selected_nodes(self):
         """获取所有选中的节点名称"""

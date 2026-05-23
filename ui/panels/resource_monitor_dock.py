@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QColor
 from ui.core.i18n import t
+from ui.core.polling_manager import polling_manager
 
 
 class ResourceMonitorDock(QWidget):
@@ -21,6 +22,9 @@ class ResourceMonitorDock(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_window = parent
+        
+        # 订阅全局节点状态变化
+        polling_manager.node_status_changed.connect(self._on_node_status_changed)
         self._system_stats = {
             'cpu_percent': 0,
             'memory_percent': 0,
@@ -396,3 +400,9 @@ class ResourceMonitorDock(QWidget):
             self._node_table.setItem(row, 2, mem_item)
             self._node_table.setItem(row, 3, status_item)
             row += 1
+
+    def _on_node_status_changed(self, node_name, new_status):
+        """处理全局节点状态变化信号"""
+        if node_name in self._node_stats:
+            self._node_stats[node_name]['status'] = new_status
+            self._update_node_table()

@@ -259,6 +259,9 @@ class NodeMonitorDock(QWidget):
         super().__init__(parent)
         self.parent_window = parent
         self._sub_panels = {}
+        
+        # 订阅全局节点状态变化
+        polling_manager.node_status_changed.connect(self._on_node_status_changed)
 
         self.setMinimumSize(320, 350)
         self._init_ui()
@@ -349,6 +352,11 @@ class NodeMonitorDock(QWidget):
             self._panel_layout.removeWidget(sub)
             sub.deleteLater()
             del self._sub_panels[node_name]
+
+    def _on_node_status_changed(self, node_name, new_status):
+        """处理全局节点状态变化信号"""
+        if node_name in self._sub_panels:
+            self._sub_panels[node_name].update_status(new_status)
 
     def closeEvent(self, event):
         """关闭事件"""

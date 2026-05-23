@@ -7,6 +7,48 @@
 
 ---
 
+## 🌐 全局状态同步改造 (2026-05-23)
+
+### 功能改进
+
+**全局状态订阅机制**
+- 所有面板订阅 `polling_manager.node_status_changed` 信号
+- 实现真正的全局状态同步，确保所有面板显示一致
+- 当节点状态变化时，所有面板自动同步更新
+
+**修改的面板**
+| 面板 | 文件路径 |
+|------|---------|
+| 节点列表面板（浮动版） | `ui/panels/node_list_panel.py` |
+| 节点列表Dock面板 | `ui/panels/node_list_dock.py` |
+| 资源监测面板（浮动版） | `ui/panels/resource_monitor.py` |
+| 资源监测Dock面板 | `ui/panels/resource_monitor_dock.py` |
+| 节点监测面板（浮动版） | `ui/panels/node_monitor.py` |
+| 节点监测Dock面板 | `ui/panels/node_monitor_dock.py` |
+
+### 技术实现
+
+```python
+# 在各个面板中添加订阅
+from ui.core.polling_manager import polling_manager
+
+# 订阅节点状态变化
+polling_manager.node_status_changed.connect(self._on_node_status_changed)
+
+# 处理状态变化
+def _on_node_status_changed(self, node_name, new_status):
+    """处理全局节点状态变化信号"""
+    # 更新面板中对应节点的状态显示
+```
+
+### 优势
+- **状态一致性**：所有面板从同一个全局状态源获取状态
+- **实时更新**：节点状态变化时自动同步
+- **解耦合**：面板不再直接访问 nodes_data
+- **统一管理**：由 PollingManager 统一管理节点健康检测
+
+---
+
 ## 🛠️ 面板状态持久化与资源监测修复 (2026-05-23)
 
 ### 已修复的问题
