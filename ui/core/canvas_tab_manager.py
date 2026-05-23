@@ -301,13 +301,21 @@ class CanvasTabManager(QTabWidget):
     def save_tab_state(self):
         """保存标签状态到配置"""
         state = []
-        for i in range(self.count()):
-            context = self._tab_contexts.get(i, {})
+        # 确保遍历所有实际存在的标签页
+        for index in range(self.count()):
+            # 从上下文获取数据，如果上下文不存在则使用默认值
+            context = self._tab_contexts.get(index, {})
+            project_path = context.get('project_path')
+            name = context.get('name', self.tabText(index))
+            is_pinned = index in self._fixed_tabs
+            
             state.append({
-                'project_path': context.get('project_path'),
-                'name': context.get('name', self.tabText(i)),
-                'is_pinned': i in self._fixed_tabs
+                'project_path': project_path,
+                'name': name,
+                'is_pinned': is_pinned
             })
+            logger.debug(f"保存标签页 {index}: name={name}, project_path={project_path}")
+        logger.info(f"共保存 {len(state)} 个标签页状态")
         return state
     
     def restore_tab_state(self, state):
