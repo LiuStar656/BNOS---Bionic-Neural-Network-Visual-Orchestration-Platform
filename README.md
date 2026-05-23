@@ -162,6 +162,22 @@ This documentation provides deep technical insights beyond what's covered in thi
 - **Layout Isolation**: Each project's neuron positions saved independently to `canvas_layout.json`
 - **State Persistence**: Complete restoration of network topology after restart
 
+### 🏷️ Multi-Tab Canvas Management
+
+- **Tabbed Interface**: Multiple project tabs in single window, each with independent canvas state
+- **Project Isolation**: Each tab maintains separate node data, layout, and color settings
+- **Tab State Persistence**: Tab names, project paths, and pinned states saved/restored on startup
+- **Context Switching**: Seamless switching between projects without losing work
+- **Tab Operations**: Create, close, pin tabs for quick access to frequently used projects
+
+### 🌐 Global Status Synchronization
+
+- **Unified State Source**: All panels subscribe to `polling_manager.node_status_changed` signal
+- **Real-time Updates**: Node status changes propagate to all panels simultaneously
+- **Consistent Display**: All panels (Node List, Resource Monitor, Node Monitor) show identical status
+- **Efficient Resource Usage**: Single health check system instead of multiple redundant checks
+- **Automatic Sync**: Status updates happen automatically without manual refresh
+
 ### 🔧 Neuron Lifecycle Management
 
 - **7 Language Support**: Python, Node.js, Go, Java, C++, Rust, Ruby
@@ -295,19 +311,26 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 | Module | File | Description |
 |--------|------|-------------|
 | **Entry Point** | `bnos_console.py` | Initialize QApplication, launch MainWindow |
-| **Main Window** | `ui/main_window.py` | Integrate UI components, AppConfig, Toast, node data |
+| **Main Window** | `ui/main_window.py` | Integrate UI components, AppConfig, Toast, node data, tab management |
 | **Canvas** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
+| **Canvas Layout** | `ui/canvas/canvas_layout.py` | Layout persistence, auto-add missing nodes from layout |
 | **Node Styles** | `ui/canvas/items/node_style.py` | Node style system (rect/dot), 3-layer z-architecture |
 | **Node List** | `ui/panels/node_list_panel.py` | Tree view, groups, drag-drop, multi-select |
 | **Property Panel** | `ui/panels/property_panel.py` | Config editor, log viewer, process control, colors |
 | **Expand Panel** | `ui/panels/node_expand_panel.py` | output.json viewer/editor with live refresh |
 | **Node Monitor** | `ui/panels/node_monitor.py` | Real-time logs for all canvas nodes |
+| **Resource Monitor** | `ui/panels/resource_monitor.py` | Real-time CPU/RAM/Disk usage for all nodes |
 | **Group Manager** | `ui/panels/node_group_manager.py` | Node group CRUD and persistence |
 | **Floating Panel** | `ui/core/floating_panel.py` | Base class for frameless translucent panels |
-| **Logger** | `ui/core/logger.py` | Global logger (console INFO + file DEBUG) |
+| **Logger** | `ui/core/logger.py` | Global logger (console + file) |
 | **Menu Manager** | `ui/menu/menu_manager.py` | Unified menu bar (File/Edit/Tools/Help) |
 | **Node Creator** | `ui/creators/node_creator_manager.py` | Multi-language node creation manager |
 | **Tools** | `tools/python_create_node.py` | Python node template generator (venv + scripts) |
+| **Canvas Tab Manager** | `ui/core/canvas_tab_manager.py` | Multi-tab canvas management, tab state persistence |
+| **Tab Context Manager** | `ui/core/tab_context.py` | Per-tab context management (node data, layout, colors) |
+| **Polling Manager** | `ui/core/polling_manager.py` | Global node status detection and signal distribution |
+| **App Config** | `ui/core/app_config.py` | Application configuration and persistence |
+| **Project Manager** | `ui/core/project_manager.py` | Project operations (new/open/refresh) |
 
 
 ---

@@ -157,6 +157,22 @@
 - **布局隔离**：每个项目的神经元位置独立保存到 `canvas_layout.json`
 - **状态持久化**：重启后完整恢复网络拓扑结构
 
+### 🏷️ 多标签画布管理
+
+- **标签页界面**：单窗口多项目标签页，每页独立的画布状态
+- **项目隔离**：每页维护独立的节点数据、布局和颜色设置
+- **标签状态持久化**：标签页名称、项目路径和固定状态在启动时保存/恢复
+- **上下文切换**：在项目间无缝切换而不丢失工作进度
+- **标签页操作**：创建、关闭、固定标签页，快速访问常用项目
+
+### 🌐 全局状态同步
+
+- **统一状态源**：所有面板订阅 `polling_manager.node_status_changed` 信号
+- **实时更新**：节点状态变化同时传播到所有面板
+- **一致显示**：所有面板（节点列表、资源监控、节点监控）显示相同状态
+- **高效资源利用**：单一健康检查系统替代多个冗余检查
+- **自动同步**：状态更新自动发生，无需手动刷新
+
 ### 🔧 节点全生命周期管理
 
 - **7种语言支持**：Python、Node.js、Go、Java、C++、Rust、Ruby
@@ -291,13 +307,15 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 | **启动器** | `launcher.py` | 纯 tkinter 启动动画，管理 venv 加载与主程序启动 |
 | **主入口** | `bnos_console.py` | 初始化 QApplication，启动主窗口 |
 | **状态灯** | `node_style.py` + `node_process.py` | 三态指示灯（灰=停止/绿=空闲/红=运行）|
-| **主窗口** | `ui/main_window.py` | 整合 UI 组件，管理 AppConfig、节点数据、Toast |
+| **主窗口** | `ui/main_window.py` | 整合 UI 组件，管理 AppConfig、节点数据、Toast、标签页管理 |
 | **画布** | `ui/canvas/canvas_view.py` | QGraphicsView 实现节点绘制、拖拽、连线 |
+| **画布布局** | `ui/canvas/canvas_layout.py` | 布局持久化，从布局文件自动添加缺失节点 |
 | **节点样式** | `ui/canvas/items/node_style.py` | 节点样式系统（方形/圆形），三层 z 轴架构 |
 | **节点列表** | `ui/panels/node_list_panel.py` | 节点/分组树形视图，拖拽分组，多选操作 |
 | **属性面板** | `ui/panels/property_panel.py` | 配置编辑器、日志查看器、进程控制、颜色设置 |
 | **展开面板** | `ui/panels/node_expand_panel.py` | 节点 output.json 查看/编辑，自动刷新 |
 | **监测面板** | `ui/panels/node_monitor.py` | 全局实时日志查看，多节点同步监测 |
+| **资源监控** | `ui/panels/resource_monitor.py` | 所有节点的实时 CPU/RAM/磁盘使用率 |
 | **分组管理器** | `ui/panels/node_group_manager.py` | 节点分组创建/删除/持久化 |
 | **浮动基类** | `ui/core/floating_panel.py` | 统一所有悬浮窗的窗口类型和交互 |
 | **日志模块** | `ui/core/logger.py` | 全局 logger（控制台+文件双通道） |
@@ -305,6 +323,11 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 | **菜单管理** | `ui/menu/menu_manager.py` | 统一管理菜单栏所有功能 |
 | **节点创建器** | `ui/creators/node_creator_manager.py` | 多语言节点创建管理器（Python/Rust） |
 | **生成工具** | `tools/python_create_node.py` | Python 节点模板生成器（venv + 启动脚本） |
+| **画布标签管理器** | `ui/core/canvas_tab_manager.py` | 多标签画布管理，标签状态持久化 |
+| **标签上下文管理器** | `ui/core/tab_context.py` | 每标签上下文管理（节点数据、布局、颜色） |
+| **轮询管理器** | `ui/core/polling_manager.py` | 全局节点状态检测和信号分发 |
+| **应用配置** | `ui/core/app_config.py` | 应用配置和持久化 |
+| **项目管理器** | `ui/core/project_manager.py` | 项目操作（新建/打开/刷新） |
 
 ---
 
