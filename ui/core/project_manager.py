@@ -76,7 +76,7 @@ def project_open(main_window):
 
     # 创建新标签页，使用项目名作为标签名
     project_name = os.path.basename(project_dir)
-    canvas = main_window._add_new_canvas_tab(project_name)
+    canvas = main_window.new_canvas_tab(project_name)
     
     # 更新当前项目路径
     main_window.current_project_path = project_dir
