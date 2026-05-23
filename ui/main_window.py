@@ -126,9 +126,17 @@ class BNOSMainWindow(QMainWindow):
         # ========== 画布标签管理器 ==========
         self._tab_manager = CanvasTabManager(self)
         
-        # 创建第一个画布标签页（先不连接信号）
-        self._tab_manager.add_new_tab()
-        self._context_manager.add_context(0)
+        # 恢复标签页状态（如果有保存的状态）
+        tab_state = self.app_config.get("tab_state", [])
+        if tab_state and isinstance(tab_state, list) and len(tab_state) > 0:
+            self._tab_manager.restore_tab_state(tab_state)
+            # 同步上下文管理器
+            for i in range(self._tab_manager.count()):
+                self._context_manager.add_context(i)
+        else:
+            # 创建第一个画布标签页（先不连接信号）
+            self._tab_manager.add_new_tab()
+            self._context_manager.add_context(0)
         
         # 设置当前画布引用
         self.canvas = self._tab_manager.get_current_canvas()
@@ -755,6 +763,10 @@ class BNOSMainWindow(QMainWindow):
         # 保存当前项目布局
         if self.current_project_path and self.canvas:
             self.canvas.save_layout(self.current_project_path)
+        
+        # 保存标签页状态
+        tab_state = self._tab_manager.save_tab_state()
+        self.app_config.set("tab_state", tab_state)
         
         # 保存应用配置
         self.save_window_state()
