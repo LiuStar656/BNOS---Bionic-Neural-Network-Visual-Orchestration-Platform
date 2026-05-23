@@ -272,6 +272,21 @@ class BNOSMainWindow(QMainWindow):
             canvas.parent_window = self
             self.canvas = canvas
         
+        # 更新当前项目路径
+        self.current_project_path = project_path
+        
+        # 如果有项目路径，从项目目录加载数据
+        if project_path and os.path.exists(project_path):
+            # 清空当前节点数据
+            self.nodes_data.clear()
+            self.connections.clear()
+            
+            # 刷新节点列表（从项目目录扫描）
+            self.refresh_nodes()
+            
+            # 加载画布布局
+            self.canvas.load_layout(project_path)
+        
         # 刷新所有面板
         self._refresh_panels()
     
