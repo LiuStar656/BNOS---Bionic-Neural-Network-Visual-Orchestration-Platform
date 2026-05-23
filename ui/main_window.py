@@ -266,6 +266,9 @@ class BNOSMainWindow(QMainWindow):
         # 更新上下文
         self._context_manager.set_current_index(index)
         
+        # 获取当前上下文
+        context = self._context_manager.get_current_context()
+        
         # 更新当前画布引用
         canvas = self._tab_manager.get_current_canvas()
         if canvas:
@@ -283,6 +286,10 @@ class BNOSMainWindow(QMainWindow):
             
             # 刷新节点列表（从项目目录扫描）
             self.refresh_nodes()
+            
+            # 更新上下文管理器中的节点数据
+            if context:
+                context.nodes_data = self.nodes_data.copy()
             
             # 加载画布布局
             self.canvas.load_layout(project_path)
