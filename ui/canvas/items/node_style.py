@@ -139,10 +139,12 @@ class RectNodeStyle(NodeStyle):
 
         # 锚点（在节点本体上方一线）
         if hasattr(node_item, 'input_anchor'):
+            node_item.input_anchor.setRect(0, 0, 16, 16)  # 重置锚点尺寸为标准大小
             node_item.input_anchor.setPos(self.anchor_in_x, h / 2 - 8)
             node_item.input_anchor.setZValue(1)
             node_item.input_anchor.setVisible(True)
         if hasattr(node_item, 'output_anchor'):
+            node_item.output_anchor.setRect(0, 0, 16, 16)  # 重置锚点尺寸为标准大小
             node_item.output_anchor.setPos(w - 8, h / 2 - 8)
             node_item.output_anchor.setZValue(1)
             node_item.output_anchor.setVisible(True)
