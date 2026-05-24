@@ -3,6 +3,45 @@
 > 📖 中文版：[UPDATE_CN.md](UPDATE_CN.md)
 
 ---
+## 🧩 Canvas Host & Custom Title Bar Improvements (2026-05-24)
+
+### Feature Improvements
+
+**Canvas Host Enhancements**
+- Added ASCII art logo to blank placeholder screen
+- Improved canvas host architecture with dedicated blank placeholder
+- Enhanced visual design with BNOS branding
+- Added subtitle "Bionic Neural Network Program Operating System"
+
+**Custom Title Bar Window Resize Functionality**
+- Implemented custom window resize functionality for frameless windows
+- Added mouse event handlers for window edge detection and resizing
+- Maintained VSCode-style dark title bar while enabling resize capability
+- Fixed issue where custom title bar prevented window resizing
+
+### Technical Implementation
+
+**Canvas Host Logo Addition**
+- Modified `BlankPlaceholder` class in `ui/core/canvas_host.py`
+- Added ASCII art logo display with proper monospace font
+- Included subtitle text for enhanced branding
+- Used appropriate styling to match dark theme
+
+**Window Resize Implementation**
+- Replaced `startSystemResize()` with custom resize logic in `ui/main_window.py`
+- Added `_resize_direction`, `_resize_start_pos`, and `_resize_original_geometry` attributes
+- Implemented `mousePressEvent`, `mouseMoveEvent`, and `mouseReleaseEvent` handlers
+- Created custom window resizing algorithm that calculates new geometry based on mouse movement
+
+### Modified Files
+- `ui/core/canvas_host.py` - Added ASCII logo to blank placeholder
+- `ui/main_window.py` - Implemented custom window resize functionality
+
+### Benefits
+- **Enhanced Branding**: Visual identity improvement with ASCII logo
+- **Better UX**: Users can now resize window despite custom title bar
+- **Improved Startup Experience**: More visually appealing blank canvas
+- **Consistent UI**: Maintains VSCode-style interface while fixing functional issues
 
 ## 🌐 Global Status Synchronization Refactor (2026-05-23)
 
@@ -55,7 +94,7 @@
 
 ---
 
-## 🖼️ Canvas Layout Loading Enhancement (2026-05-23)
+## 🖼�?Canvas Layout Loading Enhancement (2026-05-23)
 
 ### Feature Improvements
 
@@ -133,7 +172,7 @@ def _on_node_status_changed(self, node_name, new_status):
 
 ---
 
-## 🛠️ Panel State Persistence & Resource Monitor Fixes (2026-05-23)
+## 🛠�?Panel State Persistence & Resource Monitor Fixes (2026-05-23)
 
 ### Fixed Issues
 
@@ -183,7 +222,7 @@ def _on_node_status_changed(self, node_name, new_status):
 
 ---
 
-## 🖼️ Sidebar Toolbar Size Increase & Icon Fixes (2026-05-23)
+## 🖼�?Sidebar Toolbar Size Increase & Icon Fixes (2026-05-23)
 
 ### Dimension Adjustments
 
@@ -201,19 +240,19 @@ Fixed several invalid icons that displayed as exclamation mark `!`:
 
 | Function | Old Icon | New Icon | Description |
 |----------|----------|----------|-------------|
-| Rectangle tool | `layout-panel` | ✅ `layout-panel` | Panel icon |
-| Round rectangle | `circle` | ✅ `circle` | Circle icon |
-| Polygon | `triangle-up` | ✅ `triangle-up` | Triangle icon |
-| Arrow tool | `arrow-right` | ✅ `arrow-right` | Arrow icon |
-| Text tool | `file-text` | ✅ `file-text` | Text file icon |
-| Stroke color | `pencil` | ✅ `pencil` | Pencil icon |
-| Fill color | `paintcan` | ✅ `paintcan` | Paint bucket icon |
-| Lock | `lock` | ✅ `lock` | Lock icon |
-| Show/Hide | `eye` | ✅ `eye` | Eye icon |
-| Undo | `arrow-left` → **`chevron-left`** | ✅ `chevron-left` | Left chevron |
-| Redo | `arrow-right` → **`chevron-right`** | ✅ `chevron-right` | Right chevron |
-| Delete selected | `trash` | ✅ `trash` | Trash icon |
-| Clear all | `clear-all` → **`close`** | ✅ `close` | Close icon |
+| Rectangle tool | `layout-panel` | �?`layout-panel` | Panel icon |
+| Round rectangle | `circle` | �?`circle` | Circle icon |
+| Polygon | `triangle-up` | �?`triangle-up` | Triangle icon |
+| Arrow tool | `arrow-right` | �?`arrow-right` | Arrow icon |
+| Text tool | `file-text` | �?`file-text` | Text file icon |
+| Stroke color | `pencil` | �?`pencil` | Pencil icon |
+| Fill color | `paintcan` | �?`paintcan` | Paint bucket icon |
+| Lock | `lock` | �?`lock` | Lock icon |
+| Show/Hide | `eye` | �?`eye` | Eye icon |
+| Undo | `arrow-left` �?**`chevron-left`** | �?`chevron-left` | Left chevron |
+| Redo | `arrow-right` �?**`chevron-right`** | �?`chevron-right` | Right chevron |
+| Delete selected | `trash` | �?`trash` | Trash icon |
+| Clear all | `clear-all` �?**`close`** | �?`close` | Close icon |
 
 ---
 
@@ -290,8 +329,8 @@ Centralized management for all periodic polling tasks:
 ### Module Consolidation
 
 **Deleted Redundant Files**:
-- `ui/core/system_monitor.py` → merged into polling_manager
-- `ui/core/global_detector.py` → merged into polling_manager
+- `ui/core/system_monitor.py` �?merged into polling_manager
+- `ui/core/global_detector.py` �?merged into polling_manager
 
 ### Panel Adaptations
 
@@ -314,7 +353,7 @@ Centralized management for all periodic polling tasks:
 
 Replaced embedded PyQt6 splash with `launcher.py` (251 lines):
 - Pure tkinter, zero dependencies on venv, packable as standalone EXE
-- Splash appears instantly → background spawns venv pythonw → real-time progress file polling
+- Splash appears instantly �?background spawns venv pythonw �?real-time progress file polling
 - Smooth progress bar animation, precisely synced with main program loading
 - Auto-close 0.2s after 100%. `.vbs` zero-window launcher
 - Missing venv: shows install guide on splash then exits
@@ -332,9 +371,9 @@ Uses `psutil` process tree detection, zero node code changes. Health check polls
 ### Ctrl+D Unified Delete Shortcut
 
 `Ctrl+D` context-aware:
-- Node list focused → batch delete nodes/groups
-- Canvas box-selected nodes → remove from canvas
-- Canvas selected graphics → delete
+- Node list focused �?batch delete nodes/groups
+- Canvas box-selected nodes �?remove from canvas
+- Canvas selected graphics �?delete
 
 Right-click delete removed (conflicted with context menu).
 
@@ -363,13 +402,13 @@ Fixed Python `from import LANG` value-copy bug (added `get_lang()`) + restart vi
 ### Splash Screen
 
 New `ui/core/splash_screen.py` (114 lines):
-- **ASCII Art BNOS**: 6-line █ block characters, Consolas 13pt bold, monochrome
+- **ASCII Art BNOS**: 6-line �?block characters, Consolas 13pt bold, monochrome
 - **BNOS CONSOLE** subtitle + project tagline (i18n)
 - **Bottom-left live log**: QTextEdit 80px, scrolled startup steps
-- **Bottom progress bar**: 0→100%, gray chunk
+- **Bottom progress bar**: 0�?00%, gray chunk
 - **Delayed close**: 2 seconds after main window appears
 
-### Brand Rename: BnosGui → BnosConsole
+### Brand Rename: BnosGui �?BnosConsole
 
 | Old | New |
 |-----|-----|
@@ -399,7 +438,7 @@ New `ui/core/splash_screen.py` (114 lines):
 |-----|-----------|----------|
 | Edge color/width not refreshing | `apply_color_settings` didn't iterate `self.edges` | Added `edge.update_edge_style()` loop |
 | Only 7 of 11 fields saved | `_save_color_settings` missing `grid_opacity`/`node_selected`/`anchor`/`edge_width` | Saved all 11 fields |
-| Apply auto-closed dialog | Old logic `apply` → `close()` | Apply now only applies, Confirm button added |
+| Apply auto-closed dialog | Old logic `apply` �?`close()` | Apply now only applies, Confirm button added |
 
 ### Language Switching Persistence Fix
 
@@ -428,8 +467,8 @@ Draw toolbar button colors: `#252525`→`#2d2d30`, foreground `#aaa`→`#ccc`, h
 
 **New**: `ui/core/strings_en.json` with 389 key-value pairs. Full coverage of:
 
-- All existing k-value keys (105) → English translations
-- New `_k_` template keys (120+) → for `format()` dynamic strings
+- All existing k-value keys (105) �?English translations
+- New `_k_` template keys (120+) �?for `format()` dynamic strings
 
 **i18n Module Upgrade**:
 - `init_i18n(lang)` loads by language (`cn`/`en`), auto-falls back to Chinese
@@ -440,18 +479,18 @@ Draw toolbar button colors: `#252525`→`#2d2d30`, foreground `#aaa`→`#ccc`, h
 
 | Module | Replaced | Status |
 |--------|----------|--------|
-| `node_list_context.py` | ~30 | ✅ Complete |
-| `dialog_utils.py` | 12 | ✅ All buttons/headers |
-| `main_window.py` | 10 | ✅ Key paths |
-| `draw_toolbar.py` | 13 | ✅ Tool names |
-| `menu_manager.py` | 3 | ✅ Status bar + About |
-| `draw_layer.py` | 2 | ✅ Text input |
-| `floating_panel.py` | 1 | ✅ Default title |
+| `node_list_context.py` | ~30 | �?Complete |
+| `dialog_utils.py` | 12 | �?All buttons/headers |
+| `main_window.py` | 10 | �?Key paths |
+| `draw_toolbar.py` | 13 | �?Tool names |
+| `menu_manager.py` | 3 | �?Status bar + About |
+| `draw_layer.py` | 2 | �?Text input |
+| `floating_panel.py` | 1 | �?Default title |
 | `node_list_panel.py` | 2 | 🔄 Partial (30+ remaining keys defined) |
 
 ### Process Isolation Rollback
 
-`CANVAS_PROCESS_MODE = False` — main window embeds canvas normally. Process isolation architecture retained for future stabilization.
+`CANVAS_PROCESS_MODE = False` �?main window embeds canvas normally. Process isolation architecture retained for future stabilization.
 
 ### Affected Files
 
@@ -467,24 +506,24 @@ Completely eliminated all native Windows dialogs, achieving full application-wid
 
 | New File | Responsibility |
 |----------|---------------|
-| `ui/core/utils/dialog_utils.py` | `themed_message()` / `themed_input()` / `pick_folder()` — 3 universal components |
+| `ui/core/utils/dialog_utils.py` | `themed_message()` / `themed_input()` / `pick_folder()` �?3 universal components |
 
-**`themed_message()` — replaces QMessageBox**:
+**`themed_message()` �?replaces QMessageBox**:
 - 5 modes: `info` / `warning` / `error` / `question` / `question3` (three-button)
 - All 71 QMessageBox calls fully migrated
 - Unified `FramelessWindowHint` translucent style, auto-centered on parent
 
-**`pick_folder()` — self-drawn folder picker**:
+**`pick_folder()` �?self-drawn folder picker**:
 - QTreeWidget tree view with lazy-loaded subdirectories
-- Path bar + parent button (⬆) + drive switching (C:/D:/...)
+- Path bar + parent button (�? + drive switching (C:/D:/...)
 - Double-click to expand/select, confirm to return path
 - Fully breaks free from QFileDialog native style limitations
 
-**`themed_input()` — unified input dialog**:
+**`themed_input()` �?unified input dialog**:
 - Replaces QInputDialog for new node/new group creation scenarios
 - Supports input validation + placeholder text
 
-### Process Isolation (Debugging Stage — Switched Back to Embedded Mode)
+### Process Isolation (Debugging Stage �?Switched Back to Embedded Mode)
 
 | Key Change | File |
 |-----------|------|
@@ -507,7 +546,7 @@ Completely eliminated all native Windows dialogs, achieving full application-wid
 
 ---
 
-## 🎨 Drawing Toolbar — PS-Style Left Vertical Toolbar (2026-05-22)
+## 🎨 Drawing Toolbar �?PS-Style Left Vertical Toolbar (2026-05-22)
 
 ### New Modules
 
@@ -538,7 +577,7 @@ Completely eliminated all native Windows dialogs, achieving full application-wid
 
 ---
 
-## 🏗️ Process Isolation Architecture + Drawing Tools Plan (2026-05-22)
+## 🏗�?Process Isolation Architecture + Drawing Tools Plan (2026-05-22)
 
 ### Process Isolation Infrastructure
 
@@ -559,20 +598,20 @@ Four-process architecture (Main / Canvas / Panel / Core), IPC communication read
 
 ### Drawing Tools Development Plan
 
-PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-key to toggle edit mode. ✅ Delivered (see "Drawing Toolbar" above).
+PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-key to toggle edit mode. �?Delivered (see "Drawing Toolbar" above).
 
 ---
 
 
-## 🏗️ Major Decoupling Refactor + Bug Fixes (2026-05-22)
+## 🏗�?Major Decoupling Refactor + Bug Fixes (2026-05-22)
 
-### Refactor Results: 4 Large Files → 16 Modules
+### Refactor Results: 4 Large Files �?16 Modules
 
 | File | Before | After | Reduced |
 |------|--------|-------|---------|
 | `node_list_panel.py` | 1741 | **1105** | -636 |
 | `canvas_view.py` | 1239 | **882** | -357 |
-| `property_panel.py` | ~1298 | **~363** | ✅ |
+| `property_panel.py` | ~1298 | **~363** | �?|
 | `main_window.py` | 1125 | **553** | -572 |
 
 **New Modules**:
@@ -589,14 +628,14 @@ PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-ke
 - **Process Management**: `start_node_process` now runs `python.exe listener.py` directly for real PID tracking; `stop_node_process` uses `taskkill` for precise termination
 - **Orphan Process Cleanup**: PowerShell process scanning as fallback; auto-detects and kills leftover `listener.py` orphans
 - **Python Node Mount**: Post-launch 1.2s health check; auto-fallback to `start.bat` if venv is corrupted; group persistence prevents `load_groups` overwrite
-- **output.json Editing**: Bidirectional real-time sync — edits auto-save to file, external changes auto-refresh editor
+- **output.json Editing**: Bidirectional real-time sync �?edits auto-save to file, external changes auto-refresh editor
 - **i18n**: All 256 UI strings converted to k-value JSON loading (`ui/core/strings_cn.json`), multi-language ready
 
 ---
 
 ## 🔧 ComfyUI-Style Line Refactor + Manual Fold (2026-05-22)
 
-### Bezier → Orthogonal Lines + Manual Folding 📏
+### Bezier �?Orthogonal Lines + Manual Folding 📏
 
 **Complete rewrite**: `ui/canvas/items/edge_item.py`
 
@@ -604,7 +643,7 @@ PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-ke
 - **Fold handles**: Each segment's midpoint shows a draggable blue handle, always visible
 - **Fold waypoints**: Existing waypoints are orange dots, directly draggable to adjust
 - **Relative coordinates**: Waypoints stored as `(t, off_x, off_y)` relative to endpoints, auto-follow when nodes move
-- **Selected color (not thicker)**: Selected → bright blue `#2aaaff`, hovered → 140% brighter, same width
+- **Selected color (not thicker)**: Selected �?bright blue `#2aaaff`, hovered �?140% brighter, same width
 - **Delete**: Double-click waypoint to remove it
 
 **Interaction**:
@@ -615,7 +654,7 @@ PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-ke
 
 **Serialization**: New `waypoints` field in `canvas_layout.json` edges, backward compatible.
 
-### Temp Edge Sync ✨
+### Temp Edge Sync �?
 
 `canvas_view.py` drag-to-connect now renders straight dashed temp line matching final style.
 
@@ -629,22 +668,22 @@ PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-ke
 
 - **Persistent file**: `<project>/node_registry.json`
 - **Scan-first principle**: `refresh_nodes()` scans nodes/ dir as primary source, registry as auxiliary
-- **Auto-sync**: Scanned nodes → active, unscanned local nodes → missing
+- **Auto-sync**: Scanned nodes �?active, unscanned local nodes �?missing
 - **Mount support**: `mount_root` field for external sources
 
 ### External Node Mounting 🔗
 
-**New feature**: Edit menu → "Mount External Node" (Ctrl+Shift+O)
+**New feature**: Edit menu �?"Mount External Node" (Ctrl+Shift+O)
 
-- **Select external folder** → read `config.json` → mount to project (no file copy)
+- **Select external folder** �?read `config.json` �?mount to project (no file copy)
 - **Auto-create locked group**: Named after mount root absolute path, shows 🔒
 - **Lock rules**:
-  - ❌ No move out of mount group
-  - ❌ No move into mount group
-  - ❌ Mount group cannot be renamed/deleted
-  - ✅ Same mount group nodes can freely create sub-groups
+  - �?No move out of mount group
+  - �?No move into mount group
+  - �?Mount group cannot be renamed/deleted
+  - �?Same mount group nodes can freely create sub-groups
 - **Restart recovery**: `refresh_nodes()` auto-restores mounted nodes from registry
-- **Unmount**: Right-click node → "Unmount External Node" (keeps source files)
+- **Unmount**: Right-click node �?"Unmount External Node" (keeps source files)
 
 ### NodeGroupManager Locked Groups
 
@@ -666,8 +705,8 @@ PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-ke
 
 - **Inference**: Parses `listen_upper_file` from every node's `config.json`, extracting upstream node names from paths
 - **Path Compatibility**: Supports absolute (`F:/project/nodes/A/output.json`), relative (`../A/output.json`), and Windows paths
-- **Auto-Repair**: Edges in config but missing on canvas → auto-added (log: `[Config兜底] 补充缺失连线`)
-- **Suspicious Edges**: Edges on canvas but missing from config → logged as warning, NOT auto-removed (safety-first)
+- **Auto-Repair**: Edges in config but missing on canvas �?auto-added (log: `[Config兜底] 补充缺失连线`)
+- **Suspicious Edges**: Edges on canvas but missing from config �?logged as warning, NOT auto-removed (safety-first)
 - **Fully Silent**: Validation runs transparently; all logs tagged with `[Config兜底]`
 
 **Affected files**: `ui/core/connection_inferrer.py`(new), `ui/canvas/canvas_layout.py`(modified)
@@ -679,7 +718,7 @@ PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-ke
 - **Selection enabled**: `EdgeItem` sets `ItemIsSelectable` flag, left-click selects with +4px highlight
 - **Wider hit area**: `shape()` returns 8px stroke path for easier clicking on Bezier curves
 - **Arrow as child**: Arrow reparented as EdgeItem child `QGraphicsPolygonItem(self)`, mouse events disabled, clicks pass through
-- **Right-click menu**: Canvas `contextMenuEvent` now detects `EdgeItem` → [Delete Edge] [Change Edge Color] [Clear Selection]
+- **Right-click menu**: Canvas `contextMenuEvent` now detects `EdgeItem` �?[Delete Edge] [Change Edge Color] [Clear Selection]
 - **Dead code removed**: Eliminated broken `scene.items()` search for `NodeCanvas` (it's a `QGraphicsView`, not a scene item)
 - **Emoji cleanup**: Edge right-click menu emoji removed
 
@@ -700,18 +739,18 @@ PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-ke
 | `ui/canvas/canvas_layout.py` | Canvas layout persistence Mixin | Extracted from canvas_view |
 | `ui/canvas/canvas_menus.py` | Canvas right-click menu Mixin | Extracted from canvas_view |
 
-- `main_window.py`: 1491 → **935 lines** (-556)
-- `canvas_view.py`: 1911 → **~1200 lines** (-680)
+- `main_window.py`: 1491 �?**935 lines** (-556)
+- `canvas_view.py`: 1911 �?**~1200 lines** (-680)
 - Eliminated Toast 170-line duplicate, process management 180-line duplicate
 
 ### Process Health Detection 🩺
 
 - **PID File Persistence**: `start_node_process` writes `.pid`, `stop_node_process` deletes it
-- **Cross-Session Recovery**: GUI restart auto-scans `.pid` files, detects running processes, restores ● status
-- **Periodic Health Check**: Polls running processes every 3s, crashed nodes auto-update to ○ stopped
+- **Cross-Session Recovery**: GUI restart auto-scans `.pid` files, detects running processes, restores �?status
+- **Periodic Health Check**: Polls running processes every 3s, crashed nodes auto-update to �?stopped
 - Fixed `subprocess.PIPE` buffer deadlock, switched to `DEVNULL`
 
-### Selection System Unification 🖱️
+### Selection System Unification 🖱�?
 
 - Removed `selected_node` standalone property
 - Single-click / box-select / Ctrl+click all use unified `box_selected_nodes`
@@ -733,7 +772,7 @@ PS-style left vertical toolbar + drawing layer (rect/polygon/arrow/text), Alt-ke
 
 ### Development Guidelines 📋
 
-Added `开发维护准则.md` (10 coding standards + priority fix list) and `tools/Node_Generator_Guidelines_EN.md` (new language node standard template).
+Added `开发维护准�?md` (10 coding standards + priority fix list) and `tools/Node_Generator_Guidelines_EN.md` (new language node standard template).
 
 ---
 
@@ -776,16 +815,16 @@ z=4  Output anchor (bottom layer)
 
 - Fixed lambda closure late-binding causing wrong menu actions
 - Fixed anchor position stacking (constructor offset + setPos offset)
-- Fixed `setRect(w, h)` param error → `setRect(0, 0, w, h)`
-- Fixed `setBrush(Qt.BrushStyle.NoBrush)` type error → `setBrush(QBrush())`
-- Fixed `QLabel(self.node_name)` bool type error → `QLabel(str(self.node_name))`
-- Fixed dot node rect too small causing grid rendering artifacts → expanded to 80×80 with `prepareGeometryChange()`
+- Fixed `setRect(w, h)` param error �?`setRect(0, 0, w, h)`
+- Fixed `setBrush(Qt.BrushStyle.NoBrush)` type error �?`setBrush(QBrush())`
+- Fixed `QLabel(self.node_name)` bool type error �?`QLabel(str(self.node_name))`
+- Fixed dot node rect too small causing grid rendering artifacts �?expanded to 80×80 with `prepareGeometryChange()`
 
 **Affected files**: `ui/canvas/items/node_style.py`(new), `ui/canvas/items/node_item.py`(modified), `ui/canvas/canvas_menus.py`(modified), `ui/canvas/canvas_layout.py`(modified)
 
 ---
 
-## ⚡ Canvas Viewport Rendering Optimization (2026-05-21)
+## �?Canvas Viewport Rendering Optimization (2026-05-21)
 
 **Modified file**: `ui/canvas/canvas_view.py`
 
@@ -827,11 +866,11 @@ z=4  Output anchor (bottom layer)
 
 - Global real-time log viewer, parent window + collapsible sub-panel architecture
 - Syncs canvas nodes every 3s, auto-refreshes logs on mtime change every 2s
-- Menu bar adds "Tools(&T)" → "Node Monitor" (Ctrl+Shift+M)
+- Menu bar adds "Tools(&T)" �?"Node Monitor" (Ctrl+Shift+M)
 - Canvas right-click menu adds "Node Monitor"
 - Window type matches NodeListPanel, follows main window
 
-### **Plan 3: print → logging Migration** 📝
+### **Plan 3: print �?logging Migration** 📝
 
 **New module**: `ui/core/logger.py`
 
@@ -844,10 +883,10 @@ z=4  Output anchor (bottom layer)
 **New base class**: `ui/core/floating_panel.py`
 
 - Unifies frameless, translucent, draggable, titled window behavior
-- `NodeListPanel` → extends `FloatingPanel`
-- `NodeConfigDialog` → extends `FloatingPanel` (removed QDialogButtonBox)
-- `NodeMonitor` → extends `FloatingPanel`
-- `NodeExpandPanel` → extends `FloatingPanel`
+- `NodeListPanel` �?extends `FloatingPanel`
+- `NodeConfigDialog` �?extends `FloatingPanel` (removed QDialogButtonBox)
+- `NodeMonitor` �?extends `FloatingPanel`
+- `NodeExpandPanel` �?extends `FloatingPanel`
 - Unified visual style: `rgba(30,30,30,220)` translucent dark container
 
 ---
@@ -857,10 +896,10 @@ z=4  Output anchor (bottom layer)
 ### **Emoji Removal + Name Simplification** 🧹
 
 - All Emoji patterns removed from UI buttons, menus, dialog titles
-- Button names simplified to 2-4 characters (e.g., "Clear All Edges" → "Clear Edges")
+- Button names simplified to 2-4 characters (e.g., "Clear All Edges" �?"Clear Edges")
 - 6 files affected: canvas_view.py, property_panel.py, node_list_panel.py, main_window.py, menu_manager.py, bnos_console.py
 
-### **Button Colors Unified to Black/White/Gray** ⚫
+### **Button Colors Unified to Black/White/Gray** �?
 
 - All colorful button backgrounds replaced with monochrome (`#333`/`#555`/`#666`)
 - 14 locations in `property_panel.py`
@@ -916,27 +955,27 @@ This update includes comprehensive import path corrections and code quality impr
 ### 2. Toolbar Removed, MenuManager Takes Over 📋
 
 **Changes**:
-- ✅ Removed `init_toolbar()` method (68 lines)
-- ✅ Removed old `init_menu()` method
-- ✅ `MenuManager.init_menu(self)` handles all menus
-- ✅ Added `create_new_node_with_language(language)` method
-- ✅ Completed `show_about()` method body
+- �?Removed `init_toolbar()` method (68 lines)
+- �?Removed old `init_menu()` method
+- �?`MenuManager.init_menu(self)` handles all menus
+- �?Added `create_new_node_with_language(language)` method
+- �?Completed `show_about()` method body
 
 **Menu Structure**:
 ```
 File(&F)    Edit(&E)         Help(&H)
-├ New      ├ New Node >     └ About
-├ Open     │ ├ Python
-├ NodeList │ ├ Node.js
-├ Colors   │ ├ Go
-└ Exit     │ ├ Java
-           │ ├ C++
-           │ ├ Rust
-           │ └ Shell
-           ├ Refresh
-           ├ Clear Edges
-           ├ Start Node
-           └ Stop Node
+�?New      �?New Node >     �?About
+�?Open     �?�?Python
+�?NodeList �?�?Node.js
+�?Colors   �?�?Go
+�?Exit     �?�?Java
+           �?�?C++
+           �?�?Rust
+           �?�?Shell
+           �?Refresh
+           �?Clear Edges
+           �?Start Node
+           �?Stop Node
 ```
 
 ---
@@ -946,8 +985,8 @@ File(&F)    Edit(&E)         Help(&H)
 **Problem**: Clicking "New Node" in menu couldn't invoke creation scripts in `tools/`.
 
 **Root Cause**: In `node_creator_manager.py`, `base_dir` only went up 2 directory levels:
-- Before: `os.path.dirname(os.path.dirname(__file__))` → `ui/` ❌
-- After: `os.path.dirname(os.path.dirname(os.path.dirname(__file__)))` → project root ✅
+- Before: `os.path.dirname(os.path.dirname(__file__))` �?`ui/` �?
+- After: `os.path.dirname(os.path.dirname(os.path.dirname(__file__)))` �?project root �?
 
 **Fix**: Added one more `os.path.dirname()` to correctly point to project root.
 
@@ -998,11 +1037,11 @@ This update completed three major refactorings:
 **Design**: Pure menu bar design, removed standalone toolbar, all functions integrated into standard menus.
 
 **Changes**:
-- ✅ Removed top toolbar, freeing vertical space
-- ✅ All functions integrated into "File", "Edit", "Help" menus
-- ✅ High-frequency operations grouped in submenus (e.g., 7 languages under "New Node")
-- ✅ Each menu item has clear shortcuts and visual identifiers
-- ✅ Business logic unchanged, only access entry points changed
+- �?Removed top toolbar, freeing vertical space
+- �?All functions integrated into "File", "Edit", "Help" menus
+- �?High-frequency operations grouped in submenus (e.g., 7 languages under "New Node")
+- �?Each menu item has clear shortcuts and visual identifiers
+- �?Business logic unchanged, only access entry points changed
 
 **Key Files**:
 - `ui/menu/menu_manager.py` - Menu manager (new)
@@ -1015,10 +1054,10 @@ This update completed three major refactorings:
 **Design**: Extracted Toast from main window into independent module, fully decoupled.
 
 **Core Features**:
-- ✅ **Fully Decoupled** - Toast independent of main window, independently testable
-- ✅ **Stack Management** - Auto handles multi-toast stacking
-- ✅ **60fps Animation** - Smooth fade in/out
-- ✅ **Four Types** - success, error, warning, info
+- �?**Fully Decoupled** - Toast independent of main window, independently testable
+- �?**Stack Management** - Auto handles multi-toast stacking
+- �?**60fps Animation** - Smooth fade in/out
+- �?**Four Types** - success, error, warning, info
 
 **New Files**:
 - `ui/core/toast/toast_notification.py` - Toast core class
@@ -1033,18 +1072,18 @@ ui/
 ├── __init__.py
 ├── main_window.py
 ├── core/              # Core components
-│   └── toast/
+�?  └── toast/
 ├── menu/              # Menu system
-│   └── menu_manager.py
+�?  └── menu_manager.py
 ├── canvas/            # Canvas system
-│   ├── canvas_view.py
-│   └── items/
+�?  ├── canvas_view.py
+�?  └── items/
 ├── panels/            # Panel components
-│   ├── node_list_panel.py
-│   ├── property_panel.py
-│   └── node_group_manager.py
+�?  ├── node_list_panel.py
+�?  ├── property_panel.py
+�?  └── node_group_manager.py
 ├── creators/          # Creators
-│   └── node_creator_manager.py
+�?  └── node_creator_manager.py
 └── docs/              # Documentation
 ```
 
@@ -1063,7 +1102,7 @@ Successfully refactored the monolithic `canvas_widget.py` (91.9KB) into a four-l
 | Single file size | 91.9KB | 74.5KB (core) + items |
 | Module count | 1 | 5 core modules |
 | Lines of code | ~2200 | ~1763 (core) + items |
-| Responsibility clarity | Mixed | Layered ✅ |
+| Responsibility clarity | Mixed | Layered �?|
 
 **New Architecture**:
 - **Layer 1 - Items**: Pure UI rendering (`anchor_item.py`, `node_item.py`, `edge_item.py`)
@@ -1079,12 +1118,15 @@ For earlier updates (including Rust node language detection fix, path resolution
 
 ---
 
-## Performance ⚡
+## Performance �?
 
 | Metric | Value | Rating |
 |--------|-------|--------|
-| Startup time | < 2s | ⚡ Fast |
-| Node loading | 4 nodes < 1s | ⚡ Fast |
-| Canvas rendering | Smooth, no lag | ⚡ Excellent |
-| Memory usage | Normal | ✅ Reasonable |
-| CPU usage | < 5% | ✅ Low |
+| Startup time | < 2s | �?Fast |
+| Node loading | 4 nodes < 1s | �?Fast |
+| Canvas rendering | Smooth, no lag | �?Excellent |
+| Memory usage | Normal | �?Reasonable |
+| CPU usage | < 5% | �?Low |
+
+---
+

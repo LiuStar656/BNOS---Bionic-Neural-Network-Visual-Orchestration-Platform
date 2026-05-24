@@ -311,26 +311,61 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 | Module | File | Description |
 |--------|------|-------------|
 | **Entry Point** | `bnos_console.py` | Initialize QApplication, launch MainWindow |
+| **Launcher** | `launcher.py` | Standalone tkinter launcher with real-time progress |
 | **Main Window** | `ui/main_window.py` | Integrate UI components, AppConfig, Toast, node data, tab management |
+| **Canvas Host** | `ui/core/canvas_host.py` | Canvas dock hosting system (PS-style layout) |
 | **Canvas** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
 | **Canvas Layout** | `ui/canvas/canvas_layout.py` | Layout persistence, auto-add missing nodes from layout |
 | **Node Styles** | `ui/canvas/items/node_style.py` | Node style system (rect/dot), 3-layer z-architecture |
 | **Node List** | `ui/panels/node_list_panel.py` | Tree view, groups, drag-drop, multi-select |
+| **Node List Dock** | `ui/panels/node_list_dock.py` | Dockable node list panel |
 | **Property Panel** | `ui/panels/property_panel.py` | Config editor, log viewer, process control, colors |
 | **Expand Panel** | `ui/panels/node_expand_panel.py` | output.json viewer/editor with live refresh |
 | **Node Monitor** | `ui/panels/node_monitor.py` | Real-time logs for all canvas nodes |
+| **Node Monitor Dock** | `ui/panels/node_monitor_dock.py` | Dockable node monitor panel |
 | **Resource Monitor** | `ui/panels/resource_monitor.py` | Real-time CPU/RAM/Disk usage for all nodes |
+| **Resource Monitor Dock** | `ui/panels/resource_monitor_dock.py` | Dockable resource monitor panel |
 | **Group Manager** | `ui/panels/node_group_manager.py` | Node group CRUD and persistence |
 | **Floating Panel** | `ui/core/floating_panel.py` | Base class for frameless translucent panels |
+| **BNOS Dock** | `ui/core/bnos_dock.py` | Custom dock widget for canvas |
+| **Dock Manager** | `ui/core/dock_manager.py` | Dock panel management system |
 | **Logger** | `ui/core/logger.py` | Global logger (console + file) |
 | **Menu Manager** | `ui/menu/menu_manager.py` | Unified menu bar (File/Edit/Tools/Help) |
 | **Node Creator** | `ui/creators/node_creator_manager.py` | Multi-language node creation manager |
 | **Tools** | `tools/python_create_node.py` | Python node template generator (venv + scripts) |
-| **Canvas Tab Manager** | `ui/core/canvas_tab_manager.py` | Multi-tab canvas management, tab state persistence |
 | **Tab Context Manager** | `ui/core/tab_context.py` | Per-tab context management (node data, layout, colors) |
 | **Polling Manager** | `ui/core/polling_manager.py` | Global node status detection and signal distribution |
 | **App Config** | `ui/core/app_config.py` | Application configuration and persistence |
 | **Project Manager** | `ui/core/project_manager.py` | Project operations (new/open/refresh) |
+| **External Node Manager** | `ui/core/external_node_manager.py` | External node mounting system |
+| **Node Registry** | `ui/core/node_registry.py` | Persistent node registry system |
+| **IPC** | `ui/core/ipc.py` | Inter-process communication system |
+| **Process Manager** | `ui/core/process_manager.py` | Subprocess management |
+| **Window State Manager** | `ui/core/window_state_manager.py` | Window state persistence |
+| **Dark Title Bar** | `ui/core/dark_title_bar.py` | VSCode-style custom title bar |
+| **Internationalization** | `ui/core/i18n.py` | Language localization system |
+| **Strings (CN)** | `ui/core/strings_cn.json` | Chinese language strings (408 keys) |
+| **Strings (EN)** | `ui/core/strings_en.json` | English language strings (408 keys) |
+| **Theme** | `ui/core/theme.py` | Dark theme styling |
+| **Toast Notifications** | `ui/core/toast/toast_notification.py` | Non-intrusive notification system |
+| **Utils** | `ui/core/utils/dialog_utils.py` | Themed dialog utilities |
+| **Utils** | `ui/core/utils/log_viewer.py` | Log viewing utilities |
+| **Utils** | `ui/core/utils/file_utils.py` | File operation utilities |
+| **Icons** | `ui/icons/` | Codicon-based icon system |
+| **Canvas Drawing** | `ui/canvas/graphic_items.py` | Drawing tools (rect, arrow, text) |
+| **Canvas Drawing Layer** | `ui/canvas/draw_layer.py` | Drawing layer management |
+| **Canvas Drawing Toolbar** | `ui/canvas/draw_toolbar.py` | PS-style drawing toolbar |
+| **Canvas Mixins** | `ui/canvas/canvas_colors.py` | Color management mixin |
+| **Canvas Mixins** | `ui/canvas/canvas_layout.py` | Layout persistence mixin |
+| **Canvas Mixins** | `ui/canvas/canvas_menus.py` | Context menu mixin |
+| **Canvas Mixins** | `ui/canvas/canvas_connections.py` | Connection management mixin |
+| **Canvas Mixins** | `ui/canvas/canvas_box_select.py` | Box selection mixin |
+| **Canvas Mixins** | `ui/canvas/canvas_batch_ops.py` | Batch operations mixin |
+| **Canvas Items** | `ui/canvas/items/node_item.py` | Node container item |
+| **Canvas Items** | `ui/canvas/items/edge_item.py` | Orthogonal edge item |
+| **Canvas Items** | `ui/canvas/items/anchor_item.py` | Anchor (IN/OUT port) item |
+| **Canvas Process** | `ui/canvas/canvas_process.py` | Canvas subprocess entry |
+| **Panel Process** | `ui/panels/panel_process.py` | Panel subprocess entry |
 
 
 ---

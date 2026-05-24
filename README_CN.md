@@ -308,16 +308,22 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 | **主入口** | `bnos_console.py` | 初始化 QApplication，启动主窗口 |
 | **状态灯** | `node_style.py` + `node_process.py` | 三态指示灯（灰=停止/绿=空闲/红=运行）|
 | **主窗口** | `ui/main_window.py` | 整合 UI 组件，管理 AppConfig、节点数据、Toast、标签页管理 |
+| **画布宿主** | `ui/core/canvas_host.py` | 画布停靠区宿主系统（PS风格布局） |
 | **画布** | `ui/canvas/canvas_view.py` | QGraphicsView 实现节点绘制、拖拽、连线 |
 | **画布布局** | `ui/canvas/canvas_layout.py` | 布局持久化，从布局文件自动添加缺失节点 |
 | **节点样式** | `ui/canvas/items/node_style.py` | 节点样式系统（方形/圆形），三层 z 轴架构 |
 | **节点列表** | `ui/panels/node_list_panel.py` | 节点/分组树形视图，拖拽分组，多选操作 |
+| **节点列表停靠** | `ui/panels/node_list_dock.py` | 可停靠节点列表面板 |
 | **属性面板** | `ui/panels/property_panel.py` | 配置编辑器、日志查看器、进程控制、颜色设置 |
 | **展开面板** | `ui/panels/node_expand_panel.py` | 节点 output.json 查看/编辑，自动刷新 |
 | **监测面板** | `ui/panels/node_monitor.py` | 全局实时日志查看，多节点同步监测 |
+| **监测面板停靠** | `ui/panels/node_monitor_dock.py` | 可停靠节点监测面板 |
 | **资源监控** | `ui/panels/resource_monitor.py` | 所有节点的实时 CPU/RAM/磁盘使用率 |
+| **资源监控停靠** | `ui/panels/resource_monitor_dock.py` | 可停靠资源监控面板 |
 | **分组管理器** | `ui/panels/node_group_manager.py` | 节点分组创建/删除/持久化 |
 | **浮动基类** | `ui/core/floating_panel.py` | 统一所有悬浮窗的窗口类型和交互 |
+| **BNOS停靠** | `ui/core/bnos_dock.py` | 画布自定义停靠部件 |
+| **停靠管理器** | `ui/core/dock_manager.py` | 停靠面板管理系统 |
 | **日志模块** | `ui/core/logger.py` | 全局 logger（控制台+文件双通道） |
 | **进程管理** | `ui/core/node_process.py` | 统一进程启停/PID/健康检测 |
 | **菜单管理** | `ui/menu/menu_manager.py` | 统一管理菜单栏所有功能 |
@@ -328,6 +334,35 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 | **轮询管理器** | `ui/core/polling_manager.py` | 全局节点状态检测和信号分发 |
 | **应用配置** | `ui/core/app_config.py` | 应用配置和持久化 |
 | **项目管理器** | `ui/core/project_manager.py` | 项目操作（新建/打开/刷新） |
+| **外部节点管理器** | `ui/core/external_node_manager.py` | 外部节点挂载系统 |
+| **节点注册表** | `ui/core/node_registry.py` | 持久化节点注册系统 |
+| **进程间通信** | `ui/core/ipc.py` | 进程间通信系统 |
+| **进程管理器** | `ui/core/process_manager.py` | 子进程管理系统 |
+| **窗口状态管理器** | `ui/core/window_state_manager.py` | 窗口状态持久化 |
+| **暗色标题栏** | `ui/core/dark_title_bar.py` | VSCode风格自定义标题栏 |
+| **国际化** | `ui/core/i18n.py` | 语言本地化系统 |
+| **字符串（中文）** | `ui/core/strings_cn.json` | 中文语言字符串（408个键） |
+| **字符串（英文）** | `ui/core/strings_en.json` | 英文语言字符串（408个键） |
+| **主题** | `ui/core/theme.py` | 暗色主题样式 |
+| **Toast通知** | `ui/core/toast/toast_notification.py` | 非侵入式通知系统 |
+| **工具** | `ui/core/utils/dialog_utils.py` | 自定义对话框工具 |
+| **工具** | `ui/core/utils/log_viewer.py` | 日志查看工具 |
+| **工具** | `ui/core/utils/file_utils.py` | 文件操作工具 |
+| **图标** | `ui/icons/` | Codicon图标系统 |
+| **画布绘制** | `ui/canvas/graphic_items.py` | 绘图工具（矩形、箭头、文本） |
+| **画布绘制层** | `ui/canvas/draw_layer.py` | 绘制层管理 |
+| **画布绘制工具栏** | `ui/canvas/draw_toolbar.py` | PS风格绘制工具栏 |
+| **画布混入** | `ui/canvas/canvas_colors.py` | 颜色管理混入 |
+| **画布混入** | `ui/canvas/canvas_layout.py` | 布局持久化混入 |
+| **画布混入** | `ui/canvas/canvas_menus.py` | 上下文菜单混入 |
+| **画布混入** | `ui/canvas/canvas_connections.py` | 连接管理混入 |
+| **画布混入** | `ui/canvas/canvas_box_select.py` | 框选混入 |
+| **画布混入** | `ui/canvas/canvas_batch_ops.py` | 批量操作混入 |
+| **画布项目** | `ui/canvas/items/node_item.py` | 节点容器项目 |
+| **画布项目** | `ui/canvas/items/edge_item.py` | 正交连线项目 |
+| **画布项目** | `ui/canvas/items/anchor_item.py` | 锚点（输入/输出端口）项目 |
+| **画布进程** | `ui/canvas/canvas_process.py` | 画布子进程入口 |
+| **面板进程** | `ui/panels/panel_process.py` | 面板子进程入口 |
 
 ---
 
