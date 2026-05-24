@@ -42,6 +42,44 @@ class BlankPlaceholder(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
+        # Logo标签
+        self._logo_label = QLabel()
+        self._logo_label.setStyleSheet("""
+            QLabel {
+                color: #cccccc;
+                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                font-size: 30px;
+                font-weight: bold;
+            }
+        """)
+        
+        # 设置BNOS ASCII logo
+        ascii_logo = [
+            " █████╗     ███╗  ██╗     █████╗     ██████╗ ",
+            " ██╔══██╗   ████╗ ██║    ██╔══██╗   ██╔════╝ ",
+            " ██████╔╝   ██╔██╗██║    ██║  ██║   ╚█████╗  ",
+            " ██╔══██╗   ██║╚████║    ██║  ██║    ╚═══██╗ ",
+            " ██████╔╝   ██║ ╚███║    ╚█████╔╝   ██████╔╝ ",
+            " ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝  ",
+        ]
+        logo_text = '\n'.join(ascii_logo)
+        self._logo_label.setText(logo_text)
+        self._logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._logo_label)
+        
+        # 副标题标签
+        self._subtitle_label = QLabel("Bionic Neural Network Program Operating System")
+        self._subtitle_label.setStyleSheet("""
+            QLabel {
+                color: #888888;
+                font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                font-size: 20px;
+                font-weight: normal;
+            }
+        """)
+        self._subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._subtitle_label)
+        
         # 提示标签
         self._hint_label = QLabel(t("k_canvas_empty_hint"))
         self._hint_label.setStyleSheet("""

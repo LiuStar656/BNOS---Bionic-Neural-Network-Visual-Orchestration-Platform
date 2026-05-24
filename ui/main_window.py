@@ -911,25 +911,50 @@ class BNOSMainWindow(QMainWindow):
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton and not self.isMaximized():
             _, direction = self._get_resize_region(event.pos())
-            if direction and self.windowHandle():
-                edges = {
-                    "top-left": Qt.Edge.TopEdge | Qt.Edge.LeftEdge,
-                    "top-right": Qt.Edge.TopEdge | Qt.Edge.RightEdge,
-                    "bottom-left": Qt.Edge.BottomEdge | Qt.Edge.LeftEdge,
-                    "bottom-right": Qt.Edge.BottomEdge | Qt.Edge.RightEdge,
-                    "top": Qt.Edge.TopEdge, "bottom": Qt.Edge.BottomEdge,
-                    "left": Qt.Edge.LeftEdge, "right": Qt.Edge.RightEdge,
-                }
-                self.windowHandle().startSystemResize(edges.get(direction))
+            if direction:
+                self._resize_direction = direction
+                self._resize_start_pos = event.globalPosition().toPoint()
+                self._resize_original_geometry = self.geometry()
+                event.accept()
                 return
         super().mousePressEvent(event)
     
     def mouseMoveEvent(self, event: QMouseEvent):
-        if not self.isMaximized():
-            cursor, _ = self._get_resize_region(event.pos())
-            if cursor: self.setCursor(cursor)
-            else: self.unsetCursor()
+        if hasattr(self, '_resize_direction') and self._resize_direction:
+            # 执行窗口调整大小
+            delta = event.globalPosition().toPoint() - self._resize_start_pos
+            new_geo = self._resize_original_geometry
+            
+            if 'left' in self._resize_direction:
+                new_width = max(self.minimumWidth(), new_geo.width() - delta.x())
+                new_geo.setX(new_geo.x() + (new_geo.width() - new_width))
+                new_geo.setWidth(new_width)
+            
+            if 'right' in self._resize_direction:
+                new_geo.setWidth(max(self.minimumWidth(), self._resize_original_geometry.width() + delta.x()))
+            
+            if 'top' in self._resize_direction:
+                new_height = max(self.minimumHeight(), new_geo.height() - delta.y())
+                new_geo.setY(new_geo.y() + (new_geo.height() - new_height))
+                new_geo.setHeight(new_height)
+            
+            if 'bottom' in self._resize_direction:
+                new_geo.setHeight(max(self.minimumHeight(), self._resize_original_geometry.height() + delta.y()))
+            
+            self.setGeometry(new_geo)
+        else:
+            if not self.isMaximized():
+                cursor, _ = self._get_resize_region(event.pos())
+                if cursor: self.setCursor(cursor)
+                else: self.unsetCursor()
         super().mouseMoveEvent(event)
+    
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        if hasattr(self, '_resize_direction') and self._resize_direction:
+            self._resize_direction = None
+            self._resize_start_pos = None
+            self._resize_original_geometry = None
+        super().mouseReleaseEvent(event)
     
     # ── 进程间通信 (IPC) ──
 
