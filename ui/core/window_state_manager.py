@@ -1,6 +1,7 @@
 """
 窗口状态持久化管理 — 保存/恢复窗口几何、面板状态、画布视图
 """
+from PyQt6.QtWidgets import QApplication
 from ui.core.logger import logger
 
 
@@ -37,6 +38,15 @@ def save_state(main_window):
         logger.error("保存窗口状态失败: %s", e)
 
 
+def _center_window(main_window, width, height):
+    """将窗口居中显示在屏幕上"""
+    screen_geometry = QApplication.primaryScreen().geometry()
+    x = (screen_geometry.width() - width) // 2
+    y = (screen_geometry.height() - height) // 2
+    main_window.setGeometry(x, y, width, height)
+    logger.info(f"窗口已居中: ({x}, {y})")
+
+
 def restore_state(main_window):
     """恢复窗口状态 - 完整布局还原"""
     try:
@@ -45,10 +55,13 @@ def restore_state(main_window):
             if geom.get("maximized", False):
                 main_window.showMaximized()
             else:
-                main_window.setGeometry(
-                    geom.get("x", 100), geom.get("y", 100),
-                    geom.get("width", 1400), geom.get("height", 900)
-                )
+                # 每次打开都将窗口居中
+                width = geom.get("width", 1400)
+                height = geom.get("height", 900)
+                _center_window(main_window, width, height)
+        else:
+            # 首次打开，窗口居中
+            _center_window(main_window, 1400, 900)
 
         # 节点列表面板的恢复由 _restore_panel_state 处理，这里不再重复处理
         # 保留旧配置项的读取但不进行操作，避免与 _restore_panel_state 冲突
