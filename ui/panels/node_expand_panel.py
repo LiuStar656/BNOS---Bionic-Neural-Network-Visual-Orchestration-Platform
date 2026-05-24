@@ -238,7 +238,8 @@ class NodeExpandPanel(FloatingPanel):
 
     def _on_user_edit(self):
         """用户编辑文本 → 启动防抖保存定时器"""
-        self._save_timer.start(800)
+        if self._save_timer:
+            self._save_timer.start(800)
 
     def _write_to_file(self):
         """将编辑器内容写入 output.json 文件，同步更新编辑器显示"""
@@ -337,7 +338,8 @@ class NodeExpandPanel(FloatingPanel):
 
     def _on_manual_refresh(self):
         """手动刷新：强制从文件重新加载"""
-        self._save_timer.stop()  # 取消待处理的保存
+        if self._save_timer:
+            self._save_timer.stop()  # 取消待处理的保存
         self._load_output_json()
         self._set_status(t("k_status_refreshed"), "#2196F3")
 
@@ -414,7 +416,8 @@ class NodeExpandPanel(FloatingPanel):
     def _close(self):
         """关闭面板前停止定时器并保存编辑"""
         self._refresh_timer.stop()
-        self._save_timer.stop()
+        if self._save_timer:
+            self._save_timer.stop()
         # 确保最终写入
         self._write_to_file()
         self.close()
@@ -438,6 +441,7 @@ class NodeExpandPanel(FloatingPanel):
     def closeEvent(self, event):
         """关闭时停止定时器并最终保存"""
         self._refresh_timer.stop()
-        self._save_timer.stop()
+        if self._save_timer:
+            self._save_timer.stop()
         self._write_to_file()
         super().closeEvent(event)

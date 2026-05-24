@@ -12,7 +12,13 @@ CanvasHost - 画布宿主窗口（QMainWindow）
 - 启动时显示空白缓冲层（BlankPlaceholder），无任何画布
 - 用户新建/打开项目时才创建画布Dock
 - 关闭所有画布后自动切回缓冲层
+
+【增强功能】独立画布数据管理：
+- 每个画布维护独立的nodes_data和connections
+- 画布切换时同步对应数据到主窗口
 """
+import os
+import json
 from PyQt6.QtWidgets import (
     QMainWindow, QDockWidget, QTabWidget, QWidget, QVBoxLayout, QLabel
 )
@@ -74,6 +80,9 @@ class CanvasHost(QMainWindow):
         self._canvas_docks = []
         self._active_canvas = None
         
+        # 画布数据存储：每个画布独立维护其节点数据和连接
+        self._canvas_data_map = {}  # {canvas: {'nodes_data': {}, 'connections': []}}
+        
         # 空白缓冲层
         self._blank_placeholder = None
         
@@ -82,6 +91,12 @@ class CanvasHost(QMainWindow):
         
         # 设置样式
         self._setup_styles()
+        
+        # 监听焦点变化，以便检测用户切换画布
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            app.focusChanged.connect(self._on_focus_changed)
     
     def _setup_styles(self):
         """设置CanvasHost样式 - 深色背景作为画布区域"""
@@ -127,9 +142,18 @@ class CanvasHost(QMainWindow):
         canvas = NodeCanvas(self)
         canvas.parent_window = self._parent_window
         
+        # 初始化画布独立数据
+        canvas_data = {
+            'nodes_data': {},  # {node_name: {config, path, process, status}}
+            'connections': [],  # [(source_node, target_node)]
+            'project_path': project_path
+        }
+        
         # 如果有项目路径，加载布局
         if project_path:
             canvas.load_layout(project_path)
+            # 同时加载节点数据
+            self._load_project_data(canvas, project_path, canvas_data)
         
         # 3. 用BNOSDock封装画布
         dock_name = name if name else f"{t('k_canvas')} {len(self._canvas_docks) + 1}"
@@ -156,16 +180,91 @@ class CanvasHost(QMainWindow):
         # Qt会自动将同一区域的多个Dock合并为标签页，标签显示在顶部
         self.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea, canvas_dock)
         
-        # 7. 存储并设置为活动画布
+        # 7. 添加到画布Dock列表
         self._canvas_docks.append(canvas_dock)
+        
+        # 8. 存储画布数据
+        self._canvas_data_map[canvas] = canvas_data
+        
+        # 9. 设置为活动画布
         self._active_canvas = canvas
         
-        # 8. 连接信号 - 监听关闭事件
+        # 9. 连接信号 - 监听关闭事件和焦点变化事件
         canvas_dock.closed.connect(lambda dock: self._on_canvas_dock_closed(dock))
+        canvas_dock.dockLocationChanged.connect(lambda area, c=canvas: self._on_canvas_location_changed(area, c))
         canvas_dock.visibilityChanged.connect(lambda visible, c=canvas: self._on_canvas_visibility_changed(visible, c))
         
         logger.info(f"CanvasHost: 画布Dock '{dock_name}' 已创建（顶部停靠）")
         return canvas_dock, canvas
+    
+    def _load_project_data(self, canvas, project_path, canvas_data):
+        """从项目路径加载节点数据"""
+        if not project_path:
+            return
+            
+        nodes_dir = os.path.join(project_path, "nodes")
+        if os.path.exists(nodes_dir):
+            # 扫描并加载节点信息
+            for filename in os.listdir(nodes_dir):
+                if filename.endswith('.json'):
+                    node_file = os.path.join(nodes_dir, filename)
+                    try:
+                        with open(node_file, 'r', encoding='utf-8') as f:
+                            node_info = json.load(f)
+                            node_name = os.path.splitext(filename)[0]
+                            canvas_data['nodes_data'][node_name] = node_info
+                    except Exception as e:
+                        logger.error(f"加载节点文件失败 {node_file}: {e}")
+    
+    def get_canvas_data(self, canvas):
+        """获取指定画布的数据"""
+        return self._canvas_data_map.get(canvas, {'nodes_data': {}, 'connections': [], 'project_path': None})
+    
+    def set_canvas_data(self, canvas, nodes_data, connections):
+        """设置指定画布的数据"""
+        if canvas in self._canvas_data_map:
+            self._canvas_data_map[canvas]['nodes_data'] = nodes_data
+            self._canvas_data_map[canvas]['connections'] = connections
+        else:
+            self._canvas_data_map[canvas] = {
+                'nodes_data': nodes_data,
+                'connections': connections,
+                'project_path': getattr(canvas, 'current_project_path', None)
+            }
+    
+    def sync_canvas_data_to_main_window(self, canvas):
+        """将指定画布的数据同步到主窗口"""
+        if self._parent_window and canvas in self._canvas_data_map:
+            canvas_data = self._canvas_data_map[canvas]
+            # 同步数据到主窗口
+            self._parent_window.nodes_data = canvas_data['nodes_data'].copy()
+            self._parent_window.connections = canvas_data['connections'][:]
+            self._parent_window.current_project_path = canvas_data['project_path']
+            # 刷新面板
+            self._parent_window._refresh_panels()
+    
+    def update_canvas_data_from_main_window(self, canvas):
+        """从主窗口更新指定画布的数据"""
+        if self._parent_window and canvas in self._canvas_data_map:
+            self._canvas_data_map[canvas]['nodes_data'] = self._parent_window.nodes_data.copy()
+            self._canvas_data_map[canvas]['connections'] = self._parent_window.connections[:]
+            self._canvas_data_map[canvas]['project_path'] = self._parent_window.current_project_path
+    
+    def sync_main_window_data_to_canvas(self, nodes_data=None, connections=None):
+        """将主窗口的当前数据同步到活动画布（用于数据保存）"""
+        if self._parent_window and self._active_canvas and self._active_canvas in self._canvas_data_map:
+            # 如果提供了数据，则使用提供的数据，否则使用主窗口的当前数据
+            if nodes_data is not None:
+                self._canvas_data_map[self._active_canvas]['nodes_data'] = nodes_data
+            else:
+                self._canvas_data_map[self._active_canvas]['nodes_data'] = self._parent_window.nodes_data.copy()
+                
+            if connections is not None:
+                self._canvas_data_map[self._active_canvas]['connections'] = connections
+            else:
+                self._canvas_data_map[self._active_canvas]['connections'] = self._parent_window.connections[:]
+                
+            self._canvas_data_map[self._active_canvas]['project_path'] = self._parent_window.current_project_path
     
     def _on_canvas_dock_closed(self, canvas_dock):
         """画布Dock关闭事件 - 彻底销毁画布、项目实例与节点进程"""
@@ -175,6 +274,10 @@ class CanvasHost(QMainWindow):
         # 1. 获取画布内容
         canvas = canvas_dock.get_content_widget()
         
+        # 1.5. 在关闭前保存当前画布数据到主窗口（如果这是活动画布）
+        if canvas == self._active_canvas and self._parent_window:
+            self.update_canvas_data_from_main_window(canvas)
+        
         # 2. 停止画布上所有节点进程（如果有）
         if canvas and hasattr(canvas, 'stop_all_nodes'):
             canvas.stop_all_nodes()
@@ -182,11 +285,15 @@ class CanvasHost(QMainWindow):
         # 3. 从列表中移除
         self._canvas_docks.remove(canvas_dock)
         
-        # 4. 彻底销毁画布Dock
+        # 4. 从数据映射中移除
+        if canvas in self._canvas_data_map:
+            del self._canvas_data_map[canvas]
+        
+        # 5. 彻底销毁画布Dock
         self.removeDockWidget(canvas_dock)
         canvas_dock.deleteLater()
         
-        # 5. 更新活动画布
+        # 6. 更新活动画布
         if self._canvas_docks:
             # 还有其他画布，激活下一个
             last_dock = self._canvas_docks[-1]
@@ -208,16 +315,49 @@ class CanvasHost(QMainWindow):
         
         # 更新活动画布
         self._active_canvas = canvas
+        # 发出画布更改信号，这会触发主窗口同步数据
         self.canvas_changed.emit(canvas)
+        
+        # 将主窗口的数据同步到新创建的画布
+        if self._parent_window:
+            self.update_canvas_data_from_main_window(canvas)
         
         return canvas
     
     def _on_canvas_visibility_changed(self, visible, canvas):
         """画布可见性变化 - 触发焦点信号"""
         if visible and canvas:
-            self._active_canvas = canvas
-            self.canvas_focused.emit(canvas)
+            # 只有当画布变为可见且不是当前活动画布时，才更新活动画布
+            if self._active_canvas != canvas:
+                self._active_canvas = canvas
+                self.canvas_changed.emit(canvas)  # 使用canvas_changed而不是canvas_focused，保持一致性
+
+    def _on_canvas_location_changed(self, area, canvas):
+        """画布停靠位置变化 - 当用户拖动标签或切换标签时触发"""
+        # 当画布位置改变时，通常意味着用户进行了交互，将其设为活动画布
+        if canvas:
+            if self._active_canvas != canvas:
+                self._active_canvas = canvas
+                self.canvas_changed.emit(canvas)
     
+    def _on_focus_changed(self, old, new):
+        """焦点变化事件 - 检测用户是否切换到不同的画布"""
+        # 检查新焦点是否在某个画布或其子部件中
+        current_widget = new
+        focused_canvas = None
+        
+        while current_widget:
+            # 检查是否是NodeCanvas或其子类
+            if hasattr(current_widget, '__class__') and 'NodeCanvas' in [cls.__name__ for cls in current_widget.__class__.__mro__]:
+                focused_canvas = current_widget
+                break
+            current_widget = current_widget.parent()
+        
+        # 如果焦点在某个画布上，且该画布不是当前活动画布，则更新活动画布
+        if focused_canvas and focused_canvas != self._active_canvas:
+            self._active_canvas = focused_canvas
+            self.canvas_changed.emit(focused_canvas)
+
     def get_active_canvas(self):
         """获取当前活动画布"""
         return self._active_canvas

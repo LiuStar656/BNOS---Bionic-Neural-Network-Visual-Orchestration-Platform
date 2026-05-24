@@ -253,8 +253,15 @@ class BNOSMainWindow(QMainWindow):
         # 更新当前画布引用
         self.canvas = new_canvas
         
+        # 从CanvasHost同步当前画布的数据到主窗口
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            self._canvas_host.sync_canvas_data_to_main_window(new_canvas)
+        
         # 如果画布有项目路径，同步数据
-        if self.current_project_path and os.path.exists(self.current_project_path):
+        # 但只在项目路径存在且至少有一个节点数据时才刷新面板
+        if (self.current_project_path and 
+            os.path.exists(self.current_project_path) and 
+            len(self.nodes_data) > 0):
             # 刷新节点列表
             self.refresh_nodes()
             
@@ -262,6 +269,12 @@ class BNOSMainWindow(QMainWindow):
             self._refresh_panels()
             
             logger.info("面板数据已同步到新画布")
+        elif self.current_project_path and os.path.exists(self.current_project_path):
+            # 如果项目路径存在但节点数据为空，可能是刚创建画布还没加载完数据
+            # 这种情况下也尝试刷新（例如在打开项目时）
+            self.refresh_nodes()
+            self._refresh_panels()
+            logger.info("面板数据已同步到新画布（可能为空数据集）")
     
     def _on_canvas_focused(self, canvas):
         """画布获得焦点事件 - 同步面板数据"""
@@ -270,8 +283,19 @@ class BNOSMainWindow(QMainWindow):
         # 更新当前画布引用
         self.canvas = canvas
         
+        # 从CanvasHost同步当前画布的数据到主窗口
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            self._canvas_host.sync_canvas_data_to_main_window(canvas)
+        
         # 刷新所有面板以适配当前画布
-        self._refresh_panels()
+        # 仅在项目路径存在且数据不为空时刷新
+        if (self.current_project_path and 
+            os.path.exists(self.current_project_path) and 
+            len(self.nodes_data) > 0):
+            self._refresh_panels()
+        elif self.current_project_path and os.path.exists(self.current_project_path):
+            # 如果项目路径存在但数据为空，也刷新（可能为新项目）
+            self._refresh_panels()
         
         # 刷新资源监测器
         if hasattr(self, 'resource_monitor') and self.resource_monitor:
@@ -767,6 +791,10 @@ class BNOSMainWindow(QMainWindow):
                 logger.info("用户取消了关闭操作")
                 event.ignore()  # 忽略关闭事件，保持窗口打开
                 return
+        
+        # 同步当前主窗口数据到活动画布（用于保存）
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            self._canvas_host.update_canvas_data_from_main_window(self.canvas)
         
         # 保存所有画布布局（通过CanvasHost）
         if self.current_project_path and hasattr(self, '_canvas_host'):

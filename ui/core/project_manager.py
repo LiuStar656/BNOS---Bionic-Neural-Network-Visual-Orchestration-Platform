@@ -42,16 +42,17 @@ def project_new(main_window):
     nodes_dir = os.path.join(project_dir, "nodes")
     os.makedirs(nodes_dir, exist_ok=True)
 
-    # 4. 创建新画布Dock，使用项目名作为标签名（通过CanvasHost）
-    if hasattr(main_window, '_canvas_host'):
-        main_window._canvas_host.add_canvas_dock(proj_name.strip())
-    
-    # 5. 更新项目状态
+    # 更新项目状态
     main_window.current_project_path = project_dir
     main_window.nodes_data.clear()
     main_window.connections.clear()
     _canvas_call(main_window, 'clear_canvas')
     project_refresh(main_window)
+    
+    # 4. 创建新画布Dock，使用项目名作为标签名（通过CanvasHost）
+    if hasattr(main_window, '_canvas_host'):
+        main_window._canvas_host.add_canvas_dock(proj_name.strip())
+    
     main_window.show_toast(f"已创建项目: {proj_name.strip()}", "success")
 
 
@@ -78,16 +79,20 @@ def project_open(main_window):
     # 创建新画布Dock，使用项目名作为标签名，并传递项目路径（通过CanvasHost）
     project_name = os.path.basename(project_dir)
     canvas = None
-    if hasattr(main_window, '_canvas_host'):
-        canvas = main_window._canvas_host.add_canvas_dock(project_name, project_dir)
-    
-    # 更新当前项目路径
+    # 先加载项目数据，避免画布切换时显示空数据
     main_window.current_project_path = project_dir
     main_window.nodes_data.clear()
     main_window.connections.clear()
     
-    # 加载项目
+    # 加载项目（这会填充nodes_data）
     project_refresh(main_window)
+    
+    if hasattr(main_window, '_canvas_host'):
+        canvas = main_window._canvas_host.add_canvas_dock(project_name, project_dir)
+    else:
+        # 如果没有CanvasHost，按原来的方式处理
+        canvas = main_window._canvas_host.add_canvas_dock(project_name, project_dir)
+    
     _canvas_call(main_window, 'load_layout', project_dir)
     main_window.show_toast(f"已打开项目: {project_name}", "success")
 
