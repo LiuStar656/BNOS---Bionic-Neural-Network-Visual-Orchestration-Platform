@@ -375,6 +375,36 @@ class CanvasHost(QMainWindow):
         """获取画布数量"""
         return len(self._canvas_docks)
     
+    def is_project_open(self, project_path):
+        """检查项目是否已经打开"""
+        if not project_path:
+            return False
+        
+        # 标准化路径以确保比较准确
+        normalized_path = os.path.normpath(os.path.abspath(project_path))
+        
+        for canvas in self.get_all_canvases():
+            # 检查画布数据中的项目路径
+            canvas_data = self.get_canvas_data(canvas)
+            canvas_project_path = canvas_data.get('project_path')
+            
+            if canvas_project_path:
+                normalized_canvas_path = os.path.normpath(os.path.abspath(canvas_project_path))
+                if normalized_path == normalized_canvas_path:
+                    return True
+        
+        return False
+    
+    def get_open_projects(self):
+        """获取所有已打开的项目路径"""
+        projects = []
+        for canvas in self.get_all_canvases():
+            canvas_data = self.get_canvas_data(canvas)
+            project_path = canvas_data.get('project_path')
+            if project_path and project_path not in projects:
+                projects.append(project_path)
+        return projects
+    
     def sync_project_data(self, project_path, nodes_data):
         """同步项目数据到所有画布"""
         for canvas in self.get_all_canvases():

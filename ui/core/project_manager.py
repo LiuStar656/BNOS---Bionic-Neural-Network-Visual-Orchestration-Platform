@@ -38,6 +38,13 @@ def project_new(main_window):
     if os.path.exists(project_dir):
         themed_message(main_window, t("k_title_warning"), f"文件夹已存在: {project_dir}", "warning")
         return
+    
+    # 检查项目是否已经打开（通过CanvasHost）
+    if hasattr(main_window, '_canvas_host') and main_window._canvas_host:
+        if main_window._canvas_host.is_project_open(project_dir):
+            themed_message(main_window, t("k_title_info"), f"项目 '{proj_name.strip()}' 已经打开，无需重复创建。", "info")
+            return
+    
     os.makedirs(project_dir)
     nodes_dir = os.path.join(project_dir, "nodes")
     os.makedirs(nodes_dir, exist_ok=True)
@@ -61,6 +68,13 @@ def project_open(main_window):
     project_dir = pick_folder(main_window, t("k_project_open_dir"))
     if not project_dir:
         return
+
+    # 检查项目是否已经打开
+    if hasattr(main_window, '_canvas_host') and main_window._canvas_host:
+        if main_window._canvas_host.is_project_open(project_dir):
+            project_name = os.path.basename(project_dir)
+            themed_message(main_window, t("k_title_info"), f"项目 '{project_name}' 已经打开，无需重复打开。", "info")
+            return
 
     # 验证是否为有效项目（有 nodes/ 目录或 canvas_layout.json）
     nodes_dir = os.path.join(project_dir, "nodes")
