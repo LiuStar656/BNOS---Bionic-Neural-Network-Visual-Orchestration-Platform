@@ -69,6 +69,27 @@ class EdgeItem(QGraphicsPathItem):
             Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton
         )
         self.arrow_item = None
+        
+        # 锚点引用（双向绑定核心）
+        self.start_anchor = None
+        self.end_anchor = None
+        
+        # 建立双向绑定
+        self._setup_anchor_binding()
+    
+    def _setup_anchor_binding(self):
+        """建立与锚点的双向绑定"""
+        # 获取锚点引用
+        if hasattr(self.start_node, 'output_anchor'):
+            self.start_anchor = self.start_node.output_anchor
+        if hasattr(self.end_node, 'input_anchor'):
+            self.end_anchor = self.end_node.input_anchor
+        
+        # 双向绑定：将连线注册到锚点
+        if self.start_anchor:
+            self.start_anchor.add_edge(self)
+        if self.end_anchor:
+            self.end_anchor.add_edge(self)
 
     # ═══════════════════════════════════════════
     #  样式
@@ -101,8 +122,24 @@ class EdgeItem(QGraphicsPathItem):
     # ═══════════════════════════════════════════
 
     def _endpoints(self):
-        start = self.start_node.output_anchor.sceneBoundingRect().center()
-        end = self.end_node.input_anchor.sceneBoundingRect().center()
+        """获取连线端点的场景坐标 - 使用 mapToScene 确保坐标正确跟随节点移动"""
+        # 安全检查：确保锚点存在且已添加到场景
+        if not self.start_anchor or not self.start_anchor.scene():
+            # 回退到节点中心点
+            return self.start_node.sceneBoundingRect().center(), self.end_node.sceneBoundingRect().center()
+        
+        if not self.end_anchor or not self.end_anchor.scene():
+            # 回退到节点中心点
+            return self.start_node.sceneBoundingRect().center(), self.end_node.sceneBoundingRect().center()
+        
+        # 获取锚点在父节点中的中心点（相对于节点的坐标）
+        start_anchor_center = self.start_anchor.boundingRect().center()
+        end_anchor_center = self.end_anchor.boundingRect().center()
+        
+        # 使用 mapToScene 转换到场景坐标（确保实时跟随节点移动）
+        start = self.start_anchor.mapToScene(start_anchor_center)
+        end = self.end_anchor.mapToScene(end_anchor_center)
+        
         return start, end
 
     # ── 相对坐标系统：折叠点以投影比例存储，随节点移动 ──
@@ -142,14 +179,28 @@ class EdgeItem(QGraphicsPathItem):
     def _all_points(self):
         """完整点序列（相对参数解码为绝对坐标）"""
         src, dst = self._endpoints()
+        
+        # 如果还没有转换为相对坐标，且锚点已就绪，立即转换
+        if self._waypoints and not isinstance(self._waypoints[0], tuple):
+            # 检查锚点是否已添加到场景
+            if self.start_anchor and self.start_anchor.scene() and self.end_anchor and self.end_anchor.scene():
+                self._sync_abs_to_rel()
+        
+        # 如果是相对坐标格式，使用相对坐标解码（跟随节点移动）
         if self._waypoints and isinstance(self._waypoints[0], tuple):
             pts = [src]
             for rel in self._waypoints:
                 pts.append(self._decode_rel(src, dst, rel))
             pts.append(dst)
             return pts
-        # 兼容旧格式（绝对坐标）
-        return [src] + [QPointF(p) if not isinstance(p, QPointF) else p for p in self._waypoints] + [dst]
+        
+        # 旧格式（绝对坐标）：保留原始绝对坐标
+        # 注意：在锚点就绪后第一次节点移动时会转换为相对坐标
+        if self._waypoints:
+            return [src] + [QPointF(p) if not isinstance(p, QPointF) else p for p in self._waypoints] + [dst]
+        
+        # 没有折叠点的情况
+        return [src, dst]
 
     def update_path(self):
         if not self.start_node or not self.end_node:
@@ -482,22 +533,55 @@ class EdgeItem(QGraphicsPathItem):
                 return {"waypoints": [(p.x(), p.y()) for p in self._waypoints]}
         return {}
 
-    def from_dict(self, data: dict):
-        """从字典恢复（兼容旧绝对坐标和新相对坐标）"""
+    def from_dict(self, data: dict, defer_sync=False):
+        """从字典恢复（兼容旧绝对坐标和新相对坐标）
+        
+        Args:
+            data: 连线数据字典
+            defer_sync: 是否延迟同步相对坐标（用于布局加载时避免锚点坐标未就绪）
+        """
         if data and "waypoints" in data:
             raw = data["waypoints"]
             if raw and isinstance(raw[0], list) and len(raw[0]) == 3:
                 # 新格式：(t, ox, oy)
                 self._waypoints = [(float(r[0]), float(r[1]), float(r[2])) for r in raw]
             else:
-                # 旧格式：绝对坐标 → 下次 update_path 自动转换
+                # 旧格式：绝对坐标 → 延迟转换，等待锚点坐标就绪
                 self._waypoints = [QPointF(x, y) for x, y in raw]
-                self._sync_abs_to_rel()
+                if not defer_sync:
+                    self._sync_abs_to_rel()
+                else:
+                    # 标记需要延迟同步
+                    self._needs_sync = True
         else:
             self._waypoints = []
 
     def remove_from_scene(self):
+        """从场景移除连线，并解除与锚点的双向绑定"""
+        # 停止定时器
         self._long_press_timer.stop()
+        
+        # 解除与锚点的双向绑定（关键：防止内存泄漏和引用残留）
+        if self.start_anchor:
+            self.start_anchor.remove_edge(self)
+        if self.end_anchor:
+            self.end_anchor.remove_edge(self)
+        
+        # 移除箭头
+        if self.arrow_item:
+            scene = self.arrow_item.scene()
+            if scene:
+                scene.removeItem(self.arrow_item)
+            self.arrow_item = None
+        
+        # 从场景移除
         scene = self.scene()
         if scene:
             scene.removeItem(self)
+        
+        # 断开所有引用
+        self.start_node = None
+        self.end_node = None
+        self.start_anchor = None
+        self.end_anchor = None
+        self.canvas = None

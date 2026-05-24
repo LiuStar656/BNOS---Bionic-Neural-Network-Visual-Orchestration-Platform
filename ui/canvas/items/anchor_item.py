@@ -1,6 +1,8 @@
 """
 锚点项（输入/输出端口）
 继承自 QGraphicsEllipseItem，负责节点端口的视觉渲染和悬停交互
+
+【双向绑定】锚点维护连接到自身的连线列表，确保删除连线时正确清理引用
 """
 from PyQt6.QtWidgets import QGraphicsEllipseItem
 from PyQt6.QtCore import Qt
@@ -14,6 +16,9 @@ class AnchorItem(QGraphicsEllipseItem):
         super().__init__(x, y, 16, 16, parent)  # 增大到16x16
         self.anchor_type = anchor_type  # "input" 或 "output"
         
+        # 连接到本锚点的连线列表（双向绑定）
+        self.edges = []
+        
         # 设置颜色（从父节点获取画布配置）
         self.update_anchor_color()
         
@@ -21,6 +26,20 @@ class AnchorItem(QGraphicsEllipseItem):
         
         # 悬停效果
         self.setAcceptHoverEvents(True)
+    
+    def add_edge(self, edge):
+        """添加连线到锚点"""
+        if edge not in self.edges:
+            self.edges.append(edge)
+    
+    def remove_edge(self, edge):
+        """从锚点移除连线"""
+        if edge in self.edges:
+            self.edges.remove(edge)
+    
+    def clear_edges(self):
+        """清空所有连线"""
+        self.edges.clear()
     
     def update_anchor_color(self):
         """更新锚点颜色（从画布配置读取）"""

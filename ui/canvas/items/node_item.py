@@ -186,10 +186,27 @@ class NodeItem(QGraphicsRectItem):
         
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             if self.canvas:
-                # 1. 更新连线的路径
-                for edge in self.canvas.edges:
-                    if edge.start_node == self or edge.end_node == self:
-                        edge.update_path()
+                # 1. 更新所有连接到本节点锚点的连线（使用锚点的连线列表，确保引用正确）
+                all_edges = set()
+                
+                # 收集输出锚点的连线
+                if hasattr(self, 'output_anchor'):
+                    for edge in self.output_anchor.edges[:]:
+                        if edge and edge.end_node:
+                            all_edges.add(edge)
+                
+                # 收集输入锚点的连线
+                if hasattr(self, 'input_anchor'):
+                    for edge in self.input_anchor.edges[:]:
+                        if edge and edge.start_node:
+                            all_edges.add(edge)
+                
+                # 更新所有相关连线
+                for edge in all_edges:
+                    # 如果还在使用绝对坐标，立即转换为相对坐标
+                    if edge._waypoints and not isinstance(edge._waypoints[0], tuple):
+                        edge._sync_abs_to_rel()
+                    edge.update_path()
                 
                 # 2. 自动保存布局（防抖500ms）
                 if hasattr(self.canvas, '_save_timer'):

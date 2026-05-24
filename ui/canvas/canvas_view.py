@@ -265,7 +265,9 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         # 如果正在连线中，更新临时连线的终点跟随鼠标
         if self.is_connecting and self.temp_edge and self.connect_source:
             scene_pos = self.mapToScene(event.position().toPoint())
-            start_pos = self.connect_source.output_anchor.sceneBoundingRect().center()
+            # 使用 mapToScene 获取锚点场景坐标（确保正确跟随节点）
+            anchor_center = self.connect_source.output_anchor.boundingRect().center()
+            start_pos = self.connect_source.output_anchor.mapToScene(anchor_center)
 
             # 简单直线临时连线
             path = QPainterPath(start_pos)

@@ -138,6 +138,7 @@ class CanvasLayoutMixin:
                     # 节点已存在，更新位置和样式
                     node = self.nodes[node_name]
                     node.setPos(pos_data["x"], pos_data["y"])
+                    node.canvas = self  # 关键：设置画布引用，确保节点移动时更新连线
                     # 恢复节点样式
                     sk = pos_data.get("style", "rect")
                     from ui.canvas.items.node_style import STYLES
@@ -201,6 +202,7 @@ class CanvasLayoutMixin:
                     # 添加到画布和节点字典
                     self.scene.addItem(node)
                     self.nodes[node_name] = node
+                    node.canvas = self  # 关键：设置画布引用，确保节点移动时更新连线
                     logger.info(f"从布局文件添加节点: {node_name} (位置: {pos_data['x']}, {pos_data['y']})")
 
             # ---- 自动添加缺失节点 ----
@@ -220,6 +222,7 @@ class CanvasLayoutMixin:
                     node.setPos(x, y)
                     self.scene.addItem(node)
                     self.nodes[node_name] = node
+                    node.canvas = self  # 关键：设置画布引用，确保节点移动时更新连线
                     nodes_added += 1
                     logger.info("自动恢复节点: %s (位置: %d, %d)", node_name, x, y)
 
@@ -235,13 +238,20 @@ class CanvasLayoutMixin:
                 sn, tn = ed.get("source"), ed.get("target")
                 if (sn, tn) in existing: continue
                 if sn in self.nodes and tn in self.nodes:
-                    edge = EdgeItem(self.nodes[sn], self.nodes[tn])
-                    # 恢复折叠点
+                    source_node = self.nodes[sn]
+                    target_node = self.nodes[tn]
+                    edge = EdgeItem(source_node, target_node, self)
+                    # 恢复折叠点（使用延迟同步模式，不立即调用 _sync_abs_to_rel）
                     if hasattr(edge, 'from_dict'):
-                        edge.from_dict(ed)
+                        # 使用 defer_sync=True 延迟同步，确保锚点坐标就绪后再转换
+                        edge.from_dict(ed, defer_sync=True)
                     self.scene.addItem(edge)
                     self.edges.append(edge)
+                    # 初始更新 - 此时使用绝对坐标，_all_points 会自动转换为相对坐标
                     edge.update_path()
+            
+            # ---- 双向绑定校验 ----
+            self._validate_edge_anchor_binding()
 
             # ---- config.json 兜底校验 ----
             if self.parent_window and self.parent_window.nodes_data:
@@ -313,7 +323,40 @@ class CanvasLayoutMixin:
                     self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() + int(dx))
                     self.verticalScrollBar().setValue(self.verticalScrollBar().value() + int(dy))
 
+            # ---- 强制刷新所有连线路径 ----
+            # 确保加载完成后所有连线端点坐标正确
+            for edge in self.edges:
+                edge.update_path()
+            
             logger.info(t("k_log_view_restored"))
 
         except (json.JSONDecodeError, IOError) as e:
             logger.info("布局文件损坏: %s", e)
+    
+    def _validate_edge_anchor_binding(self):
+        """校验并修复连线与锚点的双向绑定关系"""
+        fixed_count = 0
+        
+        for edge in self.edges:
+            # 检查锚点引用是否正确
+            if not edge.start_anchor or not edge.end_anchor:
+                # 重新建立锚点引用
+                if hasattr(edge.start_node, 'output_anchor'):
+                    edge.start_anchor = edge.start_node.output_anchor
+                if hasattr(edge.end_node, 'input_anchor'):
+                    edge.end_anchor = edge.end_node.input_anchor
+            
+            # 检查连线是否已注册到锚点
+            needs_fix = False
+            if edge.start_anchor and edge not in edge.start_anchor.edges:
+                edge.start_anchor.add_edge(edge)
+                needs_fix = True
+            if edge.end_anchor and edge not in edge.end_anchor.edges:
+                edge.end_anchor.add_edge(edge)
+                needs_fix = True
+            
+            if needs_fix:
+                fixed_count += 1
+        
+        if fixed_count > 0:
+            logger.info("[绑定校验] 修复了 %d 条连线的锚点绑定", fixed_count)

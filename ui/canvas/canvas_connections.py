@@ -38,7 +38,9 @@ class CanvasConnectionsMixin:
 
         cursor_pos = self.mapFromGlobal(self.cursor().pos())
         scene_pos = self.mapToScene(cursor_pos)
-        start = source_node.output_anchor.sceneBoundingRect().center()
+        # 使用 mapToScene 获取锚点场景坐标（确保正确跟随节点）
+        anchor_center = source_node.output_anchor.boundingRect().center()
+        start = source_node.output_anchor.mapToScene(anchor_center)
 
         path = QPainterPath()
         path.moveTo(start)
@@ -151,3 +153,10 @@ class CanvasConnectionsMixin:
         for edge in self.edges[:]:
             self.remove_edge(edge)
         self.edges.clear()
+        
+        # 清空所有节点锚点上的连线引用（确保彻底清理）
+        for node in self.nodes.values():
+            if hasattr(node, 'input_anchor'):
+                node.input_anchor.clear_edges()
+            if hasattr(node, 'output_anchor'):
+                node.output_anchor.clear_edges()
