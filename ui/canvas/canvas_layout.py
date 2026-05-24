@@ -139,6 +139,12 @@ class CanvasLayoutMixin:
                     node = self.nodes[node_name]
                     node.setPos(pos_data["x"], pos_data["y"])
                     node.canvas = self  # 关键：设置画布引用，确保节点移动时更新连线
+                    # 修复：确保子控件正确挂载和事件绑定
+                    node.on_expand_requested = self.on_node_expand_requested  # 确保展开按钮事件绑定
+                    for child in node.childItems():
+                        child.setParentItem(node)
+                        child.setEnabled(True)
+                        child.setVisible(True)
                     # 恢复节点样式
                     sk = pos_data.get("style", "rect")
                     from ui.canvas.items.node_style import STYLES
@@ -203,6 +209,12 @@ class CanvasLayoutMixin:
                     self.scene.addItem(node)
                     self.nodes[node_name] = node
                     node.canvas = self  # 关键：设置画布引用，确保节点移动时更新连线
+                    # 修复：确保子控件正确挂载和事件绑定
+                    node.on_expand_requested = self.on_node_expand_requested  # 确保展开按钮事件绑定
+                    for child in node.childItems():
+                        child.setParentItem(node)
+                        child.setEnabled(True)
+                        child.setVisible(True)
                     logger.info(f"从布局文件添加节点: {node_name} (位置: {pos_data['x']}, {pos_data['y']})")
 
             # ---- 自动添加缺失节点 ----
@@ -223,6 +235,12 @@ class CanvasLayoutMixin:
                     self.scene.addItem(node)
                     self.nodes[node_name] = node
                     node.canvas = self  # 关键：设置画布引用，确保节点移动时更新连线
+                    # 修复：确保子控件正确挂载和事件绑定
+                    node.on_expand_requested = self.on_node_expand_requested  # 确保展开按钮事件绑定
+                    for child in node.childItems():
+                        child.setParentItem(node)
+                        child.setEnabled(True)
+                        child.setVisible(True)
                     nodes_added += 1
                     logger.info("自动恢复节点: %s (位置: %d, %d)", node_name, x, y)
 
