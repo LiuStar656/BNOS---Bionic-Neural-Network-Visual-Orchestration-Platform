@@ -92,6 +92,9 @@ class CanvasHost(QMainWindow):
         # 设置样式
         self._setup_styles()
         
+        # 设置Dock选项以支持标签页堆叠（将在创建第一个画布时启用）
+        # 初始时保持默认设置，因为空白缓冲层作为中央控件
+        
         # 监听焦点变化，以便检测用户切换画布
         from PyQt6.QtWidgets import QApplication
         app = QApplication.instance()
@@ -128,7 +131,10 @@ class CanvasHost(QMainWindow):
             
             # 启用Dock停靠功能（PS布局要求）
             self.setTabPosition(Qt.DockWidgetArea.AllDockWidgetAreas, QTabWidget.TabPosition.North)
-            self.setDockOptions(QMainWindow.DockOption.AllowTabbedDocks)
+            self.setDockOptions(
+                QMainWindow.DockOption.AllowTabbedDocks |
+                QMainWindow.DockOption.AllowNestedDocks
+            )
             
             logger.info("CanvasHost: 空白缓冲层已移除，启用Dock停靠")
     
@@ -177,8 +183,14 @@ class CanvasHost(QMainWindow):
         canvas_dock.setAllowedAreas(Qt.DockWidgetArea.TopDockWidgetArea)
         
         # 6. 将画布Dock添加到CanvasHost的顶部区域
-        # Qt会自动将同一区域的多个Dock合并为标签页，标签显示在顶部
-        self.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea, canvas_dock)
+        # 如果已有画布Dock，则与之形成标签页；否则直接添加
+        if self._canvas_docks:
+            # 与第一个画布Dock形成标签页
+            first_dock = self._canvas_docks[0]
+            self.tabifyDockWidget(first_dock, canvas_dock)
+        else:
+            # 首个画布Dock直接添加
+            self.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea, canvas_dock)
         
         # 7. 添加到画布Dock列表
         self._canvas_docks.append(canvas_dock)
