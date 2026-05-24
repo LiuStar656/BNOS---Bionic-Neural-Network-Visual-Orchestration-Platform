@@ -37,14 +37,6 @@ class MenuManager:
         file_menu.addAction(a)
         actions["new_project"] = a
 
-        a = QAction(f"{get_icon('layout-sidebar-left')} {t('k_new_canvas_tab')}", main_window)
-        a.setFont(icon_font)
-        a.setShortcut(_shortcut(main_window, "new_canvas_tab"))
-        a.setStatusTip(t("k_new_canvas_tab_desc"))
-        a.triggered.connect(main_window.new_canvas_tab)
-        file_menu.addAction(a)
-        actions["new_canvas_tab"] = a
-
         a = QAction(f"{get_icon('folder-open')} {t('k_project_open')}", main_window)
         a.setFont(icon_font)
         a.setShortcut(_shortcut(main_window, "open_project"))

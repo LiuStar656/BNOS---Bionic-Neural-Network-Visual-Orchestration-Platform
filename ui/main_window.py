@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QToolBar, QFileDialog, QMessageBox, QListWidget,
     QListWidgetItem, QTreeWidget, QTreeWidgetItem, QTextEdit,
     QFormLayout, QLineEdit, QPushButton, QLabel, QGroupBox,
-    QComboBox, QTabWidget, QDialog, QDialogButtonBox, QHeaderView,
+    QComboBox, QDialog, QDialogButtonBox, QHeaderView,
     QTableWidget, QTableWidgetItem, QMenu, QGraphicsView, QGraphicsScene,
     QInputDialog, QGraphicsOpacityEffect, QApplication
 )
@@ -41,8 +41,6 @@ from ui.core.theme import DARK_QSS
 from ui.core.ipc import IPCServer, A_ADD_NODE, A_REMOVE_NODE, A_UPDATE_STATUS
 from ui.core.ipc import A_CREATE_EDGE, A_REMOVE_EDGE, A_SYNC_DATA, A_CLEAR_ALL, A_WIN_SYNC
 from ui.core.process_manager import ProcessManager
-from ui.core.canvas_tab_manager import CanvasTabManager
-from ui.core.tab_context import TabContextManager
 
 
 class BNOSMainWindow(QMainWindow):
@@ -120,43 +118,12 @@ class BNOSMainWindow(QMainWindow):
         self._title_bar.close_clicked.connect(self.close)
         main_layout.addWidget(self._title_bar)
         
-        # ========== 多画布上下文管理器 ==========
-        self._context_manager = TabContextManager()
+        # ========== 画布 ==========
+        self.canvas = NodeCanvas(self)
+        self.canvas.parent_window = self
         
-        # ========== 画布标签管理器 ==========
-        self._tab_manager = CanvasTabManager(self)
-        
-        # 恢复标签页状态（如果有保存的状态）
-        tab_state = self.app_config.get("tab_state", [])
-        self._has_restored_tabs = tab_state and isinstance(tab_state, list) and len(tab_state) > 0
-        
-        if self._has_restored_tabs:
-            self._tab_manager.restore_tab_state(tab_state)
-            # 同步上下文管理器（带项目路径）
-            for i in range(self._tab_manager.count()):
-                tab_context = self._tab_manager._tab_contexts.get(i, {})
-                project_path = tab_context.get('project_path')
-                self._context_manager.add_context(i, project_path)
-            # 设置当前画布引用
-            self.canvas = self._tab_manager.get_current_canvas()
-            # 更新当前项目路径（从当前标签页上下文获取）
-            current_index = self._tab_manager.currentIndex()
-            context = self._tab_manager._tab_contexts.get(current_index, {})
-            self.current_project_path = context.get('project_path', '')
-            # 节点刷新将在 auto_open_last_project() 中处理（如果 _has_restored_tabs 为 True，会跳过自动打开但刷新节点）
-        else:
-            # 创建第一个画布标签页（先不连接信号）
-            self._tab_manager.add_new_tab()
-            self._context_manager.add_context(0)
-            # 设置当前画布引用
-            self.canvas = self._tab_manager.get_current_canvas()
-        
-        # 现在连接信号
-        self._tab_manager.tab_changed.connect(self._on_tab_changed)
-        self._tab_manager.tab_closed.connect(self._on_tab_closed)
-        
-        # 设置中央部件为画布标签管理器
-        self.setCentralWidget(self._tab_manager)
+        # 设置中央部件为画布
+        self.setCentralWidget(self.canvas)
         
         # ========== 停靠管理器 ==========
         from ui.core.dock_manager import DockManager
@@ -257,77 +224,15 @@ class BNOSMainWindow(QMainWindow):
         
         toast.close = custom_close
     
-    def new_canvas_tab(self, name=None, project_path=None):
-        """创建新的画布标签页"""
-        index, canvas = self._tab_manager.add_new_tab(name=name, project_path=project_path)
-        self._context_manager.add_context(index, project_path)
-        return canvas
-        
-    def _on_tab_changed(self, index, project_path):
-        """标签切换事件处理"""
-        logger.info(f"=== 标签页切换 ===")
-        logger.info(f"索引: {index}, 项目路径: {project_path}")
-        
-        # 更新上下文
-        self._context_manager.set_current_index(index)
-        
-        # 获取当前上下文
-        context = self._context_manager.get_current_context()
-        
-        # 更新当前画布引用
-        canvas = self._tab_manager.get_current_canvas()
-        if canvas:
-            canvas.parent_window = self
-            self.canvas = canvas
-        
-        # 更新当前项目路径
-        self.current_project_path = project_path
-        logger.info(f"当前项目路径已设置: {self.current_project_path}")
-        
-        # 如果有项目路径，从项目目录加载数据
-        if project_path and os.path.exists(project_path):
-            logger.info(f"项目路径存在，开始加载数据")
-            
-            # 清空当前节点数据
-            self.nodes_data.clear()
-            self.connections.clear()
-            
-            # 刷新节点列表（从项目目录扫描）
-            self.refresh_nodes()
-            logger.info(f"节点列表已刷新，共 {len(self.nodes_data)} 个节点")
-            
-            # 更新上下文管理器中的节点数据
-            if context:
-                context.nodes_data = self.nodes_data.copy()
-                logger.info(f"上下文节点数据已更新")
-            
-            # 加载画布布局
-            self.canvas.load_layout(project_path)
-            logger.info(f"画布布局已加载")
-        else:
-            logger.warning(f"项目路径为空或不存在: {project_path}")
-        
-        # 刷新所有面板
-        self._refresh_panels()
-        logger.info(f"所有面板已刷新")
-    
-    def _on_tab_closed(self, index):
-        """标签关闭事件处理"""
-        self._context_manager.remove_context(index)
-    
     def _refresh_panels(self):
         """刷新所有面板以适配当前画布"""
         # 刷新节点列表
-        if hasattr(self, 'node_list_panel') and self.node_list_panel:
-            context = self._context_manager.get_current_context()
-            if context:
-                self.node_list_panel.update_node_list(context.nodes_data)
+        if hasattr(self, 'node_list_panel') and self.node_list_panel and hasattr(self, 'nodes_data'):
+            self.node_list_panel.update_node_list(self.nodes_data)
         
         # 刷新浮动版节点列表
-        if hasattr(self, 'node_list_floating') and self.node_list_floating:
-            context = self._context_manager.get_current_context()
-            if context:
-                self.node_list_floating.update_node_list(context.nodes_data)
+        if hasattr(self, 'node_list_floating') and self.node_list_floating and hasattr(self, 'nodes_data'):
+            self.node_list_floating.update_node_list(self.nodes_data)
         
         # 刷新资源监测器
         if hasattr(self, 'resource_monitor') and self.resource_monitor:
@@ -808,10 +713,6 @@ class BNOSMainWindow(QMainWindow):
         if self.current_project_path and self.canvas:
             self.canvas.save_layout(self.current_project_path)
         
-        # 保存标签页状态
-        tab_state = self._tab_manager.save_tab_state()
-        self.app_config.set("tab_state", tab_state)
-        
         # 保存应用配置
         self.save_window_state()
         self.app_config.set("last_project", self.current_project_path)
@@ -880,32 +781,12 @@ class BNOSMainWindow(QMainWindow):
     
     def auto_open_last_project(self):
         """自动打开最后的项目"""
-        # 如果已经从标签页状态恢复了项目
-        if getattr(self, '_has_restored_tabs', False):
-            logger.info("标签页状态已恢复，刷新当前项目节点列表")
-            if self.current_project_path:
-                self.refresh_nodes()
-            # 恢复面板状态
-            QTimer.singleShot(100, self._restore_panel_state)
-            return
-        
         last_project = self.app_config.get("last_project")
         if last_project and os.path.exists(last_project):
             nodes_dir = os.path.join(last_project, "nodes")
             if os.path.exists(nodes_dir):
-                # 如果没有恢复标签页状态，才需要设置项目路径和加载布局
                 self.current_project_path = last_project
                 logger.info("自动打开项目: %s", last_project)
-                
-                # 更新当前标签页名称为项目名
-                current_index = self._tab_manager.currentIndex()
-                project_name = os.path.basename(last_project)
-                self._tab_manager.setTabText(current_index, project_name)
-                
-                # 更新标签页上下文
-                if current_index in self._tab_manager._tab_contexts:
-                    self._tab_manager._tab_contexts[current_index]['project_path'] = last_project
-                    self._tab_manager._tab_contexts[current_index]['name'] = project_name
                 
                 self.refresh_nodes()
                 # 画布进程模式下先启动子进程再加载布局
