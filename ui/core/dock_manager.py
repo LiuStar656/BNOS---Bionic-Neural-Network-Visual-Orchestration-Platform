@@ -95,13 +95,14 @@ class DockManager(QObject):
             self._docks[edge] = []
         self._docks[edge].append(dock)
         
-        # 添加到主窗口的停靠区域
+        # PS式布局：面板仅允许停靠在左右两侧
         if edge == 'left':
             self._main_window.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock)
         elif edge == 'right':
             self._main_window.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
-        elif edge == 'bottom':
-            self._main_window.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
+        else:
+            # 默认停靠到右侧（PS布局不允许底部停靠）
+            self._main_window.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         
         dock.show()
         return dock

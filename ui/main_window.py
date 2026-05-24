@@ -41,6 +41,7 @@ from ui.core.theme import DARK_QSS
 from ui.core.ipc import IPCServer, A_ADD_NODE, A_REMOVE_NODE, A_UPDATE_STATUS
 from ui.core.ipc import A_CREATE_EDGE, A_REMOVE_EDGE, A_SYNC_DATA, A_CLEAR_ALL, A_WIN_SYNC
 from ui.core.process_manager import ProcessManager
+from ui.core.canvas_host import CanvasHost
 
 
 class BNOSMainWindow(QMainWindow):
@@ -48,6 +49,9 @@ class BNOSMainWindow(QMainWindow):
     
     _RESIZE_MARGIN = 6
     CANVAS_PROCESS_MODE = False  # 【调试中】画布进程隔离+窗口对齐同步
+    
+    # PS式布局配置
+    ALLOWED_PANEL_AREAS = Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
     
     def __init__(self):
         super().__init__()
@@ -71,6 +75,10 @@ class BNOSMainWindow(QMainWindow):
         # 无边框 + 自定义标题栏
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         
+        # 限制主窗口大小
+        self.setMinimumSize(1024, 768)  # 最小尺寸：1024x768
+        self.setMaximumSize(1920, 1080)  # 最大尺寸：1920x1080
+        
         # 初始化UI
         self.init_ui()
         
@@ -92,19 +100,12 @@ class BNOSMainWindow(QMainWindow):
         self.auto_open_last_project()
         
     def init_ui(self):
-        """初始化主界面布局"""
-        central_widget = QWidget()
-        central_widget.setObjectName("centralWidget")
-        self.setCentralWidget(central_widget)
-        
-        main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-        
+        """初始化主界面布局 - PS式固定中心画布架构"""
         # 创建菜单栏（嵌入标题栏）
         self._inline_menubar = _QMenuBar(self)
         self._inline_menubar.setObjectName("titleBarMenu")
         MenuManager.init_menu(self, self._inline_menubar)
+        
         # 全局 Ctrl+D 删除动作
         self._action_delete = QAction(self)
         self._action_delete.setShortcut("Ctrl+D")
@@ -116,22 +117,31 @@ class BNOSMainWindow(QMainWindow):
         self._title_bar.minimize_clicked.connect(self.showMinimized)
         self._title_bar.maximize_clicked.connect(self._toggle_maximize)
         self._title_bar.close_clicked.connect(self.close)
-        main_layout.addWidget(self._title_bar)
         
-        # ========== 画布 ==========
-        self.canvas = NodeCanvas(self)
-        self.canvas.parent_window = self
+        # ========== 画布宿主（CanvasHost）==========
+        # PS式布局核心：CanvasHost作为固定的中央控件，与左右面板Dock平级
+        # CanvasHost本身固定不动，只有内部的画布Dock可以自由操作
+        self._canvas_host = CanvasHost(self)
         
-        # 设置中央部件为画布
-        self.setCentralWidget(self.canvas)
+        # 设置CanvasHost作为主窗口的中央控件（永久固定，不可拖动）
+        self.setCentralWidget(self._canvas_host)
         
-        # ========== 停靠管理器 ==========
+        # 获取活动画布引用（保持向后兼容）
+        self.canvas = self._canvas_host.get_active_canvas()
+        
+        # ========== 停靠管理器（主窗口面板专用）==========
+        # 面板只能停靠在左右两侧，不能进入中心CanvasHost区域
         from ui.core.dock_manager import DockManager
         self._dock_manager = DockManager(self)
         # 连接Dock面板关闭信号
         self._dock_manager.panel_closed.connect(self._on_dock_panel_closed)
         
-        # 添加标题栏到主窗口顶部
+        # ========== CanvasHost信号连接 ==========
+        # 画布切换时同步面板数据
+        self._canvas_host.canvas_changed.connect(self._on_canvas_changed)
+        self._canvas_host.canvas_focused.connect(self._on_canvas_focused)
+        
+        # 设置标题栏（通过setMenuWidget放在窗口顶部，不占用centralWidget空间）
         self.setMenuWidget(self._title_bar)
         
         # ========== IPC 进程间通信（主进程 = Server） ==========
@@ -233,6 +243,33 @@ class BNOSMainWindow(QMainWindow):
         # 刷新浮动版节点列表
         if hasattr(self, 'node_list_floating') and self.node_list_floating and hasattr(self, 'nodes_data'):
             self.node_list_floating.update_node_list(self.nodes_data)
+    
+    def _on_canvas_changed(self, new_canvas):
+        """画布切换事件 - 同步面板数据"""
+        logger.info(f"=== 画布切换 ===")
+        
+        # 更新当前画布引用
+        self.canvas = new_canvas
+        
+        # 如果画布有项目路径，同步数据
+        if self.current_project_path and os.path.exists(self.current_project_path):
+            # 刷新节点列表
+            self.refresh_nodes()
+            
+            # 刷新所有面板
+            self._refresh_panels()
+            
+            logger.info("面板数据已同步到新画布")
+    
+    def _on_canvas_focused(self, canvas):
+        """画布获得焦点事件 - 同步面板数据"""
+        logger.info(f"=== 画布获得焦点 ===")
+        
+        # 更新当前画布引用
+        self.canvas = canvas
+        
+        # 刷新所有面板以适配当前画布
+        self._refresh_panels()
         
         # 刷新资源监测器
         if hasattr(self, 'resource_monitor') and self.resource_monitor:
@@ -709,9 +746,9 @@ class BNOSMainWindow(QMainWindow):
                 event.ignore()  # 忽略关闭事件，保持窗口打开
                 return
         
-        # 保存当前项目布局
-        if self.current_project_path and self.canvas:
-            self.canvas.save_layout(self.current_project_path)
+        # 保存所有画布布局（通过CanvasHost）
+        if self.current_project_path and hasattr(self, '_canvas_host'):
+            self._canvas_host.save_all_layouts(self.current_project_path)
         
         # 保存应用配置
         self.save_window_state()
@@ -789,13 +826,14 @@ class BNOSMainWindow(QMainWindow):
                 logger.info("自动打开项目: %s", last_project)
                 
                 self.refresh_nodes()
-                # 画布进程模式下先启动子进程再加载布局
-                if self._canvas_mode:
-                    QTimer.singleShot(500, lambda: self._start_canvas_and_load(last_project))
+                # 通过CanvasHost加载布局
+                if hasattr(self, '_canvas_host'):
+                    self._canvas_host.load_layout_for_active(last_project)
                 elif self.canvas:
                     self.canvas.load_layout(last_project)
-                    if self.current_project_path:
-                        self.refresh_nodes()
+                
+                if self.current_project_path:
+                    self.refresh_nodes()
             
             # 在项目加载完成后恢复面板状态（延迟100ms确保所有初始化完成）
             QTimer.singleShot(100, self._restore_panel_state)

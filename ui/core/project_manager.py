@@ -42,8 +42,9 @@ def project_new(main_window):
     nodes_dir = os.path.join(project_dir, "nodes")
     os.makedirs(nodes_dir, exist_ok=True)
 
-    # 4. 创建新标签页，使用项目名作为标签名
-    main_window._add_new_canvas_tab(proj_name.strip())
+    # 4. 创建新画布Dock，使用项目名作为标签名（通过CanvasHost）
+    if hasattr(main_window, '_canvas_host'):
+        main_window._canvas_host.add_canvas_dock(proj_name.strip())
     
     # 5. 更新项目状态
     main_window.current_project_path = project_dir
@@ -74,9 +75,11 @@ def project_open(main_window):
     if not has_nodes:
         os.makedirs(nodes_dir, exist_ok=True)
 
-    # 创建新标签页，使用项目名作为标签名，并传递项目路径
+    # 创建新画布Dock，使用项目名作为标签名，并传递项目路径（通过CanvasHost）
     project_name = os.path.basename(project_dir)
-    canvas = main_window.new_canvas_tab(project_name, project_dir)
+    canvas = None
+    if hasattr(main_window, '_canvas_host'):
+        canvas = main_window._canvas_host.add_canvas_dock(project_name, project_dir)
     
     # 更新当前项目路径
     main_window.current_project_path = project_dir
