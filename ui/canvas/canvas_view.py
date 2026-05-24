@@ -721,6 +721,14 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         if self.parent_window:
             self.parent_window.stop_selected_node_by_name(node_name)
     
+    def stop_all_nodes(self):
+        """停止画布上所有节点进程"""
+        if self.parent_window and hasattr(self.parent_window, 'nodes_data'):
+            running_nodes = [name for name, info in self.parent_window.nodes_data.items() 
+                            if info.get('status') in ('running', 'idle')]
+            if running_nodes and hasattr(self.parent_window, '_force_stop_all_nodes'):
+                self.parent_window._force_stop_all_nodes(running_nodes)
+
     def open_node_config(self, node_name):
         """打开节点配置对话框"""
         if self.parent_window and node_name in self.parent_window.nodes_data:

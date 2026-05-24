@@ -179,6 +179,7 @@
   "k_status_idle": "Idle",
   "k_status_stopped": "Stopped",
   "k_canvas": "Canvas",
+  "k_canvas_empty_hint": "Get Started\n\nCreate or open a project to begin working",
   "k_new_canvas_tab": "New Canvas Tab",
   "k_new_canvas_tab_desc": "Open a new canvas tab",
   "k_explorer": "Explorer",

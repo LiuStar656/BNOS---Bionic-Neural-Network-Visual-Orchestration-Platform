@@ -140,6 +140,8 @@ class BNOSMainWindow(QMainWindow):
         # 画布切换时同步面板数据
         self._canvas_host.canvas_changed.connect(self._on_canvas_changed)
         self._canvas_host.canvas_focused.connect(self._on_canvas_focused)
+        # 所有画布关闭时重置项目状态
+        self._canvas_host.all_canvases_closed.connect(self._on_all_canvases_closed)
         
         # 设置标题栏（通过setMenuWidget放在窗口顶部，不占用centralWidget空间）
         self.setMenuWidget(self._title_bar)
@@ -278,7 +280,27 @@ class BNOSMainWindow(QMainWindow):
                 self.resource_monitor.update_stats()
             elif hasattr(self.resource_monitor, '_update_stats'):
                 self.resource_monitor._update_stats()
-    
+
+    def _on_all_canvases_closed(self):
+        """所有画布关闭事件 - 重置项目状态，恢复空白初始状态"""
+        logger.info("=== 所有画布已关闭 ===")
+        
+        # 重置当前画布引用
+        self.canvas = None
+        
+        # 重置项目路径
+        self.current_project_path = None
+        
+        # 清空节点数据
+        self.nodes_data.clear()
+        self.connections.clear()
+        
+        # 更新节点列表面板（清空列表）
+        if self.node_list_panel:
+            self.node_list_panel.update_node_list({})
+        
+        logger.info("项目状态已重置，回归空白初始状态")
+
     def toggle_node_list_panel(self, checked):
         """切换节点列表面板（Dock版）- 停靠到左侧"""
         if checked:
@@ -817,26 +839,14 @@ class BNOSMainWindow(QMainWindow):
         restore_state(self)
     
     def auto_open_last_project(self):
-        """自动打开最后的项目"""
-        last_project = self.app_config.get("last_project")
-        if last_project and os.path.exists(last_project):
-            nodes_dir = os.path.join(last_project, "nodes")
-            if os.path.exists(nodes_dir):
-                self.current_project_path = last_project
-                logger.info("自动打开项目: %s", last_project)
-                
-                self.refresh_nodes()
-                # 通过CanvasHost加载布局
-                if hasattr(self, '_canvas_host'):
-                    self._canvas_host.load_layout_for_active(last_project)
-                elif self.canvas:
-                    self.canvas.load_layout(last_project)
-                
-                if self.current_project_path:
-                    self.refresh_nodes()
-            
-            # 在项目加载完成后恢复面板状态（延迟100ms确保所有初始化完成）
-            QTimer.singleShot(100, self._restore_panel_state)
+        """PS风格启动逻辑：启动空白，用户手动打开项目
+        
+        不再自动打开上次项目，保持中心区域空白，用户需手动通过菜单新建/打开项目
+        这与Photoshop的初始化逻辑一致。
+        """
+        # 直接恢复面板状态（不自动打开任何项目）
+        QTimer.singleShot(100, self._restore_panel_state)
+        logger.info("PS模式启动：中心区域保持空白，等待用户手动打开项目")
     
     def _toggle_maximize(self):
         if self.isMaximized():

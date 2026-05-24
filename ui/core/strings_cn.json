@@ -179,6 +179,7 @@
   "k_status_idle": "空闲",
   "k_status_stopped": "已停止",
   "k_canvas": "画布",
+  "k_canvas_empty_hint": "开始使用\n\n新建或打开一个项目以开始工作",
   "k_new_canvas_tab": "新建画布标签",
   "k_new_canvas_tab_desc": "打开新的画布标签页",
   "k_explorer": "资源管理器",
