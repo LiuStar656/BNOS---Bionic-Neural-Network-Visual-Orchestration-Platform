@@ -122,7 +122,7 @@ def pick_folder(parent, title, start=""):
     def load_tree(root_path):
         root_path = os.path.normpath(root_path)
         sel_path[0] = root_path
-        current.setText(f"📂 当前: {root_path}")
+        current.setText(t("_k_folder_current").replace("{path}", root_path))
         tree.clear()
         if os.path.isdir(root_path):
             _load_children(tree.invisibleRootItem(), root_path)

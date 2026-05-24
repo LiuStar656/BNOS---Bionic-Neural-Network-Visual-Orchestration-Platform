@@ -2,6 +2,7 @@
 日志查看工具 — 统一日志对话框，消除 node_list_panel 中 view_node_log 和 batch_view_node_logs 的重复代码
 """
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton
+from ui.core.i18n import t
 
 
 def show_log_dialog(parent, title, content, width=800, height=600):
@@ -25,7 +26,7 @@ def show_log_dialog(parent, title, content, width=800, height=600):
     text_edit.setText(content)
     layout.addWidget(text_edit)
 
-    close_button = QPushButton("关闭")
+    close_button = QPushButton(t("_k_button_close"))
     close_button.clicked.connect(dialog.close)
     layout.addWidget(close_button)
 

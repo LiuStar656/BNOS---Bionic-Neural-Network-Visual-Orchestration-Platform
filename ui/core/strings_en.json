@@ -489,6 +489,11 @@
   "_k_settings_sc_empty": "(none)",
   "_k_settings_sc_capture": "Capture Shortcut",
   "_k_settings_sc_capture_info": "Press new key combination\nAction: {action}",
-  "_k_settings_sc_default_label": "Default"
+  "_k_settings_sc_default_label": "Default",
+  "_k_batch_start_selected": "Start Selected Nodes ({count})",
+  "_k_batch_stop_selected": "Stop Selected Nodes ({count})",
+  "_k_batch_remove_selected": "Remove Selected Nodes ({count})",
+  "_k_folder_current": "📂 Current: {path}",
+  "_k_button_close": "Close"
 
 }

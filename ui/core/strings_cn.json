@@ -494,5 +494,10 @@
   "_k_settings_sc_empty": "（无）",
   "_k_settings_sc_capture": "捕获快捷键",
   "_k_settings_sc_capture_info": "请按下新的快捷键组合\n操作: {action}",
-  "_k_settings_sc_default_label": "默认"
+  "_k_settings_sc_default_label": "默认",
+  "_k_batch_start_selected": "启动已选节点 ({count})",
+  "_k_batch_stop_selected": "停止已选节点 ({count})",
+  "_k_batch_remove_selected": "移除已选节点 ({count})",
+  "_k_folder_current": "📂 当前: {path}",
+  "_k_button_close": "关闭"
 }
