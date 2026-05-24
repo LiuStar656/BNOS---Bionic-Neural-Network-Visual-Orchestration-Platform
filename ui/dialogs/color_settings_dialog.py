@@ -81,6 +81,13 @@ class ColorSettingsDialog(QDialog):
         scroll.setWidget(content_widget)
         layout.addWidget(scroll)
         
+        # 检查canvas是否存在
+        if not self.canvas:
+            error_label = QLabel("错误：无法访问画布，请重新打开此对话框")
+            error_label.setStyleSheet("color: red; font-weight: bold;")
+            content_layout.addWidget(error_label)
+            return
+        
         # ===== 画布背景色设置 =====
         canvas_group = QGroupBox(t("k_color_canvas_bg"))
         canvas_layout = QFormLayout(canvas_group)
