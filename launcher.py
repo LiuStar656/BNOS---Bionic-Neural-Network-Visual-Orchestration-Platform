@@ -49,9 +49,9 @@ def find_venv_python():
         base = os.getcwd()
     # Windows 优先 pythonw（无控制台窗口）
     candidates = [
-        os.path.join(base, "myenv_new", "Scripts", "pythonw.exe"),
-        os.path.join(base, "myenv_new", "Scripts", "python.exe"),
-        os.path.join(base, "myenv_new", "bin", "python3"),
+        os.path.join(base, "venv", "Scripts", "pythonw.exe"),
+        os.path.join(base, "venv", "Scripts", "python.exe"),
+        os.path.join(base, "venv", "bin", "python3"),
     ]
     for p in candidates:
         if os.path.exists(p):
@@ -136,8 +136,8 @@ def main():
     venv_python = find_venv_python()
     if not os.path.exists(venv_python):
         log("[!] Virtual environment not found")
-        log("[!] Please run: python -m venv myenv_new")
-        log("[!] Then: myenv_new\\Scripts\\pip install -r requirements.txt")
+        log("[!] Please run: python -m venv venv")
+        log("[!] Then: venv\\Scripts\\pip install -r requirements.txt")
         progress(0, "Virtual environment missing")
         root.update()
         time.sleep(3)
@@ -234,7 +234,7 @@ def _fallback_launch():
     main_script = os.path.join(base, "bnos_console.py")
     if not os.path.exists(venv_python):
         print("[!] Virtual environment not found. Please create it first:")
-        print("    python -m venv myenv_new")
+        print("    python -m venv venv")
         sys.exit(1)
     print("[*] Launching BNOS Console...")
     sys.exit(subprocess.call([venv_python, main_script], cwd=base))
