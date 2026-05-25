@@ -6,6 +6,7 @@ BNOS Toast 通知系统 - 右上角自动消失的通知弹窗
 """
 from PyQt6.QtWidgets import QLabel, QApplication, QGraphicsOpacityEffect
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QColor, QPalette
 
 # Toast全局配置（使用rgba格式以支持透明度）
 _toast_config = {
@@ -55,24 +56,43 @@ class ToastNotification(QLabel):
         }
         bg_color = color_map.get(toast_type, config['info_color'])
         
-        # 设置基础样式（使用配置的颜色和透明度）
-        base_style = f"""
+        # 使用QPalette设置背景色（更可靠的方式）
+        palette = self.palette()
+        
+        # 支持多种颜色格式：rgba 和 十六进制
+        if bg_color.startswith('rgba('):
+            # rgba格式
+            color_parts = bg_color.replace('rgba(', '').replace(')', '').split(',')
+            r, g, b, a = map(int, color_parts)
+        elif bg_color.startswith('#'):
+            # 十六进制格式
+            qcolor = QColor(bg_color)
+            r, g, b, a = qcolor.red(), qcolor.green(), qcolor.blue(), 255
+        else:
+            # 默认颜色
+            r, g, b, a = 50, 50, 50, 230
+        
+        # 在PyQt6中，使用Window代替Background
+        palette.setColor(QPalette.ColorRole.Window, QColor(r, g, b, a))
+        self.setPalette(palette)
+        
+        # 设置基础样式
+        self.setStyleSheet(f"""
             QLabel {{
-                background-color: {bg_color};
                 color: {config['text_color']};
                 padding: 12px 20px;
                 border-radius: 8px;
                 font-size: 14px;
                 font-weight: bold;
             }}
-        """
+        """)
         
-        self.setStyleSheet(base_style)
-        
-        # 设置窗口属性（添加 WindowStaysOnTopHint 确保Toast始终在最上层）
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool | Qt.WindowType.WindowDoesNotAcceptFocus | Qt.WindowType.WindowStaysOnTopHint)
-        # 添加WA_TranslucentBackground以支持rgba透明度（关键：没有这个属性，rgba背景色不会显示）
+        # 设置窗口属性：无边框、不接受焦点、始终在最上层
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowDoesNotAcceptFocus | Qt.WindowType.WindowStaysOnTopHint)
+        # 添加WA_TranslucentBackground以支持rgba透明度
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        # 确保背景被绘制
+        self.setAutoFillBackground(True)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # 调整大小以适应文本
@@ -105,44 +125,29 @@ class ToastNotification(QLabel):
         # 先确保大小已调整
         self.adjustSize()
         
-        # 计算位置：对齐CanvasHost内部右上角，避开画布Dock标题栏
+        # 计算位置：主窗口内右上角
         if self.parent():
-            # 获取主窗口
-            parent_window = self.parent()
+            # 获取主窗口的几何信息
+            parent_geo = self.parent().geometry()
             
-            # 查找CanvasHost
-            canvas_host = None
-            if hasattr(parent_window, '_canvas_host'):
-                canvas_host = parent_window._canvas_host
+            # 计算窗口内右上角位置，向内偏移1px
+            x = parent_geo.width() - self.width() - 10
+            y = 100 + (self.stack_index * 65)  # 向下偏移100px避开标题栏
             
-            if canvas_host:
-                # 使用CanvasHost的位置和大小（画布区域）
-                host_geo = canvas_host.geometry()
-                host_pos = canvas_host.mapToGlobal(host_geo.topLeft())
-                
-                # 计算CanvasHost内部右上角位置
-                # 向右偏移10px，向下偏移35px（避开画布Dock标题栏的关闭按钮）
-                x = host_pos.x() + host_geo.width() - self.width() - 10
-                y = host_pos.y() + 35 + (self.stack_index * 60)
-            else:
-                # 回退到主窗口右上角
-                window_pos = parent_window.pos()
-                window_size = parent_window.size()
-                x = window_pos.x() + window_size.width() - self.width() - 10
-                y = window_pos.y() + 35 + (self.stack_index * 60)
-            
-            # 边界检测：确保Toast不会超出屏幕底部
-            screen = QApplication.primaryScreen().geometry()
-            max_y = screen.bottom() - self.height() - 10
+            # 边界检测：确保Toast不会超出窗口底部
+            max_y = parent_geo.height() - self.height() - 20
             if y > max_y:
-                y = max_y  # 限制在屏幕内
+                y = max_y  # 限制在窗口内
+            
+            # 使用相对位置（相对于父窗口）
+            self.move(x, y)
         else:
             # 如果没有父窗口，使用屏幕右上角
             screen = QApplication.primaryScreen().geometry()
-            x = screen.right() - self.width() - 10
-            y = screen.top() + 35 + (self.stack_index * 60)
+            x = screen.right() - self.width() - 20
+            y = screen.top() + 50 + (self.stack_index * 65)
+            self.move(x, y)
         
-        self.move(x, y)
         self.show()
         
         # 启动淡入动画
@@ -190,44 +195,28 @@ class ToastNotification(QLabel):
         # 重新调整大小以确保准确性
         self.adjustSize()
         
-        # 计算位置：对齐CanvasHost内部右上角，避开画布Dock标题栏
+        # 计算位置：主窗口内右上角
         if self.parent():
-            # 获取主窗口
-            parent_window = self.parent()
+            # 获取主窗口的几何信息
+            parent_geo = self.parent().geometry()
             
-            # 查找CanvasHost
-            canvas_host = None
-            if hasattr(parent_window, '_canvas_host'):
-                canvas_host = parent_window._canvas_host
+            # 计算窗口内右上角位置，向内偏移20px
+            x = parent_geo.width() - self.width() - 20
+            y = 50 + (self.stack_index * 65)  # 向下偏移50px避开标题栏
             
-            if canvas_host:
-                # 使用CanvasHost的位置和大小（画布区域）
-                host_geo = canvas_host.geometry()
-                host_pos = canvas_host.mapToGlobal(host_geo.topLeft())
-                
-                # 计算CanvasHost内部右上角位置
-                # 向右偏移10px，向下偏移35px（避开画布Dock标题栏的关闭按钮）
-                x = host_pos.x() + host_geo.width() - self.width() - 10
-                y = host_pos.y() + 35 + (self.stack_index * 60)
-            else:
-                # 回退到主窗口右上角
-                window_pos = parent_window.pos()
-                window_size = parent_window.size()
-                x = window_pos.x() + window_size.width() - self.width() - 10
-                y = window_pos.y() + 35 + (self.stack_index * 60)
-            
-            # 边界检测：确保Toast不会超出屏幕底部
-            screen = QApplication.primaryScreen().geometry()
-            max_y = screen.bottom() - self.height() - 10
+            # 边界检测：确保Toast不会超出窗口底部
+            max_y = parent_geo.height() - self.height() - 20
             if y > max_y:
-                y = max_y  # 限制在屏幕内
+                y = max_y  # 限制在窗口内
+            
+            # 使用相对位置（相对于父窗口）
+            self.move(x, y)
         else:
             # 如果没有父窗口，使用屏幕右上角
             screen = QApplication.primaryScreen().geometry()
-            x = screen.right() - self.width() - 10
-            y = screen.top() + 35 + (self.stack_index * 60)
-        
-        self.move(x, y)
+            x = screen.right() - self.width() - 20
+            y = screen.top() + 50 + (self.stack_index * 65)
+            self.move(x, y)
     
     def start_fade_out(self):
         """开始淡出动画"""
