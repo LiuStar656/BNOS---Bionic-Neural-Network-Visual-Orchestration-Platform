@@ -21,7 +21,7 @@
 
 **纯桌面端仿生神经网络可视化编排平台**
 
-[快速开始](#-快速开始) • [核心功能](#-核心功能) • [使用指南](#-使用指南)
+[快速开始](#-快速开始) • [核心功能](#-核心功能) • [系统架构](#-系统架构) • [使用指南](#-使用指南) • [开发者指南](#-开发者指南)
 
 </div>
 
@@ -46,76 +46,16 @@
 
 **BNOS 解决方案**：通过**神经网络画布**、**自动突触路径配置**、**实时神经信号监控**和**一键启停管理**，彻底解决上述问题。
 
-### 🔍 BNOS 与低代码平台的区别
-
-虽然 BNOS 乍看之下与低代码平台相似，但在理念、架构和应用场景上存在根本性差异：
-
-| 对比维度 | **BNOS 平台** | **传统低代码平台** |
-|---------|--------------|-------------------|
-| **核心理念** | 代码优先，辅以可视化编排 | 可视化优先，代码扩展受限 |
-| **节点实现** | 完整编程语言支持（Python、Rust、Go、Java等），完全集成IDE | 预建组件，自定义能力受限 |
-| **执行模型** | 每个节点作为独立进程运行，环境隔离 | 中心化运行时引擎管理所有组件 |
-| **可扩展性** | 无限制 - 可用任何支持的语言编写任意逻辑 | 仅限于平台提供的插件或脚本 |
-| **性能表现** | 每个节点原生性能（编译型语言如 Rust 可实现 10-100 倍加速） | 受限于平台的解释层 |
-| **依赖管理** | 每节点独立虚拟环境，避免冲突 | 共享依赖可能导致版本冲突 |
-| **调试能力** | 标准调试工具（VSCode、终端、日志）per node | 平台特定调试器，功能有限 |
-| **可移植性** | 节点是独立应用，易于迁移 | 与平台紧密耦合，难以提取 |
-| **学习曲线** | 需要编程知识，但提供完全控制 | 上手简单但很快遇到瓶颈 |
-| **应用场景** | 复杂 AI Agent、分布式系统、科研实验 | 简单工作流、业务自动化、快速原型 |
-| **数据流** | 基于文件的通信（JSON）带注意力机制过滤 | 专有消息协议 |
-| **部署方式** | 每个节点可独立部署 | 必须部署整个平台 |
-
-#### BNOS 的核心优势
-
-✅ **真正的编程能力**：不受可视化抽象限制 - 编写复杂算法、集成任意库、实现自定义协议
-✅ **语言灵活性**：在一个网络中混合使用 Python（机器学习）、Rust（性能关键路径）、Go（并发处理）
-✅ **独立演进**：每个节点独立演进，无需平台升级
-✅ **科研友好**：非常适合实验神经架构、注意力机制、涌现行为
-✅ **生产就绪**：节点是标准应用，可在任何地方运行，不被锁定在平台中
-
-#### 何时选择低代码平台
-
-- 无需编码技能的快速原型开发
-- 简单业务工作流（审批流程、表单处理）
-- 非技术用户需要构建自动化
-- 标准化的 CRUD 操作与预定义连接器
-
-#### 何时选择 BNOS
-
-- 构建复杂的 AI Agent 系统
-- 神经网络和涌现行为研究
-- 性能关键的分布式处理
-- 需要对实现细节的完全控制
-- 长期可维护性和可移植性要求
-
-**总结**：BNOS 是**真实代码的可视化编排层**，而非编程的替代品。它结合了可视化设计的清晰性与传统开发的强大能力，使其成为低代码平台无法满足的复杂神经网络应用的理想选择。
-
----
-
-## 🔗 节点内部机制技术文档
-
-对于希望深入了解 BNOS 节点技术实现的开发者，我们提供了完整的外部文档仓库，涵盖：
-
-- **节点通信机制**：基于文件的 JSON 通信协议和数据流
-- **注意力过滤系统**：节点如何使用注意力规则过滤和处理传入数据
-- **虚拟环境隔离**：每节点独立的环境管理和依赖隔离策略
-- **进程生命周期管理**：节点启动、监控、关闭和错误恢复机制
-- **配置结构详解**：config.json 各字段的详细说明及其作用
-
-📚 **[查看节点技术文档 →](https://github.com/LiuStar656/Bionic-Neural-Network-Operating-System)**
-
-该文档提供了超出本 README 范围的深度技术洞察，帮助开发者理解节点的内部工作原理以及如何创建自定义实现。
-
 ---
 
 ## ✨ 核心功能
 
 ### 🎨 神经网络可视化编排
 
-- **无限大脑皮层**：支持鼠标滚轮缩放（0.1x-5.0x）、右键拖动画布、自由布局神经元
+- **无限画布**：支持鼠标滚轮缩放（0.1x-5.0x）、右键拖动画布、自由布局神经元
 - **拖拽交互**：从节点列表拖拽神经元到画布，自动计算最优位置避免重叠
 - **智能突触连接**：点击输出锚点 → 输入锚点，自动配置上下游监听路径
-- **直线连线系统**：ComfyUI 风格直角直线，每条线段中点带折叠手柄（蓝色圆点），长按拖拽创建折叠点调整路径
+- **直角连线系统**：ComfyUI 风格直角直线，支持折叠点调整路径
 - **多选支持**：按住 Ctrl 键多选神经元，批量操作
 
 ### 🖥️ VSCode 风格深色界面
@@ -126,29 +66,16 @@
 
 ### ⚡ 高性能画布渲染
 
-- **可视区域优化**：只渲染视口内元素，大幅减少无效绘制
+- **视口优化**：只渲染可见区域元素，大幅减少无效绘制
 - **背景缓存**：网格背景缓存，拖拽/缩放时无需重复绘制
 - **智能刷新**：仅重绘变化区域，平移缩放流畅不卡顿
 
 ### 🩺 进程健康检测
 
 - **PID 文件持久化**：启动时写 `.pid`，停止时删除，节点运行状态可追溯
-- **跨会话恢复**：重启 GUI 自动扫描 `.pid` 检测后台运行进程，恢复 ● 运行状态
-- **定期健康检查**：每 3 秒轮询运行中进程，崩溃节点自动标记为 ○ 已停止
-
-### 🖱️ 统一选择系统
-
-- **单选/框选/Ctrl+点击** 全部使用同一选中列表
-- 框选节点支持**群拖移动**，右键菜单智能识别单选/多选
-- 拖拽节点**自动推开**相邻节点，防止重叠
-- 节点展开按钮 `>>` 快速查看输出和配置
-
-### 🎯 节点样式系统
-
-- **方形节点**（默认）：标准矩形样式，带完整锚点、展开按钮、状态指示灯
-- **圆形节点**：紧凑圆形样式，三层 z 轴架构（指示灯>输入锚点>输出锚点），文字下方左对齐
-- **样式持久化**：每个节点的样式自动保存到 `canvas_layout.json`，重启后完整恢复
-- **选中环**：圆形节点选中时显示浮动选中环（z=10），不遮挡节点本体
+- **跨会话恢复**：重启 GUI 自动扫描 `.pid` 检测后台运行进程，恢复运行状态
+- **定期健康检查**：每 3 秒轮询运行中进程，崩溃节点自动标记为已停止
+- **三态状态灯**：灰色（停止）、绿色（空闲）、红色（运行）
 
 ### 📂 项目管理
 
@@ -163,30 +90,19 @@
 - **项目隔离**：每页维护独立的节点数据、布局和颜色设置
 - **标签状态持久化**：标签页名称、项目路径和固定状态在启动时保存/恢复
 - **上下文切换**：在项目间无缝切换而不丢失工作进度
-- **标签页操作**：创建、关闭、固定标签页，快速访问常用项目
 
 ### 🌐 全局状态同步
 
 - **统一状态源**：所有面板订阅 `polling_manager.node_status_changed` 信号
 - **实时更新**：节点状态变化同时传播到所有面板
-- **一致显示**：所有面板（节点列表、资源监控、节点监控）显示相同状态
-- **高效资源利用**：单一健康检查系统替代多个冗余检查
-- **自动同步**：状态更新自动发生，无需手动刷新
+- **一致显示**：所有面板显示相同状态，高效资源利用
 
 ### 🔧 节点全生命周期管理
 
-- **7种语言支持**：Python、Node.js、Go、Java、C++、Rust、Ruby
-- **一键创建**：图形化向导生成标准化节点模板，包含独立虚拟环境和启动脚本
-- **智能重命名**：右键菜单触发，同步更新文件夹、配置文件和画布引用
+- **多语言支持**：Python（已完成）、Rust（已完成）、Node.js、Go、Java、C++、Ruby（开发中）
+- **一键创建**：图形化向导生成标准化节点模板，包含独立虚拟环境
+- **智能重命名**：同步更新文件夹、配置文件和画布引用
 - **独立运行环境**：每个节点拥有独立 venv，避免依赖冲突
-- **🚀 增强型 Rust 节点**：
-  - **自愈架构**：自动检测和修复缺失/损坏的编译产物
-  - **双二进制系统**：分离处理程序（`{node_name}`）和监听器（`{node_name}_listener`）可执行文件
-  - **性能优化**：发布模式构建并启用 LTO，比解释型语言快 10-100 倍
-  - **内存安全**：编译器强制的所有权模型消除数据竞争和内存泄漏
-  - **启动时自动重建**：验证 Rust 工具链和二进制文件，必要时在执行前重新构建
-  - **模块化设计**：清晰的职责分离（main.rs、listener.rs、packet.rs）
-  - **跨平台启动器**：带环境验证的平台特定启动脚本
 
 ### ⚙️ 配置编辑器
 
@@ -204,74 +120,22 @@
 
 ### 📦 动态资源管理器
 
-BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管理资源，支持运行时动态发现、注册、组织和生命周期管理。
-
-**节点注册表**
-- **持久化记录**：`node_registry.json` 记录每个节点的名称、路径、挂载来源和最后活跃时间
-- **扫描优先原则**：重启时优先扫描 `nodes/` 目录，注册表为辅助数据源
-- **缺失检测**：注册过但目录不存在的节点自动标记为 `missing`，保留历史记录
-
-**挂载外部节点**
-- **跨项目复用**：选择外部节点文件夹，通过 `config.json` 识别并挂载到当前项目（不复制文件）
-- **锁定组保护**：自动创建以绝对路径命名的锁定组（🔒），节点无法移出/移入，源文件不被删除
-- **同源自由分组**：相同根目录的挂载节点可在锁定组内自由二次建子组
-- **安全卸载**：右键卸载功能保留源文件，仅解除项目关联
-
-**节点分组管理**
-- **平层组织**：节点组之间平行独立（类似 PS 图层），不支持嵌套
-- **拖拽分组**：节点列表内拖拽即可将节点移入/移出组，支持批量操作
-- **自动清理**：空组自动删除，锁定组除外
-- **颜色区分**：每个组可自定义颜色，便于视觉辨识
-
-### 🎯 智能 UI 特性
-
-- **Toast 通知系统**：非侵入式弹窗通知，支持堆叠显示
-  - ✅ 无数量上限 - 所有通知都可见
-  - ✅ 自动淡入淡出动画（300ms）
-  - ✅ 边界检测防止超出屏幕
-  - ✅ 固定在右上角，跟随窗口移动
-
-- **节点列表面板**：浮动面板固定在左上角
-  - ✅ 始终可见，跟随窗口移动
-  - ✅ 树形结构支持节点分组
-  - ✅ Ctrl/Shift 多选支持
-  - ✅ 上下文感知右键菜单
-
-- **上下文感知菜单**：根据选中状态动态变化
-  - 单个节点：启动、停止、重命名、删除、添加到画布
-  - 多个节点：批量启停、批量移动到分组
-  - 分组：启动组内所有节点、展开/折叠
-  - 空白区域：创建分组、刷新、全选
-
-### 💾 数据持久化
-
-- **防抖保存**：画布变化（移动、连线、缩放）后 500ms 自动保存
-- **完整恢复**：重启后恢复位置、连线、缩放比例、滚动位置
-- **异常容错**：损坏的 JSON 自动备份为 `.bak` 文件
-- **颜色设置**：可自定义节点颜色，按项目持久化
-- **连线校验兜底**：`canvas_layout.json` 加载时自动读取各节点 `config.json` 的 `listen_upper_file` 反推连线关系，与画布数据做差集校验——config 中有但画布缺失的连线自动补充，确保数据一致性
-
-### 🌐 多语言支持
-
-- **中/英文双语言**：全界面 408 条字符串 k-value 管理，`strings_cn.json` / `strings_en.json`
-- **运行时切换**：文件→设置→切换语言，自动重启生效
-- **语言持久化**：选择记忆到 `app_config.json`，下次启动自动加载
+- **节点注册表**：持久化记录每个节点的名称、路径、挂载来源和最后活跃时间
+- **外部节点挂载**：支持跨项目复用，锁定组保护源文件
+- **节点分组管理**：平层组织，拖拽分组，自动清理空组
 
 ### 🎨 PS 风格绘图工具
 
 - **5 种图形**：矩形、圆角矩形、折线（双击闭合）、箭头、文字
-- **Alt 键切换**：默认鼠标操作节点，Alt 切换为图形编辑（选中/拖拽/缩放）
-- **左侧竖式工具栏**：40px 宽，VSCode 配色，撤销/重做独立栈
+- **Alt 键切换**：默认鼠标操作节点，Alt 切换为图形编辑模式
+- **左侧竖式工具栏**：56px 宽，VSCode 配色，撤销/重做独立栈
 - **右键删除**：画布上直接右键图形删除
 
-### 🛠️ 其他新功能
+### 🌐 多语言支持
 
-- **独立启动器**：`launcher.py` 纯 tkinter 实现，零依赖，可打包为独立 EXE。闪屏瞬间弹出 → 后台启动 venv 主程序 → 实时进度同步 → 100% 自动关闭
-- **进程隔离**：可选画布子进程模式，崩溃不影响主窗口（调试阶段）
-- **设置对话框**：语言切换 + 进程隔离开关（Ctrl+,）
-- **统一对话框**：全部弹窗自绘深色主题，`themed_message` 替代 QMessageBox
-- **挂载外部节点**：将外部项目节点挂载到当前项目（不复制文件）
-- **颜色设置**：11 项画布/节点/锚点/连线颜色可调，Apply 预览，Confirm 关闭
+- **中/英文双语言**：全界面 408+ 条字符串 k-value 管理
+- **运行时切换**：文件→设置→切换语言，自动重启生效
+- **语言持久化**：选择记忆到 `app_config.json`
 
 ---
 
@@ -300,69 +164,21 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 └─────────────────────────────────────────────────┘
 ```
 
-### 模块结构
+### 核心模块
 
 | 模块 | 文件 | 说明 |
 |------|------|------|
-| **启动器** | `launcher.py` | 纯 tkinter 启动动画，管理 venv 加载与主程序启动 |
 | **主入口** | `bnos_console.py` | 初始化 QApplication，启动主窗口 |
-| **状态灯** | `node_style.py` + `node_process.py` | 三态指示灯（灰=停止/绿=空闲/红=运行）|
-| **主窗口** | `ui/main_window.py` | 整合 UI 组件，管理 AppConfig、节点数据、Toast、标签页管理 |
-| **画布宿主** | `ui/core/canvas_host.py` | 画布停靠区宿主系统（PS风格布局） |
+| **启动器** | `launcher.py` | 纯 tkinter 启动动画，零依赖 |
+| **主窗口** | `ui/main_window.py` | 整合 UI 组件，管理 AppConfig、节点数据、标签页 |
 | **画布** | `ui/canvas/canvas_view.py` | QGraphicsView 实现节点绘制、拖拽、连线 |
-| **画布布局** | `ui/canvas/canvas_layout.py` | 布局持久化，从布局文件自动添加缺失节点 |
-| **节点样式** | `ui/canvas/items/node_style.py` | 节点样式系统（方形/圆形），三层 z 轴架构 |
-| **节点列表** | `ui/panels/node_list_panel.py` | 节点/分组树形视图，拖拽分组，多选操作 |
-| **节点列表停靠** | `ui/panels/node_list_dock.py` | 可停靠节点列表面板 |
-| **属性面板** | `ui/panels/property_panel.py` | 配置编辑器、日志查看器、进程控制、颜色设置 |
-| **展开面板** | `ui/panels/node_expand_panel.py` | 节点 output.json 查看/编辑，自动刷新 |
-| **监测面板** | `ui/panels/node_monitor.py` | 全局实时日志查看，多节点同步监测 |
-| **监测面板停靠** | `ui/panels/node_monitor_dock.py` | 可停靠节点监测面板 |
-| **资源监控** | `ui/panels/resource_monitor.py` | 所有节点的实时 CPU/RAM/磁盘使用率 |
-| **资源监控停靠** | `ui/panels/resource_monitor_dock.py` | 可停靠资源监控面板 |
-| **分组管理器** | `ui/panels/node_group_manager.py` | 节点分组创建/删除/持久化 |
-| **浮动基类** | `ui/core/floating_panel.py` | 统一所有悬浮窗的窗口类型和交互 |
-| **BNOS停靠** | `ui/core/bnos_dock.py` | 画布自定义停靠部件 |
-| **停靠管理器** | `ui/core/dock_manager.py` | 停靠面板管理系统 |
-| **日志模块** | `ui/core/logger.py` | 全局 logger（控制台+文件双通道） |
-| **进程管理** | `ui/core/node_process.py` | 统一进程启停/PID/健康检测 |
-| **菜单管理** | `ui/menu/menu_manager.py` | 统一管理菜单栏所有功能 |
-| **节点创建器** | `ui/creators/node_creator_manager.py` | 多语言节点创建管理器（Python/Rust） |
-| **生成工具** | `tools/python_create_node.py` | Python 节点模板生成器（venv + 启动脚本） |
-| **画布标签管理器** | `ui/core/canvas_tab_manager.py` | 多标签画布管理，标签状态持久化 |
-| **标签上下文管理器** | `ui/core/tab_context.py` | 每标签上下文管理（节点数据、布局、颜色） |
+| **节点样式** | `ui/canvas/items/node_style.py` | 节点样式系统（方形/圆形） |
+| **节点列表** | `ui/panels/node_list_panel.py` | 节点/分组树形视图，拖拽分组 |
+| **属性面板** | `ui/panels/property_panel.py` | 配置编辑器、日志查看器、进程控制 |
 | **轮询管理器** | `ui/core/polling_manager.py` | 全局节点状态检测和信号分发 |
-| **应用配置** | `ui/core/app_config.py` | 应用配置和持久化 |
 | **项目管理器** | `ui/core/project_manager.py` | 项目操作（新建/打开/刷新） |
-| **外部节点管理器** | `ui/core/external_node_manager.py` | 外部节点挂载系统 |
-| **节点注册表** | `ui/core/node_registry.py` | 持久化节点注册系统 |
-| **进程间通信** | `ui/core/ipc.py` | 进程间通信系统 |
-| **进程管理器** | `ui/core/process_manager.py` | 子进程管理系统 |
-| **窗口状态管理器** | `ui/core/window_state_manager.py` | 窗口状态持久化 |
-| **暗色标题栏** | `ui/core/dark_title_bar.py` | VSCode风格自定义标题栏 |
 | **国际化** | `ui/core/i18n.py` | 语言本地化系统 |
-| **字符串（中文）** | `ui/core/strings_cn.json` | 中文语言字符串（408个键） |
-| **字符串（英文）** | `ui/core/strings_en.json` | 英文语言字符串（408个键） |
-| **主题** | `ui/core/theme.py` | 暗色主题样式 |
-| **Toast通知** | `ui/core/toast/toast_notification.py` | 非侵入式通知系统 |
-| **工具** | `ui/core/utils/dialog_utils.py` | 自定义对话框工具 |
-| **工具** | `ui/core/utils/log_viewer.py` | 日志查看工具 |
-| **工具** | `ui/core/utils/file_utils.py` | 文件操作工具 |
-| **图标** | `ui/icons/` | Codicon图标系统 |
-| **画布绘制** | `ui/canvas/graphic_items.py` | 绘图工具（矩形、箭头、文本） |
-| **画布绘制层** | `ui/canvas/draw_layer.py` | 绘制层管理 |
-| **画布绘制工具栏** | `ui/canvas/draw_toolbar.py` | PS风格绘制工具栏 |
-| **画布混入** | `ui/canvas/canvas_colors.py` | 颜色管理混入 |
-| **画布混入** | `ui/canvas/canvas_layout.py` | 布局持久化混入 |
-| **画布混入** | `ui/canvas/canvas_menus.py` | 上下文菜单混入 |
-| **画布混入** | `ui/canvas/canvas_connections.py` | 连接管理混入 |
-| **画布混入** | `ui/canvas/canvas_box_select.py` | 框选混入 |
-| **画布混入** | `ui/canvas/canvas_batch_ops.py` | 批量操作混入 |
-| **画布项目** | `ui/canvas/items/node_item.py` | 节点容器项目 |
-| **画布项目** | `ui/canvas/items/edge_item.py` | 正交连线项目 |
-| **画布项目** | `ui/canvas/items/anchor_item.py` | 锚点（输入/输出端口）项目 |
-| **画布进程** | `ui/canvas/canvas_process.py` | 画布子进程入口 |
-| **面板进程** | `ui/panels/panel_process.py` | 面板子进程入口 |
+| **日志模块** | `ui/core/logger.py` | 全局 logger（控制台+文件） |
 
 ---
 
@@ -374,6 +190,20 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 - **操作系统**: Windows 10/11（主要支持），Linux/macOS（部分支持）
 - **磁盘空间**: 500MB+（用于虚拟环境）
 
+### 多语言节点支持
+
+| 语言 | 必需工具链 | 备注 |
+|------|-----------|------|
+| **Python** | Python 3.8+ + venv | 内置支持 |
+| **Rust** | Rust toolchain (rustc/cargo) | 自动检测和重建 |
+| **Node.js** | Node.js 16+ | npm 包自动安装 |
+| **Go** | Go 1.18+ | `go mod` 支持 |
+| **Java** | JDK 11+ | Maven/Gradle 可选 |
+| **C++** | MSVC/GCC/Clang | CMake 可选 |
+| **Ruby** | Ruby 2.7+ | Bundler 支持 |
+
+> **注意**：仅 Python 是运行 BNOS Console 本身必需的。其他语言工具链仅在创建对应语言节点时需要。
+
 ### 安装步骤
 
 #### 方式一：从源码运行（推荐开发使用）
@@ -381,16 +211,16 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 ```bash
 # 1. 克隆仓库
 git clone https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform.git
-cd "BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform-main"
+cd "BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform"
 
 # 2. 创建虚拟环境
-python -m venv myenv_new
+python -m venv myenv
 
 # 3. 激活环境
 # Windows:
-myenv_new\Scripts\activate
+myenv\Scripts\activate
 # Linux/macOS:
-source myenv_new/bin/activate
+source myenv/bin/activate
 
 # 4. 安装依赖
 pip install -r requirements.txt
@@ -402,7 +232,7 @@ python bnos_console.py
 #### 方式二：使用启动脚本（Windows）
 
 ```powershell
-# PowerShell（路径含空格时使用 &）
+# PowerShell
 & ".\start_bnos_console.bat"
 
 # 或 CMD
@@ -415,13 +245,13 @@ start_bnos_console.bat
 
 1. **创建项目**
    ```
-   工具栏 → 新建项目 → 选择文件夹
+   菜单 → 文件 → 新建项目 → 选择文件夹
    ```
    系统自动创建 `nodes/` 目录。
 
 2. **创建节点**
    ```
-   工具栏 → 新建节点 → 输入名称 → 选择语言 → 确定
+   菜单 → 编辑 → 新建节点 → 选择语言 → 确定
    ```
    自动生成完整结构：`config.json`、`main.py`、`listener.py`、`start.bat`、`venv/`
 
@@ -450,141 +280,33 @@ start_bnos_console.bat
 
 #### 创建节点
 ```
-工具栏 → 新建节点 → 名称 + 语言 → 确定
+菜单 → 编辑 → 新建节点 → 选择语言 → 确定
 ```
-- 支持语言：Python、Node.js、Go、Java、C++、Rust、Ruby
-- 自动生成：配置文件、模板代码、启动脚本、独立 venv
 
 #### 重命名节点
 ```
-右键 → 重命名 → 新名称 → 确定
+右键节点 → 重命名 → 新名称 → 确定
 ```
-- 同步更新：文件夹名称、config 中的 `node_name`、画布显示
-- 验证规则：名称唯一，仅允许字母、数字、下划线
 
 #### 删除节点
-
-**方式一：仅从画布移除**（推荐用于批量操作）
-```
-右键画布 → 删除选中节点
-```
-- 仅从画布视图中移除节点显示
-- **不删除**源文件和配置
-- 适合临时清理和整理视图
-
-**方式二：彻底删除**
-```
-右键节点列表中的节点 → 删除 → 确认
-```
-- 从磁盘删除整个节点文件夹
-- 清理相关的突触连接和路径配置
-- ⚠️ **不可逆操作** - 请谨慎使用
-
-#### 添加到画布
-```
-右键 → 添加到画布
-```
-- 自动布局：避免与现有节点重叠
-- 第一个节点：位置 (200, 150)
-- 后续节点：从右下角节点偏移 (50, 50)
+- **仅从画布移除**：右键画布节点 → 删除选中节点
+- **彻底删除**：右键节点列表 → 删除 → 确认
 
 ### 画布操作
 
-#### 导航操作
-- **平移画布**：Ctrl + 左键拖拽空白区域（手型光标）
-- **缩放**：Ctrl + 滚轮（0.1x - 5.0x），以鼠标位置为中心
-- **滚动**：单滚轮垂直滚动
-- **选择节点**：左键单击节点
-- **多选节点**：
-  - Ctrl + 单击节点（切换选中状态）
-  - 左键长按空白区域拖拽（框选，显示蓝色矩形）
+- **平移**：Ctrl + 左键拖拽空白区域
+- **缩放**：Ctrl + 滚轮（0.1x - 5.0x）
+- **选择**：左键单击节点
+- **多选**：Ctrl + 单击或框选
 
-#### 节点操作
-- **移动**：拖拽节点主体（非锚点区域）
-- **连线更新**：贝塞尔曲线实时跟随节点移动
-- **自动保存**：拖拽停止后 500ms 自动保存位置
+### 快捷键
 
-#### 突触管理
-- **创建**：OUT 锚点 → IN 锚点
-- **删除**：右键突触 → 删除连接
-- **清空全部**：工具栏 → 清空连接
-
-#### 视图控制
-- **重置**：工具栏 → 重置视图（1.0x 缩放，居中显示）
-- **适应内容**：即将推出
-
-### 节点分组
-
-#### 创建分组
-```
-右键空白区域 → 创建分组 → 输入名称
-```
-
-#### 管理分组
-```
-右键分组 → 展开/折叠
-右键节点 → 移动到分组 → 选择分组
-```
-
-#### 批量操作
-```
-Ctrl + 单击多选节点 → 右键 → 批量启动/停止
-右键分组 → 启动组内所有节点
-```
-
-### 配置编辑
-
-#### 打开配置对话框
-```
-方式1：双击画布上的节点
-方式2：右键 → 编辑配置
-方式3：画布节点右键 → 打开配置
-```
-
-#### 配置字段
-
-| 字段 | 类型 | 说明 | 示例 |
-|------|------|------|------|
-| `node_name` | string | 节点唯一标识符 | `"data_processor"` |
-| `language` | string | 编程语言 | `"Python"` |
-| `listen_upper_file` | string | 上游输出文件路径（自动配置） | `"../node_1/output.json"` |
-| `output_type` | string | 输出数据类型 | `"data_result"` |
-| `filter` | array | 注意力机制过滤规则 | `[{"key": "type", "value": "task"}]` |
-
-#### 过滤规则编辑
-- **添加**：点击"添加规则"按钮
-- **删除**：选中行 → "删除规则"
-- **编辑**：双击单元格直接修改
-- **空数组**：不过滤，处理所有任务
-
-#### 快捷操作
-- **终端**：打开已激活虚拟环境的终端（Windows: CMD, macOS: Terminal, Linux: gnome-terminal/konsole）
-- **资源管理器**：在文件浏览器中打开节点文件夹
-- **VSCode 工作区**：生成 `.code-workspace` 文件并在 VSCode 中打开（已配置 Python 解释器）
-- **启动/停止**：控制节点进程
-- **日志**：实时查看 `listener.log`
-
-### 项目管理
-
-#### 打开项目
-```
-工具栏 → 打开项目 → 选择文件夹
-```
-- 自动识别 `nodes/` 目录
-- 加载所有节点到列表
-- 恢复画布布局（如果存在）
-
-#### 新建项目
-```
-工具栏 → 新建项目 → 选择文件夹
-```
-- 创建空的 `nodes/` 目录
-- 清空画布和节点列表
-
-#### 自动恢复
-- 启动时自动打开上次关闭的项目
-- 恢复窗口状态、分隔条比例
-- 恢复画布拓扑和视图状态
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl+D` | 删除选中节点/图形 |
+| `Ctrl+,` | 打开设置对话框 |
+| `Ctrl+Shift+M` | 打开节点监测面板 |
+| `Ctrl+Shift+O` | 挂载外部节点 |
 
 ---
 
@@ -592,175 +314,35 @@ Ctrl + 单击多选节点 → 右键 → 批量启动/停止
 
 ```
 BNOS/
-├── launcher.py                     # 独立启动器（tkinter，可打包 EXE）
-├── start_bnos_console.vbs          # Windows 零窗口启动脚本
-├── start_bnos_console.bat          # Windows 备用启动脚本
-├── start_bnos_console.sh           # Linux/macOS 启动脚本
+├── launcher.py                     # 独立启动器（tkinter）
 ├── bnos_console.py                 # 主入口
 ├── requirements.txt                # 依赖列表
-├── build_bnos.spec                 # PyInstaller 打包配置
-├── app_config.json                 # 应用级配置（窗口/语言/进程模式）
+├── app_config.json                 # 应用级配置
 ├── README.md / README_CN.md        # 项目文档
 ├── UPDATE_CN.md / UPDATE_EN.md     # 更新日志
-│
 ├── ui/                             # UI 模块
-│   ├── __init__.py
-│   ├── main_window.py              # 主窗口 (BNOSMainWindow)
-│   ├── canvas_widget.py            # 画布兼容入口 (Facade)
-│   │
+│   ├── main_window.py              # 主窗口
 │   ├── core/                       # 核心组件
-│   │   ├── i18n.py                 # 国际化模块 (cn/en 运行时切换)
-│   │   ├── strings_cn.json         # 中文语言包 (408 键)
-│   │   ├── strings_en.json         # 英文语言包 (408 键)
-│   │   ├── app_config.py           # 应用配置管理
-│   │   ├── theme.py                # 深色 QSS 主题
-│   │   ├── logger.py               # 日志模块 (控制台+文件)
-│   │   ├── node_process.py         # 节点进程管理
-│   │   ├── node_creation_worker.py # 异步节点创建
-│   │   ├── node_registry.py        # 节点注册表 (持久化)
-│   │   ├── connection_inferrer.py  # 连线反推校验
-│   │   ├── dark_title_bar.py       # 无边框标题栏
-│   │   ├── floating_panel.py       # 浮动面板基类
-│   │   ├── splash_screen.py        # 启动闪屏 (ASCII+日志+进度条)
-│   │   ├── ipc.py                  # 进程间通信 (QLocalSocket)
-│   │   ├── process_manager.py      # 子进程管理器
-│   │   ├── project_manager.py      # 项目管理 (新建/打开)
-│   │   ├── external_node_manager.py# 挂载外部节点
-│   │   ├── window_state_manager.py # 窗口状态持久化
-│   │   ├── toast/                  # Toast 通知系统
-│   │   └── utils/                  # 工具模块
-│   │       ├── dialog_utils.py     # 统一对话框 (themed_message/pick_folder)
-│   │       ├── file_utils.py       # 文件操作工具
-│   │       └── log_viewer.py       # 日志查看器
-│   │
-│   ├── menu/                       # 菜单系统
-│   │   └── menu_manager.py
-│   │
-│   ├── dialogs/                    # 对话框
-│   │   ├── color_settings_dialog.py# 颜色设置
-│   │   └── settings_dialog.py      # 设置 (语言/进程隔离)
-│   │
+│   │   ├── i18n.py                 # 国际化
+│   │   ├── logger.py               # 日志模块
+│   │   ├── polling_manager.py      # 轮询管理器
+│   │   └── ...
 │   ├── canvas/                     # 画布系统
 │   │   ├── canvas_view.py          # 画布主视图
-│   │   ├── canvas_colors.py        # 颜色管理 Mixin
-│   │   ├── canvas_layout.py        # 布局持久化 Mixin
-│   │   ├── canvas_menus.py         # 右键菜单 Mixin
-│   │   ├── canvas_connections.py   # 连线管理 Mixin
-│   │   ├── canvas_box_select.py    # 框选 Mixin
-│   │   ├── canvas_batch_ops.py     # 批量操作 Mixin
-│   │   ├── canvas_process.py       # 画布子进程入口
-│   │   ├── graphic_items.py        # 绘图图形 (矩形/箭头/文字)
-│   │   ├── draw_layer.py           # 绘图层管理
-│   │   ├── draw_toolbar.py         # PS风格左侧绘图工具栏
 │   │   └── items/                  # 画布图形元素
-│   │       ├── node_item.py        # 节点项
-│   │       ├── node_style.py       # 节点样式 (方形/圆形)
-│   │       ├── edge_item.py        # 连线项 (直角直线+折叠)
-│   │       └── anchor_item.py      # 锚点项 (IN/OUT)
-│   │
 │   ├── panels/                     # 面板组件
-│   │   ├── node_list_panel.py      # 节点列表悬浮面板
-│   │   ├── node_list_context.py    # 右键菜单 Mixin
-│   │   ├── node_list_drag.py       # 拖拽分组 Mixin
-│   │   ├── property_panel.py       # 属性/配置面板
-│   │   ├── node_group_manager.py   # 节点分组管理
-│   │   ├── node_expand_panel.py    # 节点展开面板
-│   │   ├── node_monitor.py         # 节点监测面板
-│   │   └── panel_process.py        # 面板子进程入口
-│   │
-│   ├── creators/                   # 节点创建器
-│   │   └── node_creator_manager.py # 多语言节点创建
-│   │
-│   └── docs/                       # 文档与示例
-│
-├── tests/                          # 测试脚本
+│   │   ├── node_list_panel.py      # 节点列表
+│   │   └── property_panel.py       # 属性面板
+│   └── creators/                   # 节点创建器
 ├── tools/                          # 节点生成工具
-│   ├── python_create_node.py       # Python 节点模板生成器
-│   ├── rust_create_node.py         # Rust 节点模板生成器
-│   └── README.md
-│
-└── nodes/                          # 运行时节点目录（由项目创建）
+│   ├── python_create_node.py       # Python 节点模板
+│   └── rust_create_node.py         # Rust 节点模板
+└── nodes/                          # 运行时节点目录
     └── [node_name]/
         ├── config.json             # 节点配置
         ├── output.json             # 输出数据
-        ├── logs/listener.log       # 监听日志
-        ├── venv/                   # 独立虚拟环境
-        └── ...                     # 源代码文件
+        └── venv/                   # 虚拟环境
 ```
-
-### 架构亮点
-
-- ✅ **模块化画布**：拆分为 Items/Core/Mixin/导出多层架构
-- ✅ **关注点分离**：UI渲染与业务逻辑隔离，Mixin 模式按职责拆分
-- ✅ **节点样式系统**：抽象基类 + 具体实现，方形/圆形两种样式可切换
-- ✅ **向后兼容**：通过 Facade 模式保持旧导入路径可用
-- ✅ **可扩展**：易于添加自定义节点类型和交互
-- ✅ **可维护**：`main_window.py` 935 行，`canvas_view.py` ~1200 行
-
-### 扩展开发
-
-#### 添加新语言支持
-
-编辑 `ui/canvas/canvas_view.py` 中的 `detect_language()` 方法：
-
-```python
-def detect_language(self, node_path):
-    """检测节点编程语言"""
-    if os.path.exists(os.path.join(node_path, "main.py")):
-        return "Python"
-    elif os.path.exists(os.path.join(node_path, "main.js")):
-        return "Node.js"
-    # 添加新语言...
-    elif os.path.exists(os.path.join(node_path, "Main.kt")):
-        return "Kotlin"
-    return "Unknown"
-```
-
-#### 自定义节点样式
-
-在 `ui/canvas/items/node_style.py` 中添加新样式类：
-
-```python
-class MyCustomStyle(NodeStyle):
-    style_key = "custom"
-    def apply(self, node_item):
-        # 自定义节点外观
-        node_item.setRect(0, 0, 160, 90)
-        # ... 更多定制
-```
-
-#### 添加菜单项
-
-在 `ui/menu/menu_manager.py` 的 `init_menu()` 中添加：
-
-```python
-custom_action = QAction("自定义功能", main_window)
-custom_action.triggered.connect(main_window.custom_function)
-edit_menu.addAction(custom_action)
-```
-
-#### 自定义 Toast 通知
-
-```python
-# 显示通知
-self.show_toast("操作成功", "success", duration=3000)
-# 类型："info", "success", "warning", "error"
-# 时长：毫秒（默认 3000）
-```
-
-### 打包发布
-
-#### Windows EXE 打包
-
-```bash
-# 安装 PyInstaller
-pip install pyinstaller
-
-# 打包
-pyinstaller --onefile --windowed --name="BNOS" bnos_console.py
-```
-
-输出：`dist/BNOS.exe`（约 100MB+，包含 PyQt6）
 
 ---
 
@@ -770,27 +352,18 @@ pyinstaller --onefile --windowed --name="BNOS" bnos_console.py
 - **感知节点**：图像识别、语音转文字、传感器数据采集
 - **推理节点**：LLM 调用、逻辑判断、决策生成
 - **执行节点**：API 调用、数据库操作、文件写入
-- **编排方式**：拖拽连线构建完整的 Agent 工作流
 
 ### 📊 数据流水线
 - **ETL 流程**：数据清洗 → 转换 → 加载
 - **实时处理**：日志收集 → 分析 → 告警
-- **批处理任务**：文件扫描 → 处理 → 归档
 
 ### 🌐 微服务组件
 - **API 网关**：请求路由 → 认证 → 转发
-- **后台任务**：定时执行 → 执行 → 结果通知
 - **事件驱动**：消息监听 → 业务处理 → 状态更新
-
-### 🛠️ 自动化工具链
-- **CI/CD**：代码拉取 → 编译 → 测试 → 部署
-- **监控告警**：指标采集 → 阈值判断 → 通知发送
-- **运维脚本**：健康检查 → 日志清理 → 备份归档
 
 ### 🔬 科研实验
 - **神经网络仿真**：节点 → 突触连接 → 信号传递
-- **注意力机制研究**：过滤规则调整 → 任务过滤效果观察
-- **涌现行为探索**：多节点协同实验
+- **注意力机制研究**：过滤规则调整与效果观察
 
 ---
 
@@ -799,45 +372,8 @@ pyinstaller --onefile --windowed --name="BNOS" bnos_console.py
 1. **循环依赖检测**：未实现 A→B→A 循环检测，需用户自行避免
 2. **路径敏感性**：移动项目文件夹可能导致绝对路径失效（需重新连线）
 3. **并发安全**：不支持多实例同时操作同一项目
-4. **性能瓶颈**：节点数 >100 时画布可能卡顿（优化待定）
+4. **性能瓶颈**：节点数 >100 时画布可能卡顿
 5. **跨平台**：Linux/macOS 功能部分测试
-
-### 最佳实践
-
-✅ **命名规范**：使用小写字母和下划线（`data_processor`）
-✅ **定期保存**：虽然启用自动保存，但重要操作后建议手动保存
-✅ **日志监控**：启动节点后及时检查日志确认正常运行
-✅ **备份配置**：定期备份 `nodes/` 目录和 `canvas_layout.json`
-✅ **环境隔离**：不要手动修改节点 `venv/` 目录
-
----
-
-## ❓ 常见问题
-
-### Q: 节点启动失败？
-**A**: 检查以下项：
-- 虚拟环境是否正确创建（检查 `venv/` 目录）
-- 启动脚本是否存在（`start.bat` 或 `start.sh`）
-- 日志文件 `logs/listener.log` 中的错误信息
-- 尝试在配置对话框中点击"打开命令行"手动启动
-
-### Q: 突触连接后下游节点未收到数据？
-**A**: 
-- 确认上游节点已启动并正常运行
-- 检查 `config.json` 中 `listen_upper_file` 路径是否正确
-- 查看下游节点日志确认是否被注意力机制规则过滤
-- 验证上游节点的 `output.json` 是否有内容
-
-### Q: 重启后画布为空？
-**A**: 
-- 确认关闭前节点在画布上（而非仅在节点列表中）
-- 检查项目文件夹中是否存在 `canvas_layout.json`
-- 查看控制台输出是否有加载错误提示
-
-### Q: 如何重置节点处理状态？
-**A**: 
-- 手动编辑 `upper_data.json`，删除 `_processed_<节点名>` 字段
-- 或在配置对话框中停止节点，删除 `output.json`，然后重新启动
 
 ---
 
@@ -859,24 +395,10 @@ MIT License © 2026 阿东与守一工作室
 
 ### 提交 Pull Request
 1. Fork 本仓库
-2. 创建特性分支（`git checkout -b feature/amazing-feature`）
-3. 提交更改（`git commit -m 'Add amazing feature'`）
-4. 推送到分支（`git push origin feature/amazing-feature`）
+2. 创建特性分支
+3. 提交更改
+4. 推送到分支
 5. 开启 Pull Request
-
-### 开发规范
-- 遵循 PEP 8 代码风格
-- 添加必要的注释和文档字符串
-- 为新功能编写测试用例
-- 更新相关文档
-
----
-
-## 🙏 致谢
-
-- **PyQt6 团队**：提供强大的跨平台 GUI 框架
-- **BNOS 神经元系统**：提供核心仿生架构概念
-- **开源社区**：众多优秀项目的启发
 
 ---
 
@@ -885,7 +407,7 @@ MIT License © 2026 阿东与守一工作室
 - **开发团队**：阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **邮箱**：1240543656@qq.com
-- **最后更新**：2026-05-21
+- **最后更新**：2026-05-25
 
 ---
 
@@ -900,14 +422,5 @@ MIT License © 2026 阿东与守一工作室
  ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝
           B N O S   C O N S O L E
 ```
-
-![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
-![Rust](https://img.shields.io/badge/Rust-已支持-orange?style=for-the-badge&logo=rust)
-![PyQt6](https://img.shields.io/badge/PyQt6-最新-green?style=for-the-badge&logo=qt)
-![License](https://img.shields.io/badge/许可证-MIT-red?style=for-the-badge)
-
-**纯桌面端仿生神经网络可视化编排平台**
-
-[快速开始](#-快速开始) • [核心功能](#-核心功能) • [使用指南](#-使用指南)
 
 </div>
