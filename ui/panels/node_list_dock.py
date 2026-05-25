@@ -300,47 +300,91 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
         if node_name not in self.nodes_data:
             return
         
-        # 检查节点是否在画布上
-        on_canvas = False
-        if self.parent_window and hasattr(self.parent_window, 'canvas') and self.parent_window.canvas:
-            on_canvas = node_name in self.parent_window.canvas.nodes
-        
-        # 确认对话框
-        msg = t("_k_delete_node_confirm").format(name=node_name)
-        if on_canvas:
-            msg += "\n" + t("_k_node_on_canvas_warning")
-        
-        result = themed_message(self, t("k_title_warning"), msg, "question")
-        if result != QMessageBox.StandardButton.Yes:
+        # 挂载节点不允许删除（只能卸载）
+        if self.nodes_data[node_name].get('mounted'):
+            if self.parent_window:
+                self.parent_window.show_toast("外部挂载节点请使用「卸载」功能，禁止删除", "warning")
             return
         
-        # 从画布删除
-        if on_canvas:
-            self.parent_window.canvas.remove_node(node_name)
+        reply = themed_message(self, t("k_title_confirm_delete"), t("_k_confirm_delete_node").format(name=node_name),
+            "question")
         
-        # 删除节点文件
+        if not reply:
+            return
+        
         node_path = self.nodes_data[node_name]['path']
-        from ui.core.utils.file_utils import delete_node_folder
-        delete_node_folder(node_path, self.parent_window)
         
-        # 从组中移除
-        self.group_manager.remove_node_from_all_groups(node_name)
-        
-        # 从数据中移除
-        if node_name in self.nodes_data:
+        try:
+            # 停止节点进程（如果在运行）
+            node_info = self.nodes_data[node_name]
+            if node_info['process']:
+                process = node_info['process']
+                try:
+                    if os.name == 'nt':
+                        process.terminate()
+                        try:
+                            process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            import signal
+                            process.send_signal(signal.CTRL_BREAK_EVENT)
+                            try:
+                                process.wait(timeout=3)
+                            except subprocess.TimeoutExpired:
+                                process.kill()
+                                process.wait()
+                    else:
+                        import signal
+                        try:
+                            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                            process.wait(timeout=5)
+                        except (ProcessLookupError, subprocess.TimeoutExpired):
+                            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                            process.wait()
+                except Exception as e:
+                    logger.warning("停止节点时出错: %e")
+                    try:
+                        process.kill()
+                        process.wait()
+                    except:
+                        pass
+            
+            # 删除文件夹
+            import shutil
+            shutil.rmtree(node_path)
+            
+            # 从节点组中移除
+            current_group = self.group_manager.get_node_group(node_name)
+            if current_group:
+                self.group_manager.remove_nodes_from_group(current_group, [node_name])
+            
+            # 从数据中移除
             del self.nodes_data[node_name]
-        
-        # 刷新列表
-        self.update_node_list(self.nodes_data)
-        
-        # 清理空组
-        self._cleanup_empty_groups()
-        
-        # 通知主窗口刷新所有面板（包括浮动面板）
-        if self.parent_window and hasattr(self.parent_window, '_refresh_panels'):
-            self.parent_window._refresh_panels()
-        
-        logger.debug(f"✅ 已删除节点: {node_name}")
+            
+            # 从节点注册表中注销
+            try:
+                if self.parent_window and hasattr(self.parent_window, 'current_project_path') and self.parent_window.current_project_path:
+                    from ui.core.node_registry import NodeRegistry
+                    registry = NodeRegistry(self.parent_window.current_project_path)
+                    registry.load()
+                    registry.unregister_node(node_name)
+                    registry.save()
+            except Exception:
+                pass
+            
+            # 从画布中移除
+            if self.parent_window and hasattr(self.parent_window, 'canvas') and self.parent_window.canvas:
+                self.parent_window.canvas.remove_node_from_canvas(node_name)
+            
+            # 刷新列表
+            self.update_node_list(self.nodes_data)
+            
+            # 通知主窗口刷新所有面板
+            if self.parent_window and hasattr(self.parent_window, '_refresh_panels'):
+                self.parent_window._refresh_panels()
+            
+            themed_message(self, t("k_title_success"), t("_k_node_deleted").format(name=node_name), "info")
+        except Exception as e:
+            themed_message(self, t("k_title_error"), t("_k_node_delete_failed").format(err=str(e)), "error")
     
     def _cleanup_empty_groups(self, refresh=True):
         """清理空的节点组"""
@@ -523,13 +567,13 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
     
     def _start_single_node(self, node_name):
         """启动单个节点（委托给主窗口）"""
-        if self.parent_window and hasattr(self.parent_window, 'start_node'):
-            self.parent_window.start_node(node_name)
-    
+        if self.parent_window and hasattr(self.parent_window, 'start_selected_node_by_name'):
+            self.parent_window.start_selected_node_by_name(node_name)
+
     def _stop_single_node(self, node_name):
         """停止单个节点（委托给主窗口）"""
-        if self.parent_window and hasattr(self.parent_window, 'stop_node'):
-            self.parent_window.stop_node(node_name)
+        if self.parent_window and hasattr(self.parent_window, 'stop_selected_node_by_name'):
+            self.parent_window.stop_selected_node_by_name(node_name)
     
     def batch_add_nodes_to_canvas(self):
         """批量添加选中的节点到画布"""
