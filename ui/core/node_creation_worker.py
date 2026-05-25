@@ -105,6 +105,8 @@ def start_async_node_creation(main_window, node_name, lang_key, display_language
         if success:
             main_window.show_toast(message, "success")
             main_window.refresh_nodes()
+            # 刷新所有节点列表面板（包括浮动面板和Dock面板）
+            main_window._refresh_panels()
         else:
             main_window.show_toast(message, "error")
 

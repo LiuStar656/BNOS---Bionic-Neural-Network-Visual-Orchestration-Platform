@@ -419,6 +419,10 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
             # 刷新列表
             self.update_node_list(self.nodes_data)
             
+            # 通知主窗口刷新所有面板
+            if self.parent_window and hasattr(self.parent_window, '_refresh_panels'):
+                self.parent_window._refresh_panels()
+            
             themed_message(self, t("k_title_success"), t("_k_node_deleted").format(name=node_name), "info")
         except Exception as e:
             themed_message(self, t("k_title_error"), t("_k_node_delete_failed").format(err=str(e)), "error")
@@ -791,6 +795,10 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         
         # 刷新列表
         self.update_node_list(self.nodes_data)
+        
+        # 通知主窗口刷新所有面板
+        if self.parent_window and hasattr(self.parent_window, '_refresh_panels'):
+            self.parent_window._refresh_panels()
         
         # 显示结果
         msg = f"成功删除 {success_count} 个节点"

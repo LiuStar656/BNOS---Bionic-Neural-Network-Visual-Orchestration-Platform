@@ -1,4 +1,5 @@
 {
+  "k_project": "项目",
   "k_project_new": "新建项目",
   "k_project_open": "打开项目",
   "k_project_created": "项目已创建",
@@ -337,6 +338,8 @@
   "_k_confirm_unmount": "确定要卸载外部节点 '{name}' 吗？\n节点文件夹不会被删除。",
   "_k_node_not_found": "⚠️ 节点 '{name}' 未找到！",
   "_k_confirm_delete_node": "确定要删除节点 '{name}' 吗？\n这将删除整个节点文件夹！",
+  "_k_delete_node_confirm": "确定要删除节点 '{name}' 吗？",
+  "_k_node_on_canvas_warning": "该节点当前在画布上，删除后将同时从画布移除。",
   "_k_confirm_batch_delete": "确定要删除选中的 {count} 个节点吗？\n这将删除所有选中节点的文件夹！\n\n节点列表:\n",
   "_k_node_deleted": "节点 {name} 已删除",
   "_k_node_delete_failed": "删除节点失败: {err}",

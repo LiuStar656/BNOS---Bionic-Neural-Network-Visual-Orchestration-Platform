@@ -1,4 +1,5 @@
 {
+  "k_project": "Project",
   "k_project_new": "New Project",
   "k_project_open": "Open Project",
   "k_project_created": "Project Created",
@@ -329,6 +330,8 @@
   "_k_confirm_unmount": "Are you sure you want to unmount external node '{name}'?\nThe node folder will not be deleted.",
   "_k_node_not_found": "⚠️ Node '{name}' not found!",
   "_k_confirm_delete_node": "Are you sure you want to delete node '{name}'?\nThis will delete the entire node folder!",
+  "_k_delete_node_confirm": "Are you sure you want to delete node '{name}'?",
+  "_k_node_on_canvas_warning": "This node is currently on the canvas and will be removed from canvas as well.",
   "_k_confirm_batch_delete": "Are you sure you want to delete {count} selected nodes?\nThis will delete all selected node folders!\n\nNode list:\n",
   "_k_node_deleted": "Node {name} deleted",
   "_k_node_delete_failed": "Failed to delete node: {err}",

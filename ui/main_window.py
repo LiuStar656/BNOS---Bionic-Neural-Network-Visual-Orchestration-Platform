@@ -238,13 +238,17 @@ class BNOSMainWindow(QMainWindow):
     
     def _refresh_panels(self):
         """刷新所有面板以适配当前画布"""
-        # 刷新节点列表
+        # 刷新节点列表（浮动面板）
         if hasattr(self, 'node_list_panel') and self.node_list_panel and hasattr(self, 'nodes_data'):
             self.node_list_panel.update_node_list(self.nodes_data)
         
         # 刷新浮动版节点列表
         if hasattr(self, 'node_list_floating') and self.node_list_floating and hasattr(self, 'nodes_data'):
             self.node_list_floating.update_node_list(self.nodes_data)
+        
+        # 刷新节点列表 Dock 面板
+        if hasattr(self, 'node_list_dock') and self.node_list_dock and hasattr(self, 'nodes_data'):
+            self.node_list_dock.update_node_list(self.nodes_data)
     
     def _on_canvas_changed(self, new_canvas):
         """画布切换事件 - 同步面板数据"""

@@ -326,11 +326,19 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
         # 从组中移除
         self.group_manager.remove_node_from_all_groups(node_name)
         
+        # 从数据中移除
+        if node_name in self.nodes_data:
+            del self.nodes_data[node_name]
+        
         # 刷新列表
         self.update_node_list(self.nodes_data)
         
         # 清理空组
         self._cleanup_empty_groups()
+        
+        # 通知主窗口刷新所有面板（包括浮动面板）
+        if self.parent_window and hasattr(self.parent_window, '_refresh_panels'):
+            self.parent_window._refresh_panels()
         
         logger.debug(f"✅ 已删除节点: {node_name}")
     
