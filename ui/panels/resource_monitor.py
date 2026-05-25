@@ -376,10 +376,14 @@ class ResourceMonitor(FloatingPanel):
             return
 
         canvas = getattr(self.parent_window, 'canvas', None)
-        if not canvas:
+        nodes_data = getattr(self.parent_window, 'nodes_data', {})
+
+        # 如果画布不存在或画布上没有节点，清空节点统计
+        if not canvas or not hasattr(canvas, 'nodes') or not canvas.nodes:
+            self._node_stats.clear()
+            self._refresh_node_table()
             return
 
-        nodes_data = getattr(self.parent_window, 'nodes_data', {})
         current_names = set(self._node_stats.keys())
         canvas_names = set(canvas.nodes.keys())
 

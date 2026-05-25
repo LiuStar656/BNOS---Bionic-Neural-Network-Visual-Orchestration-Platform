@@ -435,7 +435,12 @@ class NodeMonitor(FloatingPanel):
             return
 
         canvas = getattr(self.parent_window, 'canvas', None)
-        if not canvas:
+
+        # 如果画布不存在或画布上没有节点，清空所有子面板
+        if not canvas or not hasattr(canvas, 'nodes') or not canvas.nodes:
+            # 移除所有子面板
+            for name in list(self._sub_panels.keys()):
+                self._remove_sub_panel(name)
             return
 
         canvas_nodes = set(canvas.nodes.keys())
