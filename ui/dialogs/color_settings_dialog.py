@@ -183,6 +183,53 @@ class ColorSettingsDialog(QDialog):
         
         content_layout.addWidget(edge_group)
         
+        # ===== Toast通知设置 =====
+        toast_group = QGroupBox(t("k_color_toast_style"))
+        toast_layout = QFormLayout(toast_group)
+        
+        # Toast信息颜色
+        self.toast_info_btn = QPushButton(t("k_color_select"))
+        self.toast_info_btn.setStyleSheet("background-color: #323232; min-height: 30px;")
+        self.toast_info_btn.clicked.connect(lambda: self.choose_color('toast_info'))
+        toast_layout.addRow(t("k_field_toast_info"), self.toast_info_btn)
+        
+        # Toast成功颜色
+        self.toast_success_btn = QPushButton(t("k_color_select"))
+        self.toast_success_btn.setStyleSheet("background-color: #4caf50; min-height: 30px;")
+        self.toast_success_btn.clicked.connect(lambda: self.choose_color('toast_success'))
+        toast_layout.addRow(t("k_field_toast_success"), self.toast_success_btn)
+        
+        # Toast警告颜色
+        self.toast_warning_btn = QPushButton(t("k_color_select"))
+        self.toast_warning_btn.setStyleSheet("background-color: #ff9800; min-height: 30px;")
+        self.toast_warning_btn.clicked.connect(lambda: self.choose_color('toast_warning'))
+        toast_layout.addRow(t("k_field_toast_warning"), self.toast_warning_btn)
+        
+        # Toast错误颜色
+        self.toast_error_btn = QPushButton(t("k_color_select"))
+        self.toast_error_btn.setStyleSheet("background-color: #f44336; min-height: 30px;")
+        self.toast_error_btn.clicked.connect(lambda: self.choose_color('toast_error'))
+        toast_layout.addRow(t("k_field_toast_error"), self.toast_error_btn)
+        
+        # Toast文字颜色
+        self.toast_text_btn = QPushButton(t("k_color_select"))
+        self.toast_text_btn.setStyleSheet("background-color: #ffffff; min-height: 30px;")
+        self.toast_text_btn.clicked.connect(lambda: self.choose_color('toast_text'))
+        toast_layout.addRow(t("k_field_toast_text"), self.toast_text_btn)
+        
+        # Toast透明度
+        self.toast_opacity_slider = QSlider(Qt.Orientation.Horizontal)
+        self.toast_opacity_slider.setRange(10, 100)
+        self.toast_opacity_slider.setValue(90)
+        self.toast_opacity_slider.valueChanged.connect(self.update_toast_opacity_label)
+        self.toast_opacity_label = QLabel("90%")
+        toast_opacity_layout = QVBoxLayout()
+        toast_opacity_layout.addWidget(self.toast_opacity_slider)
+        toast_opacity_layout.addWidget(self.toast_opacity_label)
+        toast_layout.addRow(t("k_field_toast_opacity"), toast_opacity_layout)
+        
+        content_layout.addWidget(toast_group)
+        
         # ===== 预设主题 =====
         theme_group = QGroupBox(t("k_color_quick_theme"))
         theme_layout = QVBoxLayout(theme_group)
@@ -235,6 +282,10 @@ class ColorSettingsDialog(QDialog):
     def update_grid_opacity_label(self, value):
         """更新网格线透明度标签"""
         self.grid_opacity_label.setText(f"{value}%")
+    
+    def update_toast_opacity_label(self, value):
+        """更新Toast透明度标签"""
+        self.toast_opacity_label.setText(f"{value}%")
         
     def choose_color(self, target):
         """选择颜色 — target 需匹配 collect_settings 的字段名"""
@@ -250,8 +301,17 @@ class ColorSettingsDialog(QDialog):
             'node_selected': self.canvas.node_selected_color,
             'input_anchor': self.canvas.input_anchor_color,
             'output_anchor': self.canvas.output_anchor_color,
-            'edge': self.canvas.edge_color
+            'edge': self.canvas.edge_color,
+            'toast_info': '#323232',
+            'toast_success': '#4caf50',
+            'toast_warning': '#ff9800',
+            'toast_error': '#f44336',
+            'toast_text': '#ffffff'
         }
+        
+        # 检查是否有临时颜色
+        if hasattr(self, f'temp_{target}_color'):
+            current_colors[target] = getattr(self, f'temp_{target}_color')
         
         current_color = QColor(current_colors[target])
         new_color = QColorDialog.getColor(current_color, self, t("k_color_select"))
@@ -269,7 +329,12 @@ class ColorSettingsDialog(QDialog):
                 'node_selected': self.node_selected_btn,
                 'input_anchor': self.input_anchor_btn,
                 'output_anchor': self.output_anchor_btn,
-                'edge': self.edge_color_btn
+                'edge': self.edge_color_btn,
+                'toast_info': self.toast_info_btn,
+                'toast_success': self.toast_success_btn,
+                'toast_warning': self.toast_warning_btn,
+                'toast_error': self.toast_error_btn,
+                'toast_text': self.toast_text_btn
             }
             
             btn_map[target].setStyleSheet(f"background-color: {color_hex}; min-height: 30px;")
@@ -343,7 +408,13 @@ class ColorSettingsDialog(QDialog):
             'input_anchor_color': getattr(self, 'temp_input_anchor_color', self.canvas.input_anchor_color),
             'output_anchor_color': getattr(self, 'temp_output_anchor_color', self.canvas.output_anchor_color),
             'edge_color': getattr(self, 'temp_edge_color', self.canvas.edge_color),
-            'edge_width': self.edge_width_spinbox.value()
+            'edge_width': self.edge_width_spinbox.value(),
+            'toast_info_color': getattr(self, 'temp_toast_info_color', '#323232'),
+            'toast_success_color': getattr(self, 'temp_toast_success_color', '#4caf50'),
+            'toast_warning_color': getattr(self, 'temp_toast_warning_color', '#ff9800'),
+            'toast_error_color': getattr(self, 'temp_toast_error_color', '#f44336'),
+            'toast_text_color': getattr(self, 'temp_toast_text_color', '#ffffff'),
+            'toast_opacity': self.toast_opacity_slider.value() / 100.0
         }
 
     def apply_settings(self):

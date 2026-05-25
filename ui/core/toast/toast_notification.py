@@ -7,13 +7,34 @@ BNOS Toast 通知系统 - 右上角自动消失的通知弹窗
 from PyQt6.QtWidgets import QLabel, QApplication, QGraphicsOpacityEffect
 from PyQt6.QtCore import Qt, QTimer
 
+# Toast全局配置（使用rgba格式以支持透明度）
+_toast_config = {
+    'info_color': 'rgba(50, 50, 50, 230)',
+    'success_color': 'rgba(76, 175, 80, 230)',
+    'warning_color': 'rgba(255, 152, 0, 230)',
+    'error_color': 'rgba(244, 67, 54, 230)',
+    'text_color': '#ffffff',
+    'opacity': 0.9
+}
+
+
+def set_toast_config(config):
+    """设置Toast全局配置"""
+    global _toast_config
+    _toast_config.update(config)
+
+
+def get_toast_config():
+    """获取Toast全局配置"""
+    return _toast_config.copy()
+
 
 class ToastNotification(QLabel):
     """右上角自动消失的通知弹窗（Toast）- 优化版
     
     使用高精度定时器实现流畅的60fps淡入淡出动画
     支持堆叠显示和自动位置调整
-    显示在右上角，不干扰画布操作
+    显示在窗口右上角，不干扰画布操作
     """
     
     def __init__(self, message, parent=None, duration=3000, toast_type="info", stack_index=0):
@@ -22,30 +43,35 @@ class ToastNotification(QLabel):
         # 保存堆叠索引
         self.stack_index = stack_index
         
-        # 设置基础样式
-        base_style = """
-            QLabel {
-                background-color: rgba(50, 50, 50, 230);
-                color: white;
+        # 获取配置
+        config = _toast_config
+        
+        # 根据类型选择背景色
+        color_map = {
+            'info': config['info_color'],
+            'success': config['success_color'],
+            'warning': config['warning_color'],
+            'error': config['error_color']
+        }
+        bg_color = color_map.get(toast_type, config['info_color'])
+        
+        # 设置基础样式（使用配置的颜色和透明度）
+        base_style = f"""
+            QLabel {{
+                background-color: {bg_color};
+                color: {config['text_color']};
                 padding: 12px 20px;
                 border-radius: 8px;
                 font-size: 14px;
                 font-weight: bold;
-            }
+            }}
         """
-        
-        # 根据类型调整颜色
-        if toast_type == "success":
-            base_style = base_style.replace("rgba(50, 50, 50, 230)", "rgba(76, 175, 80, 230)")
-        elif toast_type == "warning":
-            base_style = base_style.replace("rgba(50, 50, 50, 230)", "rgba(255, 152, 0, 230)")
-        elif toast_type == "error":
-            base_style = base_style.replace("rgba(50, 50, 50, 230)", "rgba(244, 67, 54, 230)")
         
         self.setStyleSheet(base_style)
         
-        # 设置窗口属性（移除 WindowStaysOnTopHint 避免覆盖其他软件窗口）
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
+        # 设置窗口属性（添加 WindowStaysOnTopHint 确保Toast始终在最上层）
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool | Qt.WindowType.WindowDoesNotAcceptFocus | Qt.WindowType.WindowStaysOnTopHint)
+        # 添加WA_TranslucentBackground以支持rgba透明度（关键：没有这个属性，rgba背景色不会显示）
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
@@ -79,16 +105,31 @@ class ToastNotification(QLabel):
         # 先确保大小已调整
         self.adjustSize()
         
-        # 计算位置：使用绝对屏幕坐标，固定在主窗口右上角
+        # 计算位置：对齐CanvasHost内部右上角，避开画布Dock标题栏
         if self.parent():
-            # 获取主窗口在屏幕上的位置
+            # 获取主窗口
             parent_window = self.parent()
-            window_pos = parent_window.pos()
-            window_size = parent_window.size()
             
-            # 计算相对于窗口的右上角位置（使用绝对屏幕坐标）
-            x = window_pos.x() + window_size.width() - self.width() - 20
-            y = window_pos.y() + 40 + (self.stack_index * 60)
+            # 查找CanvasHost
+            canvas_host = None
+            if hasattr(parent_window, '_canvas_host'):
+                canvas_host = parent_window._canvas_host
+            
+            if canvas_host:
+                # 使用CanvasHost的位置和大小（画布区域）
+                host_geo = canvas_host.geometry()
+                host_pos = canvas_host.mapToGlobal(host_geo.topLeft())
+                
+                # 计算CanvasHost内部右上角位置
+                # 向右偏移10px，向下偏移35px（避开画布Dock标题栏的关闭按钮）
+                x = host_pos.x() + host_geo.width() - self.width() - 10
+                y = host_pos.y() + 35 + (self.stack_index * 60)
+            else:
+                # 回退到主窗口右上角
+                window_pos = parent_window.pos()
+                window_size = parent_window.size()
+                x = window_pos.x() + window_size.width() - self.width() - 10
+                y = window_pos.y() + 35 + (self.stack_index * 60)
             
             # 边界检测：确保Toast不会超出屏幕底部
             screen = QApplication.primaryScreen().geometry()
@@ -98,8 +139,8 @@ class ToastNotification(QLabel):
         else:
             # 如果没有父窗口，使用屏幕右上角
             screen = QApplication.primaryScreen().geometry()
-            x = screen.right() - self.width() - 20
-            y = screen.top() + 40 + (self.stack_index * 60)
+            x = screen.right() - self.width() - 10
+            y = screen.top() + 35 + (self.stack_index * 60)
         
         self.move(x, y)
         self.show()
@@ -149,16 +190,31 @@ class ToastNotification(QLabel):
         # 重新调整大小以确保准确性
         self.adjustSize()
         
-        # 计算位置：使用绝对屏幕坐标，固定在主窗口右上角
+        # 计算位置：对齐CanvasHost内部右上角，避开画布Dock标题栏
         if self.parent():
-            # 获取主窗口在屏幕上的位置
+            # 获取主窗口
             parent_window = self.parent()
-            window_pos = parent_window.pos()
-            window_size = parent_window.size()
             
-            # 计算相对于窗口的右上角位置（使用绝对屏幕坐标）
-            x = window_pos.x() + window_size.width() - self.width() - 20
-            y = window_pos.y() + 40 + (self.stack_index * 60)
+            # 查找CanvasHost
+            canvas_host = None
+            if hasattr(parent_window, '_canvas_host'):
+                canvas_host = parent_window._canvas_host
+            
+            if canvas_host:
+                # 使用CanvasHost的位置和大小（画布区域）
+                host_geo = canvas_host.geometry()
+                host_pos = canvas_host.mapToGlobal(host_geo.topLeft())
+                
+                # 计算CanvasHost内部右上角位置
+                # 向右偏移10px，向下偏移35px（避开画布Dock标题栏的关闭按钮）
+                x = host_pos.x() + host_geo.width() - self.width() - 10
+                y = host_pos.y() + 35 + (self.stack_index * 60)
+            else:
+                # 回退到主窗口右上角
+                window_pos = parent_window.pos()
+                window_size = parent_window.size()
+                x = window_pos.x() + window_size.width() - self.width() - 10
+                y = window_pos.y() + 35 + (self.stack_index * 60)
             
             # 边界检测：确保Toast不会超出屏幕底部
             screen = QApplication.primaryScreen().geometry()
@@ -166,9 +222,10 @@ class ToastNotification(QLabel):
             if y > max_y:
                 y = max_y  # 限制在屏幕内
         else:
+            # 如果没有父窗口，使用屏幕右上角
             screen = QApplication.primaryScreen().geometry()
-            x = screen.right() - self.width() - 20
-            y = screen.top() + 40 + (self.stack_index * 60)
+            x = screen.right() - self.width() - 10
+            y = screen.top() + 35 + (self.stack_index * 60)
         
         self.move(x, y)
     

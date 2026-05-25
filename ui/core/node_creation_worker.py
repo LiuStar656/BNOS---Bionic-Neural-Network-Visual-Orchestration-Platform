@@ -53,7 +53,9 @@ class ProgressFloatingWindow(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
+        # 添加 WindowStaysOnTopHint 确保进度窗口始终在最上层
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
+        # 添加WA_TranslucentBackground以支持rgba透明度
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         layout = QVBoxLayout(self)
@@ -78,10 +80,27 @@ class ProgressFloatingWindow(QWidget):
         self.update_position()
 
     def update_position(self):
+        """更新位置：与Toast通知对齐，放在CanvasHost内部右上角"""
         if self.parent():
-            parent_rect = self.parent().geometry()
-            w = self.width() if self.width() > 0 else 250
-            self.move(parent_rect.right() - w - 20, parent_rect.top() + 40)
+            parent_window = self.parent()
+            
+            # 查找CanvasHost
+            canvas_host = None
+            if hasattr(parent_window, '_canvas_host'):
+                canvas_host = parent_window._canvas_host
+            
+            if canvas_host:
+                # 使用CanvasHost的位置和大小（画布区域）
+                host_geo = canvas_host.geometry()
+                host_pos = canvas_host.mapToGlobal(host_geo.topLeft())
+                w = self.width() if self.width() > 0 else 250
+                # 向右偏移10px，向下偏移35px（与Toast通知对齐）
+                self.move(host_pos.x() + host_geo.width() - w - 10, host_pos.y() + 35)
+            else:
+                # 回退到主窗口右上角
+                parent_rect = parent_window.geometry()
+                w = self.width() if self.width() > 0 else 250
+                self.move(parent_rect.right() - w - 10, parent_rect.top() + 35)
 
 
 def start_async_node_creation(main_window, node_name, lang_key, display_language):
