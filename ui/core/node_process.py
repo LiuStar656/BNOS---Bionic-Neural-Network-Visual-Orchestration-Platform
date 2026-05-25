@@ -57,19 +57,21 @@ def _python_exe_for_node(node_path):
 
 
 def _find_node_processes(node_path):
-    """扫描系统中属于该节点的所有 Python 进程（按 python.exe 路径精确匹配）
+    """扫描系统中属于该节点的所有 Python 进程（按 python.exe/pythonw.exe 路径精确匹配）
     
     Returns: list of PIDs
     """
     target_exe = _python_exe_for_node(node_path)
     target_exe_norm = os.path.normpath(target_exe).lower()
+    # 同时检测 pythonw.exe（无窗口模式）
+    target_exe_norm_w = target_exe_norm.replace('python.exe', 'pythonw.exe')
     pids = []
     try:
         if os.name == 'nt':
-            # PowerShell 获取完整 ExecutablePath
+            # PowerShell 获取完整 ExecutablePath（同时检测 python.exe 和 pythonw.exe）
             result = subprocess.run(
                 ['powershell', '-Command',
-                 f"Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+                 f"Get-CimInstance Win32_Process -Filter \"Name='python.exe' OR Name='pythonw.exe'\" | "
                  f"ForEach-Object {{ $_.ProcessId.ToString() + '|' + ($_.ExecutablePath ?? '') }}"],
                 capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW
             )
@@ -79,7 +81,8 @@ def _find_node_processes(node_path):
                     continue
                 pid_str, exe_path = line.split('|', 1)
                 exe_path = os.path.normpath(exe_path.strip()).lower()
-                if exe_path == target_exe_norm:
+                # 匹配 python.exe 或 pythonw.exe
+                if exe_path == target_exe_norm or exe_path == target_exe_norm_w:
                     try:
                         pids.append(int(pid_str))
                     except ValueError:
@@ -129,6 +132,9 @@ def start_node_process(node_info):
     node_path = node_info['path']
     node_name = os.path.basename(node_path)
 
+    logger.info("开始启动节点: %s", node_name)
+    logger.debug("节点路径: %s", node_path)
+
     # 1. 先清理可能残留的旧进程（PID 文件丢失的孤儿）
     logger.debug("启动前清理残留进程: %s", node_name)
     _kill_all_node_processes(node_path)
@@ -137,83 +143,208 @@ def start_node_process(node_info):
     python_exe = _python_exe_for_node(node_path)
     listener_py = os.path.join(node_path, "listener.py")
 
-    # 回退：如果 venv Python 不存在，尝试 start.bat
+    logger.debug("Python 解释器: %s", python_exe)
+    logger.debug("Listener 脚本: %s", listener_py)
+
+    # 检查文件是否存在
     if not os.path.exists(python_exe):
-        logger.warning("venv Python 不存在，回退到 start.bat")
-        start_script = os.path.join(node_path, "start.bat" if os.name == 'nt' else "start.sh")
-        if not os.path.exists(start_script):
-            return False, f"启动脚本不存在: {start_script}"
-        try:
-            if os.name == 'nt':
-                process = subprocess.Popen(
-                    [start_script, "--no-pause"],
-                    cwd=node_path,
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
-            else:
-                os.chmod(start_script, 0o755)
-                process = subprocess.Popen(
-                    ["/bin/bash", start_script, "--no-pause"],
-                    cwd=node_path, start_new_session=True,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
-            node_info['process'] = process
-            node_info['status'] = 'running'
-            _write_pid(node_path, process.pid)
-            return True, None
-        except Exception as e:
-            return False, str(e)
+        logger.warning("venv Python 不存在 (%s)，回退到 start.bat", python_exe)
+        return _start_with_script(node_path, node_name, node_info)
+    
+    if not os.path.exists(listener_py):
+        error_msg = f"Listener 脚本不存在: {listener_py}"
+        logger.error(error_msg)
+        return False, error_msg
 
     # 直接运行 listener.py（PID 即为实际 Python 进程）
     try:
         if os.name == 'nt':
+            # 不使用 DEVNULL，避免某些情况下进程启动失败
+            # 使用 CREATE_NEW_PROCESS_GROUP 允许独立终止进程组
             process = subprocess.Popen(
                 [python_exe, listener_py],
                 cwd=node_path,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
             )
         else:
             process = subprocess.Popen(
                 [python_exe, listener_py],
-                cwd=node_path, start_new_session=True,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                cwd=node_path, 
+                start_new_session=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
             )
 
-        # 启动后短暂等待，检测进程是否立即崩溃（挂载的 venv 可能损坏）
+        # 启动后等待更长时间，确保进程完成初始化
         import time
-        time.sleep(1.2)
+        time.sleep(2.0)  # 延长等待时间到 2 秒
+        
         exit_code = process.poll()
         if exit_code is not None:
-            # 进程已退出 → venv 损坏，回退到 start.bat
-            logger.warning("直接启动失败 (exit=%d)，回退到 start.bat: %s", exit_code, node_name)
+            # 进程已退出，读取错误信息
+            stdout, stderr = process.communicate(timeout=5)
+            logger.error("直接启动失败 (exit=%d): %s", exit_code, node_name)
+            logger.error("stdout: %s", stdout)
+            logger.error("stderr: %s", stderr)
+            
+            # 回退到 start.bat
+            logger.warning("直接启动失败，回退到 start.bat: %s", node_name)
             _delete_pid(node_path)
-            start_script = os.path.join(node_path, "start.bat" if os.name == 'nt' else "start.sh")
-            if not os.path.exists(start_script):
-                return False, f"venv 损坏且启动脚本不存在: {start_script}"
-            if os.name == 'nt':
-                process = subprocess.Popen(
-                    [start_script, "--no-pause"],
-                    cwd=node_path,
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
-            else:
-                os.chmod(start_script, 0o755)
-                process = subprocess.Popen(
-                    ["/bin/bash", start_script, "--no-pause"],
-                    cwd=node_path, start_new_session=True,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
+            return _start_with_script(node_path, node_name, node_info)
 
+        # 直接启动成功，记录进程信息
         node_info['process'] = process
         node_info['status'] = 'running'
         _write_pid(node_path, process.pid)
         logger.info("节点已启动: %s PID=%d", node_name, process.pid)
         return True, None
+        
     except Exception as e:
-        return False, str(e)
+        logger.error("直接启动异常: %s", e)
+        logger.warning("尝试使用启动脚本: %s", node_name)
+        return _start_with_script(node_path, node_name, node_info)
+
+
+def _start_with_script(node_path, node_name, node_info):
+    """使用启动脚本启动节点（回退方案）"""
+    start_script = os.path.join(node_path, "start.bat" if os.name == 'nt' else "start.sh")
+    if not os.path.exists(start_script):
+        error_msg = f"启动脚本不存在: {start_script}"
+        logger.error(error_msg)
+        return False, error_msg
+    
+    logger.debug("使用启动脚本启动: %s", start_script)
+    
+    try:
+        if os.name == 'nt':
+            # 不使用 DEVNULL，保留输出用于调试
+            process = subprocess.Popen(
+                [start_script, "--no-pause"],
+                cwd=node_path,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+        else:
+            os.chmod(start_script, 0o755)
+            process = subprocess.Popen(
+                ["/bin/bash", start_script, "--no-pause"],
+                cwd=node_path, start_new_session=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+        # 等待脚本完成启动（脚本会后台启动 Python）
+        import time
+        time.sleep(3.0)  # 延长等待时间到 3 秒，确保 Python 进程完全启动
+
+        # 检查脚本是否完成
+        exit_code = process.poll()
+        if exit_code is not None:
+            stdout, stderr = process.communicate(timeout=5)
+            logger.debug("启动脚本已退出 (exit=%d): %s", exit_code, node_name)
+            logger.debug("脚本 stdout: %s", stdout)
+            logger.debug("脚本 stderr: %s", stderr)
+        else:
+            logger.debug("启动脚本仍在运行: %s", node_name)
+
+        # 通过进程扫描获取真实的 Python 进程 PID
+        # 因为 start.bat 返回的是脚本进程的 PID，不是实际运行的 Python 进程
+        actual_pids = _find_node_processes(node_path)
+        logger.debug("进程扫描结果: %s", actual_pids)
+        
+        if actual_pids:
+            actual_pid = actual_pids[0]
+            node_info['process'] = process
+            node_info['status'] = 'running'
+            _write_pid(node_path, actual_pid)  # 写入真实的 Python 进程 PID
+            logger.info("节点通过脚本启动成功: %s (脚本PID=%d, 实际PID=%d)", 
+                       node_name, process.pid, actual_pid)
+            return True, None
+        else:
+            # 脚本启动后没有找到实际的 Python 进程
+            _delete_pid(node_path)
+            
+            # 尝试读取脚本输出了解失败原因
+            stdout, stderr = "", ""
+            if exit_code is not None:
+                try:
+                    stdout, stderr = process.communicate(timeout=5)
+                except:
+                    pass
+            
+            error_msg = f"脚本启动后未找到运行的 Python 进程"
+            if exit_code is not None:
+                error_msg += f" (脚本退出码: {exit_code})"
+            logger.error(error_msg)
+            logger.error("脚本 stdout: %s", stdout)
+            logger.error("脚本 stderr: %s", stderr)
+            
+            # 尝试手动直接启动作为最后的尝试
+            logger.warning("尝试直接启动 Python 进程作为备用方案: %s", node_name)
+            return _start_directly(node_path, node_name, node_info)
+            
+    except Exception as e:
+        logger.error("脚本启动异常: %s", e)
+        # 尝试手动直接启动作为最后的尝试
+        return _start_directly(node_path, node_name, node_info)
+
+
+def _start_directly(node_path, node_name, node_info):
+    """手动直接启动 Python 进程（备用方案）"""
+    python_exe = _python_exe_for_node(node_path)
+    listener_py = os.path.join(node_path, "listener.py")
+    
+    if not os.path.exists(python_exe) or not os.path.exists(listener_py):
+        error_msg = f"缺少必要文件: python={python_exe}, listener={listener_py}"
+        logger.error(error_msg)
+        return False, error_msg
+    
+    logger.debug("尝试直接启动: %s %s", python_exe, listener_py)
+    
+    try:
+        # 使用 pythonw.exe 避免弹出控制台窗口
+        pythonw_exe = python_exe.replace('python.exe', 'pythonw.exe')
+        if os.path.exists(pythonw_exe):
+            python_exe_to_use = pythonw_exe
+        else:
+            python_exe_to_use = python_exe
+        
+        process = subprocess.Popen(
+            [python_exe_to_use, listener_py],
+            cwd=node_path,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        import time
+        time.sleep(2.0)
+        
+        exit_code = process.poll()
+        if exit_code is not None:
+            stdout, stderr = process.communicate(timeout=5)
+            error_msg = f"直接启动失败 (exit={exit_code}): {stderr}"
+            logger.error(error_msg)
+            return False, error_msg
+        
+        node_info['process'] = process
+        node_info['status'] = 'running'
+        _write_pid(node_path, process.pid)
+        logger.info("节点直接启动成功: %s PID=%d", node_name, process.pid)
+        return True, None
+        
+    except Exception as e:
+        error_msg = f"直接启动异常: {str(e)}"
+        logger.error(error_msg)
+        return False, error_msg
 
 
 def stop_node_process(node_info, force=False):
@@ -357,8 +488,10 @@ def _listener_has_active_child(pid):
 def check_running_processes(nodes_data):
     """检测所有节点进程状态（三态：running/idle/stopped）
     
-    先通过 process.poll() / PID 文件检查，再通过进程扫描兜底。
+    先通过进程扫描检测实际的 Python 进程，再回退到 PID 文件和 process 对象。
     区分 idle（listener 运行但无 main 子进程）和 running（listener + main 都在运行）。
+    
+    关键修复：优先通过进程扫描检测，避免脚本启动时记录的是脚本进程而非 Python 进程的问题。
     """
     dead_nodes = []
     for name, info in nodes_data.items():
@@ -369,26 +502,30 @@ def check_running_processes(nodes_data):
         process = info.get('process')
         pid = process.pid if process else _read_pid(node_path)
 
-        # PID 存在且进程存活 → 检查子进程区分 idle/running
-        if pid is not None and _is_pid_alive(pid):
-            new_status = 'running' if _listener_has_active_child(pid) else 'idle'
+        # 优先通过进程扫描检测实际运行的 Python 进程
+        # 这是关键修复：脚本启动时记录的 process 可能是脚本进程而非 Python 进程
+        actual_pids = _find_node_processes(node_path)
+        
+        if actual_pids:
+            # 找到了实际运行的 Python 进程
+            actual_pid = actual_pids[0]
+            
+            # 更新 PID 文件（如果记录的 PID 不正确）
+            if pid != actual_pid:
+                _write_pid(node_path, actual_pid)
+            
+            new_status = 'running' if _listener_has_active_child(actual_pid) else 'idle'
             if info.get('status') != new_status:
                 info['status'] = new_status
                 dead_nodes.append((name, None, new_status))  # None=状态变更,非退出
             continue
 
-        # PID 检查失败 → 进程扫描兜底
-        orphan_pids = _find_node_processes(node_path)
-        if orphan_pids:
-            _write_pid(node_path, orphan_pids[0])
-            orphan_pid = orphan_pids[0]
-            new_status = 'running' if _listener_has_active_child(orphan_pid) else 'idle'
-            if info.get('status') != new_status:
-                info['status'] = new_status
-                dead_nodes.append((name, None, new_status))
-            logger.debug("健康检测: %s PID 失效，进程扫描恢复 (%s)", name, new_status)
-            continue
-
+        # 进程扫描未找到 Python 进程 → 检查记录的 PID 是否仍存活
+        if pid is not None and _is_pid_alive(pid):
+            # 进程仍在运行，但不是预期的 Python 进程（可能是脚本进程）
+            # 由于没有找到实际的 listener.py 进程，标记为 stopped
+            pass  # 继续到下面的逻辑处理
+            
         # 确认进程已退出
         exit_code = process.poll() if process else None
         info['process'] = None

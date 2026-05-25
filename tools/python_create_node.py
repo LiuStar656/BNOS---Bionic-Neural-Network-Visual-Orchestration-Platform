@@ -440,6 +440,10 @@ if __name__ == "__main__":
     if os.name == "nt":
         start_bat = '''@echo off
 setlocal enabledelayedexpansion
+
+REM 保存当前目录（脚本所在目录）
+set "NODE_DIR=%~dp0"
+
 if not "%1"=="--no-pause" (
     cls
     chcp 65001 >nul
@@ -448,7 +452,7 @@ if not "%1"=="--no-pause" (
     echo ======================================
     echo.
 )
-cd /d "%~dp0"
+cd /d "%NODE_DIR%"
 
 REM ==================== 环境检测与自愈 ====================
 if not "%1"=="--no-pause" echo 🔍 检测虚拟环境状态...
@@ -462,7 +466,7 @@ if not exist "venv\\Scripts\\python.exe" (
     )
     
     if exist "..\\..\\tools\\python_create_node.py" (
-        python ..\\..\\tools\\python_create_node.py --repair-only "%CD%"
+        python ..\\..\\tools\\python_create_node.py --repair-only "%NODE_DIR%"
         if errorlevel 1 (
             if not "%1"=="--no-pause" (
                 echo.
@@ -490,13 +494,29 @@ if not "%1"=="--no-pause" (
     echo.
     echo 🔧 后台启动监听程序...
     echo.
-    start /b "" venv\\Scripts\\python.exe listener.py
-) else (
-    start /b "" venv\\Scripts\\python.exe listener.py >nul 2>&1
 )
 
-REM 写入 PID 文件供 GUI 检测
-powershell -Command "$p=(Get-WmiObject Win32_Process -Filter ^"Name='python.exe' and CommandLine like '%%listener.py%%'^" | Select-Object -First 1).ProcessId; if($p){{$p | Out-File -FilePath '.pid' -Encoding ASCII -NoNewline}}"
+REM 使用 start /b 启动，但通过 pythonw.exe 避免控制台窗口（如果可用）
+set "PYTHON_EXE=venv\\Scripts\\python.exe"
+if exist "venv\\Scripts\\pythonw.exe" (
+    set "PYTHON_EXE=venv\\Scripts\\pythonw.exe"
+)
+
+REM 直接启动（不使用 start /b，让脚本等待直到进程创建）
+start /b "" "%PYTHON_EXE%" "%NODE_DIR%listener.py"
+
+REM 等待进程启动（更长的等待时间）
+timeout /t 3 /nobreak >nul
+
+REM 写入 PID 文件供 GUI 检测 - 使用更可靠的方式获取正确的进程
+REM 使用绝对路径查找，避免匹配错误的进程
+powershell -Command ^
+    "Get-CimInstance Win32_Process -Filter 'Name='\"'\"'python.exe'\"'\"' OR Name='\"'\"'pythonw.exe'\"'\"'' | ^
+    Where-Object { $_.ExecutablePath -like '*venv*Scripts*python*' } | ^
+    Where-Object { $_.CommandLine -like '*listener.py*' } | ^
+    Select-Object -First 1 | ^
+    ForEach-Object { $_.ProcessId.ToString() } | ^
+    Out-File -FilePath '%NODE_DIR%.pid' -Encoding ASCII -NoNewline"
 
 if not "%1"=="--no-pause" (
     echo ✅ 监听程序已在后台运行

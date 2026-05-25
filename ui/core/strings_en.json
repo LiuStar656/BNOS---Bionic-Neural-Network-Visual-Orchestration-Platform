@@ -360,6 +360,7 @@
   "_k_node_running": "Node {name} is already running",
   "_k_node_started": "Node {name} started",
   "_k_start_failed": "Failed to start node: {err}",
+  "_k_start_fail": "Failed to start node: {err}",
   "_k_node_not_running_toast": "Node {name} is not running",
   "_k_node_stopped": "Node {name} stopped",
   "_k_node_exited": "Node {name} exited unexpectedly (code: {code})",

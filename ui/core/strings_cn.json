@@ -368,6 +368,7 @@
   "_k_node_running": "节点 {name} 已在运行中",
   "_k_node_started": "节点 {name} 已启动",
   "_k_start_failed": "启动节点失败: {err}",
+  "_k_start_fail": "启动节点失败: {err}",
   "_k_node_not_running_toast": "节点 {name} 未在运行",
   "_k_node_stopped": "节点 {name} 已停止",
   "_k_node_exited": "节点 {name} 已意外退出 (code: {code})",
