@@ -67,7 +67,7 @@ class NodeCreatorManager:
         """注册内置的节点创建器"""
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         
-        # 注册 Python 节点创建器
+        # 注册 Python 节点创建器（使用 tools/python_create_node.py）
         python_creator_path = os.path.join(base_dir, "tools", "python_create_node.py")
         if os.path.exists(python_creator_path):
             try:
@@ -78,10 +78,32 @@ class NodeCreatorManager:
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
                 
-                # 注册创建函数
-                if hasattr(module, 'create_clean_node_with_empty_venv'):
-                    self.register_creator("python", module.create_clean_node_with_empty_venv)
-                    logger.info("已注册 Python 节点创建器")
+                # 注册创建函数（使用 create_node，通过适配器传递 node_name）
+                if hasattr(module, 'create_node'):
+                    create_func = module.create_node
+                    
+                    def python_creator_wrapper(node_name: str, create_func=create_func):
+                        import builtins
+                        original_input = builtins.input
+                        input_index = 0
+                        
+                        def mock_input(prompt=""):
+                            nonlocal input_index
+                            input_index += 1
+                            if input_index == 1:
+                                return node_name
+                            elif input_index > 1:
+                                return 'y'  # 覆盖确认
+                            return ""
+                        
+                        builtins.input = mock_input
+                        try:
+                            create_func()
+                        finally:
+                            builtins.input = original_input
+                    
+                    self.register_creator("python", python_creator_wrapper)
+                    logger.info("已注册 Python 节点创建器 (绑定到 tools/python_create_node.py)")
             except Exception as e:
                 logger.error("注册 Python 创建器失败: %s", e)
         

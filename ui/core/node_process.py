@@ -8,11 +8,32 @@ from ui.core.logger import logger
 
 
 def _pid_file(node_path):
+    """获取标准 PID 文件路径 (.pid)"""
     return os.path.join(node_path, ".pid")
+
+
+def _named_pid_file(node_path):
+    """获取命名的 PID 文件路径 (node_python_<name>.pid)"""
+    node_name = os.path.basename(node_path)
+    return os.path.join(node_path, f"{node_name}.pid")
+
+
+def _get_pid_file(node_path):
+    """获取实际存在的 PID 文件路径（优先命名格式）"""
+    named_pid = _named_pid_file(node_path)
+    if os.path.exists(named_pid):
+        return named_pid
+    return _pid_file(node_path)
 
 
 def _write_pid(node_path, pid):
     try:
+        # 写入两种格式的 PID 文件
+        # 1. 命名格式：node_python_<name>.pid
+        named_pid = _named_pid_file(node_path)
+        with open(named_pid, 'w') as f:
+            f.write(str(pid))
+        # 2. 标准格式：.pid（保持兼容性）
         with open(_pid_file(node_path), 'w') as f:
             f.write(str(pid))
     except Exception:
@@ -21,9 +42,13 @@ def _write_pid(node_path, pid):
 
 def _delete_pid(node_path):
     try:
+        # 删除两种格式的 PID 文件
         pf = _pid_file(node_path)
         if os.path.exists(pf):
             os.remove(pf)
+        named_pf = _named_pid_file(node_path)
+        if os.path.exists(named_pf):
+            os.remove(named_pf)
     except Exception:
         pass
 
@@ -124,10 +149,27 @@ def _kill_all_node_processes(node_path):
 
 # ---- 核心 API ----
 
+def _load_start_json(node_path):
+    """加载节点目录下的 start.json 配置文件"""
+    start_json_path = os.path.join(node_path, "start.json")
+    if not os.path.exists(start_json_path):
+        logger.debug("start.json 不存在: %s", start_json_path)
+        return None
+    
+    try:
+        import json
+        with open(start_json_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning("读取 start.json 失败: %s", e)
+        return None
+
+
 def start_node_process(node_info):
-    """启动节点进程并写入 PID 文件（直接运行 Python 获取真实 PID）
+    """启动节点进程并写入 PID 文件（仅使用 JSON 配置启动）
     
     启动前自动清理该节点的所有旧孤儿进程，防止进程堆积。
+    必须存在 start.json 配置文件才能启动节点。
     """
     node_path = node_info['path']
     node_name = os.path.basename(node_path)
@@ -139,17 +181,45 @@ def start_node_process(node_info):
     logger.debug("启动前清理残留进程: %s", node_name)
     _kill_all_node_processes(node_path)
 
-    # 定位虚拟环境 Python 解释器
+    # 2. 读取 start.json 配置（必须存在）
+    start_config = _load_start_json(node_path)
+    if not start_config:
+        error_msg = f"start.json 配置文件不存在或读取失败: {node_path}"
+        logger.error(error_msg)
+        return False, error_msg
+    
+    logger.info("使用 start.json 配置启动节点")
+    
+    # 提取节点配置（支持单节点和多节点格式）
+    if 'nodes' in start_config and isinstance(start_config['nodes'], list):
+        # 查找当前节点的配置
+        node_config = None
+        for n in start_config['nodes']:
+            if n.get('name') == node_name or n.get('path') == node_path:
+                node_config = n
+                break
+        if node_config:
+            # 更新 node_info 中的配置
+            if 'config' in node_config:
+                node_info['config'] = node_config['config']
+                logger.debug("从 start.json 加载配置: %s", node_config['config'])
+    elif 'config' in start_config:
+        # 单节点格式
+        node_info['config'] = start_config['config']
+        logger.debug("从 start.json 加载配置: %s", start_config['config'])
+
+    # 3. 定位虚拟环境 Python 解释器
     python_exe = _python_exe_for_node(node_path)
     listener_py = os.path.join(node_path, "listener.py")
 
     logger.debug("Python 解释器: %s", python_exe)
     logger.debug("Listener 脚本: %s", listener_py)
 
-    # 检查文件是否存在
+    # 检查必要文件是否存在
     if not os.path.exists(python_exe):
-        logger.warning("venv Python 不存在 (%s)，回退到 start.bat", python_exe)
-        return _start_with_script(node_path, node_name, node_info)
+        error_msg = f"虚拟环境 Python 解释器不存在: {python_exe}"
+        logger.error(error_msg)
+        return False, error_msg
     
     if not os.path.exists(listener_py):
         error_msg = f"Listener 脚本不存在: {listener_py}"
@@ -159,8 +229,6 @@ def start_node_process(node_info):
     # 直接运行 listener.py（PID 即为实际 Python 进程）
     try:
         if os.name == 'nt':
-            # 不使用 DEVNULL，避免某些情况下进程启动失败
-            # 使用 CREATE_NEW_PROCESS_GROUP 允许独立终止进程组
             process = subprocess.Popen(
                 [python_exe, listener_py],
                 cwd=node_path,
@@ -179,24 +247,18 @@ def start_node_process(node_info):
                 text=True
             )
 
-        # 启动后等待更长时间，确保进程完成初始化
         import time
-        time.sleep(2.0)  # 延长等待时间到 2 秒
+        time.sleep(2.0)
         
         exit_code = process.poll()
         if exit_code is not None:
-            # 进程已退出，读取错误信息
             stdout, stderr = process.communicate(timeout=5)
-            logger.error("直接启动失败 (exit=%d): %s", exit_code, node_name)
+            error_msg = f"启动失败 (exit={exit_code}): {stderr}"
+            logger.error("启动失败 (exit=%d): %s", exit_code, node_name)
             logger.error("stdout: %s", stdout)
             logger.error("stderr: %s", stderr)
-            
-            # 回退到 start.bat
-            logger.warning("直接启动失败，回退到 start.bat: %s", node_name)
-            _delete_pid(node_path)
-            return _start_with_script(node_path, node_name, node_info)
+            return False, error_msg
 
-        # 直接启动成功，记录进程信息
         node_info['process'] = process
         node_info['status'] = 'running'
         _write_pid(node_path, process.pid)
@@ -204,145 +266,7 @@ def start_node_process(node_info):
         return True, None
         
     except Exception as e:
-        logger.error("直接启动异常: %s", e)
-        logger.warning("尝试使用启动脚本: %s", node_name)
-        return _start_with_script(node_path, node_name, node_info)
-
-
-def _start_with_script(node_path, node_name, node_info):
-    """使用启动脚本启动节点（回退方案）"""
-    start_script = os.path.join(node_path, "start.bat" if os.name == 'nt' else "start.sh")
-    if not os.path.exists(start_script):
-        error_msg = f"启动脚本不存在: {start_script}"
-        logger.error(error_msg)
-        return False, error_msg
-    
-    logger.debug("使用启动脚本启动: %s", start_script)
-    
-    try:
-        if os.name == 'nt':
-            # 不使用 DEVNULL，保留输出用于调试
-            process = subprocess.Popen(
-                [start_script, "--no-pause"],
-                cwd=node_path,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-        else:
-            os.chmod(start_script, 0o755)
-            process = subprocess.Popen(
-                ["/bin/bash", start_script, "--no-pause"],
-                cwd=node_path, start_new_session=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-
-        # 等待脚本完成启动（脚本会后台启动 Python）
-        import time
-        time.sleep(3.0)  # 延长等待时间到 3 秒，确保 Python 进程完全启动
-
-        # 检查脚本是否完成
-        exit_code = process.poll()
-        if exit_code is not None:
-            stdout, stderr = process.communicate(timeout=5)
-            logger.debug("启动脚本已退出 (exit=%d): %s", exit_code, node_name)
-            logger.debug("脚本 stdout: %s", stdout)
-            logger.debug("脚本 stderr: %s", stderr)
-        else:
-            logger.debug("启动脚本仍在运行: %s", node_name)
-
-        # 通过进程扫描获取真实的 Python 进程 PID
-        # 因为 start.bat 返回的是脚本进程的 PID，不是实际运行的 Python 进程
-        actual_pids = _find_node_processes(node_path)
-        logger.debug("进程扫描结果: %s", actual_pids)
-        
-        if actual_pids:
-            actual_pid = actual_pids[0]
-            node_info['process'] = process
-            node_info['status'] = 'running'
-            _write_pid(node_path, actual_pid)  # 写入真实的 Python 进程 PID
-            logger.info("节点通过脚本启动成功: %s (脚本PID=%d, 实际PID=%d)", 
-                       node_name, process.pid, actual_pid)
-            return True, None
-        else:
-            # 脚本启动后没有找到实际的 Python 进程
-            _delete_pid(node_path)
-            
-            # 尝试读取脚本输出了解失败原因
-            stdout, stderr = "", ""
-            if exit_code is not None:
-                try:
-                    stdout, stderr = process.communicate(timeout=5)
-                except:
-                    pass
-            
-            error_msg = f"脚本启动后未找到运行的 Python 进程"
-            if exit_code is not None:
-                error_msg += f" (脚本退出码: {exit_code})"
-            logger.error(error_msg)
-            logger.error("脚本 stdout: %s", stdout)
-            logger.error("脚本 stderr: %s", stderr)
-            
-            # 尝试手动直接启动作为最后的尝试
-            logger.warning("尝试直接启动 Python 进程作为备用方案: %s", node_name)
-            return _start_directly(node_path, node_name, node_info)
-            
-    except Exception as e:
-        logger.error("脚本启动异常: %s", e)
-        # 尝试手动直接启动作为最后的尝试
-        return _start_directly(node_path, node_name, node_info)
-
-
-def _start_directly(node_path, node_name, node_info):
-    """手动直接启动 Python 进程（备用方案）"""
-    python_exe = _python_exe_for_node(node_path)
-    listener_py = os.path.join(node_path, "listener.py")
-    
-    if not os.path.exists(python_exe) or not os.path.exists(listener_py):
-        error_msg = f"缺少必要文件: python={python_exe}, listener={listener_py}"
-        logger.error(error_msg)
-        return False, error_msg
-    
-    logger.debug("尝试直接启动: %s %s", python_exe, listener_py)
-    
-    try:
-        # 使用 pythonw.exe 避免弹出控制台窗口
-        pythonw_exe = python_exe.replace('python.exe', 'pythonw.exe')
-        if os.path.exists(pythonw_exe):
-            python_exe_to_use = pythonw_exe
-        else:
-            python_exe_to_use = python_exe
-        
-        process = subprocess.Popen(
-            [python_exe_to_use, listener_py],
-            cwd=node_path,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        import time
-        time.sleep(2.0)
-        
-        exit_code = process.poll()
-        if exit_code is not None:
-            stdout, stderr = process.communicate(timeout=5)
-            error_msg = f"直接启动失败 (exit={exit_code}): {stderr}"
-            logger.error(error_msg)
-            return False, error_msg
-        
-        node_info['process'] = process
-        node_info['status'] = 'running'
-        _write_pid(node_path, process.pid)
-        logger.info("节点直接启动成功: %s PID=%d", node_name, process.pid)
-        return True, None
-        
-    except Exception as e:
-        error_msg = f"直接启动异常: {str(e)}"
+        error_msg = f"启动异常: {str(e)}"
         logger.error(error_msg)
         return False, error_msg
 
@@ -441,15 +365,30 @@ def detect_running_nodes(nodes_data):
 
 
 def _read_pid(node_path):
-    """读取 PID 文件，返回 PID 或 None"""
+    """读取 PID 文件，返回 PID 或 None
+    
+    优先读取命名格式的 PID 文件 (node_python_<name>.pid)，
+    如果不存在则读取标准格式 (.pid)。
+    """
+    # 优先尝试命名格式
+    named_pf = _named_pid_file(node_path)
+    if os.path.exists(named_pf):
+        try:
+            with open(named_pf, 'r') as f:
+                return int(f.read().strip())
+        except Exception:
+            pass
+    
+    # 回退到标准格式
     pf = _pid_file(node_path)
-    if not os.path.exists(pf):
-        return None
-    try:
-        with open(pf, 'r') as f:
-            return int(f.read().strip())
-    except Exception:
-        return None
+    if os.path.exists(pf):
+        try:
+            with open(pf, 'r') as f:
+                return int(f.read().strip())
+        except Exception:
+            pass
+    
+    return None
 
 
 def _get_child_pids(parent_pid):
