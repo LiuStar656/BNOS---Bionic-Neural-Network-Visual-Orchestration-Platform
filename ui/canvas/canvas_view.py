@@ -723,6 +723,11 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         if self.parent_window:
             self.parent_window.stop_selected_node_by_name(node_name)
     
+    def export_node_from_canvas(self, node_name):
+        """从画布导出节点（委托给父窗口）"""
+        if self.parent_window and hasattr(self.parent_window, 'export_node'):
+            self.parent_window.export_node(node_name)
+
     def stop_all_nodes(self):
         """停止画布上所有节点进程"""
         if self.parent_window and hasattr(self.parent_window, 'nodes_data'):

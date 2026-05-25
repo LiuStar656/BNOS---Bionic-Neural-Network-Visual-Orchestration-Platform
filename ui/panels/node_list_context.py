@@ -167,6 +167,16 @@ class NodeListContextMixin:
             if not node_info.get('mounted'):
                 delete_action = menu.addAction(t("k_node_delete"))
                 delete_action.triggered.connect(lambda: self.delete_node(node_name))
+            
+            menu.addSeparator()
+            
+            export_action = menu.addAction(t("k_export_node"))
+            export_action.triggered.connect(lambda: self.export_single_node(node_name))
+
+    def export_single_node(self, node_name):
+        """导出单个节点（委托给主窗口）"""
+        if self.parent_window and hasattr(self.parent_window, 'export_node'):
+            self.parent_window.export_node(node_name)
 
     def _unmount_node(self, node_name):
         """卸载外部挂载节点（委托给主窗口）"""

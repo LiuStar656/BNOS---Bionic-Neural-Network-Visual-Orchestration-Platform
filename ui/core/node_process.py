@@ -322,10 +322,18 @@ def stop_node_process(node_info, force=False):
 
 def resolve_selected_node(main_window):
     """获取选中的节点名称（优先画布，回退到节点列表）"""
-    selected = main_window.canvas.get_selected_node()
+    selected = None
+    
+    # 优先从画布获取选中节点
+    if main_window.canvas:
+        selected = main_window.canvas.get_selected_node()
+    
+    # 如果画布没有选中，从节点列表获取
     if not selected:
-        from_list = main_window.node_list_panel.get_selected_nodes()
-        selected = from_list[0] if from_list else None
+        if main_window.node_list_panel:
+            from_list = main_window.node_list_panel.get_selected_nodes()
+            selected = from_list[0] if from_list else None
+    
     return selected
 
 

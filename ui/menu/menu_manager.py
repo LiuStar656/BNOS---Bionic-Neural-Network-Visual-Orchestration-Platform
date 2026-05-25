@@ -43,6 +43,26 @@ class MenuManager:
         file_menu.addAction(a)
         actions["open_project"] = a
 
+        # 导入导出子菜单
+        import_export_menu = file_menu.addMenu(t("k_import_export"))
+        
+        a = QAction(t("k_import_node"), main_window)
+        a.setStatusTip(t("k_import_node_desc"))
+        a.triggered.connect(main_window.import_node)
+        import_export_menu.addAction(a)
+        
+        import_export_menu.addSeparator()
+        
+        a = QAction(t("k_export_node"), main_window)
+        a.setStatusTip(t("k_export_node_desc"))
+        a.triggered.connect(main_window.export_node)
+        import_export_menu.addAction(a)
+        
+        a = QAction(t("k_export_project"), main_window)
+        a.setStatusTip(t("k_export_project_desc"))
+        a.triggered.connect(main_window.export_project)
+        import_export_menu.addAction(a)
+
         file_menu.addSeparator()
 
         a = QAction(t("k_node_list_dock"), main_window)

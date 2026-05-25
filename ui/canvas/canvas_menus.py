@@ -83,6 +83,13 @@ class CanvasMenusMixin:
             a = QAction(t("k_node_text_color"), color_menu); a.triggered.connect(partial(self.change_node_text_color, node_item)); color_menu.addAction(a)
 
             menu.addSeparator()
+            
+            # 导出节点
+            a = QAction(t("k_export_node"), menu)
+            a.triggered.connect(partial(self.export_node_from_canvas, node_name))
+            menu.addAction(a)
+            
+            menu.addSeparator()
             a = QAction(t("k_canvas_remove_from"), menu); a.triggered.connect(partial(self.remove_node_with_cleanup, node_name)); menu.addAction(a)
             menu.exec(event.globalPos())
 

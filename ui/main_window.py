@@ -601,7 +601,33 @@ class BNOSMainWindow(QMainWindow):
         
     def refresh_nodes(self):
         project_refresh(self)
+    
+    def export_node(self, node_name=None):
+        """导出单个节点（支持从菜单调用时自动获取选中节点）"""
+        # 如果没有指定节点名，尝试获取选中的节点
+        if not node_name:
+            selected = resolve_selected_node(self)
+            if not selected:
+                self.show_toast(t("k_node_select_first"), "warning")
+                return
+            node_name = selected
         
+        from ui.core.import_export_manager import ImportExportManager
+        manager = ImportExportManager(self)
+        manager.export_node(node_name)
+    
+    def export_project(self):
+        """导出整个项目"""
+        from ui.core.import_export_manager import ImportExportManager
+        manager = ImportExportManager(self)
+        manager.export_project()
+    
+    def import_node(self):
+        """导入节点"""
+        from ui.core.import_export_manager import ImportExportManager
+        manager = ImportExportManager(self)
+        manager.import_node()
+    
     def mount_external_node(self):
         mount_node(self)
 
