@@ -58,7 +58,7 @@ def project_new(main_window):
     
     # 4. 创建新画布Dock，使用项目名作为标签名（通过CanvasHost）
     if hasattr(main_window, '_canvas_host'):
-        main_window._canvas_host.add_canvas_dock(proj_name.strip())
+        main_window._canvas_host.add_canvas_dock(proj_name.strip(), project_dir)
     
     main_window.show_toast(f"已创建项目: {proj_name.strip()}", "success")
 
