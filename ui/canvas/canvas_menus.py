@@ -143,6 +143,20 @@ class CanvasMenusMixin:
         node_item._update_selection_ring(node_item.isSelected())
         node_item.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
         node_item.update()
+        
+        # 更新所有连接到该节点的连线路径（样式切换会改变锚点位置）
+        all_edges = set()
+        if hasattr(node_item, 'output_anchor'):
+            for edge in node_item.output_anchor.edges[:]:
+                if edge and edge.end_node:
+                    all_edges.add(edge)
+        if hasattr(node_item, 'input_anchor'):
+            for edge in node_item.input_anchor.edges[:]:
+                if edge and edge.start_node:
+                    all_edges.add(edge)
+        for edge in all_edges:
+            edge.update_path()
+        
         # 触发自动保存，持久化样式变更
         if hasattr(self, '_save_timer'):
             self._save_timer.stop()
