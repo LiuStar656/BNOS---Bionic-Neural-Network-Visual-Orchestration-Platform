@@ -145,6 +145,10 @@ class CanvasLayoutMixin:
                         child.setParentItem(node)
                         child.setEnabled(True)
                         child.setVisible(True)
+                    # 恢复节点尺寸
+                    w = pos_data.get("width", node.rect().width())
+                    h = pos_data.get("height", node.rect().height())
+                    node.setRect(0, 0, w, h)
                     # 恢复节点样式
                     sk = pos_data.get("style", "rect")
                     from ui.canvas.items.node_style import STYLES
@@ -152,10 +156,11 @@ class CanvasLayoutMixin:
                     if type(node._style).__name__ != st_cls.__name__:
                         ns = st_cls()
                         node._style = ns
-                        ns.node_width = node.rect().width()
-                        ns.node_height = node.rect().height()
-                        ns.apply(node)
-                        ns.apply_status(node, node.status)
+                    # 使用保存的尺寸更新样式
+                    node._style.node_width = w
+                    node._style.node_height = h
+                    node._style.apply(node)
+                    node._style.apply_status(node, node.status)
                     cc = pos_data.get("custom_colors")
                     if cc and self.parent_window and node_name in self.parent_window.nodes_data:
                         config = self.parent_window.nodes_data[node_name].get("config", {})
@@ -178,16 +183,21 @@ class CanvasLayoutMixin:
                     config = self.parent_window.nodes_data[node_name]['config']
                     node_lang = config.get('language', 'python')
                     
-                    # 创建节点
-                    node = NodeItem(node_name, node_lang)
-                    node.setPos(pos_data["x"], pos_data["y"])
+                    # 获取节点尺寸
+                    w = pos_data.get("width", 140)
+                    h = pos_data.get("height", 80)
                     
-                    # 应用样式
+                    # 创建样式对象并设置尺寸
                     sk = pos_data.get("style", "rect")
                     from ui.canvas.items.node_style import STYLES
                     st_cls = STYLES.get(sk, STYLES["rect"])
-                    node._style = st_cls()
-                    node._style.apply(node)
+                    node_style = st_cls()
+                    node_style.node_width = w
+                    node_style.node_height = h
+                    
+                    # 创建节点（传递 canvas 和 style 参数）
+                    node = NodeItem(node_name, node_lang, "stopped", 0, 0, w, h, self, style=node_style)
+                    node.setPos(pos_data["x"], pos_data["y"])
                     
                     # 应用颜色
                     cc = pos_data.get("custom_colors")
@@ -229,7 +239,10 @@ class CanvasLayoutMixin:
                     sk = pos_data.get("style", "rect")
                     from ui.canvas.items.node_style import STYLES
                     st_cls = STYLES.get(sk, STYLES["rect"])
-                    node = NodeItem(node_name, lang, status, 0, 0, w, h, self, style=st_cls())
+                    node_style = st_cls()
+                    node_style.node_width = w
+                    node_style.node_height = h
+                    node = NodeItem(node_name, lang, status, 0, 0, w, h, self, style=node_style)
                     node.on_expand_requested = self.on_node_expand_requested
                     node.setPos(x, y)
                     self.scene.addItem(node)
