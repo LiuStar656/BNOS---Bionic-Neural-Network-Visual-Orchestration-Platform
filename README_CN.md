@@ -184,29 +184,44 @@
 
 ## 🚀 快速开始
 
-### 前置要求
+### 📋 前置要求
 
-- **Python**: 3.8 或更高版本
-- **操作系统**: Windows 10/11（主要支持），Linux/macOS（部分支持）
-- **磁盘空间**: 500MB+（用于虚拟环境）
+| 项目 | 要求 | 说明 |
+|------|------|------|
+| **Python** | 3.8 或更高版本 | **必需**，BNOS Console 核心运行环境 |
+| **操作系统** | Windows 10/11 | 主要支持平台，建议使用 |
+| **操作系统** | Linux/macOS | 部分功能测试可用 |
+| **磁盘空间** | 500MB+ | 用于虚拟环境和依赖包 |
 
-### 多语言节点支持
-
-| 语言 | 必需工具链 | 备注 |
-|------|-----------|------|
-| **Python** | Python 3.8+ + venv | 内置支持 |
-| **Rust** | Rust toolchain (rustc/cargo) | 自动检测和重建 |
-| **Node.js** | Node.js 16+ | npm 包自动安装 |
-| **Go** | Go 1.18+ | `go mod` 支持 |
-| **Java** | JDK 11+ | Maven/Gradle 可选 |
-| **C++** | MSVC/GCC/Clang | CMake 可选 |
-| **Ruby** | Ruby 2.7+ | Bundler 支持 |
+### 🔧 多语言节点支持（按需安装）
 
 > **注意**：仅 Python 是运行 BNOS Console 本身必需的。其他语言工具链仅在创建对应语言节点时需要。
 
-### 安装步骤
+| 语言 | 必需工具链 | 版本要求 |
+|------|-----------|----------|
+| **Python** | Python + venv | 3.8+ |
+| **Rust** | rustc/cargo | 最新稳定版 |
+| **Node.js** | Node.js + npm | 16+ |
+| **Go** | go | 1.18+ |
+| **Java** | JDK | 11+ |
+| **C++** | MSVC/GCC/Clang | 支持 C++17 |
+| **Ruby** | Ruby + Bundler | 2.7+ |
 
-#### 方式一：从源码运行（推荐开发使用）
+### 📦 安装与启动
+
+#### 🚀 方式一：一键启动（Windows 推荐）
+
+**最简单的启动方式，自动处理环境配置：**
+
+1. 双击运行 `start_bnos_console.bat`
+   - 自动检测 Python 环境
+   - 自动创建/激活虚拟环境 `myenv_new/`
+   - 自动安装缺失的依赖
+   - 启动应用（无终端窗口）
+
+2. 或双击 `start_bnos_console.vbs`（完全静默启动，无任何窗口）
+
+#### 🔧 方式二：从源码运行（开发调试）
 
 ```bash
 # 1. 克隆仓库
@@ -214,63 +229,90 @@ git clone https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orch
 cd "BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform"
 
 # 2. 创建虚拟环境
-python -m venv myenv
+python -m venv venv
 
 # 3. 激活环境
 # Windows:
 myenv\Scripts\activate
 # Linux/macOS:
-source myenv/bin/activate
+source venv/bin/activate
 
 # 4. 安装依赖
 pip install -r requirements.txt
 
 # 5. 启动应用
-python bnos_console.py
+python launcher.py
+# 或直接启动主程序
+# python bnos_console.py
 ```
 
-#### 方式二：使用启动脚本（Windows）
+> **💡 提示**：`launcher.py` 是启动动画界面，`bnos_console.py` 是主程序入口。
 
-```powershell
-# PowerShell
-& ".\start_bnos_console.bat"
+### 🎯 创建第一个神经网络项目
 
-# 或 CMD
-start_bnos_console.bat
+#### 1. 创建项目
 ```
+菜单 → 文件 → 新建项目 → 选择空文件夹
+```
+系统自动创建 `nodes/` 目录用于存放节点。
 
-> **提示**：首次运行会自动检查并安装 PyQt6（如果缺失），请耐心等待。
+#### 2. 创建节点
+```
+菜单 → 编辑 → 新建节点 → 选择语言 → 输入名称 → 确定
+```
+自动生成完整结构：
+- `config.json` - 节点配置文件
+- `main.py` - 主逻辑文件
+- `listener.py` - 监听模块
+- `start.bat` - 启动脚本
+- `venv/` - 独立虚拟环境
 
-### 创建第一个项目
+#### 3. 添加到画布
+```
+右键节点列表中的节点 → 添加到画布
+```
+节点以自动计算的最优位置出现。
 
-1. **创建项目**
-   ```
-   菜单 → 文件 → 新建项目 → 选择文件夹
-   ```
-   系统自动创建 `nodes/` 目录。
+#### 4. 连接节点（创建突触）
+1. 点击并按住源节点的 **OUT** 锚点（蓝色圆点）
+2. 拖拽到目标节点的 **IN** 锚点（绿色圆点）
+3. 释放鼠标，系统自动配置上下游监听路径
 
-2. **创建节点**
-   ```
-   菜单 → 编辑 → 新建节点 → 选择语言 → 确定
-   ```
-   自动生成完整结构：`config.json`、`main.py`、`listener.py`、`start.bat`、`venv/`
+#### 5. 启动节点
+```
+双击节点 → 在属性面板点击「启动」按钮
+```
+状态灯变绿表示节点正在运行。
 
-3. **添加到画布**
-   ```
-   右键节点列表中的节点 → 添加到画布
-   ```
-   节点以自动计算的位置出现。
+### ⚠️ 首次运行注意事项
 
-4. **连接节点**
-   - 点击并按住源节点的 **OUT** 锚点（蓝色圆点）
-   - 拖拽到目标节点的 **IN** 锚点（绿色圆点）
-   - 释放鼠标创建突触（自动配置路径）
+1. **防火墙提示**：首次启动可能会弹出防火墙提示，请允许 Python 访问网络
+2. **依赖安装**：首次运行需要安装 PyQt6 等依赖，可能需要几分钟
+3. **虚拟环境**：启动脚本会在项目目录创建 `myenv_new/` 虚拟环境
+4. **日志文件**：运行日志保存在 `logs/` 目录下
 
-5. **启动节点**
-   ```
-   双击节点 → 点击 启动
-   ```
-   状态灯变绿表示节点正在运行。
+### 📝 目录结构说明
+
+```
+BNOS/                              # 项目根目录
+├── bnos_console.py               # 主程序入口
+├── launcher.py                   # 启动动画（tkinter，零依赖）
+├── requirements.txt              # Python 依赖列表
+├── app_config.json               # 应用配置（窗口位置、语言等）
+├── canvas_layout.json            # 画布布局持久化
+├── start_bnos_console.bat        # Windows 启动脚本（带环境检测）
+├── start_bnos_console.vbs        # Windows 静默启动脚本
+├── myenv_new/                    # 自动创建的虚拟环境
+├── nodes/                        # 节点目录
+│   └── [node_name]/              # 单个节点
+│       ├── config.json           # 节点配置
+│       ├── main.py               # 主逻辑
+│       └── venv/                 # 节点独立虚拟环境
+└── ui/                           # UI 模块
+    ├── main_window.py            # 主窗口
+    ├── canvas/                   # 画布系统
+    └── panels/                   # 面板组件
+```
 
 ---
 

@@ -214,13 +214,13 @@ git clone https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orch
 cd "BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform"
 
 # 2. Create virtual environment
-python -m venv myenv
+python -m venv venv
 
 # 3. Activate environment
 # Windows:
 myenv\Scripts\activate
 # Linux/macOS:
-source myenv/bin/activate
+source venv/bin/activate
 
 # 4. Install dependencies
 pip install -r requirements.txt
