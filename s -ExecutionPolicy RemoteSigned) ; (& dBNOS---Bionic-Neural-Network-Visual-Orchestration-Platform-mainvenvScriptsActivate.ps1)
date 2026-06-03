@@ -1,0 +1,194 @@
+[33m3275758[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix：修复项目创建时的目录路径问题
+[33m506b4b1[m fix：修复README.md中的错误
+[33mb01ba36[m fix: venv name changed
+[33m15e6b8c[m update：更新项目介绍
+[33m72a1732[m fix：修复logo字体问题
+[33m92321ea[m fix: 修复toast通知显示问题
+[33m73f08f6[m update：添加文件操作管理器 update：添加导入导出管理器
+[33mb4c8584[m fix: 修复节点创建弹窗背景透明度问题
+[33mab3bd11[m fix:修复dock节点列表面板无法删除和启动节点问题
+[33m05cb1b0[m fix: 修复节点创建和启停问题
+[33m2cb4fe1[m fix：修复面板显示问题
+[33mcb9891d[m fix：修复节点启动失败的toast提示
+[33m46a3ad2[m fix: 修复节点监控面板在画布为空时的显示问题
+[33mace134a[m fix：修复节点切换样式后，连线路径更新问题
+[33m01c07b1[m fix: 修复重启节点子控件坐标丢失问题
+[33mb4d4007[m update README and menu icons
+[33m120669d[m update：更新logo
+[33m17b40bb[m update: 更新日志查看对话框的关闭按钮文本
+[33m2af5645[m fix:k值相关问题
+[33m5429899[m fix：修复了节点样式的一个bug，导致在某些情况下节点无法正确显示。
+[33m559fb9e[m fix: update node style
+[33m4ffe68a[m fix： 修复画布Dock标签叠问题
+[33md044491[m fix: update node expand panel and project manager
+[33m076c66f[m fix：修复项目创建后画布同步问题（CanvasHost）
+[33m8187db1[m fix:    修复canvas_layout.py中的错误
+[33m384019c[m fix: 修复连线恢复问题
+[33md06520a[m     Add canvas empty hint
+[33mb4d91a8[m fix: 修复窗口拖动问题
+[33m882cef0[m update: canvas host management
+[33mfc4ed9f[m fix: remove canvas tab management
+[33mbf4824a[m Update README files with multi-tab and global status sync features
+[33m54166e4[m Update logs with canvas layout loading enhancement
+[33m72ce3d6[m Fix syntax error in canvas layout loading logic
+[33m9a7beca[m Fix canvas layout loading - auto add missing nodes from layout file
+[33mbe7eb47[m Add debug logs for tab state restore
+[33m9524948[m Add debug logs for tab switching to locate project path issue
+[33me22ce50[m Fix tab state saving - ensure all tabs save project_path correctly
+[33m3700233[m Fix second canvas not loading project data - pass project_path to new_canvas_tab
+[33mf49dc37[m Fix context initialization with project path when restoring tabs
+[33mb69782e[m Fix dock panel data synchronization issue when switching tabs
+[33mf29fffe[m Fix tab switch: load project data from project directory
+[33m232cd46[m Fix panel state not restored when tabs are restored
+[33m88921d6[m Fix initialization order: refresh_nodes called before node_list_panel created
+[33m3c59863[m Fix tab state restoration conflict with last_project
+[33mf624f70[m Fix tab context index mismatch when closing tabs
+[33mfec45a8[m Fix tab state restoration conflict with auto_open_last_project
+[33m4143bc3[m Fix tab name not updated in auto_open_last_project
+[33m3ff1ec9[m Implement tab state persistence
+[33m90da687[m Fix canvas reference not set in _on_tab_changed
+[33m4c375c0[m Fix new_canvas_tab to accept optional name parameter
+[33m066ee0a[m Fix method name typo: _add_new_canvas_tab -> new_canvas_tab
+[33m5c2d2dc[m Fix diagnostic errors: duplicate keys and typo
+[33mb6747fa[m Implement global state sync mechanism for all panels
+[33m7175da5[m Fix panel auto-start conflict and resource monitor issues
+[33m999a9e6[m 修复bug并实现PS风格面板停靠系统
+[33mbd0e1ad[m feat: VS Code Codicon icon system integration
+[33m3dc39f6[m feat: 统一轮询管理器重构完成
+[33m15f4e3d[m 统一轮询管理器整合完成
+[33m4f659e6[m feat: 提示弹窗点击空白处关闭 + 父窗口不可见时屏幕居中
+[33m23e97d7[m fix: 节点列表原地拖拽后消失 — 无变更时也刷新树视图
+[33m791755c[m feat: 画布空白处左键点击取消所有选中
+[33m52ff622[m feat: 节点组数据变化自动刷新列表 — on_changed 回调机制
+[33mb60e26b[m fix: 锁定组操作被拒后自动刷新列表 — 节点不再消失
+[33m1f12cf0[m fix: 挂载/锁定组边界保护 — 禁止移入移出全覆盖
+[33m0ff44c7[m docs: UPDATE + README 更新 — 独立启动器/三态灯/Ctrl+D/颜色修复
+[33m862c8d3[m fix: vbs 变量声明改用 Dim + 修正对象名
+[33mdd0451f[m feat: 新增 .vbs 启动脚本 — 零窗口静默启动 launcher
+[33m1e5ccc3[m fix: 彻底消除控制台 — pythonw 全链路无终端
+[33m0dcc9c1[m fix: bat 终端不闪 — pythonw 无控制台窗口启动
+[33mb0406c0[m fix: bat 启动后终端自动退出 — start /b 后台运行 launcher
+[33m836ddf7[m fix: 进度文件参数解析 — 支持 --progress <path> 空格分隔
+[33mbb93b50[m fix: 进度条即时跳跃+收尾精调 — 紧跟主程序加载速度
+[33m0ab6619[m fix: 启动器崩溃保护 — 全局 try/except + __file__ 兜底
+[33mbf41877[m fix: 启动器 tkinter 缺失时降级为直接启动主程序
+[33md70fbcd[m fix: 进度条大步快速追赶 + 缺少 venv 时清晰报错
+[33m79d0484[m fix: 启动动画进度条平滑过渡 + 动画跑完再关闭
+[33m1131dad[m refactor: 启动器实时读取主程序进度 — 逐步展示全流程
+[33m2274931[m docs: launcher.py 头部补充打包说明 + 简化 bat 注释
+[33m8d4d7ba[m refactor: 启动动画从 PyQt6 内嵌改为独立 tkinter 启动器
+[33mbda8531[m revert: 移除 Ctrl+Click 切换绘图模式 + _toggle_draw_mode 方法 + shortcut_manager 条目
+[33mb41013e[m fix: node_expand_panel.py 缺少闭合括号导致 SyntaxError
+[33m06fd680[m fix: clear_connections themed_message 5参数→4参数
+[33m4529cc4[m fix: themed_message NameError — 提升到模块级导入，清除3处内联重复import
+[33m79f9459[m fix: Ctrl+D 批量移除报错 — themed_message 参数 + 硬编码字符串改 i18n
+[33m1597bdc[m feat: 三态状态灯(灰=停止/绿=空闲/红=运行) + psutil 子进程检测
+[33m6787e11[m feat: Ctrl+D 统一删除 — 画布节点/节点列表/组/绘图图形
+[33mf0df962[m feat: 右键删除冲突修复 + 图形框选 + Ctrl+D 删除选中图形
+[33m8be82c6[m feat: Ctrl+Click 空白处切换节点/绘图模式 + 移除冗余Ctrl平移
+[33m80aae3b[m fix: 颜色设置画布背景 key 名不匹配 — choose_color 与 collect_settings 对齐
+[33m8e54680[m debug: 颜色设置添加详细日志 — choose/apply/confirm 均输出 canvas_bg 值
+[33m19496bd[m fix: 画布背景修改真正生效 — resetCachedContent + repaint 末尾调用 + 日志
+[33mbd543e3[m fix: 画布背景真正可控制 — drawBackground 直接 fillRect + viewport 透明化
+[33m66b23b2[m fix: 颜色对话框可拖动+可见边框 + 画布背景 viewport().repaint()
+[33m549f635[m fix: 颜色设置对话框改为BNOS主题+Frameless + 画布背景强制重绘
+[33m2a6037a[m feat: 全局快捷键管理系统 — 集中定义+持久化+设置面板
+[33m9d639de[m fix: 闪屏纯外边框 — 移除 WA_TranslucentBackground+自绘,直接 CSS border
+[33mae20da3[m fix: 闪屏纯外边框+自绘背景 + 颜色设置全部生效 + README 补全新功能
+[33m0066aa3[m fix: 闪屏外边框 — 双层架构（透明外壳+QFrame内框）
+[33m8e8fdd8[m style: 闪屏边框加粗 + README 双语言架构重写
+[33m1a5e5a0[m style: 闪屏ASCII置顶 + README双语言ASCII Banner
+[33mf293267[m fix:修复缺失os依赖问题
+[33mcbc4f94[m feat: 启动动画延迟关闭 + BnosGui→BnosConsole 全项目重命名
+[33mf8ac76c[m style: 启动动画全黑白配色 — 蓝→白/灰
+[33m6cce1f4[m feat: 启动动画 — ASCII字符BNOS + 日志 + 进度条
+[33m7b501c0[m docs: UPDATE 补充 from-import LANG 值拷贝 Bug 说明
+[33m2cd4c75[m fix: 语言检测 Python from-import 值拷贝 Bug — LANG 始终为默认值 cn
+[33mf8f014c[m fix: 设置对话框重构 — 当前语言只读显示 + 切换语言下拉分离
+[33m5c4c8b9[m fix: 设置对话框语言下拉框改用 t() + 重启前强制config刷盘
+[33m7f2d8e1[m fix: 语言切换 en→cn 方向失败 — 重启流程重构
+[33m006504f[m fix: 颜色设置连线刷新 + 语言切换持久化 + 侧边栏样式统一
+[33m8147561[m chore: 清理 draw_toolbar 未使用导入
+[33m469b67a[m feat: 设置对话框 + 侧边栏样式统一 + 颜色设置修复
+[33mbcad931[m docs: 更新 UPDATE 日志 — 国际化体系完善 + 进程隔离回退
+[33mbf5492b[m i18n: 英文语言文件 + 进程隔离切回嵌合模式 + 大量硬编码字符串k-value替换
+[33m1f4b2c5[m fix: 进程模式主窗口加placeholder占位 — 防止布局塌陷
+[33m3ae9fe8[m fix: node_list_panel进程模式canvas=None守卫 — 6处canvas访问加保护
+[33m6e69ed3[m fix: 补充A_WIN_SYNC导入
+[33m6f6a1ff[m feat: 进程隔离窗口同步 — 画布Frameless跟随主窗口移动缩放(IPC A_WIN_SYNC)
+[33m0f771a1[m fix: 默认切回嵌入式模式 — 进程隔离保留为可选开关
+[33m905706d[m fix: 进程模式下canvas=None安全防护 — 所有canvas访问加None守卫
+[33md237727[m feat: 画布进程隔离全面激活 — CANVAS_PROCESS_MODE=True, 崩溃隔离正式生效
+[33m422a9ae[m fix: 补回缺失的themed_message导入 + 清理node_config_dialog重复import
+[33mc11750a[m refactor: QMessageBox全部迁移至themed_message — 11文件71处统一深色弹窗
+[33ma4d1aa1[m feat: themed_message统一消息弹窗 — info/warning/error/question/question3全覆盖
+[33m70ae9e3[m fix: JSON重复key还原 — git checkout恢复 + 正确追加新key无重复
+[33mc73969f[m refactor: 新建项目=选目录+命名+自动建nodes; 打开项目=识别结构不创建
+[33m67d4e6f[m fix: 补回 _get_drives() 调用
+[33mb3c124e[m fix: 文件夹选择器 — 无限层级展开 + 上级按钮 + 双击进入 + 分区框缩小
+[33m106c46f[m fix: 文件夹选择器增加驱动器切换+树形展开+面包屑+延迟加载子目录
+[33m35788cb[m feat: 自绘文件夹选择器pick_folder — QTreeWidget完全取代QFileDialog，深色主题100%受控
+[33m5029f2c[m fix: QFileDialog.getExistingDirectory→实例化+DontUseNativeDialog — 彻底绕过Windows原生
+[33m0af11b4[m fix: setStyle(Fusion)强制Qt渲染引擎 — QFileDialog/QMessageBox彻底走深色主题
+[33m1892d45[m fix: AA_DontUseNativeDialogs移到QApplication创建之前 — QFileDialog/QMessageBox全部生效
+[33m7bee0bc[m style: themed_input_dialog统一全部QInputDialog — 6处替换为Frameless半透明浮窗
+[33m8b23629[m fix: 新建节点对话框修到main_window(正主) + 删除MenuManager死代码
+[33m924ceae[m style: 新建节点对话框完全匹配FloatingPanel样式 — Tool+Frameless+rgba圆角+x关闭
+[33mee89c50[m style: 新建节点对话框改为无边框半透明 — rgba(30,30,30,220)圆角浮窗
+[33mb582086[m style: 新建节点对话框改为自定义QDialog — 深色主题完全受控
+[33m96a420c[m style: AA_DontUseNativeDialogs — 强制所有弹窗(QMessageBox/QInputDialog等)使用Qt深色主题
+[33m4dfb263[m style: 统一弹窗深色主题 — QInputDialog/QFileDialog/QColorDialog/QMenu全覆盖
+[33m65c018c[m docs: UPDATE记录绘图工具栏落地 — 5工具+PS风格+Alt交互
+[33m16b05f5[m fix: 按钮文字居中 + 框选改为Alt+左键触发
+[33mdce3d3f[m fix: VSCode风格左侧白边高亮 + 节点列表避开工具栏 + 去emoji
+[33m3cdd72d[m fix: 按键色统一#252525 + 2px分割线 + 右键直接删除图形
+[33mb35cb21[m style: 工具栏匹配菜单栏配色 — #1e1e1e深色/40px宽/黑白图标/14px字体/无emoji
+[33md7ef21a[m fix: 工具栏高度 — showEvent自适应父窗口 + QScrollArea stretch=1填满
+[33m9c69d29[m fix: eventFilter崩溃 + 文件菜单重启功能 + 工具栏resize修复
+[33m84ff18e[m fix: 工具栏高度跟随画布 — layout自适应 + Resize事件过滤
+[33m1684792[m fix: 绘图工具栏 — 按钮状态/图标/删除清空/光标切换全部修复
+[33m2fb8046[m feat: 绘图工具栏常驻加载 — 启动时自动显示PS风格左侧竖式工具条
+[33ma902875[m feat: 绘图工具核心 — graphic_items(5种图形) + draw_layer(管理) + draw_toolbar(PS风格竖式)
+[33m41bade7[m docs: 下一步计划重写 — 绘图工具开发落地方案，清除已完成项
+[33meb9bc77[m chore: 测试文件移入 tests/ 目录，修正 sys.path
+[33me595d91[m fix: 子进程stdout/stderr继承父进程 — 移除DEVNULL，核心进程输出可见
+[33mfb4980d[m feat: 进程隔离第3步 — 核心业务后台子进程入口 + 测试脚本
+[33m05e35f9[m feat: 进程隔离第2步 — 面板子进程入口 + main_window注册
+[33m2359e71[m fix: IPCClient父对象错误 — CanvasProcessApp非QObject，去掉parent参数
+[33m970aa1f[m fix: canvas子进程导入路径修复 — sys.path注入项目根 + cwd固定
+[33m22697e2[m feat: 进程隔离第1步基础设施 — IPC通信/进程管理器/画布子进程入口
+[33m14cf73f[m docs: 下一步计划新增进程隔离方案 — 四进程架构 QLocalSocket通信
+[33m6583d6e[m i18n: 新建节点语言名k值替换 — 非Python/Rust标记开发中并拦截创建
+[33m2c8fbc1[m docs: 更新 UPDATE_CN/EN — 重构成果 + Bug修复记录
+[33m73cf871[m docs: 标记重构计划全部完成，更新最终成果
+[33m9ebb6e4[m fix: 挂载节点组被set_project_path覆盖 — 先设路径再建组并持久化，refresh恢复锁定组
+[33m7477419[m fix: 挂载Python节点启动失败 — 直接启动后检测存活，崩溃则回退start.bat
+[33m6852dd2[m refactor: 步骤5 - 提取项目管理/异步创建/挂载/窗口状态到core管理器 (1125→553行)
+[33m9cef69b[m refactor: 步骤4 - 提取连线/框选/批量操作到独立Mixin (1239→882行)
+[33mf041258[m refactor: 步骤3.3 - 消除重复代码: batch_open_node_folders用file_utils, 日志查看提取到log_viewer.py (1149→1105行)
+[33mafca037[m refactor: 步骤3.2 - 提取右键菜单到 node_list_context.py Mixin (1410→1149行)
+[33m47e7c7d[m refactor: 步骤3.1 - 提取拖放系统到 node_list_drag.py Mixin (1741→1410行)
+[33m12da4af[m feat: output.json编辑区双向实时同步 - 自动保存/外部刷新无冲突
+[33m50bd98a[m feat: 进程扫描兜底机制 - 修复孤儿进程残留与检测缺失
+[33mfa0dbc5[m refactor(P0-2.1): 提取 ColorSettingsDialog 独立文件, property_panel 1298→998行
+[33maa86df7[m refactor(P0-1.1): 提取 file_utils.py 消除160行重复代码
+[33m7fa26f3[m feat: i18n全量完成 — property_panel(98处) + node_list_panel(29处) + 收尾10处
+[33m28180bf[m fix: 连线无法接入输入锚点 — temp_edge遮挡锚点问题
+[33me13dcd3[m feat: 全项目i18n国际化基础框架 + 高DPI网格修复
+[33m6aa90cc[m docs: i18n plan — global string refactoring for all .py files
+[33md6a1016[m fix: override boundingRect to include handle/waypoint radius — no more drag residue
+[33m696a57a[m fix: ItemCoordinateCache — setPath auto-invalidates old cache, no residue
+[33m93cc2bc[m fix: reinstate scene.update(old_br) to clean handle drag residue
+[33m14c030b[m fix: grid as independent QGraphicsPathItem at z=-10, immune to element updates
+[33mdbf93f5[m fix: remove CacheBackground — device cache causes grid distortion on pan
+[33md81ba6e[m fix: grid drawn directly in scene coords, no texture scaling artifacts
+[33m6cdcadb[m fix: grid opacity cutoff at scale 0.5 — below half zoom grid disappears
+[33m34d0e6c[m refactor: layered z-order — edges<anchors<nodes<indicator<text
+[33mc2d50c0[m feat: grid opacity scales with zoom — smaller zoom = more transparent
+[33m88a8b9b[m fix: remove non-existent IndirectPainting flag from PyQt6
+[33med7a03c[m perf: two-layer grid rendering — pre-baked texture tiles, never redraw per-line
+[33mb44314a[m fix: force scene repaint of old+new regions on edge update to eliminate ghosting
+[33mf390205[m fix: ItemCoordinateCache + prepareGeometryChange to prevent edge ghosting
+[33m8fa9bd1[m fix: disable DeviceCoordinateCache on edges to prevent grid interference
+[33m5d1e98c[m fix: ensure all elements float above grid, z-value >= 1
+[33ma9bd308[m fix: restrict dot node selection to circular body only, excludes name text
