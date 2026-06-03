@@ -99,6 +99,8 @@
 
 📚 **[查看节点技术文档 →](https://github.com/LiuStar656/Bionic-Neural-Network-Operating-System)**
 
+📘 **[BNOS 平台技术说明书 →](TECHNICAL_DOCUMENTATION_CN.md)** — 架构设计、核心组件详解、IPC 通信、生命周期管理等完整技术文档（含全项目代码行数统计）
+
 该文档提供了超出本 README 范围的深度技术洞察，帮助开发者理解节点的内部工作原理以及如何创建自定义实现。
 
 ---
@@ -770,7 +772,7 @@ MIT License © 2026 阿东与守一工作室
 - **开发团队**：阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **邮箱**：1240543656@qq.com
-- **最后更新**：2026-05-21
+- **最后更新**：2026-06-04
 
 ---
 
