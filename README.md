@@ -31,6 +31,8 @@
 
 **Multi-Language Support**: The platform supports nodes implemented in **Python, Rust, Node.js, Go, Java, C++, and Ruby**, enabling developers to leverage the strengths of different programming languages within a single neural network architecture. Each node runs in an isolated environment with native performance characteristics.
 
+> ⚠️ **Note**: Currently only **Python** and **Rust** nodes are fully implemented. Node.js, Go, Java, C++, Ruby and other language nodes are under development and not yet fully functional.
+
 ### 🎯 Problem Statement
 
 Traditional distributed neuron systems face these challenges:
