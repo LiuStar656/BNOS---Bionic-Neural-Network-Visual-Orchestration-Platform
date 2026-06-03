@@ -4,6 +4,349 @@
 
 ---
 
+## 🌐 Global Status Synchronization Refactor (2026-05-23)
+
+### Feature Improvements
+
+**Global Status Subscription Mechanism**
+- All panels subscribe to `polling_manager.node_status_changed` signal
+- Achieve true global status synchronization, ensuring all panels display consistently
+- When node status changes, all panels automatically synchronize updates
+
+**Modified Panels**
+| Panel | File Path |
+|-------|-----------|
+| Node List Panel (Floating) | `ui/panels/node_list_panel.py` |
+| Node List Dock Panel | `ui/panels/node_list_dock.py` |
+| Resource Monitor Panel (Floating) | `ui/panels/resource_monitor.py` |
+| Resource Monitor Dock Panel | `ui/panels/resource_monitor_dock.py` |
+| Node Monitor Panel (Floating) | `ui/panels/node_monitor.py` |
+| Node Monitor Dock Panel | `ui/panels/node_monitor_dock.py` |
+
+### Technical Implementation
+
+- **Signal Subscription Mechanism**: All panels subscribe to `polling_manager.node_status_changed` signal
+- **Status Update Callback**: Each panel implements `_on_node_status_changed` callback method
+- **Unified Data Source**: All panels get node status from PollingManager
+- **Real-time Synchronization**: All panels update display immediately when node status changes
+
+### Fixed Issues
+
+1. **Node Status Display Inconsistency**: All panels now display the same status
+2. **Status Update Delay**: Panels respond more promptly
+3. **High Resource Usage**: Unified detection mechanism reduces duplicate work
+
+### Code Changes
+
+**Node List Panel**
+- Subscribe to global status signal
+- Implement status update callback
+- Remove independent detection logic
+
+**Resource Monitor Panel**
+- Subscribe to global status signal
+- Implement status update callback
+- Use unified data source
+
+**Node Monitor Panel**
+- Subscribe to global status signal
+- Implement status update callback
+- Display real-time status information
+
+---
+
+## 🖼️ Canvas Layout Loading Enhancement (2026-05-23)
+
+### Feature Improvements
+
+**Auto-add Missing Nodes**
+- `load_layout` method now automatically adds missing nodes to canvas
+- Get node information from project data, create nodes and apply layout configurations
+- Ensure all nodes can be displayed correctly when switching tabs
+
+**Fixed Issues**
+- Node position information was not loaded correctly when switching tabs
+- Nodes in canvas layout files were not displayed on canvas
+- Color configuration and style information loading incomplete
+
+### Technical Implementation
+
+- **Node Existence Check**: Iterate through layout data, check if nodes are already on canvas
+- **Auto-create Nodes**: Automatically create and add when node doesn't exist but exists in project data
+- **Configuration Application**: Apply position, style, color and other configuration information
+- **Exception Handling**: Improve exception handling mechanism to avoid errors interrupting loading
+
+### Code Changes
+
+**Canvas Layout Module** (`ui/canvas/canvas_layout.py`)
+- Modify `load_layout` method, add automatic node addition logic
+- Improve exception handling, fix syntax errors
+- Add logging for debugging and tracking
+
+**Fix Details**
+- Fixed `try-except` syntax error
+- Added automatic creation feature for missing nodes
+- Improved color and style configuration application logic
+- Enhanced error handling and logging
+
+---
+
+## 🛠️ Panel State Persistence & Resource Monitor Fixes (2026-05-23)
+
+### Fixed Issues
+
+**1. Panel Auto-start Conflict**
+- Fixed issue where floating panel auto-start causes Dock panel to disappear
+- Fixed issue where floating panel fails to auto-start when Dock panel is auto-started
+- Modified file: `ui/main_window.py`
+
+**2. Null Pointer Error Fix**
+- Fixed `AttributeError: 'NoneType' object has no attribute 'update_node_status'`
+- Added null checks before accessing panels
+- Modified file: `ui/main_window.py`
+
+**3. Resource Monitor Dock Panel Node Data Loading**
+- Fixed issue where node resource usage was not displayed
+- Added `parent_window` reference for automatic node data retrieval
+- Modified file: `ui/panels/resource_monitor_dock.py`
+
+**4. Dock Panel Close Handling**
+- Fixed issue where accessing deleted objects after closing Dock panel
+- Connected `panel_closed` signal to clear references on close
+- Modified file: `ui/main_window.py`
+
+**5. Node Monitor Panel Status Sync**
+- Fixed PID file path issue (prioritize `.pid` file)
+- Sync status display during resource monitoring
+- Modified file: `ui/panels/node_monitor_dock.py`
+
+### Feature Improvements
+
+**Panel State Persistence**
+- Support independent visibility state saving for Dock and floating panels
+- Support panel position persistence
+- Auto-restore panel state and position after restart
+
+**Resource Monitor Layout Optimization**
+- CPU, RAM, Disk displayed horizontally and centered
+- Node resource list displayed vertically
+- Consistent layout between Dock and floating versions
+
+### Modified Files
+- `ui/main_window.py` - Panel state restoration, null checks, Dock close handling
+- `ui/panels/resource_monitor_dock.py` - Node data loading, status sync
+- `ui/panels/node_monitor_dock.py` - PID file path fix, status sync
+- `ui/core/app_config.py` - Singleton pattern
+- `ui/core/dock_manager.py` - Duplicate creation prevention
+
+---
+
+## 🖼️ Sidebar Toolbar Size Increase & Icon Fixes (2026-05-23)
+
+### Dimension Adjustments
+
+**Modified file**: `ui/canvas/draw_toolbar.py`
+
+| Item | Before | After |
+|------|--------|-------|
+| Toolbar width | 40px | **56px** |
+| Button height | 34px | **44px** |
+| Icon font size | 14px | **18px** |
+
+### Icon Fixes
+
+Fixed several invalid icons that displayed as exclamation mark `!`:
+
+| Function | Old Icon | New Icon | Description |
+|----------|----------|----------|-------------|
+| Rectangle tool | `layout-panel` | ✅ `layout-panel` | Panel icon |
+| Round rectangle | `circle` | ✅ `circle` | Circle icon |
+| Polygon | `triangle-up` | ✅ `triangle-up` | Triangle icon |
+| Arrow tool | `arrow-right` | ✅ `arrow-right` | Arrow icon |
+| Text tool | `file-text` | ✅ `file-text` | Text file icon |
+| Stroke color | `pencil` | ✅ `pencil` | Pencil icon |
+| Fill color | `paintcan` | ✅ `paintcan` | Paint bucket icon |
+| Lock | `lock` | ✅ `lock` | Lock icon |
+| Show/Hide | `eye` | ✅ `eye` | Eye icon |
+| Undo | `arrow-left` → **`chevron-left`** | ✅ `chevron-left` | Left chevron |
+| Redo | `arrow-right` → **`chevron-right`** | ✅ `chevron-right` | Right chevron |
+| Delete selected | `trash` | ✅ `trash` | Trash icon |
+| Clear all | `clear-all` → **`close`** | ✅ `close` | Close icon |
+
+---
+
+## 🎨 VS Code Codicon Icon System Integration (2026-05-23)
+
+### Icon Resource Management
+
+**New icon source directory**: `codicon-source/` (formerly `vscode-codicons-main`)
+
+- Full VS Code Codicon icon library (MIT License)
+- Font file: `codicon.ttf`
+- Icon definitions: `codiconsLibrary.ts`
+
+### Icon Manager
+
+**Updated**: `ui/icons/codicon.py`
+
+- Icon mappings expanded from 527 to **597 icons**
+- New icon categories: AI, Debug, Git, Terminal, Layout
+- Convenient `get_icon()` and `get_icon_font()` interfaces
+
+### New Icon Categories
+
+| Category | New Icons |
+|----------|-----------|
+| AI Assistant | `copilot`, `thinking`, `sparkle`, `openai`, `claude` |
+| Debug | `debug-all`, `debug-step-in`, `debug-step-out`, `debug-coverage` |
+| Git | `git-compare`, `repo-clone`, `repo-pull`, `repo-push` |
+| Terminal | `terminal-bash`, `terminal-cmd`, `terminal-powershell` |
+| Layout | `layout`, `layout-panel`, `layout-sidebar-left/right` |
+| Run | `run-all`, `run-coverage`, `run-with-deps` |
+
+### UI Icon Replacement
+
+**Modified files**:
+- `ui/menu/menu_manager.py` - Menu icons
+- `ui/canvas/draw_toolbar.py` - Drawing toolbar icons
+
+### Usage Example
+
+```python
+from ui.icons import get_icon, get_icon_font
+
+icon_char = get_icon('copilot')    # AI assistant icon
+icon_char = get_icon('run-all')    # Run icon
+```
+
+---
+
+## 🔄 Unified Polling Manager + Global State Monitoring Refactor (2026-05-23)
+
+### Unified Polling Manager
+
+**New**: `ui/core/polling_manager.py` (Singleton Pattern)
+
+Centralized management for all periodic polling tasks:
+
+| Polling Task | Interval | Description |
+|--------------|----------|-------------|
+| Node Health Check | 3s | Detect node process status |
+| Global Log Monitoring | 2s | Detect global log file changes |
+| Global Config Monitoring | 5s | Detect global config file changes |
+| Node Log Monitoring | 2s | Detect individual node log changes |
+| Node Config Monitoring | 5s | Detect individual node config changes |
+| Node Output JSON | 1s | Detect output.json changes |
+| Application State | 1s | Monitor overall application status |
+
+**Core Features**:
+- Singleton pattern for global unique instance
+- Support task registration/cancellation/pause/resume
+- Precise timing based on QTimer
+- PyQt signal mechanism for panel notifications
+
+### Module Consolidation
+
+**Deleted Redundant Files**:
+- `ui/core/system_monitor.py` → merged into polling_manager
+- `ui/core/global_detector.py` → merged into polling_manager
+
+### Panel Adaptations
+
+| Panel | Changes |
+|-------|---------|
+| `ui/main_window.py` | Replaced SystemMonitor/GlobalDetector with polling_manager |
+| `ui/panels/node_monitor.py` | Subscribed to polling_manager log signals |
+| `ui/panels/node_expand_panel.py` | Subscribed to config/output signals |
+| `ui/dialogs/node_config_dialog.py` | Subscribed to config change signals |
+
+### Affected Files
+
+`polling_manager.py`(new), `main_window.py`, `node_monitor.py`, `node_expand_panel.py`, `node_config_dialog.py`, `system_monitor.py`(deleted), `global_detector.py`(deleted)
+
+---
+
+## 🔄 Standalone Launcher + 3-State Indicators + Ctrl+D Delete + Color Fixes (2026-05-23)
+
+### Standalone tkinter Launcher
+
+Replaced embedded PyQt6 splash with `launcher.py` (251 lines):
+- Pure tkinter, zero dependencies on venv, packable as standalone EXE
+- Splash appears instantly → background spawns venv pythonw → real-time progress file polling
+- Smooth progress bar animation, precisely synced with main program loading
+- Auto-close 0.2s after 100%. `.vbs` zero-window launcher
+- Missing venv: shows install guide on splash then exits
+
+### 3-State Status Indicator
+
+| Color | State | Detection |
+|-------|-------|-----------|
+| Gray `#888` | Stopped | listener PID absent |
+| Green `#44FF44` | Idle | listener alive, no main child |
+| Red `#FF4444` | Running | listener + main child active |
+
+Uses `psutil` process tree detection, zero node code changes. Health check polls every 3s, UI fully adapted for 3-state model.
+
+### Ctrl+D Unified Delete Shortcut
+
+`Ctrl+D` context-aware:
+- Node list focused → batch delete nodes/groups
+- Canvas box-selected nodes → remove from canvas
+- Canvas selected graphics → delete
+
+Right-click delete removed (conflicted with context menu).
+
+### Color Settings Fixes
+
+- **Canvas background**: `drawBackground` directly `painter.fillRect` using `canvas_bg_color`; `resetCachedContent` + `repaint` for instant update
+- **Color dialog**: BNOS dark theme Frameless window, draggable, visible border
+- **Key name alignment**: `choose_color`'s `canvas_bg` now matches `collect_settings`'s `temp_canvas_bg_color`
+
+### Shortcut Manager
+
+New `ui/core/shortcut_manager.py`: 11 shortcuts centrally defined + persisted to `app_config.json` + settings panel visual editor + double-click capture.
+
+### Language Switching Fixed
+
+Fixed Python `from import LANG` value-copy bug (added `get_lang()`) + restart via `exit(42)` exit code + `AppConfig` supports new key persistence.
+
+### Affected Files
+
+`launcher.py`(new), `node_process.py`, `node_style.py`, `canvas_colors.py`, `canvas_view.py`, `shortcut_manager.py`(new), `color_settings_dialog.py`, `settings_dialog.py`, `menu_manager.py`, `main_window.py`, `i18n.py`, `app_config.py`, `start_bnos_console.vbs`(new), startup scripts
+
+---
+
+## 🚀 Splash Screen + Brand Rename BnosConsole + README Update (2026-05-23)
+
+### Splash Screen
+
+New `ui/core/splash_screen.py` (114 lines):
+- **ASCII Art BNOS**: 6-line █ block characters, Consolas 13pt bold, monochrome
+- **BNOS CONSOLE** subtitle + project tagline (i18n)
+- **Bottom-left live log**: QTextEdit 80px, scrolled startup steps
+- **Bottom progress bar**: 0→100%, gray chunk
+- **Delayed close**: 2 seconds after main window appears
+
+### Brand Rename: BnosGui → BnosConsole
+
+| Old | New |
+|-----|-----|
+| `bnos_gui.py` | `bnos_console.py` |
+| `start_bnos_gui.bat` | `start_bnos_console.bat` |
+| `start_bnos_gui.sh` | `start_bnos_console.sh` |
+| `requirements_gui.txt` | `requirements.txt` |
+| `"BnosGui"` window title | `"BnosConsole"` |
+| `logs/bnos_gui.log` | `logs/bnos_console.log` |
+| `_k_app_name` | `"BNOS Console"` (cn/en unified) |
+
+25+ files affected: `main_window.py`, `dark_title_bar.py`, `logger.py`, `build_bnos.spec`, README, UPDATE, tests, etc.
+
+### Affected Files
+
+`splash_screen.py`(new), `bnos_console.py`(rename + splash delay), `strings_cn/en.json`, `main_window.py`, `dark_title_bar.py`, `logger.py`, `build_bnos.spec`, startup scripts, README, UPDATE, tests
+
+---
+
 ## 🔧 ComfyUI-Style Line Refactor + Manual Fold (2026-05-22)
 
 ### Bezier → Orthogonal Lines + Manual Folding 📏

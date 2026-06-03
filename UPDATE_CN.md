@@ -7,6 +7,349 @@
 
 ---
 
+## 🌐 全局状态同步改造 (2026-05-23)
+
+### 功能改进
+
+**全局状态订阅机制**
+- 所有面板订阅 `polling_manager.node_status_changed` 信号
+- 实现真正的全局状态同步，确保所有面板显示一致
+- 当节点状态变化时，所有面板自动同步更新
+
+**修改的面板**
+| 面板 | 文件路径 |
+|------|---------|
+| 节点列表面板（浮动版） | `ui/panels/node_list_panel.py` |
+| 节点列表Dock面板 | `ui/panels/node_list_dock.py` |
+| 资源监测面板（浮动版） | `ui/panels/resource_monitor.py` |
+| 资源监测Dock面板 | `ui/panels/resource_monitor_dock.py` |
+| 节点监测面板（浮动版） | `ui/panels/node_monitor.py` |
+| 节点监测Dock面板 | `ui/panels/node_monitor_dock.py` |
+
+### 技术实现
+
+- **信号订阅机制**：所有面板订阅 `polling_manager.node_status_changed` 信号
+- **状态更新回调**：各面板实现 `_on_node_status_changed` 回调方法
+- **统一数据源**：所有面板从 PollingManager 获取节点状态
+- **实时同步**：节点状态变化时，所有面板立即更新显示
+
+### 修复问题
+
+1. **节点状态显示不一致**：所有面板现在显示相同状态
+2. **状态更新延迟**：面板响应更及时
+3. **资源占用过高**：统一检测机制减少重复工作
+
+### 代码变更
+
+**节点列表面板**
+- 订阅全局状态信号
+- 实现状态更新回调
+- 移除独立检测逻辑
+
+**资源监测面板**
+- 订阅全局状态信号
+- 实现状态更新回调
+- 使用统一数据源
+
+**节点监测面板**
+- 订阅全局状态信号
+- 实现状态更新回调
+- 显示实时状态信息
+
+---
+
+## 🖼️ 画布布局加载增强 (2026-05-23)
+
+### 功能改进
+
+**自动添加缺失节点**
+- `load_layout` 方法现在能够自动添加缺失的节点到画布
+- 从项目数据中获取节点信息，创建节点并应用布局配置
+- 确保标签页切换时所有节点都能正确显示
+
+**修复问题**
+- 标签页切换时节点位置信息没有正确加载
+- 画布布局文件中的节点未在画布上显示
+- 颜色配置和样式信息加载不完整
+
+### 技术实现
+
+- **节点存在性检查**：遍历布局数据，检查节点是否已在画布上
+- **自动创建节点**：当节点不存在但存在于项目数据中时，自动创建并添加
+- **配置应用**：应用位置、样式、颜色等配置信息
+- **异常处理**：完善异常处理机制，避免加载过程中的错误中断
+
+### 代码变更
+
+**画布布局模块** (`ui/canvas/canvas_layout.py`)
+- 修改 `load_layout` 方法，增加自动节点添加逻辑
+- 改进异常处理，修复语法错误
+- 添加日志记录，便于调试和追踪
+
+**修复细节**
+- 修复了 `try-except` 语法错误
+- 添加了缺失节点的自动创建功能
+- 完善了颜色和样式配置的应用逻辑
+- 增强了错误处理和日志记录
+
+---
+
+## 🛠️ 面板状态持久化与资源监测修复 (2026-05-23)
+
+### 已修复的问题
+
+**1. 面板自启冲突问题**
+- 修复开机自启浮动面板导致Dock面板消失的问题
+- 修复Dock面板自启时浮动面板无法自启的问题
+- 修改文件：`ui/main_window.py`
+
+**2. 空指针错误修复**
+- 修复 `AttributeError: 'NoneType' object has no attribute 'update_node_status'`
+- 在访问面板前添加空值检查
+- 修改文件：`ui/main_window.py`
+
+**3. 资源监测Dock面板节点数据加载**
+- 修复节点资源占用信息未正常显示的问题
+- 添加 `parent_window` 引用，实现自动获取节点数据
+- 修改文件：`ui/panels/resource_monitor_dock.py`
+
+**4. Dock面板关闭处理**
+- 修复关闭Dock面板后访问已删除对象的问题
+- 连接 `panel_closed` 信号，在关闭时清除引用
+- 修改文件：`ui/main_window.py`
+
+**5. 节点监测面板状态同步**
+- 修复PID文件路径错误（优先读取 `.pid` 文件）
+- 在资源监测时同步更新状态标题显示
+- 修改文件：`ui/panels/node_monitor_dock.py`
+
+### 功能改进
+
+**面板状态持久化**
+- 支持Dock版和浮动版面板的独立可见性状态保存
+- 支持面板位置坐标持久化
+- 重启后自动恢复之前打开的面板状态和位置
+
+**资源监测布局优化**
+- CPU、RAM、Disk 水平排列并居中显示
+- 节点资源列表垂直排列
+- Dock版和浮动版布局保持一致
+
+### 修改的文件
+- `ui/main_window.py` - 面板状态恢复、空值检查、Dock关闭处理
+- `ui/panels/resource_monitor_dock.py` - 节点数据加载、状态同步
+- `ui/panels/node_monitor_dock.py` - PID文件路径修复、状态同步
+- `ui/core/app_config.py` - 单例模式
+- `ui/core/dock_manager.py` - 重复创建防护
+
+---
+
+## 🖼️ 侧边工具栏尺寸放大与图标修复 (2026-05-23)
+
+### 尺寸调整
+
+**修改文件**: `ui/canvas/draw_toolbar.py`
+
+| 项目 | 修改前 | 修改后 |
+|------|--------|--------|
+| 工具栏宽度 | 40px | **56px** |
+| 按钮高度 | 34px | **44px** |
+| 图标字体大小 | 14px | **18px** |
+
+### 图标修复
+
+修复了多个显示为感叹号 `!` 的无效图标：
+
+| 功能 | 旧图标 | 新图标 | 说明 |
+|------|--------|--------|------|
+| 矩形工具 | `layout-panel` | ✅ `layout-panel` | 面板图标 |
+| 圆角矩形 | `circle` | ✅ `circle` | 圆形图标 |
+| 多边形 | `triangle-up` | ✅ `triangle-up` | 三角形图标 |
+| 箭头工具 | `arrow-right` | ✅ `arrow-right` | 箭头图标 |
+| 文本工具 | `file-text` | ✅ `file-text` | 文本文件图标 |
+| 描边颜色 | `pencil` | ✅ `pencil` | 铅笔图标 |
+| 填充颜色 | `paintcan` | ✅ `paintcan` | 油漆桶图标 |
+| 锁定 | `lock` | ✅ `lock` | 锁图标 |
+| 显示/隐藏 | `eye` | ✅ `eye` | 眼睛图标 |
+| 撤销 | `arrow-left` → **`chevron-left`** | ✅ `chevron-left` | 左 Chevron |
+| 重做 | `arrow-right` → **`chevron-right`** | ✅ `chevron-right` | 右 Chevron |
+| 删除选中 | `trash` | ✅ `trash` | 垃圾桶图标 |
+| 清空全部 | `clear-all` → **`close`** | ✅ `close` | 关闭图标 |
+
+---
+
+## 🎨 VS Code Codicon 图标系统集成 (2026-05-23)
+
+### 图标资源管理
+
+**新增图标源目录**: `codicon-source/`（原 `vscode-codicons-main`）
+
+- 包含完整的 VS Code Codicon 图标库（MIT 许可证）
+- 字体文件: `codicon.ttf`
+- 图标定义: `codiconsLibrary.ts`
+
+### 图标管理器
+
+**更新**: `ui/icons/codicon.py`
+
+- 图标映射从 527 个扩展至 **597 个**
+- 新增 AI/调试/Git/终端/布局等类别图标
+- 提供 `get_icon()` 和 `get_icon_font()` 便捷接口
+
+### 新增图标类别
+
+| 类别 | 新增图标 |
+|------|---------|
+| AI 助手 | `copilot`, `thinking`, `sparkle`, `openai`, `claude` |
+| 调试 | `debug-all`, `debug-step-in`, `debug-step-out`, `debug-coverage` |
+| Git | `git-compare`, `repo-clone`, `repo-pull`, `repo-push` |
+| 终端 | `terminal-bash`, `terminal-cmd`, `terminal-powershell` |
+| 布局 | `layout`, `layout-panel`, `layout-sidebar-left/right` |
+| 运行 | `run-all`, `run-coverage`, `run-with-deps` |
+
+### UI 图标替换
+
+**修改文件**:
+- `ui/menu/menu_manager.py` - 菜单图标
+- `ui/canvas/draw_toolbar.py` - 绘图工具栏图标
+
+### 使用示例
+
+```python
+from ui.icons import get_icon, get_icon_font
+
+icon_char = get_icon('copilot')    # AI 助手图标
+icon_char = get_icon('run-all')    # 运行图标
+```
+
+---
+
+## 🔄 统一轮询管理器 + 全局状态监测重构 (2026-05-23)
+
+### 统一轮询管理器
+
+**新增**: `ui/core/polling_manager.py`（单例模式）
+
+将所有需要定时轮询的任务统一管理：
+
+| 轮询任务 | 间隔 | 描述 |
+|---------|------|------|
+| 节点健康检测 | 3s | 检测节点进程状态 |
+| 全局日志监控 | 2s | 检测全局日志文件变化 |
+| 全局配置监控 | 5s | 检测全局配置文件变化 |
+| 节点日志监控 | 2s | 检测各节点日志变化 |
+| 节点配置监控 | 5s | 检测各节点配置变化 |
+| 节点输出 JSON | 1s | 检测 output.json 变化 |
+| 应用状态监控 | 1s | 监测应用整体状态 |
+
+**核心特性**：
+- 单例模式，全局唯一实例
+- 支持任务注册/取消/暂停/恢复
+- 基于 QTimer 的精准定时
+- 使用 PyQt 信号机制通知各面板
+
+### 模块合并与重构
+
+**删除冗余文件**：
+- `ui/core/system_monitor.py` → 功能合并到 polling_manager
+- `ui/core/global_detector.py` → 功能合并到 polling_manager
+
+### 面板适配更新
+
+| 面板 | 修改内容 |
+|------|---------|
+| `ui/main_window.py` | 替换 SystemMonitor/GlobalDetector 为 polling_manager |
+| `ui/panels/node_monitor.py` | 订阅 polling_manager 日志信号 |
+| `ui/panels/node_expand_panel.py` | 订阅 polling_manager 配置/输出信号 |
+| `ui/dialogs/node_config_dialog.py` | 订阅 polling_manager 配置变化信号 |
+
+### 影响文件
+
+`polling_manager.py`(新增)、`main_window.py`、`node_monitor.py`、`node_expand_panel.py`、`node_config_dialog.py`、`system_monitor.py`(删除)、`global_detector.py`(删除)
+
+---
+
+## 🔄 独立启动器 + 三态状态灯 + Ctrl+D 删除 + 颜色设置修复 (2026-05-23)
+
+### 独立 tkinter 启动器
+
+**替换**内嵌 PyQt6 闪屏为独立 `launcher.py`（251 行）：
+- 纯 tkinter 实现，系统 Python 零依赖，可独立打包 EXE
+- 闪屏立即弹出 → 后台启动 venv pythonw bnos_console.py → 实时读取进度文件
+- 进度条平滑动画，与主程序加载精准同步，100% 后 0.2 秒关闭
+- 启动脚本：`.vbs` 零窗口静默启动，`.bat` 备用
+- 无 venv 时闪屏显示安装指引后退出
+
+### 三态状态指示灯
+
+| 颜色 | 状态 | 检测逻辑 |
+|------|------|---------|
+| 灰色 `#888` | 停止 | listener PID 不存在 |
+| 绿色 `#44FF44` | 空闲 | listener 运行，无 main 子进程 |
+| 红色 `#FF4444` | 运行 | listener + main 子进程都在运行 |
+
+基于 `psutil` 进程树检测，零侵入节点代码。健康检测每 3 秒轮询，UI 全局适配 idle/running/stopped 三态。
+
+### Ctrl+D 统一删除快捷键
+
+`Ctrl+D` 根据焦点上下文：
+- 节点列表面板 → 批量删除节点/组
+- 画布框选节点 → 从画布移除
+- 画布框选图形 → 删除绘图图形
+
+右键删除与右键菜单冲突已移除，改为 Ctrl+D 统一删除。
+
+### 颜色设置修复
+
+- **画布背景**：`drawBackground` 直接 `painter.fillRect` 读取 `canvas_bg_color`，`resetCachedContent` + `repaint` 即时生效
+- **颜色对话框**：改为 BNOS 深色主题 Frameless 窗口，可拖动，边框可见
+- **key 名对齐**：`choose_color` 的 `canvas_bg` 与 `collect_settings` 的 `temp_canvas_bg_color` 统一
+
+### 快捷键管理系统
+
+新增 `ui/core/shortcut_manager.py`：11 个快捷键中心定义 + 持久化到 `app_config.json` + 设置面板可视化编辑 + 双击捕获新按键。
+
+### 语言切换修复
+
+修复 Python `from import LANG` 值拷贝 bug（新增 `get_lang()`）+ 重启改用 `exit(42)` 退出码驱动 + `AppConfig` 支持新键持久化。
+
+### 影响文件
+
+`launcher.py`(新增)、`node_process.py`、`node_style.py`、`canvas_colors.py`、`canvas_view.py`、`shortcut_manager.py`(新增)、`color_settings_dialog.py`、`settings_dialog.py`、`menu_manager.py`、`main_window.py`、`i18n.py`、`app_config.py`、`start_bnos_console.vbs`(新增)、启动脚本
+
+---
+
+## 🚀 启动动画 + 品牌重命名 BnosConsole + README 重构 (2026-05-23)
+
+### 启动闪屏
+
+新增 `ui/core/splash_screen.py`（114 行）：
+- **ASCII 艺术 BNOS**：6 行 █ 字符拼成，Consolas 13pt 加粗，全黑白配色
+- **BNOS CONSOLE** 副标题 + 项目描述（i18n）
+- **左下角实时日志**：QTextEdit 80px，启动步骤追加滚动
+- **底部进度条**：0→100%，灰色 chunk
+- **延迟关闭**：主窗口打开 2 秒后自动消失
+
+### 品牌重命名：BnosGui → BnosConsole
+
+| 旧名称 | 新名称 |
+|--------|--------|
+| `bnos_gui.py` | `bnos_console.py` |
+| `start_bnos_gui.bat` | `start_bnos_console.bat` |
+| `start_bnos_gui.sh` | `start_bnos_console.sh` |
+| `requirements_gui.txt` | `requirements.txt` |
+| `"BnosGui"` 窗口标题 | `"BnosConsole"` |
+| `logs/bnos_gui.log` | `logs/bnos_console.log` |
+| `_k_app_name` | `"BNOS Console"` (中/英统一) |
+
+影响文件 25+ 个，含 `main_window.py`、`dark_title_bar.py`、`logger.py`、`build_bnos.spec`、README、UPDATE、tests 等。
+
+### 影响文件
+
+`splash_screen.py`(新增)、`bnos_console.py`(重命名+闪屏延迟)、`strings_cn/en.json`、`main_window.py`、`dark_title_bar.py`、`logger.py`、`build_bnos.spec`、启动脚本、README、UPDATE、tests
+
+---
+
 ## 🔧 ComfyUI 风格连线重构 + 人工折叠交互 (2026-05-22)
 
 ### 贝塞尔曲线 → 直角直线 + 人工折叠 📏
