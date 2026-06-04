@@ -5,7 +5,7 @@
 <div align="center">
 
 ![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
-![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-Supported-orange?style=for-the-badge&logo=rust)
 ![PyQt6](https://img.shields.io/badge/PyQt6-Latest-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-red?style=for-the-badge)
@@ -293,7 +293,7 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 
 ### Prerequisites
 
-- **Python**: 3.8 or higher
+- **Python**: 3.12 or higher
 - **OS**: Windows 10/11 (primary), Linux/macOS (partial support)
 - **Disk Space**: 500MB+ (for virtual environments)
 
@@ -798,7 +798,7 @@ Contributions welcome! Please read our guidelines:
 <div align="center">
 
 ![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
-![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-Supported-orange?style=for-the-badge&logo=rust)
 ![PyQt6](https://img.shields.io/badge/PyQt6-Latest-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-red?style=for-the-badge)
@@ -812,4 +812,3 @@ Contributions welcome! Please read our guidelines:
 </div>
 
 ---
-

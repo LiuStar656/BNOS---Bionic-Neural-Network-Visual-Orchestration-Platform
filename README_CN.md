@@ -5,7 +5,7 @@
 <div align="center">
 
 ![BNOS Banner](https://img.shields.io/badge/BNOS-可视化编排-blue?style=for-the-badge&logo=python)
-![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-已支持-orange?style=for-the-badge&logo=rust)
 ![PyQt6](https://img.shields.io/badge/PyQt6-最新-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/许可证-MIT-red?style=for-the-badge)
@@ -285,7 +285,7 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 
 ### 前置要求
 
-- **Python**: 3.8 或更高版本
+- **Python**: 3.12 或更高版本
 - **操作系统**: Windows 10/11（主要支持），Linux/macOS（部分支持）
 - **磁盘空间**: 500MB+（用于虚拟环境）
 
@@ -779,7 +779,7 @@ MIT License © 2026 阿东与守一工作室
 <div align="center">
 
 ![BNOS Banner](https://img.shields.io/badge/BNOS-可视化编排-blue?style=for-the-badge&logo=python)
-![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-已支持-orange?style=for-the-badge&logo=rust)
 ![PyQt6](https://img.shields.io/badge/PyQt6-最新-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/许可证-MIT-red?style=for-the-badge)
