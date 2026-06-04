@@ -244,25 +244,23 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 
 ## 🏗️ Architecture
 
-```text
-┌─────────────────────────────────────────────────────┐
-│              BNOS GUI (PyQt6)                       │
-│                                                     │
-│  ┌──────────────────┐  ┌──────────────────────────┐ │
-│  │ Node List Panel  │  │ Neural Network Canvas    │ │
-│  │    (Top-Left)    │  │    [Nodes & Synapses]    │ │
-│  └──────────────────┘  └──────────────────────────┘ │
-│           ↓                      ↓                   │
-│  ┌────────────────────────────────────────────────┐ │
-│  │           Local File System (nodes/)           │ │
-│  │  config.json | listener.log | output.json     │ │
-│  └────────────────────────────────────────────────┘ │
-│           ↓                      ↓                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐     │
-│  │ Neuron_1 │  │ Neuron_2 │  │   Neuron_N   │     │
-│  │  (venv)  │  │  (venv)  │  │    (venv)    │     │
-│  └──────────┘  └──────────┘  └──────────────┘     │
-└─────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    GUI["🖥️ BNOS GUI (PyQt6)"]
+    Panel["📋 Node List Panel<br/>(Top-Left)"]
+    Canvas["🎨 Neural Network Canvas<br/>[Nodes & Synapses]"]
+    FS["📁 Local File System<br/>(nodes/)"]
+    N1["🧠 Neuron_1<br/>(venv)"]
+    N2["🧠 Neuron_2<br/>(venv)"]
+    NN["🧠 Neuron_N<br/>(venv)"]
+    
+    GUI --> Panel
+    GUI --> Canvas
+    Panel -->|config.json| FS
+    Canvas -->|read/write| FS
+    FS --> N1
+    FS --> N2
+    FS --> NN
 ```
 
 ### Module Structure
