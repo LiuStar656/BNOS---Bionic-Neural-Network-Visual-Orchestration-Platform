@@ -4,7 +4,7 @@
 
 <div align="center">
 
-![BNOS Logo](.=./bnos_logo.png)
+![BNOS Logo](./bnos_logo.png)
 
 
 
