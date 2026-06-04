@@ -4,15 +4,9 @@
 
 <div align="center">
 
-```
- █████╗     ███╗  ██╗     █████╗     ██████╗
- ██╔══██╗   ████╗ ██║    ██╔══██╗   ██╔════╝
- ██████╔╝   ██╔██╗██║    ██║  ██║   ╚█████╗
- ██╔══██╗   ██║╚████║    ██║  ██║    ╚═══██╗
- ██████╔╝   ██║ ╚███║    ╚█████╔╝   ██████╔╝
- ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝
-          B N O S   C O N S O L E
-```
+![BNOS Logo](../bnos_logo.png)
+
+
 
 </div>
 
@@ -29,6 +23,8 @@
 [Quick Start](#-quick-start) • [Features](#-core-features) • [Architecture](#-architecture) • [User Guide](#-user-guide) • [Developer Guide](#-developer-guide)
 
 </div>
+
+
 
 
 ---
@@ -805,15 +801,9 @@ Contributions welcome! Please read our guidelines:
 
 <div align="center">
 
-```
- █████╗     ███╗  ██╗     █████╗     ██████╗
- ██╔══██╗   ████╗ ██║    ██╔══██╗   ██╔════╝
- ██████╔╝   ██╔██╗██║    ██║  ██║   ╚█████╗
- ██╔══██╗   ██║╚████║    ██║  ██║    ╚═══██╗
- ██████╔╝   ██║ ╚███║    ╚█████╔╝   ██████╔╝
- ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝
-          B N O S   C O N S O L E
-```
+![BNOS Logo](../bnos_logo.png)
+
+
 
 </div>
 
@@ -830,3 +820,4 @@ Contributions welcome! Please read our guidelines:
 [Quick Start](#-quick-start) • [Features](#-core-features) • [Architecture](#-architecture) • [User Guide](#-user-guide) • [Developer Guide](#-developer-guide)
 
 </div>
+
