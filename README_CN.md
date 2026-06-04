@@ -1,20 +1,28 @@
-# BNOS - 仿生神经网络可视化编排平台
+# BNOS Console — 仿生神经网络可视化编排平台
 
 🌍 **语言选择**: [English](README.md) | **中文**
 
 <div align="center">
 
+```
+ █████╗     ███╗  ██╗     █████╗     ██████╗
+ ██╔══██╗   ████╗ ██║    ██╔══██╗   ██╔════╝
+ ██████╔╝   ██╔██╗██║    ██║  ██║   ╚█████╗
+ ██╔══██╗   ██║╚████║    ██║  ██║    ╚═══██╗
+ ██████╔╝   ██║ ╚███║    ╚█████╔╝   ██████╔╝
+ ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝
+          B N O S   C O N S O L E
+```
+
 ![BNOS Banner](https://img.shields.io/badge/BNOS-可视化编排-blue?style=for-the-badge&logo=python)
-![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-已支持-orange?style=for-the-badge&logo=rust)
 ![PyQt6](https://img.shields.io/badge/PyQt6-最新-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/许可证-MIT-red?style=for-the-badge)
 
 **纯桌面端仿生神经网络可视化编排平台**
 
-*将复杂的分布式神经元系统简化为直观的"拖拽-连线-运行"体验*
-
-[快速开始](#-快速开始) • [核心功能](#-核心功能) • [使用指南](#-使用指南) • [贡献指南](#-贡献指南)
+[快速开始](#-快速开始) • [核心功能](#-核心功能) • [系统架构](#-系统架构) • [使用指南](#-使用指南) • [开发者指南](#-开发者指南)
 
 </div>
 
@@ -774,16 +782,24 @@ MIT License © 2026 阿东与守一工作室
 
 <div align="center">
 
+```
+ █████╗     ███╗  ██╗     █████╗     ██████╗
+ ██╔══██╗   ████╗ ██║    ██╔══██╗   ██╔════╝
+ ██████╔╝   ██╔██╗██║    ██║  ██║   ╚█████╗
+ ██╔══██╗   ██║╚████║    ██║  ██║    ╚═══██╗
+ ██████╔╝   ██║ ╚███║    ╚█████╔╝   ██████╔╝
+ ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝
+          B N O S   C O N S O L E
+```
+
 ![BNOS Banner](https://img.shields.io/badge/BNOS-可视化编排-blue?style=for-the-badge&logo=python)
-![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-已支持-orange?style=for-the-badge&logo=rust)
 ![PyQt6](https://img.shields.io/badge/PyQt6-最新-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/许可证-MIT-red?style=for-the-badge)
 
 **纯桌面端仿生神经网络可视化编排平台**
 
-*将复杂的分布式神经元系统简化为直观的"拖拽-连线-运行"体验*
-
-[快速开始](#-快速开始) • [核心功能](#-核心功能) • [使用指南](#-使用指南) • [贡献指南](#-贡献指南)
+[快速开始](#-快速开始) • [核心功能](#-核心功能) • [系统架构](#-系统架构) • [使用指南](#-使用指南) • [开发者指南](#-开发者指南)
 
 </div>

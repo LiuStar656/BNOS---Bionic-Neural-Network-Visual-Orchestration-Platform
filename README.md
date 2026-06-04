@@ -1,20 +1,28 @@
-# BNOS - Bionic Neural Network Visual Orchestration Platform
+# BNOS Console — Bionic Neural Network Visual Orchestration Platform
 
 🌍 **Language Selection**: [中文](README_CN.md) | **English**
 
 <div align="center">
 
+```
+ █████╗     ███╗  ██╗     █████╗     ██████╗
+ ██╔══██╗   ████╗ ██║    ██╔══██╗   ██╔════╝
+ ██████╔╝   ██╔██╗██║    ██║  ██║   ╚█████╗
+ ██╔══██╗   ██║╚████║    ██║  ██║    ╚═══██╗
+ ██████╔╝   ██║ ╚███║    ╚█████╔╝   ██████╔╝
+ ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝
+          B N O S   C O N S O L E
+```
+
 ![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
-![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-Supported-orange?style=for-the-badge&logo=rust)
 ![PyQt6](https://img.shields.io/badge/PyQt6-Latest-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-red?style=for-the-badge)
 
-**A Pure Desktop Bionic Visual Orchestration Platform for Building Brain-like Neural Networks**
+**A Pure Desktop Bionic Visual Orchestration Platform**
 
-*Simplify complex distributed neuron systems into an intuitive "drag-connect-run" experience*
-
-[Quick Start](#-quick-start) • [Features](#-core-features) • [Documentation](#-documentation) • [Contributing](#-contributing)
+[Quick Start](#-quick-start) • [Features](#-core-features) • [Architecture](#-architecture) • [User Guide](#-user-guide) • [Developer Guide](#-developer-guide)
 
 </div>
 
@@ -793,18 +801,24 @@ Contributions welcome! Please read our guidelines:
 
 <div align="center">
 
+```
+ █████╗     ███╗  ██╗     █████╗     ██████╗
+ ██╔══██╗   ████╗ ██║    ██╔══██╗   ██╔════╝
+ ██████╔╝   ██╔██╗██║    ██║  ██║   ╚█████╗
+ ██╔══██╗   ██║╚████║    ██║  ██║    ╚═══██╗
+ ██████╔╝   ██║ ╚███║    ╚█████╔╝   ██████╔╝
+ ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝
+          B N O S   C O N S O L E
+```
+
 ![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
-![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-Supported-orange?style=for-the-badge&logo=rust)
 ![PyQt6](https://img.shields.io/badge/PyQt6-Latest-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-red?style=for-the-badge)
 
-**A Pure Desktop Bionic Visual Orchestration Platform for Building Brain-like Neural Networks**
+**A Pure Desktop Bionic Visual Orchestration Platform**
 
-*Simplify complex distributed neuron systems into an intuitive "drag-connect-run" experience*
-
-[Quick Start](#-quick-start) • [Features](#-core-features) • [Documentation](#-documentation) • [Contributing](#-contributing)
+[Quick Start](#-quick-start) • [Features](#-core-features) • [Architecture](#-architecture) • [User Guide](#-user-guide) • [Developer Guide](#-developer-guide)
 
 </div>
-
----
