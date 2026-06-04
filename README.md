@@ -14,6 +14,10 @@
           B N O S   C O N S O L E
 ```
 
+</div>
+
+<div align="center">
+
 ![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
 ![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-Supported-orange?style=for-the-badge&logo=rust)
@@ -810,6 +814,10 @@ Contributions welcome! Please read our guidelines:
  ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝
           B N O S   C O N S O L E
 ```
+
+</div>
+
+<div align="center">
 
 ![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
 ![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)

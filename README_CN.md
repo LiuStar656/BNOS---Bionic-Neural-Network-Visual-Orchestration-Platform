@@ -14,6 +14,10 @@
           B N O S   C O N S O L E
 ```
 
+</div>
+
+<div align="center">
+
 ![BNOS Banner](https://img.shields.io/badge/BNOS-可视化编排-blue?style=for-the-badge&logo=python)
 ![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-已支持-orange?style=for-the-badge&logo=rust)
@@ -791,6 +795,10 @@ MIT License © 2026 阿东与守一工作室
  ╚═════╝    ╚═╝  ╚══╝     ╚════╝    ╚═════╝
           B N O S   C O N S O L E
 ```
+
+</div>
+
+<div align="center">
 
 ![BNOS Banner](https://img.shields.io/badge/BNOS-可视化编排-blue?style=for-the-badge&logo=python)
 ![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
