@@ -4,7 +4,7 @@
 
 <div align="center">
 
-![BNOS Logo](../bnos_logo.png)
+![BNOS Logo](./bnos_logo.png)
 
 
 
@@ -801,7 +801,7 @@ Contributions welcome! Please read our guidelines:
 
 <div align="center">
 
-![BNOS Logo](../bnos_logo.png)
+![BNOS Logo](./bnos_logo.png)
 
 
 
