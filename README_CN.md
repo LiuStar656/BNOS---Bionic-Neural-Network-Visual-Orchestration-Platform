@@ -4,7 +4,7 @@
 
 <div align="center">
 
-![BNOS Logo](../bnos_logo.png)
+![BNOS Logo](.=./bnos_logo.png)
 
 
 
@@ -781,7 +781,7 @@ MIT License © 2026 阿东与守一工作室
 
 <div align="center">
 
-![BNOS Logo](../bnos_logo.png)
+![BNOS Logo](./bnos_logo.png)
 
 
 
