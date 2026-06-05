@@ -115,8 +115,6 @@ For developers who want to understand the detailed technical implementation of B
 
 This documentation provides deep technical insights beyond what's covered in this README, helping developers understand how nodes work internally and how to create custom implementations.
 
-This documentation provides deep technical insights beyond what's covered in this README, helping developers understand how nodes work internally and how to create custom implementations.
-
 
 ---
 
@@ -254,6 +252,7 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 
 ```mermaid
 graph TB
+    title BNOS System Architecture
     GUI["🖥️ BNOS GUI (PyQt6)"]
     Panel["📋 Node List Panel<br/>(Top-Left)"]
     Canvas["🎨 Neural Network Canvas<br/>[Nodes & Synapses]"]
@@ -328,7 +327,7 @@ python bnos_gui.py
 
 #### Option 2: Using Startup Script (Windows)
 
-``powershell
+```powershell
 # PowerShell (for paths with spaces)
 & ".\start_bnos_gui.bat"
 
@@ -794,30 +793,4 @@ Contributions welcome! Please read our guidelines:
 - **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-06-04
-
-
----
-
-<div align="center">
-
-![BNOS Logo](./bnos_logo.png)
-
-
-
-</div>
-
-<div align="center">
-
-![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
-![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
-![Rust](https://img.shields.io/badge/Rust-Supported-orange?style=for-the-badge&logo=rust)
-![PyQt6](https://img.shields.io/badge/PyQt6-Latest-green?style=for-the-badge&logo=qt)
-![License](https://img.shields.io/badge/License-MIT-red?style=for-the-badge)
-
-**A Pure Desktop Bionic Visual Orchestration Platform**
-
-[Quick Start](#-quick-start) • [Features](#-core-features) • [Architecture](#-architecture) • [User Guide](#-user-guide) • [Developer Guide](#-developer-guide)
-
-</div>
-
+- **Last Updated**: 2026-06-06
