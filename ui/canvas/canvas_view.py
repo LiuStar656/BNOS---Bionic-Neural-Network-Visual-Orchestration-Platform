@@ -129,6 +129,7 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         self.box_selected_nodes = []  # 框选中的节点列表
         
         # 自动保存定时器（防抖500ms）
+        # QTimer 已在文件顶部导入，请勿在此处添加局部导入
         self._save_timer = QTimer()
         self._save_timer.setSingleShot(True)
         self._save_timer.timeout.connect(self._auto_save_layout)
