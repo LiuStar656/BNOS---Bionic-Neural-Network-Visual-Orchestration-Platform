@@ -40,16 +40,17 @@ class DrawLayer:
         self._stroke_w = STROKE_W
 
         self.toolbar = None
+        self._toolbar_visible = False  # 工具栏默认隐藏
 
     def attach_toolbar(self):
-        """创建并挂载绘图工具栏到画布左侧"""
+        """创建并挂载绘图工具栏到画布左侧（默认隐藏）"""
         if self.toolbar:
             return self.toolbar
         view = self.canvas.viewport()
         self.toolbar = DrawToolbar(view)
         self.toolbar.setParent(view)
         self.toolbar.setGeometry(0, 0, 36, view.height())
-        self.toolbar.show()
+        # self.toolbar.show()  # ← 默认隐藏，注释掉
         self.toolbar.tool_changed.connect(self.set_tool)
         self.toolbar.style_changed.connect(self._on_style)
         self.toolbar.layer_locked.connect(self.set_locked)
@@ -59,6 +60,28 @@ class DrawLayer:
         self.toolbar.delete_requested.connect(self.delete_selected)
         self.toolbar.clear_requested.connect(self.clear_all)
         return self.toolbar
+
+    def show_toolbar(self):
+        """显示绘图工具栏"""
+        if self.toolbar and not self._toolbar_visible:
+            self.toolbar.show()
+            self._toolbar_visible = True
+            logger.debug("绘图工具栏已显示")
+
+    def hide_toolbar(self):
+        """隐藏绘图工具栏"""
+        if self.toolbar and self._toolbar_visible:
+            self.toolbar.hide()
+            self._toolbar_visible = False
+            logger.debug("绘图工具栏已隐藏")
+
+    def toggle_toolbar(self):
+        """切换绘图工具栏显示/隐藏状态"""
+        if self._toolbar_visible:
+            self.hide_toolbar()
+        else:
+            self.show_toolbar()
+        return self._toolbar_visible
 
     # ── 工具/样式/图层控制 ──
 
@@ -98,6 +121,10 @@ class DrawLayer:
             self._alt_mode = True
             view = self.canvas.viewport()
             view.setCursor(Qt.CursorShape.CrossCursor)
+            return True
+        if event.key() == Qt.Key.Key_D:
+            # D 键切换绘图工具栏显示/隐藏
+            self.toggle_toolbar()
             return True
         return False
 
@@ -312,5 +339,5 @@ class DrawLayer:
         self.canvas._save_timer.start(500)
 
     def resize_toolbar(self):
-        if self.toolbar and self.toolbar.isVisible():
+        if self.toolbar and self._toolbar_visible:
             self.toolbar.setGeometry(0, 0, 36, self.canvas.viewport().height())

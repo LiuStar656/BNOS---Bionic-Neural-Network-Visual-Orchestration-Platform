@@ -129,6 +129,13 @@ class CanvasMenusMixin:
             menu.addSeparator()
             a = QAction(t("k_canvas_reset_view"), menu); a.triggered.connect(self.reset_view); menu.addAction(a)
             menu.addSeparator()
+            # 绘图工具栏切换
+            toolbar_visible = self.draw_layer._toolbar_visible if hasattr(self, 'draw_layer') else False
+            action_text = t("k_canvas_hide_draw_toolbar") if toolbar_visible else t("k_canvas_show_draw_toolbar")
+            a = QAction(action_text, menu)
+            a.triggered.connect(self._toggle_draw_toolbar)
+            menu.addAction(a)
+            menu.addSeparator()
             color_menu = menu.addMenu(t("k_canvas_color"))
             a = QAction(t("k_canvas_bg_color"), color_menu); a.triggered.connect(self.change_canvas_background_color); color_menu.addAction(a)
             a = QAction(t("k_canvas_grid_color"), color_menu); a.triggered.connect(self.change_grid_color); color_menu.addAction(a)

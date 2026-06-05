@@ -38,6 +38,7 @@ class CanvasLayoutMixin:
                 "width": self.canvas_width,
                 "height": self.canvas_height,
             },
+            "toolbar_visible": self.draw_layer._toolbar_visible if hasattr(self, 'draw_layer') else False,
         }
 
         for node_name, node in self.nodes.items():
@@ -336,6 +337,14 @@ class CanvasLayoutMixin:
                     logger.warning("[Config兜底] 校验失败: %s", e)
 
             logger.info("加载完成: %d个节点, %d条连线", len(self.nodes), len(self.edges))
+
+            # ---- 工具栏状态 ----
+            if hasattr(self, 'draw_layer') and 'toolbar_visible' in layout_data:
+                toolbar_visible = layout_data['toolbar_visible']
+                if toolbar_visible:
+                    self.draw_layer.show_toolbar()
+                else:
+                    self.draw_layer.hide_toolbar()
 
             # ---- 视图状态 ----
             vs = layout_data.get("view_state", {})

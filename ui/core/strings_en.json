@@ -88,6 +88,8 @@
   "k_canvas_delete_edge": "Delete Connection",
   "k_canvas_change_edge_color": "Change Connection Color",
   "k_canvas_reset_view": "Reset View",
+  "k_canvas_show_draw_toolbar": "Show Drawing Toolbar",
+  "k_canvas_hide_draw_toolbar": "Hide Drawing Toolbar",
   "k_canvas_color": "Canvas Color",
   "k_canvas_bg_color": "Background Color",
   "k_canvas_grid_color": "Grid Color",

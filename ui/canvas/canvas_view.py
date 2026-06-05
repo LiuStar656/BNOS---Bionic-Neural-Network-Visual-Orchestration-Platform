@@ -781,7 +781,12 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         self.resetTransform()
         self.centerOn(0, 0)
         logger.info("✅ 视图已重置")
-    
+
+    def _toggle_draw_toolbar(self):
+        """切换绘图工具栏显示/隐藏"""
+        if hasattr(self, 'draw_layer'):
+            self.draw_layer.toggle_toolbar()
+
     # ===== 颜色设置方法 =====
     
     def update_node_status(self, node_name, status):

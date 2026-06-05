@@ -88,6 +88,8 @@
   "k_canvas_delete_edge": "删除连线",
   "k_canvas_change_edge_color": "修改连线颜色",
   "k_canvas_reset_view": "重置视图",
+  "k_canvas_show_draw_toolbar": "显示绘图工具栏",
+  "k_canvas_hide_draw_toolbar": "隐藏绘图工具栏",
   "k_canvas_color": "画布颜色",
   "k_canvas_bg_color": "背景颜色",
   "k_canvas_grid_color": "网格颜色",
