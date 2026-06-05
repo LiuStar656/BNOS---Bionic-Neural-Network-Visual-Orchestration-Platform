@@ -73,12 +73,75 @@ def _is_pid_alive(pid):
 
 # ---- 进程扫描兜底（处理 PID 文件丢失 / start.bat 孤儿进程） ----
 
-def _python_exe_for_node(node_path):
-    """获取节点虚拟环境中的 Python 解释器路径"""
+def _python_exe_for_node(node_path, start_config=None, node_name=None):
+    """获取节点虚拟环境中的 Python 解释器路径
+    
+    优先从 start.json 的 python_exe 字段读取，若未配置则回退到默认路径。
+    
+    Args:
+        node_path: 节点路径
+        start_config: start.json 配置（可选）
+        node_name: 节点名称（可选，用于在多节点配置中查找）
+    
+    Returns:
+        str: Python 解释器路径
+    """
+    # 优先从 start_config 中读取 python_exe 配置
+    if start_config and 'nodes' in start_config and isinstance(start_config['nodes'], list):
+        for n in start_config['nodes']:
+            if (node_name and n.get('name') == node_name) or n.get('path') == node_path:
+                if 'python_exe' in n and n['python_exe']:
+                    logger.debug("从 start.json 获取 Python 解释器: %s", n['python_exe'])
+                    return os.path.normpath(n['python_exe'])
+    elif start_config and 'python_exe' in start_config and start_config['python_exe']:
+        # 单节点格式
+        logger.debug("从 start.json 获取 Python 解释器: %s", start_config['python_exe'])
+        return os.path.normpath(start_config['python_exe'])
+    
+    # 回退到默认路径
     if os.name == 'nt':
         return os.path.normpath(os.path.join(node_path, "venv", "Scripts", "python.exe"))
     else:
         return os.path.normpath(os.path.join(node_path, "venv", "bin", "python"))
+
+
+def _validate_venv(python_exe):
+    """验证虚拟环境是否有效
+    
+    Args:
+        python_exe: Python 解释器路径
+    
+    Returns:
+        tuple: (valid: bool, error_msg: str)
+    """
+    # 检查 Python 可执行文件是否存在且可执行
+    if not os.path.isfile(python_exe):
+        return False, f"Python 解释器文件不存在: {python_exe}"
+    
+    # 检查是否具有执行权限
+    if os.name != 'nt' and not os.access(python_exe, os.X_OK):
+        return False, f"Python 解释器没有执行权限: {python_exe}"
+    
+    # 尝试获取 Python 版本信息，验证解释器是否正常工作
+    try:
+        creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+        result = subprocess.run(
+            [python_exe, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            creationflags=creationflags
+        )
+        
+        if result.returncode != 0:
+            return False, f"无法获取 Python 版本信息，虚拟环境可能损坏: {python_exe}"
+        
+        logger.debug("虚拟环境 Python 版本: %s", result.stdout.strip())
+        return True, ""
+    except subprocess.TimeoutExpired:
+        return False, f"获取 Python 版本超时: {python_exe}"
+    except Exception as e:
+        return False, f"验证虚拟环境时发生错误: {str(e)}"
 
 
 def _find_node_processes(node_path):
@@ -126,6 +189,146 @@ def _find_node_processes(node_path):
     except Exception as e:
         logger.debug("进程扫描异常: %s", e)
     return pids
+
+
+def _get_process_tree(root_pid):
+    """递归获取进程树中的所有进程 PID（包括主进程和所有子进程）
+    
+    Args:
+        root_pid: 根进程 PID
+    
+    Returns:
+        list: 所有进程 PID（包括 root_pid），按深度优先排序（子进程在前）
+    """
+    all_pids = []
+    
+    try:
+        if os.name == 'nt':
+            # Windows: 使用 WMI 查询进程树
+            result = subprocess.run(
+                ['powershell', '-Command',
+                 f"Get-CimInstance Win32_Process | "
+                 f"ForEach-Object {{ $_.ProcessId.ToString() + '|' + ($_.ParentProcessId ?? 0).ToString() }}"],
+                capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            
+            # 构建 PID -> ParentPID 映射
+            pid_to_parent = {}
+            for line in result.stdout.strip().split('\n'):
+                line = line.strip()
+                if '|' not in line:
+                    continue
+                pid_str, parent_str = line.split('|', 1)
+                try:
+                    pid = int(pid_str)
+                    parent = int(parent_str)
+                    pid_to_parent[pid] = parent
+                except ValueError:
+                    pass
+            
+            # 递归查找所有子进程
+            def find_children(parent_pid):
+                children = [p for p, pp in pid_to_parent.items() if pp == parent_pid]
+                for child in children:
+                    all_pids.append(child)
+                    find_children(child)
+            
+            # 先添加子进程，再添加根进程
+            find_children(root_pid)
+            all_pids.append(root_pid)
+            
+        else:
+            # Linux/Mac: 使用 /proc 或 ps 查询进程树
+            try:
+                # 尝试使用 pstree
+                result = subprocess.run(
+                    ['pstree', '-p', str(root_pid)],
+                    capture_output=True, text=True, timeout=5
+                )
+                # 解析 pstree 输出，提取所有 PID
+                import re
+                pids_found = re.findall(r'(\d+)', result.stdout)
+                for pid_str in pids_found:
+                    try:
+                        pid = int(pid_str)
+                        if pid not in all_pids:
+                            all_pids.append(pid)
+                    except ValueError:
+                        pass
+            except (subprocess.SubprocessError, FileNotFoundError):
+                # 回退到 ps 命令
+                result = subprocess.run(
+                    ['ps', '-ef'],
+                    capture_output=True, text=True, timeout=5
+                )
+                # 构建 PID -> ParentPID 映射
+                pid_to_parent = {}
+                for line in result.stdout.strip().split('\n')[1:]:  # 跳过标题行
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        try:
+                            pid = int(parts[1])
+                            parent = int(parts[2])
+                            pid_to_parent[pid] = parent
+                        except ValueError:
+                            pass
+                
+                # 递归查找所有子进程
+                def find_children(parent_pid):
+                    children = [p for p, pp in pid_to_parent.items() if pp == parent_pid]
+                    for child in children:
+                        all_pids.append(child)
+                        find_children(child)
+                
+                find_children(root_pid)
+                all_pids.append(root_pid)
+    
+    except Exception as e:
+        logger.debug("查询进程树异常: %s", e)
+        # 回退：只返回根进程
+        all_pids = [root_pid]
+    
+    return all_pids
+
+
+def _kill_process_tree(root_pid):
+    """彻底终止进程树（包括主进程和所有子进程）
+    
+    Args:
+        root_pid: 根进程 PID
+    
+    Returns:
+        int: 成功终止的进程数量
+    """
+    # 先获取进程树
+    all_pids = _get_process_tree(root_pid)
+    logger.debug("进程树包含 %d 个进程: %s", len(all_pids), all_pids)
+    
+    killed = 0
+    
+    # 按顺序终止进程（子进程在前，根进程在后）
+    for pid in all_pids:
+        try:
+            if os.name == 'nt':
+                result = subprocess.run(
+                    ['taskkill', '/F', '/PID', str(pid)],
+                    capture_output=True, timeout=5, creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                if result.returncode == 0:
+                    killed += 1
+                    logger.debug("已终止进程 PID=%d", pid)
+            else:
+                os.kill(pid, signal.SIGKILL)
+                killed += 1
+                logger.debug("已终止进程 PID=%d", pid)
+        except (ProcessLookupError, OSError):
+            # 进程已不存在
+            pass
+        except Exception as e:
+            logger.warning("终止进程 PID=%d 失败: %s", pid, e)
+    
+    logger.info("进程树终止完成，共终止 %d/%d 个进程", killed, len(all_pids))
+    return killed
 
 
 def _kill_all_node_processes(node_path):
@@ -209,7 +412,7 @@ def start_node_process(node_info):
         logger.debug("从 start.json 加载配置: %s", start_config['config'])
 
     # 3. 定位虚拟环境 Python 解释器
-    python_exe = _python_exe_for_node(node_path)
+    python_exe = _python_exe_for_node(node_path, start_config, node_name)
     listener_py = os.path.join(node_path, "listener.py")
 
     logger.debug("Python 解释器: %s", python_exe)
@@ -225,6 +428,12 @@ def start_node_process(node_info):
         error_msg = f"Listener 脚本不存在: {listener_py}"
         logger.error(error_msg)
         return False, error_msg
+    
+    # 验证虚拟环境有效性
+    venv_valid, venv_error = _validate_venv(python_exe)
+    if not venv_valid:
+        logger.error(venv_error)
+        return False, venv_error
 
     # 直接运行 listener.py（PID 即为实际 Python 进程）
     try:
@@ -274,7 +483,7 @@ def start_node_process(node_info):
 def stop_node_process(node_info, force=False):
     """停止节点进程并删除 PID 文件
     
-    先尝试通过 PID 文件终止，失败后使用进程扫描兜底强制清理。
+    使用进程树追踪机制，彻底终止主进程及所有子进程（支持任意语言）。
     """
     node_path = node_info['path']
     node_name = os.path.basename(node_path)
@@ -285,26 +494,17 @@ def stop_node_process(node_info, force=False):
     killed = False
     if pid is not None:
         try:
-            if os.name == 'nt':
-                result = subprocess.run(['taskkill', '/F', '/T', '/PID', str(pid)],
-                                        capture_output=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
-                if result.returncode == 0:
-                    killed = True
-                    logger.info("已终止进程 PID=%d (%s)", pid, node_name)
-                else:
-                    logger.warning("taskkill PID=%d 失败: %s", pid, result.stderr.decode(errors='ignore').strip())
+            # 使用进程树终止机制
+            killed_count = _kill_process_tree(pid)
+            if killed_count > 0:
+                killed = True
+                logger.info("已终止进程树 PID=%d (%s)，共 %d 个进程", pid, node_name, killed_count)
             else:
-                try:
-                    os.kill(pid, signal.SIGTERM)
-                    if process:
-                        process.wait(timeout=5)
-                    killed = True
-                except ProcessLookupError:
-                    pass
+                logger.warning("进程树终止失败 PID=%d (%s)", pid, node_name)
         except Exception as e:
             logger.warning("停止进程 PID=%d 异常: %s", pid, e)
 
-    # 兜底：PID 方式失败或 PID 不存在，用进程扫描清理
+    # 兜底：进程树方式失败或 PID 不存在，用进程扫描清理
     if not killed:
         remaining = _find_node_processes(node_path)
         if remaining:

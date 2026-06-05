@@ -18,6 +18,10 @@
 4. [数据流程](#4-数据流程)
 5. [进程通信机制](#5-进程通信机制)
 6. [节点生命周期管理](#6-节点生命周期管理)
+   - 6.1 生命周期状态图
+   - 6.2 状态检测机制
+   - 6.3 孤儿进程处理
+   - 6.4 进程树终止机制
 
 ---
 
@@ -640,6 +644,84 @@ logger.error("错误信息")
 2. 找到属于该节点的Python进程
 3. 通过`_kill_all_node_processes()`强制终止
 4. 更新节点状态为`stopped`
+
+### 进程树终止机制
+
+为了彻底终止节点及其所有子进程（支持任意编程语言），实现了进程树追踪机制。
+
+#### 核心函数
+
+| 函数 | 功能 |
+|------|------|
+| `_get_process_tree(root_pid)` | 递归获取进程树中所有进程 PID |
+| `_kill_process_tree(root_pid)` | 彻底终止进程树 |
+
+#### 工作原理
+
+```
+进程树终止流程:
+┌─────────────────────────────────────────────────────────┐
+│ 1. 读取 PID 文件获取主进程 PID                            │
+├─────────────────────────────────────────────────────────┤
+│ 2. 调用 _get_process_tree() 递归查询进程树               │
+│    - Windows: WMI 查询 Win32_Process.ParentProcessId    │
+│    - Linux/Mac: pstree 或 ps 命令                       │
+├─────────────────────────────────────────────────────────┤
+│ 3. 调用 _kill_process_tree() 按顺序终止进程             │
+│    - 子进程在前，根进程在后                              │
+│    - 使用 taskkill /F (Windows) 或 SIGKILL (Linux)     │
+├─────────────────────────────────────────────────────────┤
+│ 4. 兜底：进程扫描清理残留孤儿进程                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 跨平台实现
+
+**Windows**：
+```python
+# 使用 WMI 查询进程树
+Get-CimInstance Win32_Process | ForEach-Object {
+    $_.ProcessId + '|' + $_.ParentProcessId
+}
+```
+
+**Linux/Mac**：
+```python
+# 优先使用 pstree
+pstree -p <root_pid>
+
+# 回退到 ps 命令
+ps -ef | grep <keyword>
+```
+
+#### 支持多语言
+
+该机制不依赖于特定编程语言，通过操作系统级别的进程关系追踪：
+- Python 节点
+- Node.js 节点
+- Java 节点
+- C/C++ 节点
+- 任意语言创建的子进程
+
+#### 停止节点流程
+
+```python
+def stop_node_process(node_info):
+    # 1. 获取 PID
+    pid = process.pid if process else _read_pid(node_path)
+
+    # 2. 使用进程树终止机制
+    _kill_process_tree(pid)
+
+    # 3. 兜底：进程扫描清理残留
+    remaining = _find_node_processes(node_path)
+    if remaining:
+        _kill_all_node_processes(node_path)
+
+    # 4. 删除 PID 文件，更新状态
+    _delete_pid(node_path)
+    node_info['status'] = 'stopped'
+```
 
 ---
 

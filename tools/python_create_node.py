@@ -81,27 +81,10 @@ def create_node():
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
     
-    print("📝 生成 start.json")
-    start_content = {
-        "nodes": [
-            {
-                "name": f"node_python_{node_name}",
-                "path": full_node_dir,
-                "config": {
-                    "listen_upper_file": "../data/upper_data.json",
-                    "output_file": "./output.json"
-                }
-            }
-        ]
-    }
-    start_path = os.path.join(full_node_dir, "start.json")
-    with open(start_path, "w", encoding="utf-8") as f:
-        json.dump(start_content, f, indent=2, ensure_ascii=False)
-    
-    extract_node_pack(full_node_dir)
-    
     print("🔧 创建虚拟环境...")
     venv_path = os.path.join(full_node_dir, "venv")
+    python_exe_path = None
+    
     try:
         creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
         result = subprocess.run(
@@ -114,10 +97,16 @@ def create_node():
         if result.returncode == 0:
             print("✅ 虚拟环境创建成功")
             
+            # 确定 Python 解释器路径
             if os.name == "nt":
+                python_exe_path = os.path.join(venv_path, "Scripts", "python.exe")
                 pip_path = os.path.join(venv_path, "Scripts", "pip.exe")
             else:
+                python_exe_path = os.path.join(venv_path, "bin", "python")
                 pip_path = os.path.join(venv_path, "bin", "pip")
+            
+            # 确保路径是绝对路径
+            python_exe_path = os.path.abspath(python_exe_path)
             
             requirements_path = os.path.join(full_node_dir, "requirements.txt")
             if os.path.exists(requirements_path):
@@ -137,6 +126,26 @@ def create_node():
             print(f"❌ 虚拟环境创建失败: {result.stderr}")
     except Exception as e:
         print(f"❌ 虚拟环境创建异常: {e}")
+    
+    print("📝 生成 start.json")
+    start_content = {
+        "nodes": [
+            {
+                "name": f"node_python_{node_name}",
+                "path": full_node_dir,
+                "python_exe": python_exe_path,
+                "config": {
+                    "listen_upper_file": "../data/upper_data.json",
+                    "output_file": "./output.json"
+                }
+            }
+        ]
+    }
+    start_path = os.path.join(full_node_dir, "start.json")
+    with open(start_path, "w", encoding="utf-8") as f:
+        json.dump(start_content, f, indent=2, ensure_ascii=False)
+    
+    extract_node_pack(full_node_dir)
     
     print("=" * 50)
     print(f"✅ 节点 {node_dir} 创建成功！")
