@@ -103,11 +103,13 @@ def create_node():
     print("🔧 创建虚拟环境...")
     venv_path = os.path.join(full_node_dir, "venv")
     try:
+        creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
         result = subprocess.run(
             [sys.executable, "-m", "venv", venv_path],
             capture_output=True,
             text=True,
-            timeout=120
+            timeout=120,
+            creationflags=creationflags
         )
         if result.returncode == 0:
             print("✅ 虚拟环境创建成功")
@@ -124,7 +126,8 @@ def create_node():
                     [pip_path, "install", "-r", requirements_path],
                     capture_output=True,
                     text=True,
-                    timeout=180
+                    timeout=180,
+                    creationflags=creationflags
                 )
                 if result.returncode == 0:
                     print("✅ 依赖安装成功")

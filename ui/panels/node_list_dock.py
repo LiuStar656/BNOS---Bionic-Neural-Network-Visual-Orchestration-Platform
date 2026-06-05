@@ -172,7 +172,8 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
     def _setup_node_item(self, item, node_name, node_info):
         """配置节点项"""
         status = node_info.get('status', 'stopped')
-        if status == 'running':
+        # 运行中或空闲状态都显示为绿色指示灯
+        if status in ('running', 'idle'):
             item.setText(0, f"● {node_name}")
             item.setForeground(0, QColor("green"))
         else:
@@ -191,7 +192,8 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
             
             # 检查是否为根级别节点（不在任何组中）
             if data and data.get('type') == 'node' and data.get('name') == node_name:
-                if status == 'running':
+                # 运行中或空闲状态都显示为绿色指示灯
+                if status in ('running', 'idle'):
                     item.setText(0, f"● {node_name}")
                     item.setForeground(0, QColor("green"))
                 else:
@@ -204,7 +206,8 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
                 node_item = item.child(j)
                 node_data = node_item.data(0, Qt.ItemDataRole.UserRole)
                 if node_data and node_data.get('type') == 'node' and node_data.get('name') == node_name:
-                    if status == 'running':
+                    # 运行中或空闲状态都显示为绿色指示灯
+                    if status in ('running', 'idle'):
                         node_item.setText(0, f"● {node_name}")
                         node_item.setForeground(0, QColor("green"))
                     else:

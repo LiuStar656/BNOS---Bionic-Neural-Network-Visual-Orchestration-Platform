@@ -7,6 +7,154 @@
 
 ---
 
+## 🔧 节点配置菜单启动后保持打开 (2026-06-05)
+
+### 已修复的问题
+
+**节点配置菜单启动后自动关闭**
+- **问题**：点击"启动节点"按钮后，配置菜单会自动关闭，用户需要重新打开菜单才能进行后续操作
+- **原因**：缺少状态保持和更新机制
+- **修复**：添加状态显示标签，订阅状态变化信号，确保对话框保持打开
+
+### 功能改进
+
+**状态实时显示**
+- 在节点信息卡片中添加状态显示标签
+- 订阅 `polling_manager.node_status_changed` 信号
+- 实时更新状态显示（运行中/空闲/已停止）
+
+**对话框保持打开**
+- 启动节点后对话框保持打开，更新状态显示
+- 停止节点后对话框保持打开，更新状态显示
+- 用户可继续在对话框中操作
+
+### 修改的文件
+
+- `ui/dialogs/node_config_dialog.py` - 添加状态显示和信号订阅
+
+### 技术实现
+
+```python
+# 订阅状态变化信号
+polling_manager.node_status_changed.connect(self._on_node_status_changed)
+
+# 状态显示更新
+def _update_status_display(self):
+    status = node_data.get('status', 'unknown')
+    if status == 'running':
+        self._status_label.setText("状态: ● 运行中")
+        self._status_label.setStyleSheet("color: #FF4444;")
+    elif status == 'idle':
+        self._status_label.setText("状态: ● 空闲")
+        self._status_label.setStyleSheet("color: #44FF44;")
+    else:
+        self._status_label.setText("状态: ○ 已停止")
+        self._status_label.setStyleSheet("color: gray;")
+
+# 启动节点后更新状态（对话框保持打开）
+def start_node(self):
+    self.parent_window.start_selected_node_by_name(self.node_name)
+    self._update_status_display()  # 更新状态，不关闭对话框
+```
+
+### 验收标准
+
+✅ 点击"启动节点"后，配置菜单保持打开状态
+✅ 菜单中显示节点运行状态更新（状态指示灯变化）
+✅ 用户可继续在菜单中操作（停止节点、查看日志等）
+✅ 用户可点击关闭按钮手动关闭菜单
+✅ 启动失败时菜单同样保持打开，显示错误信息
+
+---
+
+## 🔧 节点状态显示与进程检测修复 (2026-06-05)
+
+### 已修复的问题
+
+**1. 节点列表状态需要手动刷新才能显示**
+- **问题**：节点列表中的状态指示灯在节点状态变化时无法正常更新显示
+- **原因**：状态检查条件只判断 `status == 'running'`，忽略了 'idle' 状态（空闲但仍在运行）
+- **修复**：修改状态检查逻辑为 `status in ('running', 'idle')`
+- **修改文件**：
+  - `ui/panels/node_list_dock.py`
+  - `ui/panels/node_list_panel.py`
+
+**2. 圆形节点文字排版在刷新后变成方形样式**
+- **问题**：刷新节点后，画布上的圆形节点的文字位置变成方形节点的布局
+- **原因**：`update_display` 方法硬编码了文字位置（15px 和 h-18px），覆盖了圆形节点样式中设置的位置
+- **修复**：重构 `update_display` 方法，移除硬编码的文字位置设置，当节点名称或语言变化时调用 `self._style.apply(self)` 重新应用样式
+- **修改文件**：`ui/canvas/items/node_item.py`
+
+**3. 重启GUI后节点意外退出**
+- **问题**：退出GUI时选择不终止节点（让节点继续后台运行），重启GUI后节点先是显示"正在运行"，然后几秒后意外退出
+- **原因**：`check_running_processes()` 函数存在逻辑缺陷。当进程扫描（PowerShell命令）失败时，即使记录的PID仍存活，节点也会被误判为已退出并标记为 `stopped`，同时删除PID文件
+- **修复**：当进程扫描失败但PID仍存活时，保留节点状态，不强制标记为 `stopped`
+- **修改文件**：`ui/core/node_process.py`
+
+### 技术实现细节
+
+**节点列表状态修复**：
+```python
+# 修复前
+if status == 'running':
+    item.setText(0, f"● {node_name}")
+    item.setForeground(0, QColor("green"))
+
+# 修复后
+if status in ('running', 'idle'):
+    item.setText(0, f"● {node_name}")
+    item.setForeground(0, QColor("green"))
+```
+
+**圆形节点文字位置修复**：
+```python
+# 修复前
+def update_display(self, node_name=None, language=None, status=None):
+    w = self.rect().width()
+    h = self.rect().height()
+    if node_name:
+        self.name_text.setPos((w - name_rect.width()) / 2, 15)  # 硬编码位置
+    if language:
+        self.lang_text.setPos((w - lang_rect.width()) / 2, h - 18)  # 硬编码位置
+
+# 修复后
+def update_display(self, node_name=None, language=None, status=None):
+    # 只更新内容，位置由样式决定
+    if node_name:
+        self.name_text.setPlainText(node_name)
+    if language:
+        self.lang_text.setPlainText(language)
+    # 重新应用样式以更新文字位置
+    if node_name or language:
+        self._style.apply(self)
+```
+
+**进程检测逻辑修复**：
+```python
+# 修复前
+if pid is not None and _is_pid_alive(pid):
+    pass  # 继续到下面的逻辑处理，标记为 stopped
+
+# 修复后
+if pid is not None and _is_pid_alive(pid):
+    # 进程仍在运行，但进程扫描未找到（可能是权限或环境问题）
+    # 保留现有状态，不强制标记为 stopped
+    logger.warning("节点 %s PID=%d 仍存活，但进程扫描未找到匹配进程", name, pid)
+    continue  # ← 关键修复：保留节点状态
+```
+
+### 验收标准
+
+✅ 节点启动后状态灯变为绿色（●），无需手动刷新  
+✅ 节点停止后状态灯变为灰色（○）  
+✅ 圆形节点在刷新后保持正确的文字排版和样式  
+✅ 退出GUI时选择"不终止节点"，节点继续后台运行  
+✅ 重启GUI后能正确检测到后台运行的节点  
+✅ 节点状态保持为"running"或"idle"，不会被误判为"stopped"  
+✅ PID文件不会被错误删除  
+
+---
+
 ## 🌐 全局状态同步改造 (2026-05-23)
 
 ### 功能改进

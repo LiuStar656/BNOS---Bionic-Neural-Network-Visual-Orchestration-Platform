@@ -149,19 +149,19 @@ class NodeItem(QGraphicsRectItem):
         w = self.rect().width()
         h = self.rect().height()
         
-        # 更新节点名称
+        # 更新节点名称（只更新内容）
         if node_name:
             self.node_name = node_name
             self.name_text.setPlainText(node_name)
-            name_rect = self.name_text.boundingRect()
-            self.name_text.setPos((w - name_rect.width()) / 2, 15)
         
-        # 更新语言
+        # 更新语言（只更新内容）
         if language:
             self.language = language
             self.lang_text.setPlainText(language)
-            lang_rect = self.lang_text.boundingRect()
-            self.lang_text.setPos((w - lang_rect.width()) / 2, h - 18)
+        
+        # 如果有内容更新，重新应用样式以更新文字位置
+        if node_name or language:
+            self._style.apply(self)
         
         # 更新状态
         if status:

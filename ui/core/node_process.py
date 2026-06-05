@@ -232,7 +232,7 @@ def start_node_process(node_info):
             process = subprocess.Popen(
                 [python_exe, listener_py],
                 cwd=node_path,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True
@@ -469,9 +469,10 @@ def check_running_processes(nodes_data):
 
         # 进程扫描未找到 Python 进程 → 检查记录的 PID 是否仍存活
         if pid is not None and _is_pid_alive(pid):
-            # 进程仍在运行，但不是预期的 Python 进程（可能是脚本进程）
-            # 由于没有找到实际的 listener.py 进程，标记为 stopped
-            pass  # 继续到下面的逻辑处理
+            # 进程仍在运行，但进程扫描未找到（可能是权限或环境问题）
+            # 保留现有状态，不强制标记为 stopped
+            logger.warning("节点 %s PID=%d 仍存活，但进程扫描未找到匹配进程", name, pid)
+            continue  # ← 关键修复：保留节点状态
             
         # 确认进程已退出
         exit_code = process.poll() if process else None

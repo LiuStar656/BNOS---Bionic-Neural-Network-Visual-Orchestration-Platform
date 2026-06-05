@@ -46,6 +46,7 @@ class NodeConfigDialog(FloatingPanel):
         # ---- 订阅 polling_manager 信号（替代独立定时器）----
         polling_manager.config_file_changed.connect(self._on_config_external_change)
         polling_manager.log_file_changed.connect(self._on_log_external_change)
+        polling_manager.node_status_changed.connect(self._on_node_status_changed)
         polling_manager.watch_config(self.node_path)
         
     def _init_ui(self):
@@ -161,12 +162,20 @@ class NodeConfigDialog(FloatingPanel):
         node_name_label.setFont(QFont("Arial", 10, QFont.Weight.Bold))
         info_layout.addWidget(node_name_label)
         
+        # 状态显示标签
+        self._status_label = QLabel("状态: 检测中...")
+        self._status_label.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+        info_layout.addWidget(self._status_label)
+        
         node_path_label = QLabel(f"路径: {self.node_path}")
         node_path_label.setFont(QFont("Arial", 9))
         node_path_label.setWordWrap(True)
         info_layout.addWidget(node_path_label)
         
         right_layout.addWidget(info_group)
+        
+        # 初始化状态显示
+        self._update_status_display()
         
         # 节点控制按钮组
         control_group = QGroupBox("节点控制")
@@ -218,24 +227,55 @@ class NodeConfigDialog(FloatingPanel):
         
         self.content_layout.addLayout(main_h_layout)
     
+    def _update_status_display(self):
+        """更新状态显示标签"""
+        if not self.parent_window:
+            self._status_label.setText("状态: 未知")
+            self._status_label.setStyleSheet("color: gray;")
+            return
+        
+        node_data = self.parent_window.nodes_data.get(self.node_name)
+        if not node_data:
+            self._status_label.setText("状态: 未找到")
+            self._status_label.setStyleSheet("color: gray;")
+            return
+        
+        status = node_data.get('status', 'unknown')
+        if status == 'running':
+            self._status_label.setText("状态: ● 运行中")
+            self._status_label.setStyleSheet("color: #FF4444;")  # 红色
+        elif status == 'idle':
+            self._status_label.setText("状态: ● 空闲")
+            self._status_label.setStyleSheet("color: #44FF44;")  # 绿色
+        else:
+            self._status_label.setText("状态: ○ 已停止")
+            self._status_label.setStyleSheet("color: gray;")
+    
+    def _on_node_status_changed(self, node_name, new_status):
+        """polling_manager 信号：节点状态变更"""
+        if node_name == self.node_name:
+            self._update_status_display()
+    
     def start_node(self):
-        """启动节点"""
+        """启动节点（对话框保持打开）"""
         if not self.parent_window:
             return
         
         node_data = self.parent_window.nodes_data.get(self.node_name)
-        if node_data and node_data.get('status') == 'running':
+        if node_data and node_data.get('status') in ('running', 'idle'):
             themed_message(self, t("k_title_info"), t("k_node_already_running"), "info")
             return
         
         try:
             # 使用主窗口的启动方法
             self.parent_window.start_selected_node_by_name(self.node_name)
+            # 启动后更新状态显示（对话框保持打开）
+            self._update_status_display()
         except Exception as e:
             themed_message(self, t("k_title_error"), t("_k_node_start_fail_prop").format(err=str(e)), "error")
     
     def stop_node(self):
-        """停止节点"""
+        """停止节点（对话框保持打开）"""
         if not self.parent_window:
             return
         
@@ -247,6 +287,8 @@ class NodeConfigDialog(FloatingPanel):
         try:
             # 使用主窗口的停止方法
             self.parent_window.stop_selected_node_by_name(self.node_name)
+            # 停止后更新状态显示（对话框保持打开）
+            self._update_status_display()
         except Exception as e:
             themed_message(self, t("k_title_error"), t("_k_node_stop_fail_prop").format(err=str(e)), "error")
     
