@@ -189,11 +189,24 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         # 遍历所有项查找节点
         root = self.node_tree.invisibleRootItem()
         for i in range(root.childCount()):
-            group_item = root.child(i)
-            for j in range(group_item.childCount()):
-                node_item = group_item.child(j)
-                data = node_item.data(0, Qt.ItemDataRole.UserRole)
-                if data and data.get('type') == 'node' and data.get('name') == node_name:
+            item = root.child(i)
+            data = item.data(0, Qt.ItemDataRole.UserRole)
+            
+            # 检查是否为根级别节点（不在任何组中）
+            if data and data.get('type') == 'node' and data.get('name') == node_name:
+                if status == 'running':
+                    item.setText(0, f"● {node_name}")
+                    item.setForeground(0, QColor("green"))
+                else:
+                    item.setText(0, f"○ {node_name}")
+                    item.setForeground(0, QColor("gray"))
+                return
+            
+            # 检查组内节点
+            for j in range(item.childCount()):
+                node_item = item.child(j)
+                node_data = node_item.data(0, Qt.ItemDataRole.UserRole)
+                if node_data and node_data.get('type') == 'node' and node_data.get('name') == node_name:
                     if status == 'running':
                         node_item.setText(0, f"● {node_name}")
                         node_item.setForeground(0, QColor("green"))
