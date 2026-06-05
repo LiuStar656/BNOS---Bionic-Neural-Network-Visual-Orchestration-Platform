@@ -436,7 +436,7 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
                             os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                             process.wait()
                 except Exception as e:
-                    logger.warning("停止节点时出错: %e")
+                    logger.warning("停止节点时出错: %s", e)
                     try:
                         process.kill()
                         process.wait()
@@ -735,36 +735,64 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
             self.parent_window.show_toast(msg, "success")
     
     def batch_start_nodes(self):
-        """批量启动选中的节点"""
+        """批量启动选中的节点（异步执行，逐个启动）"""
         selected_nodes = self.get_selected_nodes()
         if not selected_nodes:
             if self.parent_window:
                 self.parent_window.show_toast("请先选中要启动的节点", "warning")
             return
         
-        for node_name in selected_nodes:
-            if node_name in self.nodes_data:
-                if self.nodes_data[node_name].get('status') == 'stopped':
-                    self._start_single_node(node_name)
+        # 统计需要启动的节点数
+        to_start = [n for n in selected_nodes if n in self.nodes_data and self.nodes_data[n].get('status') == 'stopped']
+        if not to_start:
+            if self.parent_window:
+                self.parent_window.show_toast("没有需要启动的节点", "info")
+            return
         
-        if self.parent_window:
-            self.parent_window.show_toast(f"已启动 {len(selected_nodes)} 个节点", "success")
+        self.parent_window.show_toast(f"正在启动 {len(to_start)} 个节点...", "info")
+        
+        # 异步逐个启动
+        def start_next(index):
+            if index >= len(to_start):
+                if self.parent_window:
+                    self.parent_window.show_toast(f"已启动 {len(to_start)} 个节点", "success")
+                return
+            
+            node_name = to_start[index]
+            self._start_single_node(node_name)
+            QTimer.singleShot(100, lambda: start_next(index + 1))
+        
+        start_next(0)
     
     def batch_stop_nodes(self):
-        """批量停止选中的节点"""
+        """批量停止选中的节点（异步执行，逐个停止）"""
         selected_nodes = self.get_selected_nodes()
         if not selected_nodes:
             if self.parent_window:
                 self.parent_window.show_toast("请先选中要停止的节点", "warning")
             return
         
-        for node_name in selected_nodes:
-            if node_name in self.nodes_data:
-                if self.nodes_data[node_name].get('status') in ('running', 'idle'):
-                    self._stop_single_node(node_name)
+        # 统计需要停止的节点数
+        to_stop = [n for n in selected_nodes if n in self.nodes_data and self.nodes_data[n].get('status') in ('running', 'idle')]
+        if not to_stop:
+            if self.parent_window:
+                self.parent_window.show_toast("没有需要停止的节点", "info")
+            return
         
-        if self.parent_window:
-            self.parent_window.show_toast(f"已停止 {len(selected_nodes)} 个节点", "success")
+        self.parent_window.show_toast(f"正在停止 {len(to_stop)} 个节点...", "info")
+        
+        # 异步逐个停止
+        def stop_next(index):
+            if index >= len(to_stop):
+                if self.parent_window:
+                    self.parent_window.show_toast(f"已停止 {len(to_stop)} 个节点", "success")
+                return
+            
+            node_name = to_stop[index]
+            self._stop_single_node(node_name)
+            QTimer.singleShot(100, lambda: stop_next(index + 1))
+        
+        stop_next(0)
     
     def batch_open_node_folders(self):
         """批量打开选中的节点文件夹"""

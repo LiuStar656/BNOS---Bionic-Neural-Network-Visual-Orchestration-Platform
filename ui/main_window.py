@@ -676,7 +676,7 @@ class BNOSMainWindow(QMainWindow):
         self.start_selected_node_by_name(selected)
     
     def start_selected_node_by_name(self, node_name):
-        """按名称启动节点"""
+        """按名称启动节点（异步执行，不阻塞 GUI）"""
         if node_name not in self.nodes_data:
             return
         node_info = self.nodes_data[node_name]
@@ -684,13 +684,37 @@ class BNOSMainWindow(QMainWindow):
             self.show_toast(t("_k_node_running").format(name=node_name), "info")
             return
         
+        # 立即显示启动中状态
+        self.node_list_panel.update_node_status(node_name, 'idle')
+        if self.canvas: 
+            self.canvas.update_node_status(node_name, 'idle')
+        self.show_toast(t("_k_node_starting").format(name=node_name), "info")
+        
+        # 异步执行启动
+        QTimer.singleShot(10, lambda: self._start_node_async(node_name))
+
+    def _start_node_async(self, node_name):
+        """异步启动节点（内部方法）"""
+        if node_name not in self.nodes_data:
+            return
+        
+        node_info = self.nodes_data[node_name]
         success, err = start_node_process(node_info)
-        if success:
-            self.node_list_panel.update_node_status(node_name, 'idle')
-            if self.canvas: self.canvas.update_node_status(node_name, 'idle')
-            self.show_toast(t("_k_node_started").format(name=node_name), "success")
-        else:
-            themed_message(self, t("k_title_error"), t("_k_start_fail").format(err=err), "error")
+        
+        # 在主线程中更新 UI（通过参数绑定当前值，避免闭包 late binding 问题）
+        def on_complete(success=success, err=err):
+            if success:
+                self.node_list_panel.update_node_status(node_name, 'idle')
+                if self.canvas: 
+                    self.canvas.update_node_status(node_name, 'idle')
+                self.show_toast(t("_k_node_started").format(name=node_name), "success")
+            else:
+                self.node_list_panel.update_node_status(node_name, 'stopped')
+                if self.canvas: 
+                    self.canvas.update_node_status(node_name, 'stopped')
+                themed_message(self, t("k_title_error"), t("_k_start_fail").format(err=err), "error")
+        
+        QTimer.singleShot(10, on_complete)
     
     def stop_selected_node(self):
         """停止选中的节点"""
@@ -701,7 +725,7 @@ class BNOSMainWindow(QMainWindow):
         self.stop_selected_node_by_name(selected)
     
     def stop_selected_node_by_name(self, node_name):
-        """按名称停止节点"""
+        """按名称停止节点（异步执行，不阻塞 GUI）"""
         if node_name not in self.nodes_data:
             return
         node_info = self.nodes_data[node_name]
@@ -709,11 +733,31 @@ class BNOSMainWindow(QMainWindow):
             self.show_toast(t("_k_node_not_running_toast").format(name=node_name), "info")
             return
         
+        # 立即显示停止中状态
+        self.node_list_panel.update_node_status(node_name, 'stopped')
+        if self.canvas: 
+            self.canvas.update_node_status(node_name, 'stopped')
+        self.show_toast(t("_k_node_stopping").format(name=node_name), "info")
+        
+        # 异步执行停止
+        QTimer.singleShot(10, lambda: self._stop_node_async(node_name))
+
+    def _stop_node_async(self, node_name):
+        """异步停止节点（内部方法）"""
+        if node_name not in self.nodes_data:
+            return
+        
+        node_info = self.nodes_data[node_name]
         stop_node_process(node_info)
-        if self.node_list_panel:
+        
+        # 在主线程中更新 UI
+        def on_complete():
             self.node_list_panel.update_node_status(node_name, 'stopped')
-        if self.canvas: self.canvas.update_node_status(node_name, 'stopped')
-        self.show_toast(t("_k_node_stopped").format(name=node_name), "success")
+            if self.canvas: 
+                self.canvas.update_node_status(node_name, 'stopped')
+            self.show_toast(t("_k_node_stopped").format(name=node_name), "success")
+        
+        QTimer.singleShot(10, on_complete)
 
     def _on_node_status_changed(self, name, new_status):
         """polling_manager 信号：节点状态变更"""

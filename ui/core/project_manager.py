@@ -3,6 +3,7 @@
 """
 import os
 import json
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QMessageBox
 from ui.core.logger import logger
 from ui.core.i18n import t
@@ -112,7 +113,7 @@ def project_open(main_window):
 
 
 def project_refresh(main_window):
-    """刷新节点列表：扫描 nodes/ 目录、同步注册表、恢复挂载节点"""
+    """刷新节点列表（异步执行，不阻塞 GUI）"""
     if not main_window.current_project_path:
         main_window.show_toast(t("k_project_no_project"), "warning")
         return
@@ -124,110 +125,134 @@ def project_refresh(main_window):
         main_window.show_toast(t("k_project_nodes_not_exist"), "warning")
         return
 
+    # 立即显示正在刷新
+    main_window.show_toast("正在刷新节点列表...", "info")
+
+    # 异步执行刷新
+    QTimer.singleShot(10, lambda: _project_refresh_async(main_window, project_path, nodes_dir))
+
+def _project_refresh_async(main_window, project_path, nodes_dir):
+    """异步刷新节点列表（内部方法）"""
+    from ui.core.node_registry import NodeRegistry
+    from ui.core.node_process import detect_running_nodes
+    
     logger.info(t("k_log_load_node"))
     logger.debug("项目路径: %s", project_path)
     logger.debug("Nodes 目录: %s", nodes_dir)
 
     main_window.nodes_data.clear()
-    for item in os.listdir(nodes_dir):
-        node_path = os.path.join(nodes_dir, item)
-        node_path = os.path.abspath(node_path)
-        node_path = os.path.normpath(node_path)
-
-        if not os.path.isdir(node_path):
-            continue
-
-        config_path = os.path.join(node_path, "config.json")
-        if not os.path.exists(config_path):
-            continue
-
-        try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-
-            node_name = config.get('node_name', item)
-
-            expected_path = os.path.join(nodes_dir, item)
-            expected_path = os.path.abspath(expected_path)
-            expected_path = os.path.normpath(expected_path)
-
-            if node_path != expected_path:
-                logger.warning("节点 '%s' 路径不一致: 期望=%s, 实际=%s", item, expected_path, node_path)
-                node_path = expected_path
-
-            main_window.nodes_data[node_name] = {
-                'config': config,
-                'path': node_path,
-                'process': None,
-                'status': 'stopped'
-            }
-
-            logger.info("加载节点: %s (文件夹=%s)", node_name, item)
-            logger.debug("   路径: %s, 存在: %s", node_path, os.path.exists(node_path))
-
-        except Exception as e:
-            logger.error("加载节点 %s 失败: %s", item, e)
-            import traceback
-            traceback.print_exc()
-
-    logger.info("共加载 %d 个节点", len(main_window.nodes_data))
-
-    # 同步节点注册表
-    try:
-        registry = NodeRegistry(main_window.current_project_path)
-        registry.load()
-        scan_result = {name: info['path'] for name, info in main_window.nodes_data.items()}
-        registry.sync_from_scan(scan_result)
-        registry.save()
-        logger.info("节点注册表已同步: active=%d, missing=%d, total=%d",
-                    registry.active_count, registry.missing_count, registry.node_count)
-
-        mounted_nodes = registry.get_mounted_nodes()
-        for m_name, m_info in mounted_nodes.items():
-            if m_name not in main_window.nodes_data and m_info.get("status") == "active":
-                m_path = m_info.get("path", "")
-                m_config_path = os.path.join(m_path, "config.json")
-                m_mount_root = m_info.get("mount_root", "")
-                try:
-                    if os.path.exists(m_config_path):
-                        with open(m_config_path, 'r', encoding='utf-8') as f:
-                            m_config = json.load(f)
-                    else:
-                        m_config = {'node_name': m_name}
-                    main_window.nodes_data[m_name] = {
-                        'config': m_config,
-                        'path': m_path,
-                        'process': None,
-                        'status': 'stopped',
-                        'mounted': True,
-                        'mount_root': m_mount_root
-                    }
-                    logger.info("恢复挂载节点: %s (mount_root=%s)", m_name, m_mount_root)
-
-                    # 恢复锁定组（只有当节点列表面板已创建时）
-                    if main_window.node_list_panel:
-                        gm = main_window.node_list_panel.group_manager
-                        if not gm.groups.get(m_mount_root):
-                            gm.create_group(m_mount_root, "#E67E22")
-                        gm.add_nodes_to_group(m_mount_root, [m_name])
-                        gm.lock_group(m_mount_root)
-                except Exception as ex:
-                    logger.warning("恢复挂载节点 %s 失败: %s", m_name, ex)
-        logger.info("共恢复 %d 个挂载节点", len(mounted_nodes))
-    except Exception as e:
-        logger.warning("节点注册表同步失败: %s", e)
-
-    # 更新节点列表面板（如果已创建）
-    if main_window.node_list_panel:
-        main_window.node_list_panel.set_project_path(main_window.current_project_path)
-        main_window.node_list_panel.update_node_list(main_window.nodes_data)
     
-    _canvas_call(main_window, 'sync_all_nodes_display')
+    # 扫描节点目录
+    try:
+        for item in os.listdir(nodes_dir):
+            node_path = os.path.join(nodes_dir, item)
+            node_path = os.path.abspath(node_path)
+            node_path = os.path.normpath(node_path)
 
-    running = detect_running_nodes(main_window.nodes_data)
-    if running:
-        for name, pid in running:
+            if not os.path.isdir(node_path):
+                continue
+
+            config_path = os.path.join(node_path, "config.json")
+            if not os.path.exists(config_path):
+                continue
+
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+
+                node_name = config.get('node_name', item)
+
+                expected_path = os.path.join(nodes_dir, item)
+                expected_path = os.path.abspath(expected_path)
+                expected_path = os.path.normpath(expected_path)
+
+                if node_path != expected_path:
+                    logger.warning("节点 '%s' 路径不一致: 期望=%s, 实际=%s", item, expected_path, node_path)
+                    node_path = expected_path
+
+                main_window.nodes_data[node_name] = {
+                    'config': config,
+                    'path': node_path,
+                    'process': None,
+                    'status': 'stopped'
+                }
+
+                logger.info("加载节点: %s (文件夹=%s)", node_name, item)
+                logger.debug("   路径: %s, 存在: %s", node_path, os.path.exists(node_path))
+
+            except Exception as e:
+                logger.error("加载节点 %s 失败: %s", item, e)
+                import traceback
+                traceback.print_exc()
+
+        logger.info("共加载 %d 个节点", len(main_window.nodes_data))
+
+        # 同步节点注册表
+        try:
+            registry = NodeRegistry(main_window.current_project_path)
+            registry.load()
+            scan_result = {name: info['path'] for name, info in main_window.nodes_data.items()}
+            registry.sync_from_scan(scan_result)
+            registry.save()
+            logger.info("节点注册表已同步: active=%d, missing=%d, total=%d",
+                        registry.active_count, registry.missing_count, registry.node_count)
+
+            mounted_nodes = registry.get_mounted_nodes()
+            for m_name, m_info in mounted_nodes.items():
+                if m_name not in main_window.nodes_data and m_info.get("status") == "active":
+                    m_path = m_info.get("path", "")
+                    m_config_path = os.path.join(m_path, "config.json")
+                    m_mount_root = m_info.get("mount_root", "")
+                    try:
+                        if os.path.exists(m_config_path):
+                            with open(m_config_path, 'r', encoding='utf-8') as f:
+                                m_config = json.load(f)
+                        else:
+                            m_config = {'node_name': m_name}
+                        main_window.nodes_data[m_name] = {
+                            'config': m_config,
+                            'path': m_path,
+                            'process': None,
+                            'status': 'stopped',
+                            'mounted': True,
+                            'mount_root': m_mount_root
+                        }
+                        logger.info("恢复挂载节点: %s (mount_root=%s)", m_name, m_mount_root)
+
+                        # 恢复锁定组（只有当节点列表面板已创建时）
+                        if main_window.node_list_panel:
+                            gm = main_window.node_list_panel.group_manager
+                            if not gm.groups.get(m_mount_root):
+                                gm.create_group(m_mount_root, "#E67E22")
+                            gm.add_nodes_to_group(m_mount_root, [m_name])
+                            gm.lock_group(m_mount_root)
+                    except Exception as ex:
+                        logger.warning("恢复挂载节点 %s 失败: %s", m_name, ex)
+            logger.info("共恢复 %d 个挂载节点", len(mounted_nodes))
+        except Exception as e:
+            logger.warning("节点注册表同步失败: %s", e)
+
+        # 检测运行中的节点
+        running = detect_running_nodes(main_window.nodes_data)
+        
+        # 在主线程中更新 UI
+        def update_ui():
+            # 更新节点列表面板
             if main_window.node_list_panel:
-                main_window.node_list_panel.update_node_status(name, 'running')
-            _canvas_call(main_window, 'update_node_status', name, 'running')
-        main_window.show_toast(f"检测到 {len(running)} 个节点在后台运行", "info")
+                main_window.node_list_panel.set_project_path(main_window.current_project_path)
+                main_window.node_list_panel.update_node_list(main_window.nodes_data)
+            
+            _canvas_call(main_window, 'sync_all_nodes_display')
+
+            if running:
+                for name, pid in running:
+                    if main_window.node_list_panel:
+                        main_window.node_list_panel.update_node_status(name, 'running')
+                    _canvas_call(main_window, 'update_node_status', name, 'running')
+                main_window.show_toast(f"检测到 {len(running)} 个节点在后台运行", "info")
+            else:
+                main_window.show_toast(f"已刷新 {len(main_window.nodes_data)} 个节点", "success")
+        
+        QTimer.singleShot(10, update_ui)
+    except Exception as e:
+        QTimer.singleShot(10, lambda: main_window.show_toast(f"刷新失败: {e}", "error"))

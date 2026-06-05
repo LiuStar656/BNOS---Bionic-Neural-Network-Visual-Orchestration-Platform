@@ -388,10 +388,12 @@
   "_k_project_name": "项目: {name}",
 
   "_k_node_running": "节点 {name} 已在运行中",
+  "_k_node_starting": "正在启动节点 {name}...",
   "_k_node_started": "节点 {name} 已启动",
   "_k_start_failed": "启动节点失败: {err}",
   "_k_start_fail": "启动节点失败: {err}",
   "_k_node_not_running_toast": "节点 {name} 未在运行",
+  "_k_node_stopping": "正在停止节点 {name}...",
   "_k_node_stopped": "节点 {name} 已停止",
   "_k_node_exited": "节点 {name} 已意外退出 (code: {code})",
   "_k_close_running_nodes": "以下 {count} 个节点正在运行：\n\n{nodes}\n\n请选择操作：\n• 是：强制停止所有节点并关闭\n• 否：节点继续在后台运行，关闭窗口\n• 取消：返回程序，不关闭窗口",

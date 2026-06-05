@@ -88,10 +88,9 @@ class ToastNotification(QLabel):
         """)
         
         # 设置窗口属性：无边框、不接受焦点、始终在最上层
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowDoesNotAcceptFocus | Qt.WindowType.WindowStaysOnTopHint)
-        # 添加WA_TranslucentBackground以支持rgba透明度
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        # 确保背景被绘制
+        # 使用 Tool 标志使其成为临时工具窗口，始终在最前
+        self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
         self.setAutoFillBackground(True)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
@@ -149,6 +148,10 @@ class ToastNotification(QLabel):
             self.move(x, y)
         
         self.show()
+        
+        # 确保窗口显示在最顶层
+        self.raise_()
+        self.activateWindow()
         
         # 启动淡入动画
         self.current_opacity = 0.0
