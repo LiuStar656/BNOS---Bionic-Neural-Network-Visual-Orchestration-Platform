@@ -794,3 +794,29 @@ Contributions welcome! Please read our guidelines:
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
 - **Last Updated**: 2026-06-06
+
+
+---
+
+<div align="center">
+
+![BNOS Logo](./bnos_logo.png)
+
+
+
+</div>
+
+<div align="center">
+
+![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
+![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python)
+![Rust](https://img.shields.io/badge/Rust-Supported-orange?style=for-the-badge&logo=rust)
+![PyQt6](https://img.shields.io/badge/PyQt6-Latest-green?style=for-the-badge&logo=qt)
+![License](https://img.shields.io/badge/License-MIT-red?style=for-the-badge)
+
+**A Pure Desktop Bionic Visual Orchestration Platform**
+
+[Quick Start](#-quick-start) • [Features](#-core-features) • [Architecture](#-architecture) • [User Guide](#-user-guide) • [Developer Guide](#-developer-guide)
+
+</div>
+
