@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, 
     QLabel, QMenu, QMessageBox, QFileDialog, QInputDialog
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QColor, QFont
 
 from ui.core.logger import logger
@@ -311,21 +311,100 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
         dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
         dialog.exec()
 
-    def delete_node(self, node_name):
-        """删除节点"""
+    def _force_stop_node_processes(self, node_path):
+        """强制停止可能占用节点文件夹的进程
+        
+        扫描并终止所有可能打开节点文件夹中文件的进程。
+        """
+        import psutil
+        
+        killed_processes = []
+        node_path_lower = node_path.lower().replace('/', '\\')
+        
+        for proc in psutil.process_iter(['pid', 'name', 'open_files', 'cwd']):
+            try:
+                # 检查工作目录
+                try:
+                    cwd = proc.cwd()
+                    if cwd and node_path_lower in cwd.lower().replace('/', '\\'):
+                        proc.kill()
+                        killed_processes.append(f"{proc.name()} (PID={proc.pid}, cwd)")
+                        continue
+                except (psutil.AccessDenied, psutil.NoSuchProcess, AttributeError):
+                    pass
+                
+                # 检查打开的文件
+                try:
+                    for f in proc.open_files():
+                        if f.path and node_path_lower in f.path.lower().replace('/', '\\'):
+                            proc.kill()
+                            killed_processes.append(f"{proc.name()} (PID={proc.pid}, file={os.path.basename(f.path)})")
+                            break
+                except (psutil.AccessDenied, psutil.NoSuchProcess, AttributeError):
+                    pass
+            except (psutil.AccessDenied, psutil.NoSuchProcess):
+                pass
+        
+        if killed_processes:
+            logger.info("强制终止了 %d 个占用节点文件夹的进程: %s", len(killed_processes), killed_processes)
+        
+        return killed_processes
+
+    def _force_delete_directory(self, node_path):
+        """强制删除目录（Windows 专用）
+        
+        使用 Windows cmd 命令强制删除，即使文件被占用也能删除。
+        """
+        import shutil
+        import time
+        
+        # 尝试重命名（有时有效）
+        parent = os.path.dirname(node_path)
+        temp_name = os.path.join(parent, f"_to_delete_{int(time.time())}")
+        try:
+            os.rename(node_path, temp_name)
+            node_path = temp_name
+        except OSError:
+            pass
+        
+        # 方法1: shutil.rmtree 重试
+        try:
+            shutil.rmtree(node_path)
+            return True, "使用 shutil.rmtree 删除成功"
+        except Exception as e:
+            logger.debug("shutil.rmtree 删除失败: %s", e)
+        
+        # 方法2: Windows cmd 命令
+        if os.name == 'nt':
+            # 使用 rmdir /s /q 强制删除
+            try:
+                result = subprocess.run(
+                    ['cmd', '/c', 'rmdir', '/s', '/q', node_path],
+                    capture_output=True, timeout=30, creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                if result.returncode == 0:
+                    return True, "使用 rmdir /s /q 删除成功"
+                else:
+                    error_msg = result.stderr.decode('utf-8', errors='ignore').strip()
+                    logger.debug("rmdir 删除失败: %s", error_msg)
+            except Exception as e:
+                logger.debug("rmdir 命令执行失败: %s", e)
+        
+        # 方法3: 强制终止进程后重试
+        self._force_stop_node_processes(node_path)
+        time.sleep(0.5)  # 等待进程退出
+        
+        try:
+            shutil.rmtree(node_path)
+            return True, "强制终止进程后删除成功"
+        except Exception as e:
+            return False, f"删除失败: {str(e)}"
+
+    def _delete_node_async(self, node_name, callback=None):
+        """异步删除节点（内部方法，不弹确认框）"""
         if node_name not in self.nodes_data:
-            return
-        
-        # 挂载节点不允许删除（只能卸载）
-        if self.nodes_data[node_name].get('mounted'):
-            if self.parent_window:
-                self.parent_window.show_toast("外部挂载节点请使用「卸载」功能，禁止删除", "warning")
-            return
-        
-        reply = themed_message(self, t("k_title_confirm_delete"), t("_k_confirm_delete_node").format(name=node_name),
-            "question")
-        
-        if not reply:
+            if callback:
+                callback(False, "节点不存在")
             return
         
         node_path = self.nodes_data[node_name]['path']
@@ -364,9 +443,16 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
                     except:
                         pass
             
-            # 删除文件夹
-            import shutil
-            shutil.rmtree(node_path)
+            # 删除文件夹（使用强制删除机制）
+            success, msg = self._force_delete_directory(node_path)
+            if not success:
+                # 再次尝试，终止所有可能占用文件的进程
+                self._force_stop_node_processes(node_path)
+                import time
+                time.sleep(0.5)
+                success, msg = self._force_delete_directory(node_path)
+                if not success:
+                    raise OSError(msg)
             
             # 从节点组中移除
             current_group = self.group_manager.get_node_group(node_name)
@@ -398,9 +484,40 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
             if self.parent_window and hasattr(self.parent_window, '_refresh_panels'):
                 self.parent_window._refresh_panels()
             
-            themed_message(self, t("k_title_success"), t("_k_node_deleted").format(name=node_name), "info")
+            if callback:
+                callback(True, None)
         except Exception as e:
-            themed_message(self, t("k_title_error"), t("_k_node_delete_failed").format(err=str(e)), "error")
+            if callback:
+                callback(False, str(e))
+
+    def delete_node(self, node_name):
+        """删除节点（异步执行，不阻塞 GUI）"""
+        if node_name not in self.nodes_data:
+            return
+        
+        # 挂载节点不允许删除（只能卸载）
+        if self.nodes_data[node_name].get('mounted'):
+            if self.parent_window:
+                self.parent_window.show_toast("外部挂载节点请使用「卸载」功能，禁止删除", "warning")
+            return
+        
+        reply = themed_message(self, t("k_title_confirm_delete"), t("_k_confirm_delete_node").format(name=node_name),
+            "question")
+        
+        if not reply:
+            return
+        
+        # 使用 QTimer 异步执行删除，避免阻塞 GUI
+        QTimer.singleShot(10, lambda: self._delete_node_async(node_name, 
+            lambda ok, err: self._on_delete_node_complete(node_name, ok, err)))
+
+    def _on_delete_node_complete(self, node_name, success, error):
+        """删除节点完成回调"""
+        if success:
+            if self.parent_window:
+                self.parent_window.show_toast(t("_k_node_deleted").format(name=node_name), "success")
+        else:
+            themed_message(self, t("k_title_error"), t("_k_node_delete_failed").format(err=error or "Unknown error"), "error")
     
     def _cleanup_empty_groups(self, refresh=True):
         """清理空的节点组"""
@@ -728,7 +845,7 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
                 dialog.exec()
     
     def batch_delete_nodes(self):
-        """批量删除选中的节点"""
+        """批量删除选中的节点（异步执行，逐个删除）"""
         selected_nodes = self.get_selected_nodes()
         if not selected_nodes:
             if self.parent_window:
@@ -742,12 +859,27 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
         if not reply:
             return
         
-        for node_name in selected_nodes:
+        # 异步逐个删除，每次间隔 100ms
+        def delete_next(index):
+            if index >= len(selected_nodes):
+                # 所有节点删除完成
+                if self.parent_window:
+                    self.parent_window.show_toast(f"已删除 {len(selected_nodes)} 个节点", "success")
+                return
+            
+            node_name = selected_nodes[index]
             if node_name in self.nodes_data:
-                self.delete_node(node_name)
+                # 跳过挂载节点
+                if self.nodes_data[node_name].get('mounted'):
+                    QTimer.singleShot(100, lambda: delete_next(index + 1))
+                    return
+                
+                self._delete_node_async(node_name, lambda ok, err: delete_next(index + 1))
+            else:
+                QTimer.singleShot(100, lambda: delete_next(index + 1))
         
-        if self.parent_window:
-            self.parent_window.show_toast(f"已删除 {len(selected_nodes)} 个节点", "success")
+        # 开始异步删除
+        delete_next(0)
     
     def rename_node(self, old_name):
         """重命名节点（委托给主窗口）"""

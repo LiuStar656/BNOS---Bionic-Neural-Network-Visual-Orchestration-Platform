@@ -29,7 +29,7 @@
 
 ---
 
-> 📋 **See [UPDATE_EN.md](UPDATE_EN.md) for recent changes**
+> 📋 **See [UPDATE_EN.md](docs/UPDATE_EN.md) for recent changes**
 
 ---
 
@@ -111,7 +111,7 @@ For developers who want to understand the detailed technical implementation of B
 
 📚 **[View Node Technical Documentation →](https://github.com/LiuStar656/Bionic-Neural-Network-Operating-System)**
 
-📘 **[BNOS Platform Technical Documentation →](TECHNICAL_DOCUMENTATION.md)** — Architecture design, core component details, IPC communication, lifecycle management, and complete project line count statistics
+📘 **[BNOS Platform Technical Documentation →](docs/TECHNICAL_DOCUMENTATION.md)** — Architecture design, core component details, IPC communication, lifecycle management, and complete project line count statistics
 
 This documentation provides deep technical insights beyond what's covered in this README, helping developers understand how nodes work internally and how to create custom implementations.
 

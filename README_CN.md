@@ -26,7 +26,7 @@
 
 ---
 
-> 📋 **更新日志请查看**: [UPDATE_CN.md](UPDATE_CN.md)
+> 📋 **更新日志请查看**: [UPDATE_CN.md](docs/UPDATE_CN.md)
 
 ---
 
@@ -105,7 +105,7 @@
 
 📚 **[查看节点技术文档 →](https://github.com/LiuStar656/Bionic-Neural-Network-Operating-System)**
 
-📘 **[BNOS 平台技术说明书 →](TECHNICAL_DOCUMENTATION_CN.md)** — 架构设计、核心组件详解、IPC 通信、生命周期管理等完整技术文档（含全项目代码行数统计）
+📘 **[BNOS 平台技术说明书 →](docs/TECHNICAL_DOCUMENTATION_CN.md)** — 架构设计、核心组件详解、IPC 通信、生命周期管理等完整技术文档（含全项目代码行数统计）
 
 该文档提供了超出本 README 范围的深度技术洞察，帮助开发者理解节点的内部工作原理以及如何创建自定义实现。
 
