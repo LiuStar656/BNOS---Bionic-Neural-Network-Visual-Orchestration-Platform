@@ -19,6 +19,9 @@ from ui.core.polling_manager import polling_manager
 class ResourceMonitor(FloatingPanel):
     """硬件资源监测面板（浮动半透明悬浮窗）"""
 
+    # 节点状态更新信号 - 转发给画布节点
+    node_state_updated = pyqtSignal(str, float, float)  # node_name, cpu_percent, memory_mb
+
     def __init__(self, parent=None):
         super().__init__(parent, title=t("k_resource_monitor"))
         
@@ -448,6 +451,9 @@ class ResourceMonitor(FloatingPanel):
                 stats['status'] = 'stopped'
 
         self._node_stats[node_name] = stats
+        
+        # 发送信号给画布上的节点状态显示组件
+        self.node_state_updated.emit(node_name, stats['cpu'], stats['memory'])
 
     def _refresh_node_table(self):
         """刷新节点资源表"""

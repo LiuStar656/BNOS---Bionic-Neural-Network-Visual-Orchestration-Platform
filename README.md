@@ -29,7 +29,7 @@
 
 ---
 
-> 📋 **See [UPDATE_EN.md](docs/UPDATE_EN.md) for recent changes**
+> 📋 **See [changelogs](docs/changelogs) for recent changes**
 
 ---
 

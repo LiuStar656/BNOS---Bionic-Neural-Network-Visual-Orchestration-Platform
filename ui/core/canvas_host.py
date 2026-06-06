@@ -195,9 +195,8 @@ class CanvasHost(QMainWindow):
         
         # 如果有项目路径，加载布局
         if project_path:
+            # 此时parent_window.nodes_data应该已经被project_refresh填充好了
             canvas.load_layout(project_path)
-            # 同时加载节点数据
-            self._load_project_data(canvas, project_path, canvas_data)
         
         # 3. 用BNOSDock封装画布
         dock_name = name if name else f"{t('k_canvas')} {len(self._canvas_docks) + 1}"

@@ -19,6 +19,9 @@ from ui.core.polling_manager import polling_manager
 class ResourceMonitorDock(QWidget):
     """硬件资源监测面板（Dock版本 - 无标题栏）"""
 
+    # 节点状态更新信号 - 转发给画布节点
+    node_state_updated = pyqtSignal(str, float, float)  # node_name, cpu_percent, memory_mb
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_window = parent
@@ -366,6 +369,9 @@ class ResourceMonitorDock(QWidget):
             stats['status'] = 'stopped'
 
         self._node_stats[node_name] = stats
+        
+        # 发送信号给画布上的节点状态显示组件
+        self.node_state_updated.emit(node_name, stats['cpu'], stats['memory'])
 
     def update_node_stats(self, node_stats):
         """更新节点资源统计（外部调用接口）"""

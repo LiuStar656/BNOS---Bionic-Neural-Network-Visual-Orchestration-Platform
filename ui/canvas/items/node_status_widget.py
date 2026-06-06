@@ -72,23 +72,26 @@ class NodeStatusWidget:
         self.duration_text.setFont(font)
         
     def _layout_widgets(self):
-        """布局状态显示组件"""
+        """布局状态显示组件 — 靠左从上到下排列"""
         w, h = self._style.node_width, self._style.node_height
+        left_margin = 10  # 左边距
+        start_y = 12     # 起始Y坐标（在名称下方）
         
-        # CPU 信息布局
-        cpu_y = h - 42
-        self.cpu_text.setPos(15, cpu_y - 10)
-        self.cpu_bar_bg.setRect(15, cpu_y, w - 30, 6)
-        self.cpu_bar.setRect(15, cpu_y, 0, 6)
+        # 运行时长布局（最上面，居中显示）
+        dr = self.duration_text.boundingRect()
+        self.duration_text.setPos((w - dr.width()) / 2, start_y)
         
-        # 内存信息布局
-        mem_y = h - 27
-        self.mem_text.setPos(15, mem_y - 10)
-        self.mem_bar_bg.setRect(15, mem_y, w - 30, 6)
-        self.mem_bar.setRect(15, mem_y, 0, 6)
+        # CPU 信息布局（在时长下方）
+        cpu_y = start_y + 20
+        self.cpu_text.setPos(left_margin, cpu_y)
+        self.cpu_bar_bg.setRect(left_margin, cpu_y + 12, w - 20, 6)
+        self.cpu_bar.setRect(left_margin, cpu_y + 12, 0, 6)
         
-        # 运行时长布局
-        self.duration_text.setPos(w - 80, 12)
+        # 内存信息布局（在CPU下方）
+        mem_y = cpu_y + 28
+        self.mem_text.setPos(left_margin, mem_y)
+        self.mem_bar_bg.setRect(left_margin, mem_y + 12, w - 20, 6)
+        self.mem_bar.setRect(left_margin, mem_y + 12, 0, 6)
         
     def update_status(self, cpu_percent, mem_mb, duration_seconds):
         """更新状态信息"""
@@ -96,15 +99,21 @@ class NodeStatusWidget:
         self.mem_mb = max(0, mem_mb)
         self.duration_seconds = max(0, duration_seconds)
         
+        w, h = self._style.node_width, self._style.node_height
+        left_margin = 10
+        start_y = 12
+        
         # 更新 CPU 显示
         self.cpu_text.setPlainText(f"CPU: {int(self.cpu_percent)}%")
-        cpu_width = (self._style.node_width - 30) * (self.cpu_percent / 100)
-        self.cpu_bar.setRect(15, self._style.node_height - 30, cpu_width, 6)
+        cpu_width = (w - 20) * (self.cpu_percent / 100)
+        cpu_y = start_y + 20
+        self.cpu_bar.setRect(left_margin, cpu_y + 12, cpu_width, 6)
         
         # 更新内存显示
         self.mem_text.setPlainText(f"MEM: {int(self.mem_mb)}MB")
-        mem_width = (self._style.node_width - 30) * (min(self.mem_mb, 1024) / 1024)
-        self.mem_bar.setRect(15, self._style.node_height - 15, mem_width, 6)
+        mem_width = (w - 20) * (min(self.mem_mb, 1024) / 1024)
+        mem_y = cpu_y + 28
+        self.mem_bar.setRect(left_margin, mem_y + 12, mem_width, 6)
         
         # 更新运行时长
         hours = int(self.duration_seconds // 3600)

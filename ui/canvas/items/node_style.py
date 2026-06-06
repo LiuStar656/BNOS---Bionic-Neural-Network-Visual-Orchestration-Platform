@@ -12,7 +12,7 @@ class NodeStyle:
 
     # ===== 几何 =====
     node_width: int = 140
-    node_height: int = 80
+    node_height: int = 120  # 增加高度以容纳状态显示
     
     # 状态显示相关
     status_show: bool = False  # 是否显示状态信息
@@ -78,15 +78,16 @@ class RectNodeStyle(NodeStyle):
     status_show: bool = True  # 方形节点显示状态信息
 
     # 几何
-    name_y: int = 18
-    lang_y: int = -16
+    name_x: int = -1  # 名称X坐标，居中，设为-1表示居中
+    name_y: int = 0   # 名称Y坐标，底边贴于最上方边线
+    lang_y: int = -18  # 语言标签Y坐标，在节点下方
     anchor_in_x: int = -8
     anchor_out_x: int = -8
-    indicator_x: int = 10
-    indicator_y: int = 10
+    indicator_x: int = 10  # 指示灯X坐标
+    indicator_y: int = 10  # 指示灯Y坐标，在名称下方
     indicator_size: int = 10
     expand_x: int = -20
-    expand_y: int = 6
+    expand_y: int = 8
     expand_w: int = 14
     expand_h: int = 14
     expand_text_x: int = -1
@@ -133,7 +134,18 @@ class RectNodeStyle(NodeStyle):
         node_item.name_text.setFont(f)
         node_item.name_text.setVisible(True)
         nr = node_item.name_text.boundingRect()
-        node_item.name_text.setPos((w - nr.width()) / 2, self.name_y)
+        
+        # 确定X坐标
+        if self.name_x == -1:
+            # 居中
+            nx = (w - nr.width()) / 2
+        else:
+            nx = self.name_x
+        
+        # 确定Y坐标，让名称的底边贴于最上方边线
+        ny = self.name_y - nr.height()
+        
+        node_item.name_text.setPos(nx, ny)
 
         # 语言标签
         f2 = QFont(self.lang_font_family, self.lang_font_size)
@@ -142,7 +154,12 @@ class RectNodeStyle(NodeStyle):
         node_item.lang_text.setFont(f2)
         node_item.lang_text.setVisible(True)
         lr = node_item.lang_text.boundingRect()
-        node_item.lang_text.setPos((w - lr.width()) / 2, h + self.lang_y)
+        
+        # 语言标签的顶边和节点的底边相切
+        lx = (w - lr.width()) / 2
+        ly = h
+        
+        node_item.lang_text.setPos(lx, ly)
 
         # IN / OUT 标签
         ft = QFont(self.anchor_font_family, self.anchor_font_size)

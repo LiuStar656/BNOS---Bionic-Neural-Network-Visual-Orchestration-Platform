@@ -26,7 +26,7 @@
 
 ---
 
-> 📋 **更新日志请查看**: [UPDATE_CN.md](docs/UPDATE_CN.md)
+> 📋 **更新日志请查看**: [changelogs](docs/changelogs)
 
 ---
 

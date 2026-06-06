@@ -5,8 +5,8 @@
 from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem, QGraphicsEllipseItem, QGraphicsItem
 from PyQt6.QtCore import Qt, QPointF, QRectF
 from PyQt6.QtGui import QPen, QColor, QBrush, QFont, QPainterPath
+from datetime import datetime
 from ui.core.logger import logger
-from ui.core.node_monitor import node_monitor
 
 from ui.canvas.items.anchor_item import AnchorItem
 from ui.canvas.items.node_style import DarkRectNodeStyle
@@ -85,23 +85,17 @@ class NodeItem(QGraphicsRectItem):
         
         # 初始化状态显示组件
         self._status_widget = None
+        self._start_time = None
         if self._style.status_show and not self._style.is_dot:
             self._status_widget = NodeStatusWidget(self)
             self._status_widget.set_visible(True)
             
-            # 启动节点监控
-            node_monitor.add_node(self.node_name)
+            # 连接资源监测面板的信号（如果已创建）
+            self._connect_resource_monitor_signals()
             
-            # 连接状态更新信号
-            node_monitor.status_updated.connect(self._on_status_updated)
-            
-            # 如果节点正在运行，开始监控
+            # 如果节点正在运行，记录开始时间
             if self.status in ["running", "idle"]:
-                # 获取节点PID
-                if hasattr(self.canvas, 'node_process_manager'):
-                    node_info = self.canvas.node_process_manager.get_node_info(self.node_name)
-                    if node_info.get('pid'):
-                        node_monitor.update_node_pid(self.node_name, node_info['pid'])
+                self._try_initialize_start_time()
         
     def _update_selection_ring(self, selected):
         """更新选中环 — 仅圆点节点使用，方框节点走 paint()"""
@@ -121,35 +115,68 @@ class NodeItem(QGraphicsRectItem):
                                          self._style.selected_border_width,
                                          Qt.PenStyle.DashLine))
         self._selection_ring.setBrush(QBrush())
-     
-    def _on_status_updated(self, node_name, cpu_percent, mem_mb, duration_seconds):
-        """状态更新回调"""
+
+    def _connect_resource_monitor_signals(self):
+        """连接资源监测面板的信号"""
+        if not self.canvas or not self.canvas.parent_window:
+            return
+        
+        # 尝试连接浮动资源监测面板的信号
+        if hasattr(self.canvas.parent_window, 'resource_monitor_floating') and self.canvas.parent_window.resource_monitor_floating:
+            self.canvas.parent_window.resource_monitor_floating.node_state_updated.connect(self._on_status_updated)
+        
+        # 尝试连接Dock资源监测面板的信号
+        if hasattr(self.canvas.parent_window, 'resource_monitor') and self.canvas.parent_window.resource_monitor:
+            # 检查Dock版是否有这个信号
+            if hasattr(self.canvas.parent_window.resource_monitor, 'node_state_updated'):
+                self.canvas.parent_window.resource_monitor.node_state_updated.connect(self._on_status_updated)
+    
+    def _on_status_updated(self, node_name, cpu_percent, mem_mb):
+        """状态更新回调（从资源监测面板接收）"""
         if node_name == self.node_name and self._status_widget:
+            # 计算运行时长（如果还没记录开始时间，现在记录）
+            duration_seconds = 0
+            if self._start_time:
+                duration_seconds = (datetime.now() - self._start_time).total_seconds()
+            else:
+                # 如果没有开始时间，尝试从进程信息获取
+                self._try_initialize_start_time()
+                if self._start_time:
+                    duration_seconds = (datetime.now() - self._start_time).total_seconds()
+            
             self._status_widget.update_status(cpu_percent, mem_mb, duration_seconds)
+    
+    def _try_initialize_start_time(self):
+        """尝试从节点数据中初始化开始时间"""
+        if not self.canvas or not self.canvas.parent_window:
+            return
+            
+        if self.node_name in self.canvas.parent_window.nodes_data:
+            node_info = self.canvas.parent_window.nodes_data[self.node_name]
+            # 如果节点正在运行，记录开始时间
+            if node_info.get('status') in ['running', 'idle']:
+                self._start_time = datetime.now()
             
     def update_status(self, status):
         """更新节点状态"""
         self.status = status
         self._style.apply_status(self, status)
         
-        # 如果状态变为运行中，更新监控PID
+        # 如果状态变为运行中，记录开始时间并确保信号连接
         if status in ["running", "idle"]:
             if self._status_widget:
-                if hasattr(self.canvas, 'node_process_manager'):
-                    node_info = self.canvas.node_process_manager.get_node_info(self.node_name)
-                    if node_info.get('pid'):
-                        node_monitor.update_node_pid(self.node_name, node_info['pid'])
+                if self._start_time is None:
+                    self._start_time = datetime.now()
+                self._connect_resource_monitor_signals()
             else:
                 # 如果还没有状态组件，创建一个
                 self._status_widget = NodeStatusWidget(self)
                 self._status_widget.set_visible(True)
-                node_monitor.add_node(self.node_name)
-                node_monitor.status_updated.connect(self._on_status_updated)
-                # 尝试获取PID
-                if hasattr(self.canvas, 'node_process_manager'):
-                    node_info = self.canvas.node_process_manager.get_node_info(self.node_name)
-                    if node_info.get('pid'):
-                        node_monitor.update_node_pid(self.node_name, node_info['pid'])
+                self._start_time = datetime.now()
+                self._connect_resource_monitor_signals()
+        else:
+            # 节点停止了，清除开始时间
+            self._start_time = None
                     
     def set_style(self, style):
         """设置节点样式"""
@@ -166,13 +193,11 @@ class NodeItem(QGraphicsRectItem):
             if not self._status_widget:
                 self._status_widget = NodeStatusWidget(self)
                 self._status_widget.set_visible(True)
-                node_monitor.add_node(self.node_name)
-                node_monitor.status_updated.connect(self._on_status_updated)
+                self._start_time = None
+                self._connect_resource_monitor_signals()
         else:
              if self._status_widget:
                  self._status_widget.set_visible(False)
-                 node_monitor.remove_node(self.node_name)
-                 node_monitor.status_updated.disconnect(self._on_status_updated)
                  self._status_widget = None
       
     def _load_node_custom_colors(self):

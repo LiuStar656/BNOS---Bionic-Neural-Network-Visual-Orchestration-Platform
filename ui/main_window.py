@@ -399,6 +399,10 @@ class BNOSMainWindow(QMainWindow):
             self.resource_monitor_floating.move(pos['x'], pos['y'])
             # 连接关闭信号保存位置和可见性
             self.resource_monitor_floating.closed.connect(self._on_resource_monitor_floating_closed)
+            
+            # 确保已存在的节点能连接到信号
+            self._connect_existing_nodes_to_resource_monitor(self.resource_monitor_floating)
+            
         self.resource_monitor_floating.show()
         self.resource_monitor_floating.raise_()
         # 记录面板已打开
@@ -409,9 +413,23 @@ class BNOSMainWindow(QMainWindow):
         if self.resource_monitor is None:
             from ui.panels.resource_monitor_dock import ResourceMonitorDock
             self.resource_monitor = ResourceMonitorDock(self)
+            
+            # 确保已存在的节点能连接到信号（如果Dock版有这个信号）
+            if hasattr(self.resource_monitor, 'node_state_updated'):
+                self._connect_existing_nodes_to_resource_monitor(self.resource_monitor)
+                
         self._dock_manager.add_panel_to_dock(self.resource_monitor, t("k_resource_monitor_dock"), edge='left')
         # 记录面板已打开
         self._save_panel_visibility_state('resource_monitor_dock', True)
+        
+    def _connect_existing_nodes_to_resource_monitor(self, resource_monitor_panel):
+        """确保已存在的节点能连接到资源监测面板的信号"""
+        if not hasattr(self, 'canvas') or not self.canvas:
+            return
+            
+        for node_name, node_item in self.canvas.nodes.items():
+            if hasattr(node_item, '_connect_resource_monitor_signals'):
+                node_item._connect_resource_monitor_signals()
 
     def _save_panel_position(self, panel_name, panel_widget):
         """保存面板位置到配置"""
@@ -941,14 +959,69 @@ class BNOSMainWindow(QMainWindow):
         restore_state(self)
     
     def auto_open_last_project(self):
-        """PS风格启动逻辑：启动空白，用户手动打开项目
-        
-        不再自动打开上次项目，保持中心区域空白，用户需手动通过菜单新建/打开项目
-        这与Photoshop的初始化逻辑一致。
+        """自动打开上次打开的项目：
+        - 如果有上次打开的项目，自动打开
+        - 如果没有，保持空白，等待用户手动打开
         """
-        # 直接恢复面板状态（不自动打开任何项目）
+        # 先恢复面板状态
         QTimer.singleShot(100, self._restore_panel_state)
-        logger.info("PS模式启动：中心区域保持空白，等待用户手动打开项目")
+        
+        # 检查是否有上次打开的项目
+        last_project = self.app_config.get("last_project")
+        if last_project and isinstance(last_project, str) and os.path.exists(last_project):
+            # 有上次打开的项目，自动打开
+            logger.info("自动打开上次项目: %s", last_project)
+            # 使用 QTimer 延迟打开，确保 UI 初始化完成
+            QTimer.singleShot(200, lambda: self._auto_open_project(last_project))
+        else:
+            logger.info("没有上次项目或项目不存在，等待用户手动打开项目")
+    
+    def _auto_open_project(self, project_dir):
+        """内部方法：自动打开指定项目
+        
+        这个方法类似于 project_open，但不需要用户交互
+        """
+        # 检查项目是否已经打开
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            if self._canvas_host.is_project_open(project_dir):
+                logger.info("项目已经打开，无需重复打开: %s", project_dir)
+                return
+        
+        # 验证是否为有效项目
+        nodes_dir = os.path.join(project_dir, "nodes")
+        has_nodes = os.path.isdir(nodes_dir)
+        has_layout = os.path.isfile(os.path.join(project_dir, "canvas_layout.json"))
+        
+        if not has_nodes and not has_layout:
+            logger.warning("不是有效项目目录: %s", project_dir)
+            return
+        
+        # 确保 nodes/ 存在
+        if not has_nodes:
+            os.makedirs(nodes_dir, exist_ok=True)
+        
+        # 加载项目数据
+        project_name = os.path.basename(project_dir)
+        self.current_project_path = project_dir
+        self.nodes_data.clear()
+        self.connections.clear()
+        
+        # 同步加载项目
+        from ui.core.project_manager import project_refresh
+        project_refresh(self, async_mode=False)
+        
+        # 创建画布
+        if hasattr(self, '_canvas_host'):
+            self._canvas_host.add_canvas_dock(project_name, project_dir)
+        
+        # 加载布局
+        self._canvas_host.load_layout_for_active(project_dir)
+        
+        # 保存项目到配置
+        self.app_config.set("last_project", self.current_project_path)
+        self.app_config.save()
+        
+        self.show_toast(f"已自动打开项目: {project_name}", "success")
     
     def _toggle_maximize(self):
         if self.isMaximized():

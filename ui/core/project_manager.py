@@ -62,6 +62,10 @@ def project_new(main_window):
         main_window._canvas_host.add_canvas_dock(proj_name.strip(), project_dir)
     
     main_window.show_toast(f"已创建项目: {proj_name.strip()}", "success")
+    
+    # 保存项目到配置文件
+    main_window.app_config.set("last_project", main_window.current_project_path)
+    main_window.app_config.save()
 
 
 def project_open(main_window):
@@ -99,8 +103,8 @@ def project_open(main_window):
     main_window.nodes_data.clear()
     main_window.connections.clear()
     
-    # 加载项目（这会填充nodes_data）
-    project_refresh(main_window)
+    # 同步加载项目（这会填充nodes_data）
+    project_refresh(main_window, async_mode=False)
     
     if hasattr(main_window, '_canvas_host'):
         canvas = main_window._canvas_host.add_canvas_dock(project_name, project_dir)
@@ -110,10 +114,18 @@ def project_open(main_window):
     
     _canvas_call(main_window, 'load_layout', project_dir)
     main_window.show_toast(f"已打开项目: {project_name}", "success")
+    
+    # 保存项目到配置文件
+    main_window.app_config.set("last_project", main_window.current_project_path)
+    main_window.app_config.save()
 
 
-def project_refresh(main_window):
-    """刷新节点列表（异步执行，不阻塞 GUI）"""
+def project_refresh(main_window, async_mode=True):
+    """刷新节点列表
+    
+    参数:
+        async_mode: 是否异步执行，默认为True。打开项目时设为False以同步加载。
+    """
     if not main_window.current_project_path:
         main_window.show_toast(t("k_project_no_project"), "warning")
         return
@@ -125,11 +137,14 @@ def project_refresh(main_window):
         main_window.show_toast(t("k_project_nodes_not_exist"), "warning")
         return
 
-    # 立即显示正在刷新
-    main_window.show_toast("正在刷新节点列表...", "info")
-
-    # 异步执行刷新
-    QTimer.singleShot(10, lambda: _project_refresh_async(main_window, project_path, nodes_dir))
+    if async_mode:
+        # 立即显示正在刷新
+        main_window.show_toast("正在刷新节点列表...", "info")
+        # 异步执行刷新
+        QTimer.singleShot(10, lambda: _project_refresh_async(main_window, project_path, nodes_dir))
+    else:
+        # 同步执行刷新（用于打开项目时）
+        _project_refresh_async(main_window, project_path, nodes_dir)
 
 def _project_refresh_async(main_window, project_path, nodes_dir):
     """异步刷新节点列表（内部方法）"""
