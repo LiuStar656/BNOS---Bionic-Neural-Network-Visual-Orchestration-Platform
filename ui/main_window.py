@@ -1126,6 +1126,45 @@ class BNOSMainWindow(QMainWindow):
         """重启应用程序"""
         import sys, os, subprocess
         logger.info("正在重启应用...")
+        
+        # 检查是否有运行中的节点
+        running_nodes = []
+        for node_name, node_info in self.nodes_data.items():
+            status = node_info.get('status', 'unknown')
+            process = node_info.get('process', None)
+            if status == 'running' and process:
+                running_nodes.append(node_name)
+        
+        logger.info("检测到 %d 个运行中的节点: %s", len(running_nodes), running_nodes)
+        
+        # 如果有运行中的节点，提示用户
+        if running_nodes:
+            nodes_list = "\n".join([f"• {name}" for name in running_nodes[:10]])  # 最多显示10个
+            if len(running_nodes) > 10:
+                nodes_list += f"\n... 还有 {len(running_nodes) - 10} 个节点"
+            
+            from ui.core.utils.dialog_utils import MSG_ACCEPT, MSG_REJECT, MSG_CANCEL
+            reply = themed_message(
+                self, t("k_title_detect_running"),
+                t("_k_close_running_nodes").format(count=len(running_nodes), nodes=nodes_list),
+                "question3"
+            )
+            
+            if reply == MSG_ACCEPT:
+                logger.info("正在关闭 %d 个运行中的节点...", len(running_nodes))
+                self._force_stop_all_nodes(running_nodes)
+                self.show_toast(t("_k_nodes_closed").format(count=len(running_nodes)), "success")
+            elif reply == MSG_REJECT:
+                # 用户选择不关闭，让进程继续运行
+                logger.info("%d 个节点将继续在后台运行", len(running_nodes))
+                self.show_toast(t("_k_nodes_background").format(count=len(running_nodes)), "info")
+                # 继续执行后续的保存和关闭逻辑
+            else:
+                # 用户选择取消，中止重启操作
+                logger.info("用户取消了重启操作")
+                self.show_toast(t("_k_restart_canceled"), "info")
+                return
+        
         self._process_manager.stop_all()
         if self._ipc_server:
             self._ipc_server.stop()

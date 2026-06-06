@@ -76,19 +76,19 @@ class NodeStatusWidget:
         w, h = self._style.node_width, self._style.node_height
         
         # CPU 信息布局
-        cpu_y = h - 45
+        cpu_y = h - 42
         self.cpu_text.setPos(15, cpu_y - 10)
         self.cpu_bar_bg.setRect(15, cpu_y, w - 30, 6)
         self.cpu_bar.setRect(15, cpu_y, 0, 6)
         
         # 内存信息布局
-        mem_y = h - 30
+        mem_y = h - 27
         self.mem_text.setPos(15, mem_y - 10)
         self.mem_bar_bg.setRect(15, mem_y, w - 30, 6)
         self.mem_bar.setRect(15, mem_y, 0, 6)
         
         # 运行时长布局
-        self.duration_text.setPos(w - 80, 10)
+        self.duration_text.setPos(w - 80, 12)
         
     def update_status(self, cpu_percent, mem_mb, duration_seconds):
         """更新状态信息"""

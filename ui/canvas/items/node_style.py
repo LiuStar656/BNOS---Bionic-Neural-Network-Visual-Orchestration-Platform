@@ -78,15 +78,15 @@ class RectNodeStyle(NodeStyle):
     status_show: bool = True  # 方形节点显示状态信息
 
     # 几何
-    name_y: int = 15
-    lang_y: int = -18
+    name_y: int = 18
+    lang_y: int = -16
     anchor_in_x: int = -8
     anchor_out_x: int = -8
-    indicator_x: int = 8
-    indicator_y: int = 8
+    indicator_x: int = 10
+    indicator_y: int = 10
     indicator_size: int = 10
     expand_x: int = -20
-    expand_y: int = 4
+    expand_y: int = 6
     expand_w: int = 14
     expand_h: int = 14
     expand_text_x: int = -1
