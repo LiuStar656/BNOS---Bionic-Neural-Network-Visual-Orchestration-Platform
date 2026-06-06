@@ -28,6 +28,9 @@ class NodeMonitor(QObject):
         self._timer.timeout.connect(self._update_all_nodes)
         self._timer.setInterval(self._update_interval * 1000)
         
+        # 自动启动监控
+        self.start_monitoring()
+        
     def start_monitoring(self):
         """开始监控所有节点"""
         if not self._running:
@@ -111,8 +114,20 @@ class NodeMonitor(QObject):
             
         except psutil.NoSuchProcess:
             logger.warning(f"节点进程已结束: {node_name} (PID: {pid})")
-            self.remove_node(node_name)
-            return 0.0, 0.0, 0.0
+            # 尝试重新获取PID
+            import os
+            node_path = os.path.join('nodes', node_name)
+            new_pid = _read_pid(node_path)
+            if new_pid and _is_pid_alive(new_pid):
+                node_data['pid'] = new_pid
+                node_data['start_time'] = datetime.now()
+                node_data['cpu_history'] = []
+                node_data['mem_history'] = []
+                logger.info(f"节点 {node_name} PID已更新为: {new_pid}")
+                return self.get_node_status(node_name)
+            else:
+                self.remove_node(node_name)
+                return 0.0, 0.0, 0.0
         except Exception as e:
             logger.error(f"获取节点状态失败: {node_name}, 错误: {e}")
             return 0.0, 0.0, 0.0

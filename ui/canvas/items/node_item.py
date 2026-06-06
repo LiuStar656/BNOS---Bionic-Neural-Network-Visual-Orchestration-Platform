@@ -133,11 +133,23 @@ class NodeItem(QGraphicsRectItem):
         self._style.apply_status(self, status)
         
         # 如果状态变为运行中，更新监控PID
-        if status in ["running", "idle"] and self._status_widget:
-            if hasattr(self.canvas, 'node_process_manager'):
-                node_info = self.canvas.node_process_manager.get_node_info(self.node_name)
-                if node_info.get('pid'):
-                    node_monitor.update_node_pid(self.node_name, node_info['pid'])
+        if status in ["running", "idle"]:
+            if self._status_widget:
+                if hasattr(self.canvas, 'node_process_manager'):
+                    node_info = self.canvas.node_process_manager.get_node_info(self.node_name)
+                    if node_info.get('pid'):
+                        node_monitor.update_node_pid(self.node_name, node_info['pid'])
+            else:
+                # 如果还没有状态组件，创建一个
+                self._status_widget = NodeStatusWidget(self)
+                self._status_widget.set_visible(True)
+                node_monitor.add_node(self.node_name)
+                node_monitor.status_updated.connect(self._on_status_updated)
+                # 尝试获取PID
+                if hasattr(self.canvas, 'node_process_manager'):
+                    node_info = self.canvas.node_process_manager.get_node_info(self.node_name)
+                    if node_info.get('pid'):
+                        node_monitor.update_node_pid(self.node_name, node_info['pid'])
                     
     def set_style(self, style):
         """设置节点样式"""
