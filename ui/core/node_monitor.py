@@ -7,7 +7,7 @@ import threading
 from datetime import datetime
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 from ui.core.logger import logger
-from ui.core.node_process import NodeProcessManager
+from ui.core.node_process import get_node_info, start_node, stop_node, get_all_nodes
 
 
 class NodeMonitor(QObject):
@@ -22,7 +22,6 @@ class NodeMonitor(QObject):
         self._monitor_thread = None
         self._running = False
         self._update_interval = 2  # 更新间隔（秒）
-        self._node_process_manager = NodeProcessManager()
         
         # 使用QTimer进行定时更新
         self._timer = QTimer()
@@ -48,7 +47,7 @@ class NodeMonitor(QObject):
         """添加要监控的节点"""
         if node_name not in self._monitored_nodes:
             # 获取节点进程信息
-            node_info = self._node_process_manager.get_node_info(node_name)
+            node_info = get_node_info(node_name)
             pid = pid or node_info.get('pid')
             
             if pid:
@@ -122,20 +121,6 @@ class NodeMonitor(QObject):
             
         node_names = list(self._monitored_nodes.keys())
         for node_name in node_names:
-            # 检查节点是否在画布可见区域
-            if hasattr(self._node_process_manager, 'canvas') and self._node_process_manager.canvas:
-                node_item = self._node_process_manager.canvas.get_node_item(node_name)
-                if node_item:
-                    # 检查节点是否可见
-                    if not node_item.isVisible():
-                        continue
-                    
-                    # 检查节点是否在视口内
-                    viewport_rect = self._node_process_manager.canvas.viewport().rect()
-                    scene_rect = self._node_process_manager.canvas.mapFromScene(node_item.sceneBoundingRect()).boundingRect()
-                    if not viewport_rect.intersects(scene_rect):
-                        continue
-                        
             cpu_percent, mem_mb, duration_seconds = self.get_node_status(node_name)
             self.status_updated.emit(node_name, cpu_percent, mem_mb, duration_seconds)
             
