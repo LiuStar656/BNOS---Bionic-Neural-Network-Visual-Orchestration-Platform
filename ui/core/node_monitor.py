@@ -7,7 +7,7 @@ import threading
 from datetime import datetime
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 from ui.core.logger import logger
-from ui.core.node_process import get_node_info, start_node, stop_node, get_all_nodes
+from ui.core.node_process import start_node_process, stop_node_process, detect_running_nodes, _read_pid, _is_pid_alive
 
 
 class NodeMonitor(QObject):
@@ -47,10 +47,13 @@ class NodeMonitor(QObject):
         """添加要监控的节点"""
         if node_name not in self._monitored_nodes:
             # 获取节点进程信息
-            node_info = get_node_info(node_name)
-            pid = pid or node_info.get('pid')
+            if not pid:
+                # 尝试从节点目录读取PID
+                import os
+                node_path = os.path.join('nodes', node_name)
+                pid = _read_pid(node_path)
             
-            if pid:
+            if pid and _is_pid_alive(pid):
                 self._monitored_nodes[node_name] = {
                     'pid': pid,
                     'start_time': datetime.now(),
@@ -59,7 +62,7 @@ class NodeMonitor(QObject):
                 }
                 logger.debug(f"开始监控节点: {node_name} (PID: {pid})")
             else:
-                logger.warning(f"无法获取节点 {node_name} 的PID，无法监控")
+                logger.warning(f"无法获取节点 {node_name} 的有效PID，无法监控")
                 
     def remove_node(self, node_name):
         """移除监控的节点"""
