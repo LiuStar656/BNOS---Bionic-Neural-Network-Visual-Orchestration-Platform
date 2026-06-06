@@ -6,9 +6,11 @@ from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem, QGraphicsEllip
 from PyQt6.QtCore import Qt, QPointF, QRectF
 from PyQt6.QtGui import QPen, QColor, QBrush, QFont, QPainterPath
 from ui.core.logger import logger
+from ui.core.node_monitor import node_monitor
 
 from ui.canvas.items.anchor_item import AnchorItem
 from ui.canvas.items.node_style import DarkRectNodeStyle
+from ui.canvas.items.node_status_widget import NodeStatusWidget
 
 
 class NodeItem(QGraphicsRectItem):
@@ -81,6 +83,26 @@ class NodeItem(QGraphicsRectItem):
         # 加载自定义颜色
         self._load_node_custom_colors()
         
+        # 初始化状态显示组件
+        self._status_widget = None
+        if self._style.status_show and not self._style.is_dot:
+            self._status_widget = NodeStatusWidget(self)
+            self._status_widget.set_visible(True)
+            
+            # 启动节点监控
+            node_monitor.add_node(self.node_name)
+            
+            # 连接状态更新信号
+            node_monitor.status_updated.connect(self._on_status_updated)
+            
+            # 如果节点正在运行，开始监控
+            if self.status in ["running", "idle"]:
+                # 获取节点PID
+                if hasattr(self.canvas, 'node_process_manager'):
+                    node_info = self.canvas.node_process_manager.get_node_info(self.node_name)
+                    if node_info.get('pid'):
+                        node_monitor.update_node_pid(self.node_name, node_info['pid'])
+        
     def _update_selection_ring(self, selected):
         """更新选中环 — 仅圆点节点使用，方框节点走 paint()"""
         is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
@@ -99,12 +121,48 @@ class NodeItem(QGraphicsRectItem):
                                          self._style.selected_border_width,
                                          Qt.PenStyle.DashLine))
         self._selection_ring.setBrush(QBrush())
-    
+     
+    def _on_status_updated(self, node_name, cpu_percent, mem_mb, duration_seconds):
+        """状态更新回调"""
+        if node_name == self.node_name and self._status_widget:
+            self._status_widget.update_status(cpu_percent, mem_mb, duration_seconds)
+            
     def update_status(self, status):
         """更新节点状态"""
         self.status = status
         self._style.apply_status(self, status)
-    
+        
+        # 如果状态变为运行中，更新监控PID
+        if status in ["running", "idle"] and self._status_widget:
+            if hasattr(self.canvas, 'node_process_manager'):
+                node_info = self.canvas.node_process_manager.get_node_info(self.node_name)
+                if node_info.get('pid'):
+                    node_monitor.update_node_pid(self.node_name, node_info['pid'])
+                    
+    def set_style(self, style):
+        """设置节点样式"""
+        self._style = style
+        self._style.node_width = self.rect().width()
+        self._style.node_height = self.rect().height()
+        
+        # 重新应用样式
+        self._style.apply(self)
+        self._style.apply_status(self, self.status)
+        
+        # 更新状态显示组件
+        if self._style.status_show and not self._style.is_dot:
+            if not self._status_widget:
+                self._status_widget = NodeStatusWidget(self)
+                self._status_widget.set_visible(True)
+                node_monitor.add_node(self.node_name)
+                node_monitor.status_updated.connect(self._on_status_updated)
+        else:
+             if self._status_widget:
+                 self._status_widget.set_visible(False)
+                 node_monitor.remove_node(self.node_name)
+                 node_monitor.status_updated.disconnect(self._on_status_updated)
+                 self._status_widget = None
+      
     def _load_node_custom_colors(self):
         """加载节点的自定义颜色配置"""
         if not self.canvas or not self.canvas.parent_window:

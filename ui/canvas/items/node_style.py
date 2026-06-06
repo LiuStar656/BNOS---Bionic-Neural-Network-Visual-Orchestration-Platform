@@ -13,6 +13,14 @@ class NodeStyle:
     # ===== 几何 =====
     node_width: int = 140
     node_height: int = 80
+    
+    # 状态显示相关
+    status_show: bool = False  # 是否显示状态信息
+    status_cpu_y: int = -45    # CPU 信息Y坐标
+    status_mem_y: int = -30    # 内存信息Y坐标
+    status_duration_x: int = -80  # 运行时长X坐标
+    status_duration_y: int = 10   # 运行时长Y坐标
+    status_bar_height: int = 6    # 进度条高度
 
     # ===== 颜色 =====
     bg_color: str = "#2d2d30"
@@ -28,6 +36,15 @@ class NodeStyle:
     status_idle_border: str = "#00CC00"
     status_running: str = "#FF4444"         # 红色 = 运行中（main 正在执行）
     status_running_border: str = "#CC0000"
+    
+    # 状态显示颜色
+    cpu_text_color: str = "#4ecdc4"    # CPU 文本颜色
+    cpu_bar_color: str = "#4ecdc4"     # CPU 进度条颜色
+    mem_text_color: str = "#ff6b6b"    # 内存文本颜色
+    mem_bar_color: str = "#ff6b6b"     # 内存进度条颜色
+    duration_text_color: str = "#ffe66d"  # 运行时长颜色
+    status_bar_bg: str = "#333333"     # 进度条背景颜色
+    status_bar_border: str = "#555555" # 进度条边框颜色
 
     # ===== 字体 =====
     name_font_family: str = "Arial"
@@ -36,6 +53,9 @@ class NodeStyle:
     lang_font_family: str = "Arial"
     lang_font_size: int = 8
     lang_font_bold: bool = False
+    status_font_family: str = "Arial"
+    status_font_size: int = 7
+    status_font_bold: bool = True
 
     def apply(self, node_item):
         """子类必须实现"""
@@ -55,6 +75,7 @@ class RectNodeStyle(NodeStyle):
     style_key: str = "rect"
     style_name: str = "方形"
     is_dot: bool = False
+    status_show: bool = True  # 方形节点显示状态信息
 
     # 几何
     name_y: int = 15
