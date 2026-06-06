@@ -1,7 +1,6 @@
-
 # BNOS Changelog
 
-&gt; 📖 中文版：[UPDATE_CN.md](UPDATE_CN.md)
+> 📖 中文版：[UPDATE_CN.md](UPDATE_CN.md)
 
 ---
 
@@ -11,16 +10,21 @@ Changelogs have been restructured and are now organized by date in the [changelo
 
 Please visit the following locations to view the changelogs:
 
-- 📂 [Complete Changelog Index](./changelogs/)
-- 🇨🇳 [Chinese Changelogs](./changelogs/cn/)
-- 🇺🇸 [English Changelogs](./changelogs/en/)
+- 📂 [Complete Changelog Index](./changelogs/README.md)
+- 🇨🇳 [Chinese Changelog Index](./changelogs/cn/README.md)
+- 📖 [English Changelog Index](./changelogs/en/README.md) (Recommended)
 
-## Quick Navigation
+## New Architecture Features
 
-- [📖 Collapsible Changelog (Recommended)](./UPDATE_COLLAPSED_EN.md)
-- [Latest Updates](./changelogs/en/2026-06-07/)
-- [Browse by Date](./changelogs/en/INDEX.md)
+Changelog has been refactored into a **"Single Index Page + Version-Separate MD Sub-Files"** architecture:
+
+✅ **Minimal Home Page**: Only shows version titles + native triangle collapse buttons  
+✅ **Dynamic Loading**: Click triangle to expand the version summary  
+✅ **Modular Decoupling**: Each date has an independent folder, fully decoupled  
+✅ **Two-Way Sync**: Modifying sub-files auto-updates the index page  
+✅ **Native Collapse**: Uses `<details><summary>` native collapse, no JS needed  
+✅ **Full Platform Compatibility**: Works with VSCode / static sites / docs / knowledge bases  
 
 ---
 
-*This file is kept for backward compatibility. For new changelogs, please visit the changelogs/ folder or see the collapsible version.*
+*This file is kept for backward compatibility. For new changelogs, please visit the changelogs/ folder.*
