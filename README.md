@@ -527,14 +527,12 @@ Toolbar → New Project → Select Folder
 ```
 BNOS/
 │
-├── bnos_gui.py                    # Main entry point
-├── start_bnos_gui.bat             # Windows launcher
-├── start_bnos_gui.sh              # Linux/Mac launcher
+├── bnos_console.py                # Main entry point
+├── launcher.py                    # Alternative launcher
 ├── build_bnos.spec                # PyInstaller spec
 ├── app_config.json                # App settings (window state, last project)
 ├── canvas_layout.json             # Canvas layout persistence
 ├── color_settings.json            # Color settings persistence
-├── requirements_gui.txt           # Python dependencies
 │
 ├── ui/                            # UI modules
 │   ├── __init__.py
@@ -548,15 +546,29 @@ BNOS/
 │   │   ├── dark_title_bar.py     # VSCode-style title bar
 │   │   ├── floating_panel.py     # Floating panel base class
 │   │   ├── logger.py             # Global logger (console + file)
+│   │   ├── i18n.py               # Internationalization support
 │   │   ├── toast/                # Toast notification system
 │   │   │   ├── toast_notification.py
 │   │   │   └── toast_queue_manager.py
-│   │   └── actions/              # Unified action system
-│   │       ├── __init__.py
-│   │       ├── action_definition.py
-│   │       ├── action_registry.py
-│   │       ├── action_factory.py
-│   │       └── builtin_*.py       # Built-in actions
+│   │   ├── actions/              # Unified action system
+│   │   │   ├── __init__.py
+│   │   │   ├── action_definition.py
+│   │   │   ├── action_registry.py
+│   │   │   ├── action_factory.py
+│   │   │   ├── builtin_project_actions.py
+│   │   │   ├── builtin_node_actions.py
+│   │   │   ├── builtin_canvas_actions.py
+│   │   │   └── builtin_view_actions.py
+│   │   ├── utils/                # Utility modules
+│   │   │   ├── dialog_utils.py
+│   │   │   ├── file_utils.py
+│   │   │   └── log_viewer.py
+│   │   ├── canvas_host.py         # Canvas host management
+│   │   ├── dock_manager.py        # Dock panel manager
+│   │   ├── polling_manager.py     # Unified polling manager
+│   │   ├── shortcut_manager.py    # Keyboard shortcut manager
+│   │   ├── node_registry.py       # Node registry system
+│   │   └── ...                   # Other core modules
 │   │
 │   ├── menu/                      # Menu system
 │   │   └── menu_manager.py       # Menu bar manager
@@ -567,31 +579,53 @@ BNOS/
 │   │   ├── canvas_colors.py      # Color management Mixin
 │   │   ├── canvas_layout.py      # Layout persistence Mixin
 │   │   ├── canvas_menus.py       # Context menu Mixin
+│   │   ├── canvas_connections.py # Synapse connection management
+│   │   ├── draw_toolbar.py       # Drawing toolbar
 │   │   └── items/                # Graphics items
 │   │       ├── __init__.py
 │   │       ├── anchor_item.py    # Anchor (I/O port)
 │   │       ├── node_item.py      # Node container
 │   │       ├── node_style.py     # Node style system (rect/dot)
+│   │       ├── node_status_widget.py
 │   │       └── edge_item.py      # Bezier curve edge
 │   │
 │   ├── panels/                    # Panels
 │   │   ├── node_list_panel.py    # Node list panel
+│   │   ├── node_list_dock.py     # Dock-style node list
+│   │   ├── node_list_context.py  # Context menu for node list
 │   │   ├── property_panel.py     # Config dialog + color settings
 │   │   ├── node_group_manager.py # Group management
 │   │   ├── node_expand_panel.py  # Node expand panel
-│   │   └── node_monitor.py       # Node monitor (live logs)
+│   │   ├── node_monitor.py       # Node monitor (live logs)
+│   │   ├── node_monitor_dock.py  # Dock-style node monitor
+│   │   ├── resource_monitor.py   # Resource monitor
+│   │   └── resource_monitor_dock.py
+│   │
+│   ├── dialogs/                   # Dialogs
+│   │   ├── color_settings_dialog.py
+│   │   ├── settings_dialog.py
+│   │   ├── node_config_dialog.py
+│   │   └── file_browser_dialog.py
 │   │
 │   ├── creators/                  # Node creators
 │   │   └── node_creator_manager.py
 │   │
-│   └── docs/                      # Examples
-│       ├── TOAST_MODULE_README.md
-│       └── toast_examples.py
+│   ├── icons/                     # Icon system
+│   │   ├── codicon.py            # VS Code Codicon icons
+│   │   └── codicon.ttf
+│   │
+│   └── docs/                      # Documentation
+│       └── TOAST_MODULE_README.md
 │
 ├── tools/                         # Node generation tools
 │   ├── README.md
 │   ├── python_create_node.py
 │   └── rust_create_node.py
+│
+├── docs/                          # Project documentation
+│   ├── TECHNICAL_DOCUMENTATION.md
+│   ├── changelogs/               # Update logs
+│   └── ...                       # Other documentation files
 │
 └── nodes/                         # Runtime node directory
     └── (user-created nodes)

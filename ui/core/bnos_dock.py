@@ -47,11 +47,16 @@ class BnosDock(QDockWidget):
         self._title_layout = QHBoxLayout(self._title_widget)
         self._title_layout.setContentsMargins(4, 2, 4, 2)
         self._title_layout.setSpacing(4)
+        # 设置垂直居中对齐
+        self._title_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         
         # 标题标签
         self._title_label = QLabel(self.windowTitle())
         self._title_label.setStyleSheet("color: #858585; font-size: 11px;")
         self._title_layout.addWidget(self._title_label)
+        
+        # 弹性空间 - 让后面的按钮靠右对齐
+        self._title_layout.addStretch(1)
         
         # 分隔线
         spacer = QWidget()

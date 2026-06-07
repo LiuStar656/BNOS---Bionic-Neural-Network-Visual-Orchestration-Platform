@@ -513,16 +513,13 @@ Ctrl + 单击多选节点 → 右键 → 批量启动/停止
 
 ```
 BNOS/
-├── bnos_gui.py                    # 主入口文件
-├── start_bnos_gui.bat             # Windows 启动脚本
-├── start_bnos_gui.sh              # Linux/macOS 启动脚本
-├── requirements_gui.txt           # GUI 依赖列表
+├── bnos_console.py                # 主入口文件
+├── launcher.py                    # 备用启动器
 ├── build_bnos.spec                # PyInstaller 打包配置
 ├── app_config.json                # 应用级配置（窗口状态、最后项目路径）
 ├── canvas_layout.json             # 画布布局持久化（含节点样式）
 ├── color_settings.json            # 颜色设置持久化
 ├── README.md / README_CN.md       # 项目文档
-├── UPDATE_CN.md / UPDATE_EN.md    # 更新日志
 │
 ├── ui/                            # UI 模块
 │   ├── __init__.py                # 统一入口
@@ -536,15 +533,29 @@ BNOS/
 │   │   ├── dark_title_bar.py      # VSCode 风格标题栏
 │   │   ├── floating_panel.py      # 浮动面板基类
 │   │   ├── logger.py              # 全局日志模块
+│   │   ├── i18n.py                # 国际化支持
 │   │   ├── toast/                 # Toast 通知系统
 │   │   │   ├── toast_notification.py
 │   │   │   └── toast_queue_manager.py
-│   │   └── actions/               # 统一动作系统
-│   │       ├── __init__.py
-│   │       ├── action_definition.py
-│   │       ├── action_registry.py
-│   │       ├── action_factory.py
-│   │       └── builtin_*.py        # 内置动作定义
+│   │   ├── actions/               # 统一动作系统
+│   │   │   ├── __init__.py
+│   │   │   ├── action_definition.py
+│   │   │   ├── action_registry.py
+│   │   │   ├── action_factory.py
+│   │   │   ├── builtin_project_actions.py
+│   │   │   ├── builtin_node_actions.py
+│   │   │   ├── builtin_canvas_actions.py
+│   │   │   └── builtin_view_actions.py
+│   │   ├── utils/                 # 工具模块
+│   │   │   ├── dialog_utils.py
+│   │   │   ├── file_utils.py
+│   │   │   └── log_viewer.py
+│   │   ├── canvas_host.py         # 画布宿主管理
+│   │   ├── dock_manager.py        # Dock 面板管理
+│   │   ├── polling_manager.py     # 统一轮询管理器
+│   │   ├── shortcut_manager.py    # 键盘快捷键管理
+│   │   ├── node_registry.py       # 节点注册表系统
+│   │   └── ...                    # 其他核心模块
 │   │
 │   ├── menu/                      # 菜单系统
 │   │   └── menu_manager.py        # 菜单栏管理器
@@ -555,29 +566,53 @@ BNOS/
 │   │   ├── canvas_colors.py       # 颜色管理 Mixin
 │   │   ├── canvas_layout.py       # 布局持久化 Mixin
 │   │   ├── canvas_menus.py        # 右键菜单 Mixin
+│   │   ├── canvas_connections.py  # 突触连接管理
+│   │   ├── draw_toolbar.py        # 绘图工具栏
 │   │   └── items/                 # 画布图形元素
 │   │       ├── __init__.py
 │   │       ├── node_item.py       # 节点项
 │   │       ├── node_style.py      # 节点样式系统（方形/圆形）
+│   │       ├── node_status_widget.py
 │   │       ├── edge_item.py       # 连线项（贝塞尔曲线）
 │   │       └── anchor_item.py     # 锚点项（输入/输出端口）
 │   │
 │   ├── panels/                    # 面板组件
 │   │   ├── node_list_panel.py     # 节点列表悬浮面板
+│   │   ├── node_list_dock.py      # Dock 样式节点列表
+│   │   ├── node_list_context.py   # 节点列表右键菜单
 │   │   ├── property_panel.py      # 节点配置对话框 + 颜色设置
 │   │   ├── node_group_manager.py  # 节点分组管理
 │   │   ├── node_expand_panel.py   # 节点展开面板
-│   │   └── node_monitor.py        # 节点监测面板
+│   │   ├── node_monitor.py        # 节点监测面板
+│   │   ├── node_monitor_dock.py   # Dock 样式节点监测
+│   │   ├── resource_monitor.py    # 资源监测
+│   │   └── resource_monitor_dock.py
+│   │
+│   ├── dialogs/                   # 对话框组件
+│   │   ├── color_settings_dialog.py
+│   │   ├── settings_dialog.py
+│   │   ├── node_config_dialog.py
+│   │   └── file_browser_dialog.py
 │   │
 │   ├── creators/                  # 节点创建器
 │   │   └── node_creator_manager.py
 │   │
-│   └── docs/                      # UI 文档与示例
+│   ├── icons/                     # 图标系统
+│   │   ├── codicon.py             # VS Code Codicon 图标
+│   │   └── codicon.ttf
+│   │
+│   └── docs/                      # UI 文档
+│       └── TOAST_MODULE_README.md
 │
 ├── tools/                         # 节点生成工具
 │   ├── python_create_node.py      # Python 节点模板生成器
 │   ├── rust_create_node.py        # Rust 节点模板生成器
 │   └── README.md
+│
+├── docs/                          # 项目文档
+│   ├── TECHNICAL_DOCUMENTATION.md
+│   ├── changelogs/                # 更新日志
+│   └── ...                        # 其他文档文件
 │
 └── nodes/                         # 运行时节点目录（由用户项目创建）
     └── [node_name]/               # 单个节点文件夹

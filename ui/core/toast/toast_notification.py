@@ -4,10 +4,22 @@ BNOS Toast 通知系统 - 右上角自动消失的通知弹窗
 采用"外层透明窗口 + 内层QFrame承载样式"的双层架构，参考 dialog_utils.py 和
 floating_panel.py 的成熟实现模式。使用 setWindowOpacity 做淡入淡出动画，
 避免 QGraphicsOpacityEffect 与 WA_TranslucentBackground 的兼容性问题。
+
+新增功能：
+- Toast显示区域严格限制在右上角固定区域内
+- 跟随窗口移动、大小调整自动更新位置（使用定时器轮询方案）
+- Toast与画布dock关闭按钮垂直对齐
 """
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication, QDockWidget
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QRect, QPoint
 from PyQt6.QtGui import QGuiApplication
+
+# 尝试导入BnosDock
+try:
+    from ui.core.bnos_dock import BnosDock
+    HAS_BNOS_DOCK = True
+except ImportError:
+    HAS_BNOS_DOCK = False
 
 
 # ---------------- 全局配置 ----------------
@@ -41,10 +53,19 @@ class ToastNotification(QWidget):
     - 外层：QWidget，仅设 WA_TranslucentBackground，完全透明，不绘制任何内容
     - 内层：QLabel，通过 stylesheet 绘制 rgba 背景色 + border-radius 圆角 + 文字
     - 动画：QTimer 驱动 setWindowOpacity() 做淡入淡出，每16ms一帧 ≈ 60fps
+    - 边界限制：Toast显示区域严格限制在右上角固定区域内
+    - 跟随移动：使用定时器轮询检测父窗口变化，自动更新位置
     """
     
     # 信号：Toast关闭时发出
     closed = pyqtSignal()
+
+    # Toast显示区域配置（相对于父窗口）
+    _DISPLAY_AREA_WIDTH = 320    # 显示区域宽度
+    _DISPLAY_AREA_HEIGHT = 400   # 显示区域高度
+    _DISPLAY_AREA_MARGIN_RIGHT = 15  # 右边缘距离
+    _DISPLAY_AREA_MARGIN_TOP = 40    # 上边缘距离（避开标题栏）
+    _TOAST_SPACING = 55           # Toast之间的垂直间距
 
     def __init__(self, message, parent=None, duration=3000, toast_type="info", stack_index=0, node_name=None, operation_type=None):
         super().__init__(parent)
@@ -56,6 +77,11 @@ class ToastNotification(QWidget):
         # 保存标识符：用于关联特定节点和操作，便于后续替换
         self.node_name = node_name  # 关联的节点名称
         self.operation_type = operation_type  # 操作类型：如 'start', 'stop', 'delete'
+
+        # 跟踪定时器
+        self._tracking_timer = QTimer(self)
+        self._tracking_timer.timeout.connect(self._update_position_if_needed)
+        self._last_parent_geometry = QRect()
 
         # 选取背景色
         config = _toast_config
@@ -126,13 +152,20 @@ class ToastNotification(QWidget):
     def show_toast(self):
         """显示通知并启动淡入动画"""
         self.adjustSize()
+        
+        # 先尝试初始定位
         self._position_correctly()
-
-        # 关键时序：先设为全透明，再show，再启动淡入动画
-        # 这样避免任何"先显示后透明"的闪烁
+        
+        # 设为全透明，然后显示
         self.setWindowOpacity(0.0)
         self._opacity = 0.0
         self.show()
+        
+        # 启用位置跟踪（跟随父窗口移动）
+        self._start_tracking()
+        
+        # 延迟重新定位，等界面完全初始化
+        QTimer.singleShot(150, self._delayed_positioning)
 
         # 保持在最上层
         self.raise_()
@@ -141,6 +174,10 @@ class ToastNotification(QWidget):
         self._is_fading_in = True
         self._is_fading_out = False
         self._anim_timer.start(16)
+    
+    def _delayed_positioning(self):
+        """延迟定位方法：等界面完全初始化后再计算位置"""
+        self._position_correctly()
 
     # ---------- 动画 ----------
 
@@ -186,26 +223,164 @@ class ToastNotification(QWidget):
         self._is_fading_out = True
         self._anim_timer.start(16)
 
+    # ---------- 位置跟踪 ----------
+
+    def _start_tracking(self):
+        """启动位置跟踪定时器"""
+        if self.parent_window:
+            # 记录初始父窗口几何信息
+            self._last_parent_geometry = self.parent_window.geometry()
+            # 每100ms检查一次父窗口变化
+            self._tracking_timer.start(100)
+
+    def _update_position_if_needed(self):
+        """如果父窗口位置/大小变化，更新Toast位置"""
+        if not self.parent_window:
+            return
+            
+        current_geometry = self.parent_window.geometry()
+        if current_geometry != self._last_parent_geometry:
+            self._last_parent_geometry = current_geometry
+            self._position_correctly()
+
     # ---------- 位置计算 ----------
 
     def _position_correctly(self):
-        """根据父窗口或屏幕计算正确位置"""
+        """计算Toast位置，严格限制在显示区域内"""
         if self.parent_window:
-            # 基于父窗口的内部坐标（向内偏移20px，向下偏移50px避开标题栏）
-            pw = self.parent_window
-            x = pw.width() - self.width() - 20
-            y = 50 + (self.stack_index * 65)
+            self._position_relative_to_parent()
+        else:
+            self._position_relative_to_screen()
 
-            max_y = pw.height() - self.height() - 20
-            if y > max_y:
-                y = max_y
-
+    def _position_relative_to_parent(self):
+        """相对于父窗口定位 - Toast在画布dock内窗口的右上角"""
+        pw = self.parent_window
+        
+        # 查找画布dock
+        canvas_dock = None
+        
+        # 优先查找BnosDock
+        if HAS_BNOS_DOCK:
+            for widget in pw.findChildren(BnosDock):
+                if widget.isVisible():
+                    canvas_dock = widget
+                    break
+        
+        # 如果没找到BnosDock，找任意可见的dock
+        if not canvas_dock:
+            for widget in pw.findChildren(QDockWidget):
+                if widget.isVisible():
+                    canvas_dock = widget
+                    break
+        
+        if canvas_dock:
+            # 尝试获取画布dock的内容widget
+            content_widget = canvas_dock.widget()
+            
+            if content_widget:
+                # 直接用内容widget定位
+                content_rect = content_widget.geometry()
+                content_global_pos = content_widget.mapToGlobal(content_rect.topLeft())
+                
+                # Toast在内容区域右上角
+                toast_x = content_global_pos.x() + content_rect.width() - self.width() - 15
+                toast_y = content_global_pos.y() + 5 + (self.stack_index * self._TOAST_SPACING)
+            else:
+                # 用dock自身定位
+                dock_rect = canvas_dock.geometry()
+                dock_global_pos = canvas_dock.mapToGlobal(dock_rect.topLeft())
+                
+                # 减去标题栏高度（估算）
+                title_bar_height = 30
+                toast_x = dock_global_pos.x() + dock_rect.width() - self.width() - 15
+                toast_y = dock_global_pos.y() + title_bar_height + 5 + (self.stack_index * self._TOAST_SPACING)
+            
+            # 边界检查
+            parent_bottom_right = pw.mapToGlobal(pw.rect().bottomRight())
+            max_safe_x = parent_bottom_right.x() - self.width() - 5
+            max_safe_y = parent_bottom_right.y() - self.height() - 5
+            parent_top_left = pw.mapToGlobal(pw.rect().topLeft())
+            min_safe_x = parent_top_left.x() + 5
+            min_safe_y = parent_top_left.y() + 50  # 避开标题栏
+            
+            x = max(min(toast_x, max_safe_x), min_safe_x)
+            y = max(min(toast_y, max_safe_y), min_safe_y)
+            
             self.move(x, y)
         else:
-            screen = QGuiApplication.primaryScreen().availableGeometry()
-            x = screen.right() - self.width() - 20
-            y = screen.top() + 50 + (self.stack_index * 65)
-            self.move(x, y)
+            # 如果没找到画布dock，使用原有的定位逻辑
+            self._position_fallback_relative()
+    
+    def _position_fallback_relative(self):
+        """备用定位方法：在父窗口内部的右上角显示"""
+        pw = self.parent_window
+        
+        # 获取父窗口的客户区（标题栏下方）在屏幕上的位置
+        client_top_left = pw.mapToGlobal(pw.rect().topLeft())
+        
+        # 计算显示区域相对于父窗口的位置
+        display_area_x_relative = pw.width() - self._DISPLAY_AREA_WIDTH - self._DISPLAY_AREA_MARGIN_RIGHT
+        display_area_y_relative = self._DISPLAY_AREA_MARGIN_TOP
+        
+        # 转换为屏幕坐标
+        area_x = client_top_left.x() + display_area_x_relative
+        area_y = client_top_left.y() + display_area_y_relative
+        area_width = self._DISPLAY_AREA_WIDTH
+        area_height = self._DISPLAY_AREA_HEIGHT
+        
+        # 确保显示区域不超出父窗口
+        max_area_x_relative = pw.width() - self.width() - self._DISPLAY_AREA_MARGIN_RIGHT
+        display_area_x_relative = min(display_area_x_relative, max_area_x_relative)
+        display_area_x_relative = max(display_area_x_relative, self._DISPLAY_AREA_MARGIN_RIGHT)
+        area_x = client_top_left.x() + display_area_x_relative
+        
+        max_area_bottom_relative = pw.height() - self._DISPLAY_AREA_MARGIN_TOP
+        area_height = min(area_height, max_area_bottom_relative - display_area_y_relative)
+        
+        # Toast宽度不超过显示区域宽度
+        toast_width = min(self.width(), area_width - 20)
+        if self.width() > toast_width:
+            self._label.setWordWrap(True)
+            self.adjustSize()
+        
+        # 计算Toast位置
+        x = area_x + (area_width - self.width()) // 2
+        y = area_y + (self.stack_index * self._TOAST_SPACING)
+        
+        # 边界检查
+        max_y = area_y + area_height - self.height()
+        if y > max_y:
+            y = max_y
+        
+        parent_bottom_right = pw.mapToGlobal(pw.rect().bottomRight())
+        max_safe_x = parent_bottom_right.x() - self.width() - 5
+        max_safe_y = parent_bottom_right.y() - self.height() - 5
+        min_safe_x = client_top_left.x() + 5
+        min_safe_y = client_top_left.y() + 5
+        
+        x = max(min(x, max_safe_x), min_safe_x)
+        y = max(min(y, max_safe_y), min_safe_y)
+        
+        self.move(x, y)
+
+    def _position_relative_to_screen(self):
+        """相对于屏幕定位（没有父窗口时）"""
+        screen = QGuiApplication.primaryScreen().availableGeometry()
+        
+        # 计算显示区域
+        area_x = screen.width() - self._DISPLAY_AREA_WIDTH - self._DISPLAY_AREA_MARGIN_RIGHT
+        area_y = self._DISPLAY_AREA_MARGIN_TOP
+        
+        # Toast位置
+        x = area_x + (self._DISPLAY_AREA_WIDTH - self.width()) // 2
+        y = area_y + (self.stack_index * self._TOAST_SPACING)
+        
+        # 边界检查
+        max_y = area_y + self._DISPLAY_AREA_HEIGHT - self.height()
+        if y > max_y:
+            y = max_y
+        
+        self.move(x, y)
 
     def update_position(self):
         """对外提供的位置刷新方法（堆叠变化时调用）"""
@@ -215,9 +390,13 @@ class ToastNotification(QWidget):
 
     def closeEvent(self, event):
         """关闭事件：停止所有定时器，避免泄漏"""
+        # 停止动画定时器
         self._anim_timer.stop()
         if self._stay_timer.isActive():
             self._stay_timer.stop()
+        # 停止跟踪定时器
+        if self._tracking_timer.isActive():
+            self._tracking_timer.stop()
         # 发射关闭信号
         self.closed.emit()
         event.accept()
