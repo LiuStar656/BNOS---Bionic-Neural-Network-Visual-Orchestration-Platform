@@ -532,5 +532,19 @@
   "k_name": "Name",
   "k_type": "Type",
   "k_size": "Size",
-  "k_date": "Date"
+  "k_date": "Date",
+  "k_canvas_open_terminal": "Open Project Root in Terminal",
+  "k_canvas_open_terminal_powershell": "PowerShell",
+  "k_canvas_open_terminal_cmd": "Cmd",
+  "k_canvas_open_terminal_default": "Default Terminal",
+
+  "k_terminal_dock_title": "Terminal",
+  "k_terminal_new": "New Terminal",
+  "k_terminal_type_powershell": "PowerShell",
+  "k_terminal_type_cmd": "Cmd",
+  "k_terminal_type_bash": "Bash",
+  "k_terminal_input_hint": "Enter command...",
+
+  "k_view_toggle_terminal": "Toggle Terminal",
+  "k_menu_toggle_terminal": "Show/Hide Terminal Dock"
 }

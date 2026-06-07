@@ -41,13 +41,15 @@ class AppConfig:
             },
             "language": "cn",
             "process_mode": False,
+            "draw_toolbar_visible": False,
             "panel_positions": {
                 "node_list_floating": {"x": 10, "y": 100},
                 "resource_monitor_floating": {"x": 10, "y": 100},
                 "node_monitor_floating": {"x": 10, "y": 100},
                 "node_list_dock": {"x": 0, "y": 0},
                 "resource_monitor_dock": {"x": 0, "y": 0},
-                "node_monitor_dock": {"x": 0, "y": 0}
+                "node_monitor_dock": {"x": 0, "y": 0},
+                "terminal_dock": {"x": 0, "y": 0}
             },
             "panel_visibility": {
                 "node_list": False,
@@ -58,7 +60,8 @@ class AppConfig:
                 "node_monitor_dock": False,
                 "node_list_floating": False,
                 "resource_monitor_floating": False,
-                "node_monitor_floating": False
+                "node_monitor_floating": False,
+                "terminal_dock": False
             }
         }
 

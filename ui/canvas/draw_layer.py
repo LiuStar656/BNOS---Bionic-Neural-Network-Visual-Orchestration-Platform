@@ -12,6 +12,7 @@ from ui.canvas.graphic_items import (
 )
 from ui.canvas.draw_toolbar import DrawToolbar
 from ui.core.logger import logger
+from ui.core.app_config import AppConfig
 
 
 class DrawLayer:
@@ -59,29 +60,56 @@ class DrawLayer:
         self.toolbar.redo_requested.connect(self.redo)
         self.toolbar.delete_requested.connect(self.delete_selected)
         self.toolbar.clear_requested.connect(self.clear_all)
+        
+        # 从配置初始化工具栏状态（这里不立即显示/隐藏，等待 canvas_view 的统一初始化）
+        try:
+            app_config = AppConfig()
+            self._toolbar_visible = app_config.get("draw_toolbar_visible", False)
+        except Exception as e:
+            logger.warning("读取绘图工具栏初始配置失败: %s", e)
+            self._toolbar_visible = False
+            
         return self.toolbar
 
     def show_toolbar(self):
         """显示绘图工具栏"""
-        if self.toolbar and not self._toolbar_visible:
-            self.toolbar.show()
-            self._toolbar_visible = True
-            logger.debug("绘图工具栏已显示")
+        if not self.toolbar:
+            return
+        # 直接设置状态和显示，避免条件判断导致需要两次操作
+        self.toolbar.show()
+        self._toolbar_visible = True
+        logger.debug("绘图工具栏已显示")
+        # 保存到配置
+        self._save_toolbar_config(True)
 
     def hide_toolbar(self):
         """隐藏绘图工具栏"""
-        if self.toolbar and self._toolbar_visible:
-            self.toolbar.hide()
-            self._toolbar_visible = False
-            logger.debug("绘图工具栏已隐藏")
+        if not self.toolbar:
+            return
+        # 直接设置状态和隐藏，避免条件判断导致需要两次操作
+        self.toolbar.hide()
+        self._toolbar_visible = False
+        logger.debug("绘图工具栏已隐藏")
+        # 保存到配置
+        self._save_toolbar_config(False)
 
     def toggle_toolbar(self):
         """切换绘图工具栏显示/隐藏状态"""
-        if self._toolbar_visible:
-            self.hide_toolbar()
-        else:
+        new_visible = not self._toolbar_visible
+        if new_visible:
             self.show_toolbar()
+        else:
+            self.hide_toolbar()
         return self._toolbar_visible
+
+    def _save_toolbar_config(self, visible):
+        """保存工具栏显示状态到 app_config"""
+        try:
+            app_config = AppConfig()
+            app_config.set("draw_toolbar_visible", visible)
+            app_config.save()
+        except Exception as e:
+            logger.warning("保存绘图工具栏配置失败: %s", e)
 
     # ── 工具/样式/图层控制 ──
 

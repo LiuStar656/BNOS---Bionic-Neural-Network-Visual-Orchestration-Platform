@@ -253,63 +253,70 @@ class ToastNotification(QWidget):
             self._position_relative_to_screen()
 
     def _position_relative_to_parent(self):
-        """相对于父窗口定位 - Toast在画布dock内窗口的右上角"""
+        """相对于主窗口定位 - Toast在主窗口右上角，但不遮挡画布dock的关闭按钮
+        
+        定位策略：
+        1. Toast位于主窗口右上角（绑定在主窗口坐标系）
+        2. 查找画布dock的关闭按钮位置
+        3. 计算避让起始Y坐标：所有Toast都从关闭按钮下方开始堆叠
+        """
         pw = self.parent_window
         
-        # 查找画布dock
-        canvas_dock = None
+        # 获取主窗口在屏幕上的位置
+        parent_top_left = pw.mapToGlobal(pw.rect().topLeft())
+        parent_bottom_right = pw.mapToGlobal(pw.rect().bottomRight())
         
-        # 优先查找BnosDock
-        if HAS_BNOS_DOCK:
+        # 🔧 第1步：先计算Toast在主窗口右上角的标准位置
+        toast_x = parent_bottom_right.x() - self.width() - self._DISPLAY_AREA_MARGIN_RIGHT
+        base_toast_y = parent_top_left.y() + self._DISPLAY_AREA_MARGIN_TOP
+        
+        # 🔧 第2步：查找画布dock的关闭按钮，计算避让的起始Y坐标
+        avoid_y = base_toast_y
+        
+        # 查找画布dock（优先在CanvasHost中查找）
+        canvas_dock = None
+        canvas_host = None
+        
+        if hasattr(pw, '_canvas_host'):
+            canvas_host = pw._canvas_host
+        
+        if canvas_host and hasattr(canvas_host, '_canvas_docks'):
+            for dock in canvas_host._canvas_docks:
+                if dock.isVisible():
+                    canvas_dock = dock
+                    break
+        
+        if not canvas_dock and HAS_BNOS_DOCK:
             for widget in pw.findChildren(BnosDock):
                 if widget.isVisible():
                     canvas_dock = widget
                     break
         
-        # 如果没找到BnosDock，找任意可见的dock
-        if not canvas_dock:
-            for widget in pw.findChildren(QDockWidget):
-                if widget.isVisible():
-                    canvas_dock = widget
-                    break
-        
+        # 如果找到画布dock和关闭按钮，计算避让的起始Y
         if canvas_dock:
-            # 尝试获取画布dock的内容widget
-            content_widget = canvas_dock.widget()
-            
-            if content_widget:
-                # 直接用内容widget定位
-                content_rect = content_widget.geometry()
-                content_global_pos = content_widget.mapToGlobal(content_rect.topLeft())
-                
-                # Toast在内容区域右上角
-                toast_x = content_global_pos.x() + content_rect.width() - self.width() - 15
-                toast_y = content_global_pos.y() + 5 + (self.stack_index * self._TOAST_SPACING)
-            else:
-                # 用dock自身定位
-                dock_rect = canvas_dock.geometry()
-                dock_global_pos = canvas_dock.mapToGlobal(dock_rect.topLeft())
-                
-                # 减去标题栏高度（估算）
-                title_bar_height = 30
-                toast_x = dock_global_pos.x() + dock_rect.width() - self.width() - 15
-                toast_y = dock_global_pos.y() + title_bar_height + 5 + (self.stack_index * self._TOAST_SPACING)
-            
-            # 边界检查
-            parent_bottom_right = pw.mapToGlobal(pw.rect().bottomRight())
-            max_safe_x = parent_bottom_right.x() - self.width() - 5
-            max_safe_y = parent_bottom_right.y() - self.height() - 5
-            parent_top_left = pw.mapToGlobal(pw.rect().topLeft())
-            min_safe_x = parent_top_left.x() + 5
-            min_safe_y = parent_top_left.y() + 50  # 避开标题栏
-            
-            x = max(min(toast_x, max_safe_x), min_safe_x)
-            y = max(min(toast_y, max_safe_y), min_safe_y)
-            
-            self.move(x, y)
-        else:
-            # 如果没找到画布dock，使用原有的定位逻辑
-            self._position_fallback_relative()
+            close_btn = getattr(canvas_dock, '_close_btn', None)
+            if close_btn:
+                close_btn_global_bottom = close_btn.mapToGlobal(close_btn.rect().bottomRight())
+                # 避让的起始Y = 关闭按钮下方 + 5px 间距
+                avoid_y = close_btn_global_bottom.y() + 5
+        
+        # 🔧 第3步：选择较高的那个作为最终的起始Y
+        # 如果标准起始Y比避让起始Y高，用避让起始Y
+        final_base_y = max(base_toast_y, avoid_y)
+        
+        # 🔧 第4步：计算当前Toast的Y坐标（考虑堆叠索引）
+        toast_y = final_base_y + (self.stack_index * self._TOAST_SPACING)
+        
+        # 🔧 第5步：边界检查（基于主窗口坐标系）
+        max_safe_x = parent_bottom_right.x() - self.width() - 5
+        max_safe_y = parent_bottom_right.y() - self.height() - 5
+        min_safe_x = parent_top_left.x() + 5
+        min_safe_y = parent_top_left.y() + 50  # 避开标题栏
+        
+        x = max(min(toast_x, max_safe_x), min_safe_x)
+        y = max(min(toast_y, max_safe_y), min_safe_y)
+        
+        self.move(x, y)
     
     def _position_fallback_relative(self):
         """备用定位方法：在父窗口内部的右上角显示"""

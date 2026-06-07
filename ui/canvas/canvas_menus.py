@@ -1,6 +1,8 @@
 """
-画布右键菜单 Mixin - 使用统一 ActionRegistry
+画布右键菜单 Mixin — 使用统一 ActionRegistry
 """
+import os
+import platform
 from functools import partial
 from PyQt6.QtWidgets import QMenu
 from PyQt6.QtGui import QAction
@@ -13,6 +15,7 @@ from ui.core.i18n import t
 from ui.core.actions import ActionFactory, ActionContext
 from ui.core.actions.builtin_node_actions import register_node_actions
 from ui.core.actions.builtin_canvas_actions import register_canvas_actions
+from ui.core.utils.file_utils import get_project_root, open_terminal_in_directory
 
 
 class CanvasMenusMixin:
@@ -140,16 +143,34 @@ class CanvasMenusMixin:
             menu = QMenu(self)
             new_menu = menu.addMenu(t("k_canvas_new_node"))
             for k, lang in [("k_lang_python","Python"), ("k_lang_rust","Rust"), 
-                           ("k_lang_nodejs","Node.js"), ("k_lang_go","Go"), 
-                           ("k_lang_java","Java"), ("k_lang_cpp","C++"), 
-                           ("k_lang_shell","Shell")]:
+                           ("k_lang_nodejs","Node.js (开发中)"), ("k_lang_go","Go (开发中)"), 
+                           ("k_lang_java","Java (开发中)"), ("k_lang_cpp","C++ (开发中)"), 
+                           ("k_lang_shell","Shell (开发中)")]:
                 a = QAction(t(k), self)
                 a.triggered.connect(partial(self.parent_window.create_new_node_with_language, lang))
                 new_menu.addAction(a)
             menu.addSeparator()
-            a = QAction(t("k_canvas_monitor"), menu)
+            a = QAction(t("k_canvas_monitor"), self)
             a.triggered.connect(lambda: self.parent_window.show_node_monitor())
             menu.addAction(a)
+            menu.addSeparator()
+            
+            # 添加在命令行中打开项目根目录的功能
+            terminal_menu = menu.addMenu(t("k_canvas_open_terminal"))
+            if platform.system() == "Windows":
+                # Windows 平台：提供 PowerShell 和 Cmd 选项
+                a = QAction(t("k_canvas_open_terminal_powershell"), terminal_menu)
+                a.triggered.connect(partial(self._open_project_terminal, "powershell"))
+                terminal_menu.addAction(a)
+                a = QAction(t("k_canvas_open_terminal_cmd"), terminal_menu)
+                a.triggered.connect(partial(self._open_project_terminal, "cmd"))
+                terminal_menu.addAction(a)
+            else:
+                # 非 Windows 平台：只提供默认终端选项
+                a = QAction(t("k_canvas_open_terminal_default"), terminal_menu)
+                a.triggered.connect(partial(self._open_project_terminal, "default"))
+                terminal_menu.addAction(a)
+            
             menu.addSeparator()
             ActionFactory.create_action(self, "canvas.clear_connections", menu)
             menu.addSeparator()
@@ -158,7 +179,7 @@ class CanvasMenusMixin:
             
             toolbar_visible = self.draw_layer._toolbar_visible if hasattr(self, 'draw_layer') else False
             action_text = t("k_canvas_hide_draw_toolbar") if toolbar_visible else t("k_canvas_show_draw_toolbar")
-            a = QAction(action_text, menu)
+            a = QAction(action_text, self)
             a.triggered.connect(self._toggle_draw_toolbar)
             menu.addAction(a)
             
@@ -174,6 +195,25 @@ class CanvasMenusMixin:
             a.triggered.connect(self.change_edge_color)
             color_menu.addAction(a)
             menu.exec(event.globalPos())
+    
+    def _open_project_terminal(self, terminal_type="default"):
+        """在项目根目录打开终端
+        
+        Args:
+            terminal_type: 终端类型（"default", "powershell", "cmd"）
+        """
+        try:
+            # 优先使用当前打开的工作项目目录
+            target_dir = None
+            if hasattr(self.parent_window, 'current_project_path') and self.parent_window.current_project_path:
+                target_dir = self.parent_window.current_project_path
+            else:
+                # 如果没有打开工作项目，回退到 BNOS 软件项目目录
+                target_dir = get_project_root()
+            
+            open_terminal_in_directory(target_dir, terminal_type, self)
+        except Exception as e:
+            pass
 
     def _switch_node_style(self, style_key, node_item):
         from ui.canvas.items.node_style import STYLES

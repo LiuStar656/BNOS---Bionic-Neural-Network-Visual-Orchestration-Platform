@@ -33,6 +33,7 @@ from PyQt6.QtCore import QPointF
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
+from ui.core.app_config import AppConfig
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.anchor_item import AnchorItem
@@ -103,6 +104,9 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         # 绘图层
         self.draw_layer = DrawLayer(self)
         self._draw_toolbar = self.draw_layer.attach_toolbar()
+        
+        # 从 app_config 恢复绘图工具栏显示状态
+        self._load_draw_toolbar_config()
         
         # 连线状态
         self.is_connecting = False
@@ -781,6 +785,19 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         self.resetTransform()
         self.centerOn(0, 0)
         logger.info("✅ 视图已重置")
+
+    def _load_draw_toolbar_config(self):
+        """从 app_config 加载绘图工具栏显示状态"""
+        try:
+            app_config = AppConfig()
+            visible = app_config.get("draw_toolbar_visible", False)
+            if visible:
+                self.draw_layer.show_toolbar()
+            else:
+                self.draw_layer.hide_toolbar()
+            logger.debug("绘图工具栏状态已从配置恢复: %s", visible)
+        except Exception as e:
+            logger.warning("加载绘图工具栏配置失败: %s", e)
 
     def _toggle_draw_toolbar(self):
         """切换绘图工具栏显示/隐藏"""

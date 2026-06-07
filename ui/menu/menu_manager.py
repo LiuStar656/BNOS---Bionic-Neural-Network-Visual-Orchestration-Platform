@@ -106,6 +106,20 @@ class MenuManager:
         ActionFactory.create_action(main_window, "view.node_monitor", menu=tools_menu)
         ActionFactory.create_action(main_window, "view.resource_monitor", menu=tools_menu)
         ActionFactory.create_action(main_window, "view.node_list_floating", menu=tools_menu)
+        
+        tools_menu.addSeparator()
+        
+        # 添加终端菜单项
+        terminal_action = QAction(t("k_view_toggle_terminal"), main_window)
+        terminal_action.setCheckable(True)
+        # 从配置中读取初始状态
+        visibility = main_window.app_config.get('panel_visibility', {})
+        is_visible = visibility.get('terminal_dock', False)
+        terminal_action.setChecked(is_visible)
+        terminal_action.setStatusTip(t("k_menu_toggle_terminal"))
+        terminal_action.triggered.connect(main_window.toggle_terminal)
+        tools_menu.addAction(terminal_action)
+        main_window.toggle_terminal_action = terminal_action
 
         # ========== 帮助菜单 ==========
         help_menu = ActionFactory.create_submenu(main_window, "k_menu_help", menubar=menubar)

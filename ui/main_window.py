@@ -151,15 +151,20 @@ class BNOSMainWindow(QMainWindow):
         # 设置标题栏（通过setMenuWidget放在窗口顶部，不占用centralWidget空间）
         self.setMenuWidget(self._title_bar)
         
-        # ========== IPC 进程间通信（主进程 = Server） ==========
+        # ========== IPC 进程间通信（主进程 = Server）==========
         self._ipc_server = None
         self._process_manager = ProcessManager(self)
         self._init_ipc()
         
-        # ========== 面板实例（延迟创建） ==========
+        # ========== 面板实例（延迟创建）==========
         self.node_list_panel = None
         self.resource_monitor = None
         self.node_monitor_dock = None
+    
+    def toggle_terminal(self):
+        """切换终端 Dock 的显示/隐藏"""
+        if hasattr(self._canvas_host, 'toggle_terminal'):
+            self._canvas_host.toggle_terminal()
     
     def moveEvent(self, event):
         """窗口移动事件"""
@@ -518,6 +523,14 @@ class BNOSMainWindow(QMainWindow):
         visibility['resource_monitor'] = is_panel_visible(self.resource_monitor) or is_panel_visible(getattr(self, 'resource_monitor_floating', None)) or False
         visibility['node_monitor'] = is_panel_visible(getattr(self, 'node_monitor_dock', None)) or is_panel_visible(getattr(self, 'node_monitor', None)) or False
         
+        # 保存终端 Dock 可见性（在 CanvasHost 内部）
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            ch = self._canvas_host
+            if hasattr(ch, '_terminal_dock'):
+                term_visible = ch._terminal_dock.isVisible()
+                visibility['terminal_dock'] = term_visible
+                logger.info("💾 _save_panel_visibility: terminal_dock = %s", term_visible)
+        
         logger.info("保存面板可见性状态: %s", visibility)
         self.app_config.set('panel_visibility', visibility)
     
@@ -586,6 +599,35 @@ class BNOSMainWindow(QMainWindow):
         if show_monitor_float:
             logger.info("恢复节点监测 浮动版")
             QTimer.singleShot(200, self.show_node_monitor)
+        
+        # ===== 终端 Dock =====
+        # 延迟恢复终端 Dock，确保在 CanvasHost 的 restoreState() 之后执行
+        show_terminal = visibility.get('terminal_dock', False)
+        logger.info("终端 - dock (将延迟恢复): %s", show_terminal)
+        
+        def _restore_terminal():
+            if hasattr(self, '_canvas_host') and self._canvas_host:
+                self._canvas_host._restore_panel_state()
+        
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(550, _restore_terminal)
+
+    def _restore_terminal_dock(self):
+        """恢复终端 Dock 可见性（必须在主窗口 show 后调用）"""
+        if not hasattr(self, '_canvas_host') or not self._canvas_host:
+            return
+        ch = self._canvas_host
+        if not hasattr(ch, '_terminal_dock'):
+            return
+        td = ch._terminal_dock
+        
+        visibility = self.app_config.get('panel_visibility', {})
+        show_terminal = visibility.get('terminal_dock', False)
+        
+        if show_terminal and not td.isVisible():
+            logger.info("恢复终端 Dock (showEvent)")
+            td.show()
+            logger.info("终端恢复后: isVisible=%s", td.isVisible())
 
     def open_color_settings(self):
         """打开颜色设置对话框"""
@@ -854,11 +896,27 @@ class BNOSMainWindow(QMainWindow):
         
         self.show_toast(t("k_canvas_cleared"), "success")
 
+    def showEvent(self, event):
+        """窗口显示事件 - 恢复终端 dock（必须在主窗口 show 后才能生效）"""
+        super().showEvent(event)
+        if not hasattr(self, '_terminal_restored'):
+            self._terminal_restored = True
+            # 延迟恢复，确保 CanvasHost 内的画布 dock 也已完成创建
+            QTimer.singleShot(100, self._restore_terminal_dock)
+    
     def closeEvent(self, event):
         """窗口关闭事件，保存所有状态"""
         logger.info("开始关闭窗口检测...")
         logger.info("   当前项目: %s", self.current_project_path)
         logger.info("   节点总数: %d", len(self.nodes_data))
+        
+        # 立即设置关闭标志，防止后续 hideEvent 覆盖持久化状态
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            self._canvas_host._is_closing = True
+            # 同时设置 TerminalDock 的关闭标志
+            if hasattr(self._canvas_host, '_terminal_dock') and self._canvas_host._terminal_dock:
+                self._canvas_host._terminal_dock._is_closing = True
+                logger.info("🔒 设置 TerminalDock._is_closing = True")
         
         # 等待节点创建线程完成（如果正在运行）
         if hasattr(self, 'node_creation_worker'):
@@ -924,6 +982,11 @@ class BNOSMainWindow(QMainWindow):
                 event.ignore()  # 忽略关闭事件，保持窗口打开
                 return
         
+        # ========================================================
+        # 阶段1：同步和保存所有数据（先保存，再关闭）
+        # ========================================================
+        logger.info("📦 === 开始保存所有数据 ===")
+        
         # 同步当前主窗口数据到活动画布（用于保存）
         if hasattr(self, '_canvas_host') and self._canvas_host:
             self._canvas_host.update_canvas_data_from_main_window(self.canvas)
@@ -932,12 +995,13 @@ class BNOSMainWindow(QMainWindow):
         if self.current_project_path and hasattr(self, '_canvas_host'):
             self._canvas_host.save_all_layouts(self.current_project_path)
         
-        # 保存应用配置
+        # 保存窗口状态（包括所有 Dock 尺寸）
+        logger.info("💾 保存窗口状态...")
         self.save_window_state()
         self.app_config.set("last_project", self.current_project_path)
         
         # 保存面板可见性状态
-        logger.info("准备保存面板状态...")
+        logger.info("💾 保存面板可见性...")
         self._save_panel_visibility()
         
         # 保存所有浮动面板的位置（即使它们没有被手动关闭）
@@ -952,22 +1016,47 @@ class BNOSMainWindow(QMainWindow):
                 self._save_panel_position(panel_name, panel_widget)
         
         # 强制同步保存配置到文件（确保所有修改都写入磁盘）
-        logger.info("强制保存配置到文件...")
+        logger.info("💾 强制保存配置到文件...")
         self.app_config.save()
         
         # 验证保存是否成功
         import os
         if os.path.exists(self.app_config.config_file):
-            logger.info("配置文件保存成功: %s", self.app_config.config_file)
+            logger.info("✅ 配置文件保存成功: %s", self.app_config.config_file)
             # 读取验证
             try:
                 with open(self.app_config.config_file, 'r', encoding='utf-8') as f:
                     saved_config = f.read()
                     logger.debug("已保存的配置内容长度: %d 字符", len(saved_config))
             except Exception as e:
-                logger.warning("验证配置文件失败: %s", e)
+                logger.warning("⚠️ 验证配置文件失败: %s", e)
         else:
-            logger.error("配置文件保存失败，文件不存在")
+            logger.error("❌ 配置文件保存失败，文件不存在")
+        
+        logger.info("📦 === 所有数据保存完成 ===")
+        
+        # ========================================================
+        # 阶段2：断开信号，停止进程（数据保存完成后再执行）
+        # ========================================================
+        
+        # 🔒 保存完成后，立即断开终端 Dock 的 visibility_changed 信号！
+        # 这样后续的 hideEvent 就不会触发信号，避免覆盖配置
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            ch = self._canvas_host
+            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
+                logger.info("🔒 断开终端 Dock 的 visibility_changed 信号...")
+                try:
+                    ch._terminal_dock.visibility_changed.disconnect()
+                    logger.info("✅ 终端信号已断开")
+                except Exception as e:
+                    logger.warning("⚠️ 断开信号失败（可能已经断开）: %s", e)
+        
+        # 停止终端中的所有子进程（避免 QProcess: Destroyed while process is still running）
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            ch = self._canvas_host
+            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
+                logger.info("停止终端进程...")
+                ch._terminal_dock.stop_all_terminals()
         
         # 停止统一轮询管理器（在配置保存完成后）
         logger.info("停止轮询管理器...")
@@ -979,8 +1068,11 @@ class BNOSMainWindow(QMainWindow):
             self._process_manager.stop_all()
         if self._ipc_server:
             self._ipc_server.stop()
-
-        logger.info("窗口关闭流程完成，所有数据已安全保存")
+        
+        # ========================================================
+        # 阶段3：执行关闭
+        # ========================================================
+        logger.info("✅ 窗口关闭流程完成，所有数据已安全保存")
         event.accept()
     
     def _force_stop_all_nodes(self, node_names):
@@ -993,18 +1085,22 @@ class BNOSMainWindow(QMainWindow):
         if self.canvas: self.canvas.sync_all_nodes_display()
     
     def save_window_state(self):
+        logger.info("🔴 进入 save_window_state()")
         save_state(self)
+        logger.info("🔴 离开 save_window_state()")
 
     def restore_window_state(self):
+        logger.info("🔴 进入 restore_window_state()")
         restore_state(self)
+        logger.info("🔴 离开 restore_window_state()")
     
     def auto_open_last_project(self):
         """自动打开上次打开的项目：
         - 如果有上次打开的项目，自动打开
-        - 如果没有，保持空白，等待用户手动打开
+        - 如果没有，保持空白，等待用户手动打开项目
         """
-        # 先恢复面板状态
-        QTimer.singleShot(100, self._restore_panel_state)
+        # 延迟恢复面板状态，确保在 Dock 尺寸恢复之后执行
+        QTimer.singleShot(600, self._restore_panel_state)
         
         # 检查是否有上次打开的项目
         last_project = self.app_config.get("last_project")
@@ -1012,7 +1108,7 @@ class BNOSMainWindow(QMainWindow):
             # 有上次打开的项目，自动打开
             logger.info("自动打开上次项目: %s", last_project)
             # 使用 QTimer 延迟打开，确保 UI 初始化完成
-            QTimer.singleShot(200, lambda: self._auto_open_project(last_project))
+            QTimer.singleShot(700, lambda: self._auto_open_project(last_project))
         else:
             logger.info("没有上次项目或项目不存在，等待用户手动打开项目")
     
@@ -1240,6 +1336,14 @@ class BNOSMainWindow(QMainWindow):
         import sys, os, subprocess
         logger.info("正在重启应用...")
         
+        # 🔒 立即设置关闭标志，防止后续 hideEvent 覆盖持久化状态
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            self._canvas_host._is_closing = True
+            # 同时设置 TerminalDock 的关闭标志
+            if hasattr(self._canvas_host, '_terminal_dock') and self._canvas_host._terminal_dock:
+                self._canvas_host._terminal_dock._is_closing = True
+                logger.info("🔒 设置 TerminalDock._is_closing = True (重启)")
+        
         # 检查是否有运行中的节点
         running_nodes = []
         for node_name, node_info in self.nodes_data.items():
@@ -1278,15 +1382,90 @@ class BNOSMainWindow(QMainWindow):
                 self.show_toast(t("_k_restart_canceled"), "info")
                 return
         
+        # ========================================================
+        # 阶段1：同步和保存所有数据（先保存，再关闭）
+        # ========================================================
+        logger.info("� === 开始保存所有数据 ===")
+        
+        # 同步当前主窗口数据到活动画布（用于保存）
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            self._canvas_host.update_canvas_data_from_main_window(self.canvas)
+        
+        # 保存所有画布布局（通过CanvasHost）
+        if self.current_project_path and hasattr(self, '_canvas_host'):
+            self._canvas_host.save_all_layouts(self.current_project_path)
+        
+        # 保存窗口状态（包括所有 Dock 尺寸）
+        logger.info("💾 保存窗口状态...")
+        self.save_window_state()
+        self.app_config.set("last_project", self.current_project_path)
+        
+        # 保存面板可见性状态
+        logger.info("💾 保存面板可见性...")
+        self._save_panel_visibility()
+        
+        # 保存所有浮动面板的位置（即使它们没有被手动关闭）
+        panels = [
+            ('node_list', getattr(self, 'node_list_floating', None)),
+            ('resource_monitor', getattr(self, 'resource_monitor_floating', None)),
+            ('node_monitor', getattr(self, 'node_monitor', None)),
+        ]
+        for panel_name, panel_widget in panels:
+            if panel_widget and panel_widget.isVisible():
+                logger.info("保存面板位置: %s = (%d, %d)", panel_name, panel_widget.pos().x(), panel_widget.pos().y())
+                self._save_panel_position(panel_name, panel_widget)
+        
+        # 强制同步保存配置到文件（确保所有修改都写入磁盘）
+        logger.info("💾 强制保存配置到文件...")
+        self.app_config.save()
+        
+        # 验证保存是否成功
+        if os.path.exists(self.app_config.config_file):
+            logger.info("✅ 配置文件保存成功: %s", self.app_config.config_file)
+            # 读取验证
+            try:
+                with open(self.app_config.config_file, 'r', encoding='utf-8') as f:
+                    saved_config = f.read()
+                    logger.debug("已保存的配置内容长度: %d 字符", len(saved_config))
+            except Exception as e:
+                logger.warning("⚠️ 验证配置文件失败: %s", e)
+        else:
+            logger.error("❌ 配置文件保存失败，文件不存在")
+        
+        logger.info("📦 === 所有数据保存完成 ===")
+        
+        # ========================================================
+        # 阶段2：断开信号，停止进程（数据保存完成后再执行）
+        # ========================================================
+        
+        # 🔒 保存完成后，立即断开终端 Dock 的 visibility_changed 信号
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            ch = self._canvas_host
+            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
+                logger.info("🔒 断开终端 Dock 的 visibility_changed 信号 (重启)...")
+                try:
+                    ch._terminal_dock.visibility_changed.disconnect()
+                    logger.info("✅ 终端信号已断开")
+                except Exception as e:
+                    logger.warning("⚠️ 断开信号失败（可能已经断开）: %s", e)
+        
+        # 停止终端中的所有子进程
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            ch = self._canvas_host
+            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
+                logger.info("停止终端进程...")
+                ch._terminal_dock.stop_all_terminals()
+        
         self._process_manager.stop_all()
         if self._ipc_server:
             self._ipc_server.stop()
-        # 确保配置已刷盘
-        try:
-            self.app_config.save()
-        except Exception:
-            pass
+        
+        # ========================================================
+        # 阶段3：执行重启
+        # ========================================================
+        
         # 使用退出码 42 驱动主函数重启（避免 sys.exit 被 Qt 事件循环吞掉）
+        logger.info("🚀 准备重启应用...")
         QApplication.instance().exit(42)
 
     @property

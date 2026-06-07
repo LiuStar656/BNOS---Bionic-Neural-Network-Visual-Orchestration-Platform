@@ -4,10 +4,109 @@
 import os
 import subprocess
 import platform
+import sys
 from PyQt6.QtWidgets import QMessageBox
 from ui.core.utils.dialog_utils import themed_message
 from ui.core.logger import logger
 from ui.core.i18n import t
+
+
+def get_project_root():
+    """获取当前项目根目录
+    
+    Returns:
+        str: 项目根目录的绝对路径
+    """
+    # 从当前文件位置向上查找，直到找到包含特定文件的目录
+    current_path = os.path.dirname(os.path.abspath(__file__))
+    
+    while current_path != os.path.dirname(current_path):
+        # 检查是否是项目根目录（通过查找关键文件）
+        if (os.path.exists(os.path.join(current_path, "main.py")) or
+            os.path.exists(os.path.join(current_path, "README.md")) or
+            os.path.exists(os.path.join(current_path, "launcher.py")) or
+            os.path.exists(os.path.join(current_path, "nodes"))):
+            return current_path
+        
+        current_path = os.path.dirname(current_path)
+    
+    # 如果没找到，回退到当前工作目录
+    return os.getcwd()
+
+
+def open_terminal_in_directory(directory, terminal_type="default", dialog_parent=None):
+    """在指定目录中打开终端
+    
+    Args:
+        directory: 要在其中打开终端的目录路径
+        terminal_type: 终端类型（"default", "powershell", "cmd"）
+        dialog_parent: 对话框父窗口，用于显示错误信息
+    
+    Returns:
+        bool: 是否成功打开
+    """
+    try:
+        system = platform.system()
+        directory = os.path.normpath(os.path.abspath(directory))
+        
+        if not os.path.exists(directory):
+            if dialog_parent:
+                themed_message(dialog_parent, t("k_title_warning"), 
+                    f"目录不存在: {directory}", "warning")
+            return False
+        
+        if system == "Windows":
+            # 标准化路径格式
+            norm_dir = os.path.normpath(directory)
+            
+            if terminal_type == "powershell":
+                # 使用 PowerShell
+                ps_cmd = f'Set-Location -LiteralPath \'{norm_dir}\''
+                subprocess.Popen(['powershell.exe', '-NoExit', '-Command', ps_cmd],
+                    creationflags=subprocess.CREATE_NEW_CONSOLE)
+            elif terminal_type == "cmd":
+                # 使用 Cmd - 直接构建完整的命令字符串让系统处理
+                import shlex
+                cmd_command = f'cmd.exe /k "cd /d \"{norm_dir}\""'
+                subprocess.Popen(cmd_command,
+                    shell=True,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE)
+            else:
+                # 默认使用 PowerShell
+                ps_cmd = f'Set-Location -LiteralPath \'{norm_dir}\''
+                subprocess.Popen(['powershell.exe', '-NoExit', '-Command', ps_cmd],
+                    creationflags=subprocess.CREATE_NEW_CONSOLE)
+        elif system == "Darwin":  # macOS
+            # 使用 macOS Terminal
+            script = f'''tell application "Terminal"
+                do script "cd '{directory}'"
+            end tell'''
+            subprocess.Popen(['osascript', '-e', script])
+        else:  # Linux
+            # 尝试常见的终端模拟器
+            terminals = ['gnome-terminal', 'konsole', 'xterm', 'xfce4-terminal', 'lxterminal']
+            opened = False
+            for terminal in terminals:
+                try:
+                    subprocess.Popen([terminal, '--working-directory', directory])
+                    opened = True
+                    break
+                except Exception:
+                    continue
+            if not opened:
+                if dialog_parent:
+                    themed_message(dialog_parent, t("k_title_error"), 
+                        "未找到可用的终端模拟器", "error")
+                return False
+        
+        logger.info("[file_utils] 已在目录中打开终端: %s", directory)
+        return True
+    except Exception as e:
+        logger.error("[file_utils] 打开终端失败: %s", e)
+        if dialog_parent:
+            themed_message(dialog_parent, t("k_title_error"), 
+                t("_k_terminal_open_fail").format(err=str(e)), "error")
+        return False
 
 
 def resolve_and_open_folder(node_path, node_name, parent_window=None, dialog_parent=None):

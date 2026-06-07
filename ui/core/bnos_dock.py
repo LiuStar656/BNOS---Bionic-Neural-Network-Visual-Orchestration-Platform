@@ -20,6 +20,8 @@ class BnosDock(QDockWidget):
         super().__init__(title, parent)
         self._auto_hide = False
         self._collapsed_width = 40
+        self._is_closing = False  # 🔒 关闭标志：关闭过程中不发送可见性信号
+        self._original_width = None  # 保存原始宽度，用于自动隐藏展开
         
         self._setup_ui()
     
@@ -163,9 +165,11 @@ class BnosDock(QDockWidget):
     def showEvent(self, event):
         """显示事件"""
         super().showEvent(event)
-        self.visibility_changed.emit(True)
+        if not getattr(self, '_is_closing', False):
+            self.visibility_changed.emit(True)
     
     def hideEvent(self, event):
         """隐藏事件"""
         super().hideEvent(event)
-        self.visibility_changed.emit(False)
+        if not getattr(self, '_is_closing', False):
+            self.visibility_changed.emit(False)

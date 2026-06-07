@@ -83,8 +83,15 @@ def main():
         window.show()
         ret = app.exec()
         if ret == 42:
+            # 使用重启脚本，确保先完全关闭再启动新进程
             import subprocess
-            subprocess.Popen([sys.executable, *args], cwd=os.getcwd())
+            restart_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart_helper.py")
+            main_script = os.path.abspath(__file__)
+            subprocess.Popen(
+                [sys.executable, restart_script, main_script] + args,
+                cwd=os.getcwd(),
+                close_fds=True
+            )
         sys.exit(ret)
 
     except KeyboardInterrupt:
