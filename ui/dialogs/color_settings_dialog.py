@@ -1,13 +1,13 @@
-"""画布和节点颜色设置对话框"""
+"""画布和节点颜色设置对话框 - 浮动窗口版本"""
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout,
-    QPushButton, QGroupBox, QScrollArea, QColorDialog, QSlider, QSpinBox, QDialog)
-from ui.core.utils.dialog_utils import themed_message
-from PyQt6.QtCore import Qt
+    QPushButton, QGroupBox, QScrollArea, QColorDialog, QSlider, QSpinBox)
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
+from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t
+from ui.core.utils.dialog_utils import themed_message
 
 _STYLE = """
-QDialog { background-color: #2d2d30; border: 1px solid #555; border-radius: 6px; }
 QGroupBox { color: #ccc; font-weight: bold; border: 1px solid #454545; border-radius: 4px; margin-top: 8px; padding-top: 12px; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
 QLabel { color: #ccc; }
@@ -17,58 +17,24 @@ QSlider::handle:horizontal { width: 14px; height: 14px; background: #777; border
 QSpinBox { background: #3c3c3c; color: #ccc; border: 1px solid #555; padding: 3px; }
 """
 
-class ColorSettingsDialog(QDialog):
-    """画布和节点颜色设置对话框"""
+class ColorSettingsDialog(FloatingPanel):
+    """画布和节点颜色设置对话框（浮动窗口版本）"""
 
     def __init__(self, canvas, parent=None):
-        super().__init__(parent)
+        super().__init__(parent, title=t("k_color_settings"))
         self.canvas = canvas
-        self.setWindowTitle(t("k_color_settings"))
-        self.setFixedSize(500, 580)
+        
+        self.resize(500, 580)
         self.setStyleSheet(_STYLE)
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        self._drag_pos = None
-
-        self.init_ui()
+        
+        # 居中显示
         if parent:
             self.move(parent.geometry().center() - self.rect().center())
 
-    def mousePressEvent(self, e):
-        if e.position().y() < 40:
-            self._drag_pos = e.globalPosition().toPoint()
-        super().mousePressEvent(e)
+        self.init_ui()
 
-    def mouseMoveEvent(self, e):
-        if self._drag_pos:
-            delta = e.globalPosition().toPoint() - self._drag_pos
-            self.move(self.pos() + delta)
-            self._drag_pos = e.globalPosition().toPoint()
-        super().mouseMoveEvent(e)
-
-    def mouseReleaseEvent(self, e):
-        self._drag_pos = None
-        super().mouseReleaseEvent(e)
-        
     def init_ui(self):
         """初始化UI"""
-        layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(14, 10, 14, 10)
-
-        # 自定义标题栏
-        title_bar = QHBoxLayout()
-        title = QLabel(t("k_color_settings"))
-        title.setFont(QFont("Arial", 13, QFont.Weight.Bold))
-        title.setStyleSheet("color: white;")
-        title_bar.addWidget(title)
-        title_bar.addStretch()
-        cl = QLabel("✕")
-        cl.setStyleSheet("color: #888; font-size: 14px; padding: 2px 6px;")
-        cl.setCursor(Qt.CursorShape.PointingHandCursor)
-        cl.mousePressEvent = lambda e: self.reject()
-        title_bar.addWidget(cl)
-        layout.addLayout(title_bar)
-        
         # 滚动区域
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -79,7 +45,7 @@ class ColorSettingsDialog(QDialog):
         content_layout.setSpacing(15)
         
         scroll.setWidget(content_widget)
-        layout.addWidget(scroll)
+        self.content_layout.addWidget(scroll)
         
         # 检查canvas是否存在
         if not self.canvas:
@@ -274,7 +240,7 @@ class ColorSettingsDialog(QDialog):
         # 关闭按钮
         close_btn = QPushButton(t("k_cancel"))
         close_btn.setStyleSheet("background-color: #444444; color: #ccc; padding: 8px 16px;")
-        close_btn.clicked.connect(self.reject)
+        close_btn.clicked.connect(self.close)
         button_layout.addWidget(close_btn)
 
         content_layout.addLayout(button_layout)
@@ -289,7 +255,6 @@ class ColorSettingsDialog(QDialog):
         
     def choose_color(self, target):
         """选择颜色 — target 需匹配 collect_settings 的字段名"""
-        from PyQt6.QtWidgets import QColorDialog
         
         # 获取当前颜色
         current_colors = {
@@ -435,7 +400,7 @@ class ColorSettingsDialog(QDialog):
         log.info("ColorSettings confirm_and_close: canvas_bg=%s", settings.get('canvas_bg_color'))
         self.canvas.apply_color_settings(settings)
         self.canvas._save_color_settings()
-        self.accept()
+        self.close()
             
     def reset_to_default(self):
         """恢复到默认颜色"""

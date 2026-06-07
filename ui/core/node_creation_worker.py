@@ -131,4 +131,6 @@ def start_async_node_creation(main_window, node_name, lang_key, display_language
 
     worker.progress_signal.connect(update_progress)
     worker.finished_signal.connect(creation_finished)
+    # 线程完成后自动删除
+    worker.finished_signal.connect(worker.deleteLater)
     worker.start()

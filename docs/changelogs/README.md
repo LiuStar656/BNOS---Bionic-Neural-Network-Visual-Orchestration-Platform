@@ -2,7 +2,8 @@
 
 > 选择语言版本：
 > - [中文更新日志 (Chinese)](./cn/README.md)
-> - [英文更新日志 (English)](./en/README.md)
+> - [English Changelog](./en/README.md)
+> - [English Version of this file](README_EN.md)
 
 ---
 

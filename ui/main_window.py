@@ -29,6 +29,7 @@ from ui.dialogs.settings_dialog import SettingsDialog
 from ui.creators.node_creator_manager import NodeCreatorManager
 from ui.menu.menu_manager import MenuManager
 from ui.core.toast.toast_notification import ToastNotification
+from ui.core.toast.toast_queue_manager import ToastQueueManager
 from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node, check_running_processes, detect_running_nodes
 from ui.core.polling_manager import polling_manager
 from ui.core.project_manager import project_new, project_open, project_refresh
@@ -67,7 +68,11 @@ class BNOSMainWindow(QMainWindow):
         self.connections = []  # [(source_node, target_node)]
         
         # Toast通知队列管理
-        self.active_toasts = []
+        self.toast_manager = ToastQueueManager.get_instance()
+        self.toast_manager.initialize(self, self._create_toast)
+        
+        # 节点启动线程跟踪
+        self._node_start_workers = []
         
         # 初始化节点创建管理器
         self.node_creator = NodeCreatorManager.get_instance()
@@ -169,9 +174,8 @@ class BNOSMainWindow(QMainWindow):
             monitor_y = p.y() + 40
             self.node_monitor.move(monitor_x, monitor_y)
         
-        if hasattr(self, 'active_toasts'):
-            for toast in self.active_toasts:
-                toast.update_position()
+        if hasattr(self, 'toast_manager'):
+            self.toast_manager._update_positions()
     
     def resizeEvent(self, event):
         """窗口大小改变事件"""
@@ -186,55 +190,44 @@ class BNOSMainWindow(QMainWindow):
             monitor_y = p.y() + 40
             self.node_monitor.move(monitor_x, monitor_y)
         
-        if hasattr(self, 'active_toasts'):
-            for toast in self.active_toasts:
-                toast.update_position()
+        if hasattr(self, 'toast_manager'):
+            self.toast_manager._update_positions()
     
-    def show_toast(self, message, toast_type="info", duration=3000):
-        """便捷方法：显示Toast通知（支持堆叠显示）
-        
+    def show_toast(self, message, toast_type="info", duration=3000, node_name=None, operation_type=None):
+        """便捷方法：显示Toast通知（通过队列管理器实现有序显示）
+
         Args:
             message: 通知文本内容
             toast_type: 类型 (info/success/warning/error)
             duration: 显示时长（毫秒），默认3000
-            
+            node_name: 关联的节点名称（可选，用于智能替换）
+            operation_type: 操作类型（可选，如 'start', 'stop', 'delete'）
+
         功能特性：
-        - 新Toast出现时，旧的自动下移
-        - 无数量上限，所有Toast都会显示
+        - 队列管理：Toast按顺序显示，最多同时显示3个
+        - 智能替换：同节点同操作的提示会自动替换（如"正在启动"→"启动成功"）
+        - 状态优先：操作状态提示（如"正在启动"）优先显示
         """
-        # 先更新所有现有Toast的位置（向下移动一位，为新Toast腾出顶部空间）
-        for i, existing_toast in enumerate(self.active_toasts):
-            existing_toast.stack_index = i + 1
-            existing_toast.update_position()
-        
-        # 创建新的Toast，设置堆叠索引为0（最顶部）
-        stack_index = 0
+        self.toast_manager.show_toast(
+            message=message,
+            toast_type=toast_type,
+            duration=duration,
+            node_name=node_name,
+            operation_type=operation_type
+        )
+    
+    def _create_toast(self, message, toast_type="info", duration=3000, stack_index=0, node_name=None, operation_type=None):
+        """创建Toast实例（供ToastQueueManager调用）"""
         toast = ToastNotification(
             message=message,
             parent=self,
             duration=duration,
             toast_type=toast_type,
-            stack_index=stack_index
+            stack_index=stack_index,
+            node_name=node_name,
+            operation_type=operation_type
         )
-        
-        # 添加到活动列表的最前面（最新的在最前）
-        self.active_toasts.insert(0, toast)
-        
-        # 显示Toast
-        toast.show_toast()
-        
-        # 当Toast关闭时，从列表中移除并更新其他Toast位置
-        original_close = toast.close
-        def custom_close():
-            if toast in self.active_toasts:
-                self.active_toasts.remove(toast)
-                # 更新剩余Toast的位置
-                for i, remaining_toast in enumerate(self.active_toasts):
-                    remaining_toast.stack_index = i
-                    remaining_toast.update_position()
-            original_close()
-        
-        toast.close = custom_close
+        return toast
     
     def _refresh_panels(self):
         """刷新所有面板以适配当前画布"""
@@ -706,33 +699,60 @@ class BNOSMainWindow(QMainWindow):
         self.node_list_panel.update_node_status(node_name, 'idle')
         if self.canvas: 
             self.canvas.update_node_status(node_name, 'idle')
-        self.show_toast(t("_k_node_starting").format(name=node_name), "info")
+        # 使用新的替换机制显示"正在启动"
+        self.show_toast(t("_k_node_starting").format(name=node_name), "info", 
+                        node_name=node_name, operation_type="start")
         
         # 异步执行启动
         QTimer.singleShot(10, lambda: self._start_node_async(node_name))
 
     def _start_node_async(self, node_name):
-        """异步启动节点（内部方法）"""
+        """异步启动节点（使用后台线程执行，不阻塞GUI）"""
         if node_name not in self.nodes_data:
             return
         
-        node_info = self.nodes_data[node_name]
-        success, err = start_node_process(node_info)
+        # 创建后台工作线程
+        class StartNodeWorker(QThread):
+            finished = pyqtSignal(bool, str)
+            
+            def __init__(self, node_info, parent=None):
+                super().__init__(parent)
+                self.node_info = node_info
+            
+            def run(self):
+                # 在后台线程中执行启动操作
+                success, err = start_node_process(self.node_info)
+                self.finished.emit(success, err)
         
-        # 在主线程中更新 UI（通过参数绑定当前值，避免闭包 late binding 问题）
-        def on_complete(success=success, err=err):
+        node_info = self.nodes_data[node_name]
+        worker = StartNodeWorker(node_info)
+        
+        # 添加到跟踪列表
+        self._node_start_workers.append(worker)
+        
+        # 连接完成信号
+        def on_complete(success, err):
+            # 从跟踪列表中移除
+            if worker in self._node_start_workers:
+                self._node_start_workers.remove(worker)
+            
             if success:
                 self.node_list_panel.update_node_status(node_name, 'idle')
                 if self.canvas: 
                     self.canvas.update_node_status(node_name, 'idle')
-                self.show_toast(t("_k_node_started").format(name=node_name), "success")
+                # 替换"正在启动"为"启动成功"
+                self.show_toast(t("_k_node_started").format(name=node_name), "success", 
+                                node_name=node_name, operation_type="start")
             else:
                 self.node_list_panel.update_node_status(node_name, 'stopped')
                 if self.canvas: 
                     self.canvas.update_node_status(node_name, 'stopped')
                 themed_message(self, t("k_title_error"), t("_k_start_fail").format(err=err), "error")
         
-        QTimer.singleShot(10, on_complete)
+        worker.finished.connect(on_complete)
+        # 线程完成后自动删除
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
     
     def stop_selected_node(self):
         """停止选中的节点"""
@@ -755,7 +775,9 @@ class BNOSMainWindow(QMainWindow):
         self.node_list_panel.update_node_status(node_name, 'stopped')
         if self.canvas: 
             self.canvas.update_node_status(node_name, 'stopped')
-        self.show_toast(t("_k_node_stopping").format(name=node_name), "info")
+        # 使用新的替换机制显示"正在停止"
+        self.show_toast(t("_k_node_stopping").format(name=node_name), "info", 
+                        node_name=node_name, operation_type="stop")
         
         # 异步执行停止
         QTimer.singleShot(10, lambda: self._stop_node_async(node_name))
@@ -773,7 +795,9 @@ class BNOSMainWindow(QMainWindow):
             self.node_list_panel.update_node_status(node_name, 'stopped')
             if self.canvas: 
                 self.canvas.update_node_status(node_name, 'stopped')
-            self.show_toast(t("_k_node_stopped").format(name=node_name), "success")
+            # 替换"正在停止"为"停止成功"
+            self.show_toast(t("_k_node_stopped").format(name=node_name), "success", 
+                            node_name=node_name, operation_type="stop")
         
         QTimer.singleShot(10, on_complete)
 
@@ -837,12 +861,28 @@ class BNOSMainWindow(QMainWindow):
         logger.info("   节点总数: %d", len(self.nodes_data))
         
         # 等待节点创建线程完成（如果正在运行）
-        if hasattr(self, 'node_creation_worker') and self.node_creation_worker.isRunning():
-            logger.info("等待节点创建线程完成...")
-            self.node_creation_worker.wait(5000)
-            if self.node_creation_worker.isRunning():
-                logger.warning("节点创建线程超时，强制终止")
-                self.node_creation_worker.terminate()
+        if hasattr(self, 'node_creation_worker'):
+            try:
+                # 检查对象是否仍然有效（未被deleteLater删除）
+                if self.node_creation_worker and self.node_creation_worker.isRunning():
+                    logger.info("等待节点创建线程完成...")
+                    self.node_creation_worker.wait(5000)
+                    if self.node_creation_worker.isRunning():
+                        logger.warning("节点创建线程超时，强制终止")
+                        self.node_creation_worker.terminate()
+            except RuntimeError:
+                # 对象已被删除
+                logger.info("节点创建线程对象已被清理")
+        
+        # 等待节点启动线程完成
+        if hasattr(self, '_node_start_workers') and self._node_start_workers:
+            logger.info("等待 %d 个节点启动线程完成...", len(self._node_start_workers))
+            for worker in list(self._node_start_workers):
+                if worker.isRunning():
+                    worker.wait(3000)
+                    if worker.isRunning():
+                        logger.warning("节点启动线程超时，强制终止")
+                        worker.terminate()
         
         # 检查是否有运行中的节点
         running_nodes = []

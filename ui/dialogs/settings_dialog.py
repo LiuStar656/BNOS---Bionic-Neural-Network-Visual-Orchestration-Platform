@@ -1,16 +1,16 @@
 """
-设置对话框 — 语言/进程隔离 + 快捷键管理
+设置对话框 — 语言/进程隔离 + 快捷键管理（浮动窗口版本）
 """
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                               QComboBox, QCheckBox, QPushButton, QGroupBox,
                               QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QKeySequence
+from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t, set_lang, get_lang
 from ui.core.utils.dialog_utils import themed_message
 
 _SET_STYLE = """
-QDialog { background-color: #2d2d30; }
 QGroupBox { color: #ccc; font-weight: bold; border: 1px solid #454545; border-radius: 4px; margin-top: 8px; padding-top: 12px; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
 QLabel { color: #ccc; }
@@ -34,63 +34,48 @@ _BTN_SMALL = "QPushButton { background: #555; color: #ccc; padding: 2px 8px; bor
 _LANG_NAMES = {"cn": "中文", "en": "English"}
 
 
-class SettingsDialog(QDialog):
-    """设置对话框（常规 + 快捷键标签页）"""
+class SettingsDialog(FloatingPanel):
+    """设置对话框（常规 + 快捷键标签页）— 浮动窗口版本"""
 
     def __init__(self, main_window, parent=None):
-        super().__init__(parent)
+        super().__init__(parent, title=t("_k_settings_title"))
         self.main_window = main_window
         self._orig_lang = get_lang()
         self._shortcut_changes = {}  # sid → new_keystr
         self._editing_row = -1
-        self.setWindowTitle(t("_k_settings_title"))
-        self.setFixedSize(580, 440)
+        
+        self.resize(580, 440)
         self.setStyleSheet(_SET_STYLE)
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        
+        # 居中显示
+        if parent:
+            self.move(parent.geometry().center() - self.rect().center())
+
         self.init_ui()
 
     def init_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(16, 10, 16, 10)
-
-        # 标题
-        title_bar = QHBoxLayout()
-        title = QLabel(t("_k_settings_title"))
-        title.setFont(QFont("Arial", 13, QFont.Weight.Bold))
-        title.setStyleSheet("color: white;")
-        title_bar.addWidget(title)
-        title_bar.addStretch()
-        cl = QLabel("✕")
-        cl.setStyleSheet("color: #888; font-size: 14px; padding: 2px 6px;")
-        cl.setCursor(Qt.CursorShape.PointingHandCursor)
-        cl.mousePressEvent = lambda e: self.reject()
-        title_bar.addWidget(cl)
-        layout.addLayout(title_bar)
-
         # 标签页
         tabs = QTabWidget()
         tabs.addTab(self._make_general_tab(), t("_k_settings_tab_general"))
         tabs.addTab(self._make_shortcuts_tab(), t("_k_settings_tab_shortcuts"))
-        layout.addWidget(tabs, 1)
+        self.content_layout.addWidget(tabs, 1)
 
         # 底部按钮
         btn = QHBoxLayout()
         btn.addStretch()
         cb = QPushButton(t("k_cancel"))
         cb.setStyleSheet(_BTN_GREY)
-        cb.clicked.connect(self.reject)
+        cb.clicked.connect(self.close)
         btn.addWidget(cb)
         ob = QPushButton(t("k_ok"))
         ob.setStyleSheet(_BTN_OK)
         ob.clicked.connect(self._apply_and_close)
         btn.addWidget(ob)
-        layout.addLayout(btn)
+        self.content_layout.addLayout(btn)
 
     # ─── 常规标签页 ───
     def _make_general_tab(self):
-        w = QGroupBox()
+        w = QWidget()
         l = QVBoxLayout(w)
         l.setSpacing(10)
 
@@ -132,7 +117,7 @@ class SettingsDialog(QDialog):
 
     # ─── 快捷键标签页 ───
     def _make_shortcuts_tab(self):
-        w = QGroupBox()
+        w = QWidget()
         l = QVBoxLayout(w)
         l.setSpacing(6)
         l.setContentsMargins(4, 4, 4, 4)
@@ -191,7 +176,7 @@ class SettingsDialog(QDialog):
         self._editing_row = row
         # 弹出按键捕获对话框
         dlg = ShortcutCaptureDialog(sid, self)
-        if dlg.exec() == QDialog.DialogCode.Accepted and dlg._keystr is not None:
+        if dlg.exec() == True and dlg._keystr is not None:
             self._shortcut_changes[sid] = dlg._keystr
             self._populate_sc_table()
 
@@ -227,28 +212,22 @@ class SettingsDialog(QDialog):
             except: pass
             themed_message(self, t("_k_settings_restart_title"),
                 t("_k_settings_restart_msg"), "info")
-            self.accept()
+            self.close()
             self.main_window._restart_application()
         else:
-            self.accept()
+            self.close()
 
 
 # ─── 快捷键捕获弹出框 ───
-class ShortcutCaptureDialog(QDialog):
-    """双击捕获按键"""
+class ShortcutCaptureDialog(FloatingPanel):
+    """双击捕获按键（浮动窗口版本）"""
 
     def __init__(self, sid, parent=None):
-        super().__init__(parent)
+        super().__init__(parent, title=t("_k_settings_sc_capture"))
         self._keystr = None
-        self.setWindowTitle(t("_k_settings_sc_capture"))
-        self.setFixedSize(340, 140)
+        
+        self.resize(340, 140)
         self.setStyleSheet(_SET_STYLE)
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-
-        l = QVBoxLayout(self)
-        l.setSpacing(10)
-        l.setContentsMargins(16, 10, 16, 10)
 
         from ui.core.shortcut_manager import DEFAULTS
         self._sid = sid
@@ -259,16 +238,16 @@ class ShortcutCaptureDialog(QDialog):
         info = QLabel(t("_k_settings_sc_capture_info").format(action=t(DEFAULTS[sid][1])))
         info.setStyleSheet("color: #ccc; font-size: 11px;")
         info.setWordWrap(True)
-        l.addWidget(info)
+        self.content_layout.addWidget(info)
 
         self._display = QLabel(cur if cur else t("_k_settings_sc_empty"))
         self._display.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._display.setStyleSheet("color: #4fc3f7; font-size: 18px; font-weight: bold; padding: 10px; background: #1e1e1e; border-radius: 4px;")
-        l.addWidget(self._display)
+        self.content_layout.addWidget(self._display)
 
         default_lbl = QLabel(t("_k_settings_sc_default_label") + (": " + default if default else ": —"))
         default_lbl.setStyleSheet("color: #888; font-size: 10px;")
-        l.addWidget(default_lbl)
+        self.content_layout.addWidget(default_lbl)
 
         btn = QHBoxLayout()
         btn.addStretch()
@@ -282,9 +261,9 @@ class ShortcutCaptureDialog(QDialog):
         btn.addWidget(ob)
         cb = QPushButton(t("k_cancel"))
         cb.setStyleSheet(_BTN_GREY)
-        cb.clicked.connect(self.reject)
+        cb.clicked.connect(self.close)
         btn.addWidget(cb)
-        l.addLayout(btn)
+        self.content_layout.addLayout(btn)
 
     def _reset(self):
         self._keystr = ""

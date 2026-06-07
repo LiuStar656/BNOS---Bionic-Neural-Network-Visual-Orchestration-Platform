@@ -6,14 +6,17 @@
 ---
 
 <details open>
-<summary><strong>【2026-06-07】V2.0.7 - Node State Sync & Project Persistence Improvements</strong></summary>
+<summary><strong>【2026-06-07】V2.0.7 - Toast Queue Management & Action System Unification</strong></summary>
 
-[View Full Update](./2026-06-07/README.md)
+[View Full Update - Part 1](./2026-06-07/01_Node_State_Sync_and_Project_Persistence_Improveme.md)  
+[View Full Update - Part 2](./2026-06-07/02_Toast_Queue_Management_and_Action_System.md)
 
 **Main Updates:**
-- Node state information update fix
-- Async call data loading timing fix
-- Project persistence improvements
+- Toast notification queue management with smart replacement
+- Unified action registry system (ActionRegistry/ActionFactory)
+- Async node startup with immediate feedback
+- Secondary windows unified as floating panels
+- Thread lifecycle management fixes
 
 </details>
 

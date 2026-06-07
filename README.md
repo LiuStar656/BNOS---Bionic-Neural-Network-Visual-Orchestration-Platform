@@ -29,7 +29,7 @@
 
 ---
 
-> 📋 **See [changelogs](docs/changelogs) for recent changes**
+> 📋 **See [changelogs](docs/changelogs) for recent changes** | [English Changelog](docs/changelogs/en/README.md)
 
 ---
 
@@ -219,8 +219,10 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 
 ### 🎯 Smart UI Features
 
-- **Toast Notifications**: Non-intrusive pop-up notifications with stack display
-  - ✅ No quantity limit - all notifications visible
+- **Toast Notifications**: Non-intrusive pop-up notifications with advanced queue management
+  - ✅ **Queue Management**: FIFO ordering, max 3 visible at once
+  - ✅ **Smart Replacement**: Same node/operation hints auto-replace (e.g., "Starting" → "Started")
+  - ✅ **Priority Display**: Status hints shown first for immediate feedback
   - ✅ Auto-fade in/out animations (300ms)
   - ✅ Boundary detection prevents screen overflow
   - ✅ Fixed at top-right corner, follows window movement
@@ -285,6 +287,8 @@ graph TB
 | **Group Manager** | `ui/panels/node_group_manager.py` | Node group CRUD and persistence |
 | **Floating Panel** | `ui/core/floating_panel.py` | Base class for frameless translucent panels |
 | **Logger** | `ui/core/logger.py` | Global logger (console INFO + file DEBUG) |
+| **Toast Queue** | `ui/core/toast/toast_queue_manager.py` | Toast notification queue management |
+| **Action System** | `ui/core/actions/` | Unified action registry and factory |
 | **Menu Manager** | `ui/menu/menu_manager.py` | Unified menu bar (File/Edit/Tools/Help) |
 | **Node Creator** | `ui/creators/node_creator_manager.py` | Multi-language node creation manager |
 | **Tools** | `tools/python_create_node.py` | Python node template generator (venv + scripts) |
@@ -544,8 +548,15 @@ BNOS/
 │   │   ├── dark_title_bar.py     # VSCode-style title bar
 │   │   ├── floating_panel.py     # Floating panel base class
 │   │   ├── logger.py             # Global logger (console + file)
-│   │   └── toast/                # Toast notification system
-│   │       └── toast_notification.py
+│   │   ├── toast/                # Toast notification system
+│   │   │   ├── toast_notification.py
+│   │   │   └── toast_queue_manager.py
+│   │   └── actions/              # Unified action system
+│   │       ├── __init__.py
+│   │       ├── action_definition.py
+│   │       ├── action_registry.py
+│   │       ├── action_factory.py
+│   │       └── builtin_*.py       # Built-in actions
 │   │
 │   ├── menu/                      # Menu system
 │   │   └── menu_manager.py       # Menu bar manager
@@ -594,6 +605,8 @@ BNOS/
 - ✅ **Backward Compatible**: Old import paths still work via Facade pattern
 - ✅ **Extensible**: Easy to add custom node types and interactions
 - ✅ **Global Logger**: All print() migrated to logger (console + file)
+- ✅ **Toast Queue Management**: FIFO ordering, smart replacement, priority display
+- ✅ **Unified Action System**: Centralized action registry with i18n support
 - ✅ **Lean Codebase**: `main_window.py` 935 lines, `canvas_view.py` ~1200 lines
 
 ### Extending BNOS
@@ -793,7 +806,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-06-06
+- **Last Updated**: 2026-06-07
 
 
 ---

@@ -1,10 +1,12 @@
 """
-节点列表右键菜单系统 Mixin — 空白/节点/组/未分组 多层菜单构建
+节点列表右键菜单系统 Mixin — 使用统一 ActionRegistry
 """
 from PyQt6.QtWidgets import QMenu, QMessageBox
 from ui.core.utils.dialog_utils import themed_message
 from PyQt6.QtCore import Qt
 from ui.core.i18n import t
+from ui.core.actions import ActionFactory, ActionContext
+from ui.core.actions.builtin_node_actions import register_node_actions
 
 
 class NodeListContextMixin:
@@ -20,6 +22,9 @@ class NodeListContextMixin:
         data = item.data(0, Qt.ItemDataRole.UserRole)
         if not data:
             return
+        
+        if self.parent_window:
+            register_node_actions(self.parent_window)
         
         menu = QMenu(self)
         
@@ -49,8 +54,7 @@ class NodeListContextMixin:
         
         menu.addSeparator()
         
-        refresh_action = menu.addAction(t("k_node_refresh_list"))
-        refresh_action.triggered.connect(lambda: self.update_node_list(self.nodes_data))
+        ActionFactory.create_action(self, "node.refresh", menu)
         
         menu.exec(self.node_tree.mapToGlobal(position))
 
@@ -59,9 +63,8 @@ class NodeListContextMixin:
         selected_nodes = self.get_selected_nodes()
         
         if len(selected_nodes) > 1 and node_name in selected_nodes:
-            # ---- 批量操作 ----
             n = len(selected_nodes)
-            menu.addAction(t("_k_selected_count").format(count=n)).setEnabled(False)
+            ActionFactory.add_disabled_label(menu, "_k_selected_count".format(count=n))
             menu.addSeparator()
             
             batch_add_action = menu.addAction(t("_k_add_n_to_canvas").format(count=n))
@@ -86,11 +89,9 @@ class NodeListContextMixin:
             
             menu.addSeparator()
             
-            batch_start_action = menu.addAction(t("_k_start_n_nodes").format(count=n))
-            batch_start_action.triggered.connect(self.batch_start_nodes)
-            
-            batch_stop_action = menu.addAction(t("_k_stop_n_nodes").format(count=n))
-            batch_stop_action.triggered.connect(self.batch_stop_nodes)
+            ctx = ActionContext(node_list=selected_nodes)
+            ActionFactory.create_action(self, "node.start", ctx, menu)
+            ActionFactory.create_action(self, "node.stop", ctx, menu)
             
             menu.addSeparator()
             
@@ -110,7 +111,6 @@ class NodeListContextMixin:
             batch_delete_action = menu.addAction(t("_k_delete_n_nodes").format(count=n))
             batch_delete_action.triggered.connect(self.batch_delete_nodes)
         else:
-            # ---- 单节点操作 ----
             add_to_canvas_action = menu.addAction(t("k_canvas_add_to"))
             add_to_canvas_action.triggered.connect(lambda: self.add_node_to_canvas(node_name))
             
@@ -133,13 +133,12 @@ class NodeListContextMixin:
             
             menu.addSeparator()
             
+            ctx = ActionContext(node_name=node_name)
             node_info = self.nodes_data.get(node_name, {})
             if node_info.get('status') in ('running', 'idle'):
-                stop_action = menu.addAction(t("k_node_stop"))
-                stop_action.triggered.connect(lambda: self._stop_single_node(node_name))
+                ActionFactory.create_action(self, "node.stop", ctx, menu)
             else:
-                start_action = menu.addAction(t("k_node_start"))
-                start_action.triggered.connect(lambda: self._start_single_node(node_name))
+                ActionFactory.create_action(self, "node.start", ctx, menu)
             
             menu.addSeparator()
             
@@ -170,8 +169,7 @@ class NodeListContextMixin:
             
             menu.addSeparator()
             
-            export_action = menu.addAction(t("k_export_node"))
-            export_action.triggered.connect(lambda: self.export_single_node(node_name))
+            ActionFactory.create_action(self, "node.export", ctx, menu)
 
     def export_single_node(self, node_name):
         """导出单个节点（委托给主窗口）"""

@@ -749,13 +749,17 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
                 self.parent_window.show_toast("没有需要启动的节点", "info")
             return
         
-        self.parent_window.show_toast(f"正在启动 {len(to_start)} 个节点...", "info")
+        # 使用新的替换机制显示批量启动进度
+        self.parent_window.show_toast(f"正在启动 {len(to_start)} 个节点...", "info",
+                                        node_name="batch_operation", operation_type="batch_start")
         
         # 异步逐个启动
         def start_next(index):
             if index >= len(to_start):
                 if self.parent_window:
-                    self.parent_window.show_toast(f"已启动 {len(to_start)} 个节点", "success")
+                    # 替换进度提示为完成提示
+                    self.parent_window.show_toast(f"已启动 {len(to_start)} 个节点", "success",
+                                                    node_name="batch_operation", operation_type="batch_start")
                 return
             
             node_name = to_start[index]
@@ -779,13 +783,17 @@ class NodeListDockPanel(QWidget, NodeListDragMixin, NodeListContextMixin):
                 self.parent_window.show_toast("没有需要停止的节点", "info")
             return
         
-        self.parent_window.show_toast(f"正在停止 {len(to_stop)} 个节点...", "info")
+        # 使用新的替换机制显示批量停止进度
+        self.parent_window.show_toast(f"正在停止 {len(to_stop)} 个节点...", "info",
+                                        node_name="batch_operation", operation_type="batch_stop")
         
         # 异步逐个停止
         def stop_next(index):
             if index >= len(to_stop):
                 if self.parent_window:
-                    self.parent_window.show_toast(f"已停止 {len(to_stop)} 个节点", "success")
+                    # 替换进度提示为完成提示
+                    self.parent_window.show_toast(f"已停止 {len(to_stop)} 个节点", "success",
+                                                    node_name="batch_operation", operation_type="batch_stop")
                 return
             
             node_name = to_stop[index]

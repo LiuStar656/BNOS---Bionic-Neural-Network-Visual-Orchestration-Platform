@@ -212,8 +212,10 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 
 ### 🎯 智能 UI 特性
 
-- **Toast 通知系统**：非侵入式弹窗通知，支持堆叠显示
-  - ✅ 无数量上限 - 所有通知都可见
+- **Toast 通知系统**：非侵入式弹窗通知，支持高级队列管理
+  - ✅ **队列管理**：FIFO 有序显示，最多同时显示 3 个
+  - ✅ **智能替换**：同节点/同操作提示自动替换（如"启动中"→"已启动"）
+  - ✅ **优先显示**：状态提示优先，提供即时反馈
   - ✅ 自动淡入淡出动画（300ms）
   - ✅ 边界检测防止超出屏幕
   - ✅ 固定在右上角，跟随窗口移动
@@ -276,6 +278,8 @@ graph TB
 | **分组管理器** | `ui/panels/node_group_manager.py` | 节点分组创建/删除/持久化 |
 | **浮动基类** | `ui/core/floating_panel.py` | 统一所有悬浮窗的窗口类型和交互 |
 | **日志模块** | `ui/core/logger.py` | 全局 logger（控制台+文件双通道） |
+| **Toast 队列** | `ui/core/toast/toast_queue_manager.py` | Toast 通知队列管理 |
+| **动作系统** | `ui/core/actions/` | 统一动作注册表和工厂 |
 | **进程管理** | `ui/core/node_process.py` | 统一进程启停/PID/健康检测 |
 | **菜单管理** | `ui/menu/menu_manager.py` | 统一管理菜单栏所有功能 |
 | **节点创建器** | `ui/creators/node_creator_manager.py` | 多语言节点创建管理器（Python/Rust） |
@@ -532,8 +536,15 @@ BNOS/
 │   │   ├── dark_title_bar.py      # VSCode 风格标题栏
 │   │   ├── floating_panel.py      # 浮动面板基类
 │   │   ├── logger.py              # 全局日志模块
-│   │   └── toast/                 # Toast 通知系统
-│   │       └── toast_notification.py
+│   │   ├── toast/                 # Toast 通知系统
+│   │   │   ├── toast_notification.py
+│   │   │   └── toast_queue_manager.py
+│   │   └── actions/               # 统一动作系统
+│   │       ├── __init__.py
+│   │       ├── action_definition.py
+│   │       ├── action_registry.py
+│   │       ├── action_factory.py
+│   │       └── builtin_*.py        # 内置动作定义
 │   │
 │   ├── menu/                      # 菜单系统
 │   │   └── menu_manager.py        # 菜单栏管理器
@@ -584,6 +595,8 @@ BNOS/
 - ✅ **节点样式系统**：抽象基类 + 具体实现，方形/圆形两种样式可切换
 - ✅ **向后兼容**：通过 Facade 模式保持旧导入路径可用
 - ✅ **可扩展**：易于添加自定义节点类型和交互
+- ✅ **Toast 队列管理**：FIFO 有序显示、智能替换、优先级处理
+- ✅ **统一动作系统**：中心化动作注册表，支持国际化翻译
 - ✅ **可维护**：`main_window.py` 935 行，`canvas_view.py` ~1200 行
 
 ### 扩展开发
@@ -774,7 +787,7 @@ MIT License © 2026 阿东与守一工作室
 - **开发团队**：阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **邮箱**：1240543656@qq.com
-- **最后更新**：2026-06-06
+- **最后更新**：2026-06-07
 
 
 ---

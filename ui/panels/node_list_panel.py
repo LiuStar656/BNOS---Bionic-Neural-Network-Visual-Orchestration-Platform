@@ -783,13 +783,17 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 self.parent_window.show_toast("没有需要启动的节点", "info")
             return
         
-        self.parent_window.show_toast(f"正在启动 {len(to_start)} 个节点...", "info")
+        # 使用新的替换机制显示批量启动进度
+        self.parent_window.show_toast(f"正在启动 {len(to_start)} 个节点...", "info",
+                                        node_name="batch_operation", operation_type="batch_start")
         
         # 异步逐个启动
         def start_next(index):
             if index >= len(to_start):
                 if self.parent_window:
-                    self.parent_window.show_toast(f"已启动 {len(to_start)} 个节点", "success")
+                    # 替换进度提示为完成提示
+                    self.parent_window.show_toast(f"已启动 {len(to_start)} 个节点", "success",
+                                                    node_name="batch_operation", operation_type="batch_start")
                 return
             
             node_name = to_start[index]
@@ -817,13 +821,17 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                 self.parent_window.show_toast("没有需要停止的节点", "info")
             return
         
-        self.parent_window.show_toast(f"正在停止 {len(to_stop)} 个节点...", "info")
+        # 使用新的替换机制显示批量停止进度
+        self.parent_window.show_toast(f"正在停止 {len(to_stop)} 个节点...", "info",
+                                        node_name="batch_operation", operation_type="batch_stop")
         
         # 异步逐个停止
         def stop_next(index):
             if index >= len(to_stop):
                 if self.parent_window:
-                    self.parent_window.show_toast(f"已停止 {len(to_stop)} 个节点", "success")
+                    # 替换进度提示为完成提示
+                    self.parent_window.show_toast(f"已停止 {len(to_stop)} 个节点", "success",
+                                                    node_name="batch_operation", operation_type="batch_stop")
                 return
             
             node_name = to_stop[index]
@@ -857,6 +865,11 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
         self._batch_delete_results = {'success': 0, 'failed': 0, 'failed_nodes': []}
         self._batch_delete_total = len(selected_nodes)
         
+        # 先显示正在删除的进度提示
+        if self.parent_window:
+            self.parent_window.show_toast(f"正在删除 {len(selected_nodes)} 个节点...", "info",
+                                            node_name="batch_operation", operation_type="batch_delete")
+        
         # 异步逐个删除，每次间隔 100ms
         def delete_next(index):
             if index >= len(selected_nodes):
@@ -872,7 +885,9 @@ class NodeListPanel(FloatingPanel, NodeListDragMixin, NodeListContextMixin):
                     themed_message(self, t("k_title_batch_delete_result"), msg, "info")
                 
                 if self.parent_window:
-                    self.parent_window.show_toast(f"已删除 {self._batch_delete_results['success']} 个节点", "success")
+                    # 替换进度提示为完成提示
+                    self.parent_window.show_toast(f"已删除 {self._batch_delete_results['success']} 个节点", "success",
+                                                    node_name="batch_operation", operation_type="batch_delete")
                 return
             
             node_name = selected_nodes[index]
