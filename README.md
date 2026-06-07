@@ -246,6 +246,7 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 - **Exception Handling**: Auto-backup corrupted JSON as `.bak` files
 - **Color Settings**: Customizable node colors persisted per project
 - **Config Validation**: `canvas_layout.json` loading cross-validates against each node's `config.json` `listen_upper_file`, auto-repairing missing edges — config is the source of truth
+- **Drawing Toolbar State**: Drawing toolbar display state persisted to `app_config.json`, auto-restores after restart, one-click toggle works effectively
 
 
 ---
@@ -840,7 +841,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-06-07
+- **Last Updated**: 2026-06-08
 
 
 ---

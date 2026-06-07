@@ -239,6 +239,7 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 - **异常容错**：损坏的 JSON 自动备份为 `.bak` 文件
 - **颜色设置**：可自定义节点颜色，按项目持久化
 - **连线校验兜底**：`canvas_layout.json` 加载时自动读取各节点 `config.json` 的 `listen_upper_file` 反推连线关系，与画布数据做差集校验——config 中有但画布缺失的连线自动补充，确保数据一致性
+- **绘图工具栏状态**：绘图工具栏显示状态持久化到 `app_config.json`，重启后自动恢复，一次点击切换即可生效
 
 ---
 
@@ -822,7 +823,7 @@ MIT License © 2026 阿东与守一工作室
 - **开发团队**：阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **邮箱**：1240543656@qq.com
-- **最后更新**：2026-06-07
+- **最后更新**：2026-06-08
 
 
 ---
