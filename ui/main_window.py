@@ -90,9 +90,6 @@ class BNOSMainWindow(QMainWindow):
         # 应用深色主题
         self._apply_dark_theme()
         
-        # 恢复窗口状态
-        self.restore_window_state()
-        
         self.setWindowTitle("BnosConsole")
         
         # 统一轮询管理器（替代原来的 SystemMonitor 和 GlobalDetector）
@@ -102,7 +99,8 @@ class BNOSMainWindow(QMainWindow):
         polling_manager.app_state_changed.connect(self._on_app_state_changed)
         polling_manager.start(self.nodes_data)
         
-        self.auto_open_last_project()
+        # 【关键】：先创建面板，再恢复窗口状态
+        self._init_and_restore()
         
     def init_ui(self):
         """初始化主界面布局 - PS式固定中心画布架构"""
@@ -535,13 +533,16 @@ class BNOSMainWindow(QMainWindow):
         self.app_config.set('panel_visibility', visibility)
     
     def _restore_panel_state(self):
-        """从配置恢复面板可见性状态"""
+        """【关键】从配置恢复面板可见性状态 - 立即创建 Dock
+        
+        为了让 Qt restoreState() 能找到 Dock，必须在 restoreState() 之前创建
+        """
         visibility = self.app_config.get('panel_visibility', {})
-        logger.info("开始恢复面板状态，配置值: %s", visibility)
+        logger.info("🔴 开始恢复面板状态(立即创建Dock)，配置值: %s", visibility)
         
         # 检查旧的配置项（兼容旧版本）
         old_visible = self.app_config.get('node_list_panel', {}).get('visible', False)
-        logger.info("旧配置项 node_list_panel.visible: %s", old_visible)
+        logger.info("🔴 旧配置项 node_list_panel.visible: %s", old_visible)
         
         # ===== 节点列表面板 =====
         # 优先使用新格式（带后缀），只有当新格式不存在时才使用旧格式（基础键）
@@ -554,15 +555,15 @@ class BNOSMainWindow(QMainWindow):
         if show_node_float is None:
             show_node_float = False
         
-        logger.info("节点列表 - dock: %s, floating: %s", show_node_dock, show_node_float)
+        logger.info("🔴 节点列表 - dock: %s, floating: %s", show_node_dock, show_node_float)
         
         # 根据配置分别显示，不再强制优先显示Dock版
         if show_node_dock:
-            logger.info("恢复节点列表 Dock 版")
+            logger.info("🔴 立即恢复节点列表 Dock 版")
             self.toggle_node_list_panel(True)
         if show_node_float:
-            logger.info("恢复节点列表 浮动版")
-            QTimer.singleShot(100, self.show_node_list_floating)
+            logger.info("🔴 立即恢复节点列表 浮动版")
+            self.show_node_list_floating()
         
         # ===== 资源监测面板 =====
         show_resource_dock = visibility.get('resource_monitor_dock')
@@ -573,14 +574,14 @@ class BNOSMainWindow(QMainWindow):
         if show_resource_float is None:
             show_resource_float = False
         
-        logger.info("资源监测 - dock: %s, floating: %s", show_resource_dock, show_resource_float)
+        logger.info("🔴 资源监测 - dock: %s, floating: %s", show_resource_dock, show_resource_float)
         
         if show_resource_dock:
-            logger.info("恢复资源监测 Dock 版")
+            logger.info("🔴 立即恢复资源监测 Dock 版")
             self.show_resource_monitor_dock()
         if show_resource_float:
-            logger.info("恢复资源监测 浮动版")
-            QTimer.singleShot(150, self.show_resource_monitor)
+            logger.info("🔴 立即恢复资源监测 浮动版")
+            self.show_resource_monitor()
         
         # ===== 节点监测面板 =====
         show_monitor_dock = visibility.get('node_monitor_dock')
@@ -591,26 +592,19 @@ class BNOSMainWindow(QMainWindow):
         if show_monitor_float is None:
             show_monitor_float = False
         
-        logger.info("节点监测 - dock: %s, floating: %s", show_monitor_dock, show_monitor_float)
+        logger.info("🔴 节点监测 - dock: %s, floating: %s", show_monitor_dock, show_monitor_float)
         
         if show_monitor_dock:
-            logger.info("恢复节点监测 Dock 版")
+            logger.info("🔴 立即恢复节点监测 Dock 版")
             self.show_node_monitor_dock()
         if show_monitor_float:
-            logger.info("恢复节点监测 浮动版")
-            QTimer.singleShot(200, self.show_node_monitor)
+            logger.info("🔴 立即恢复节点监测 浮动版")
+            self.show_node_monitor()
         
         # ===== 终端 Dock =====
-        # 延迟恢复终端 Dock，确保在 CanvasHost 的 restoreState() 之后执行
+        # 终端 Dock 由 window_state_manager 恢复，这里不处理
         show_terminal = visibility.get('terminal_dock', False)
-        logger.info("终端 - dock (将延迟恢复): %s", show_terminal)
-        
-        def _restore_terminal():
-            if hasattr(self, '_canvas_host') and self._canvas_host:
-                self._canvas_host._restore_panel_state()
-        
-        from PyQt6.QtCore import QTimer
-        QTimer.singleShot(550, _restore_terminal)
+        logger.info("🔴 终端 - dock(将由window_state_manager处理): %s", show_terminal)
 
     def _restore_terminal_dock(self):
         """恢复终端 Dock 可见性（必须在主窗口 show 后调用）"""
@@ -1094,21 +1088,50 @@ class BNOSMainWindow(QMainWindow):
         restore_state(self)
         logger.info("🔴 离开 restore_window_state()")
     
+    def _init_and_restore(self):
+        """【核心】初始化和恢复流程：先创建面板，再恢复布局
+        
+        参考 VSCode 的做法：
+        1. 先创建所有需要的视图/面板
+        2. 然后恢复布局状态（包括分割条位置）
+        """
+        logger.info("🔴 进入 _init_and_restore()")
+        
+        # ===== 步骤 1：先创建面板（确保 Dock 存在） =====
+        logger.info("🔴 步骤 1：先创建面板")
+        self._restore_panel_state()
+        
+        # ===== 步骤 2：延迟恢复窗口状态（Qt 状态和尺寸） =====
+        from PyQt6.QtCore import QTimer
+        
+        # 给 Qt 一点时间让 Dock 创建完成
+        QTimer.singleShot(200, lambda: self._restore_window_state_with_docks())
+        
+        # ===== 步骤 3：自动打开上次项目 =====
+        QTimer.singleShot(800, self.auto_open_last_project)
+        
+        logger.info("🔴 离开 _init_and_restore()")
+    
+    def _restore_window_state_with_docks(self):
+        """Dock 创建完成后，恢复窗口状态"""
+        logger.info("🔴 进入 _restore_window_state_with_docks()")
+        
+        # 此时 Dock 已经创建好了，可以安全调用 restoreState()
+        self.restore_window_state()
+        
+        logger.info("🔴 离开 _restore_window_state_with_docks()")
+    
     def auto_open_last_project(self):
         """自动打开上次打开的项目：
         - 如果有上次打开的项目，自动打开
         - 如果没有，保持空白，等待用户手动打开项目
         """
-        # 延迟恢复面板状态，确保在 Dock 尺寸恢复之后执行
-        QTimer.singleShot(600, self._restore_panel_state)
-        
         # 检查是否有上次打开的项目
         last_project = self.app_config.get("last_project")
         if last_project and isinstance(last_project, str) and os.path.exists(last_project):
             # 有上次打开的项目，自动打开
             logger.info("自动打开上次项目: %s", last_project)
-            # 使用 QTimer 延迟打开，确保 UI 初始化完成
-            QTimer.singleShot(700, lambda: self._auto_open_project(last_project))
+            self._auto_open_project(last_project)
         else:
             logger.info("没有上次项目或项目不存在，等待用户手动打开项目")
     
@@ -1152,6 +1175,12 @@ class BNOSMainWindow(QMainWindow):
         
         # 加载布局
         self._canvas_host.load_layout_for_active(project_dir)
+        
+        # ===== 关键：恢复 CanvasHost 的状态（包括分割条位置） =====
+        from ui.core.window_state_manager import restore_canvas_host_state
+        from PyQt6.QtCore import QTimer
+        # 给一点时间让画布 Dock 完全创建
+        QTimer.singleShot(200, lambda: restore_canvas_host_state(self))
         
         # 保存项目到配置
         self.app_config.set("last_project", self.current_project_path)

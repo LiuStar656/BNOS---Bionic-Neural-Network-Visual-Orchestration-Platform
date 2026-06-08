@@ -6,6 +6,30 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-09】V2.0.9 - CanvasHost Splitter Position Persistence Fix</strong></summary>
+
+[View Full Update](./2026-06-09/README.md)
+
+**Main Updates:**
+- CanvasHost window splitter position persistence
+- Support restoring splitter position when auto/manual opening project
+- Dual save mechanism ensures correctness
+
+</details>
+
+<details>
+<summary><strong>【2026-06-08】V2.0.8 - Drawing Tool Display State Persistence</strong></summary>
+
+[View Full Update](./2026-06-08/README.md)
+
+**Main Updates:**
+- Drawing toolbar display state persistence
+- Fixed two consecutive operations issue
+- Configuration file integration
+
+</details>
+
+<details>
 <summary><strong>【2026-06-07】V2.0.7 - Toast Queue Management & Action System Unification</strong></summary>
 
 [View Full Update - Part 1](./2026-06-07/01_Node_State_Sync_and_Project_Persistence_Improveme.md)  

@@ -6,6 +6,30 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-09】V2.0.9 - CanvasHost 分割条位置持久化修复</strong></summary>
+
+[查看完整更新](./2026-06-09/README.md)
+
+**主要更新：**
+- CanvasHost 窗口分割条位置持久化
+- 支持自动/手动打开项目时恢复分割条位置
+- 双重保存机制确保正确性
+
+</details>
+
+<details>
+<summary><strong>【2026-06-08】V2.0.8 - 绘图工具显示状态持久化</strong></summary>
+
+[查看完整更新](./2026-06-08/README.md)
+
+**主要更新：**
+- 绘图工具栏显示状态持久化
+- 修复需要连续两次操作的问题
+- 配置文件集成
+
+</details>
+
+<details>
 <summary><strong>【2026-06-07】V2.0.7 - 节点状态同步与项目持久化完善</strong></summary>
 
 [查看完整更新](./2026-06-07/README.md)

@@ -113,6 +113,12 @@ def project_open(main_window):
         canvas = main_window._canvas_host.add_canvas_dock(project_name, project_dir)
     
     _canvas_call(main_window, 'load_layout', project_dir)
+    
+    # ===== 关键：恢复 CanvasHost 的状态（包括分割条位置） =====
+    from ui.core.window_state_manager import restore_canvas_host_state
+    # 给一点时间让画布 Dock 完全创建
+    QTimer.singleShot(200, lambda: restore_canvas_host_state(main_window))
+    
     main_window.show_toast(f"已打开项目: {project_name}", "success")
     
     # 保存项目到配置文件

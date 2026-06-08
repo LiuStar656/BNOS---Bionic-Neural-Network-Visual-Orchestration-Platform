@@ -23,6 +23,9 @@ class BnosDock(QDockWidget):
         self._is_closing = False  # 🔒 关闭标志：关闭过程中不发送可见性信号
         self._original_width = None  # 保存原始宽度，用于自动隐藏展开
         
+        # 🔴 关键：设置 objectName，让 Qt saveState/restoreState 能正确识别
+        self.setObjectName(f"bnos_dock_{title}")
+        
         self._setup_ui()
     
     def _setup_ui(self):
