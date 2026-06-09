@@ -98,7 +98,7 @@ class IDEScanner:
     def open_in_vscode(self, workspace_path: str) -> bool:
         exe = self.find_vscode()
         return self._spawn(exe, workspace_path) if exe else False
-
+        
     def open_in_trae(self, workspace_path: str) -> bool:
         exe = self.find_trae_ide()
         if exe and self._spawn(exe, workspace_path):
@@ -135,47 +135,65 @@ class IDEScanner:
         """统一查找：内存缓存 → app_config → PATH 命令 → 进程/环境变量 → 文件系统"""
         if name in self._cache:
             cached = self._cache[name]
-            if cached and os.path.exists(cached): return cached
+            if cached and self._is_valid_exe(cached): return cached
         if self._app_config:
             cached = self._app_config.get(cache_key)
-            if cached and os.path.exists(cached):
+            if cached and self._is_valid_exe(cached):
                 self._cache[name] = cached
                 self._app_config.set(cache_key, cached)
                 self._app_config.save()
                 return cached
         result = self._check_path_command(name)
-        if result: self._save_result(name, cache_key, result); return result
+        if result and self._is_valid_exe(result):
+            self._save_result(name, cache_key, result); return result
         result = self._find_from_runtime(name)
         if result: self._save_result(name, cache_key, result); return result
         for raw_path in scan_paths:
             expanded = os.path.expandvars(raw_path) if '%' in raw_path else raw_path
             expanded = os.path.expanduser(expanded)
-            if os.path.exists(expanded):
+            if self._is_valid_exe(expanded):
                 self._save_result(name, cache_key, expanded); return expanded
         return None
 
     def _find_from_runtime(self, name: str) -> Optional[str]:
         """从环境变量 / 运行中进程检测 IDE 路径（覆盖非标准安装位置）"""
-        if sys.platform != 'win32':
-            return None
         if name == "trae":
             # 1) 从 Trae sandbox 环境变量推导
             sandbox_path = os.environ.get('TRAE_SANDBOX_CLI_PATH', '')
-            if sandbox_path and os.path.exists(sandbox_path):
-                # F:\Trae CN\resources\app\modules\sandbox\trae-sandbox.exe
-                # → 向上 5 级 → F:\Trae CN
-                trae_root = sandbox_path
-                for _ in range(5):
-                    trae_root = os.path.dirname(trae_root)
-                for candidate in [os.path.join(trae_root, 'Trae CN.exe'),
-                                  os.path.join(trae_root, 'Trae.exe')]:
-                    if os.path.exists(candidate):
-                        return candidate
+            if sandbox_path and os.path.isfile(sandbox_path):
+                trae_root = self._walk_up_to_exe_dir(sandbox_path)
+                if trae_root:
+                    for candidate in [os.path.join(trae_root, 'Trae CN.exe'),
+                                      os.path.join(trae_root, 'Trae.exe')]:
+                        if os.path.isfile(candidate):
+                            return candidate
             # 2) 从运行中进程查找
             exe = self._find_process_exe("Trae CN")
             if exe: return exe
             exe = self._find_process_exe("Trae")
             if exe: return exe
+        elif name == "vscode" and sys.platform == 'win32':
+            exe = self._find_process_exe("Code")
+            if exe: return exe
+        return None
+
+    @staticmethod
+    def _walk_up_to_exe_dir(start_path: str) -> Optional[str]:
+        """从子目录向上遍历，找到包含 .exe 的根目录"""
+        current = os.path.dirname(start_path)
+        root = os.path.dirname(current.split('\\')[0] + '\\') if sys.platform == 'win32' else '/'
+        while current and current != root:
+            # 当前目录有 .exe 文件 → 这就是安装根目录
+            try:
+                if any(f.endswith('.exe') for f in os.listdir(current)
+                       if os.path.isfile(os.path.join(current, f))):
+                    return current
+            except OSError:
+                pass
+            parent = os.path.dirname(current)
+            if parent == current:
+                break
+            current = parent
         return None
 
     @staticmethod
@@ -189,7 +207,7 @@ class IDEScanner:
                 creationflags=subprocess.CREATE_NO_WINDOW)
             if result.returncode == 0:
                 path = result.stdout.strip()
-                if path and os.path.exists(path):
+                if path and os.path.isfile(path):
                     return path
         except Exception:
             pass
@@ -221,8 +239,13 @@ class IDEScanner:
         if self._app_config:
             vscode = self._app_config.get(self._CACHE_KEY_VSCODE)
             trae = self._app_config.get(self._CACHE_KEY_TRAE)
-            if vscode and os.path.exists(vscode): self._cache["vscode"] = vscode
-            if trae and os.path.exists(trae): self._cache["trae"] = trae
+            if vscode and self._is_valid_exe(vscode): self._cache["vscode"] = vscode
+            if trae and self._is_valid_exe(trae): self._cache["trae"] = trae
+
+    @staticmethod
+    def _is_valid_exe(path: str) -> bool:
+        """验证路径是一个真实存在的可执行文件"""
+        return bool(path) and os.path.isfile(path)
 
     def _get_vscode_scan_paths(self) -> list:
         if sys.platform == 'win32': return self._VSCODE_WIN_PATHS
@@ -248,8 +271,8 @@ class IDEScanner:
 
     @staticmethod
     def _show_not_found(ide_name: str):
-        QMessageBox.information(None, ide_name,
-            f"未找到 {ide_name} 安装\n\n请确保已安装 {ide_name}。")
+        msg = t("_k_ide_not_found").format(ide_name=ide_name)
+        QMessageBox.information(None, ide_name, msg)
 
 
 # 全局单例
