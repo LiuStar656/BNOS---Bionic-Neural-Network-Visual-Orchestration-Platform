@@ -44,6 +44,13 @@ from ui.core.ipc import A_CREATE_EDGE, A_REMOVE_EDGE, A_SYNC_DATA, A_CLEAR_ALL, 
 from ui.core.process_manager import ProcessManager
 from ui.core.canvas_host import CanvasHost
 
+# ===== 解耦基础设施（Step 1-7） =====
+from ui.core.event_bus import event_bus
+from ui.core.di import container, IConfig
+from ui.core.panel_manager import PanelManager
+from ui.core.node_control_service import node_control_service, NodeStatus
+from ui.core.shutdown_orchestrator import ShutdownOrchestrator
+
 
 class BNOSMainWindow(QMainWindow):
     """BNOS主窗口类"""
@@ -98,7 +105,62 @@ class BNOSMainWindow(QMainWindow):
         polling_manager.global_config_changed.connect(self._on_global_config_changed)
         polling_manager.app_state_changed.connect(self._on_app_state_changed)
         polling_manager.start(self.nodes_data)
-        
+
+        # ===== 解耦服务初始化（Step 3-5） =====
+        # 面板管理器 - 统一管理所有面板的创建/显示/持久化
+        self.panel_manager = PanelManager(
+            self,
+            Path(os.getcwd()) / ".bnos" / "app_config.json"
+        )
+
+        # IDE 扫描器 - 自动检测并缓存 VSCode/Trae IDE 路径
+        from ui.core.ide_scanner import ide_scanner
+        ide_scanner._app_config = self.app_config
+
+        # 节点控制服务 - 注册所有项目节点
+        for node_name, node_data in self.nodes_data.items():
+            node_control_service.register_node(
+                node_name,
+                node_data.get("path", "")
+            )
+        node_control_service.subscribe(self._on_node_service_status)
+
+        # 关闭序列编排器 - 声明式关闭步骤
+        self._shutdown_orchestrator = ShutdownOrchestrator()
+        self._shutdown_orchestrator.add_step(
+            "save_data",
+            lambda: self._shutdown_save_all_data(),
+            depends_on=[]
+        )
+        self._shutdown_orchestrator.add_step(
+            "stop_polling",
+            lambda: polling_manager.stop(),
+            depends_on=["save_data"]
+        )
+        self._shutdown_orchestrator.add_step(
+            "stop_terminal_signals",
+            lambda: self._disconnect_terminal_signals(),
+            depends_on=["save_data"]
+        )
+        self._shutdown_orchestrator.add_step(
+            "stop_terminal_processes",
+            lambda: self._stop_terminal_subprocesses(),
+            depends_on=["stop_terminal_signals"]
+        )
+        self._shutdown_orchestrator.add_step(
+            "stop_ipc",
+            lambda: self._ipc_server.stop() if self._ipc_server else None,
+            depends_on=["stop_polling"]
+        )
+        self._shutdown_orchestrator.add_step(
+            "stop_process_manager",
+            lambda: self._process_manager.stop_all() if self._process_manager else None,
+            depends_on=["stop_ipc"]
+        )
+
+        # ===== DI 容器 - 注册配置服务 =====
+        container.register_instance(IConfig, self.app_config)
+
         # 【关键】：先创建面板，再恢复窗口状态
         self._init_and_restore()
         
@@ -779,11 +841,14 @@ class BNOSMainWindow(QMainWindow):
                 # 替换"正在启动"为"启动成功"
                 self.show_toast(t("_k_node_started").format(name=node_name), "success", 
                                 node_name=node_name, operation_type="start")
+                # 同步 NodeControlService 状态（解耦桥接）
+                node_control_service._notify(node_name, NodeStatus.RUNNING)
             else:
                 self.node_list_panel.update_node_status(node_name, 'stopped')
                 if self.canvas: 
                     self.canvas.update_node_status(node_name, 'stopped')
                 themed_message(self, t("k_title_error"), t("_k_start_fail").format(err=err), "error")
+                node_control_service._notify(node_name, NodeStatus.ERROR)
         
         worker.finished.connect(on_complete)
         # 线程完成后自动删除
@@ -834,6 +899,8 @@ class BNOSMainWindow(QMainWindow):
             # 替换"正在停止"为"停止成功"
             self.show_toast(t("_k_node_stopped").format(name=node_name), "success", 
                             node_name=node_name, operation_type="stop")
+            # 同步 NodeControlService 状态（解耦桥接）
+            node_control_service._notify(node_name, NodeStatus.STOPPED)
         
         QTimer.singleShot(10, on_complete)
 
@@ -977,28 +1044,37 @@ class BNOSMainWindow(QMainWindow):
                 return
         
         # ========================================================
-        # 阶段1：同步和保存所有数据（先保存，再关闭）
+        # 通过 ShutdownOrchestrator 执行保存+停止流程
         # ========================================================
+        logger.info("📦 === 启动关闭编排器 ===")
+        try:
+            self._shutdown_orchestrator.execute()
+        except Exception as e:
+            logger.error("关闭编排器执行失败: %s", e)
+        
+        logger.info("✅ 窗口关闭流程完成，所有数据已安全保存")
+        event.accept()
+    
+    # ===== 关闭辅助方法（由 ShutdownOrchestrator 调用） =====
+    
+    def _shutdown_save_all_data(self):
+        """保存所有数据（布局/窗口状态/面板可见性/浮动面板位置）"""
         logger.info("📦 === 开始保存所有数据 ===")
         
-        # 同步当前主窗口数据到活动画布（用于保存）
         if hasattr(self, '_canvas_host') and self._canvas_host:
             self._canvas_host.update_canvas_data_from_main_window(self.canvas)
         
-        # 保存所有画布布局（通过CanvasHost）
         if self.current_project_path and hasattr(self, '_canvas_host'):
             self._canvas_host.save_all_layouts(self.current_project_path)
         
-        # 保存窗口状态（包括所有 Dock 尺寸）
         logger.info("💾 保存窗口状态...")
         self.save_window_state()
         self.app_config.set("last_project", self.current_project_path)
         
-        # 保存面板可见性状态
         logger.info("💾 保存面板可见性...")
         self._save_panel_visibility()
         
-        # 保存所有浮动面板的位置（即使它们没有被手动关闭）
+        # 保存所有浮动面板的位置
         panels = [
             ('node_list', getattr(self, 'node_list_floating', None)),
             ('resource_monitor', getattr(self, 'resource_monitor_floating', None)),
@@ -1006,35 +1082,22 @@ class BNOSMainWindow(QMainWindow):
         ]
         for panel_name, panel_widget in panels:
             if panel_widget and panel_widget.isVisible():
-                logger.info("保存面板位置: %s = (%d, %d)", panel_name, panel_widget.pos().x(), panel_widget.pos().y())
+                logger.info("保存面板位置: %s", panel_name)
                 self._save_panel_position(panel_name, panel_widget)
         
-        # 强制同步保存配置到文件（确保所有修改都写入磁盘）
         logger.info("💾 强制保存配置到文件...")
         self.app_config.save()
         
-        # 验证保存是否成功
         import os
         if os.path.exists(self.app_config.config_file):
             logger.info("✅ 配置文件保存成功: %s", self.app_config.config_file)
-            # 读取验证
-            try:
-                with open(self.app_config.config_file, 'r', encoding='utf-8') as f:
-                    saved_config = f.read()
-                    logger.debug("已保存的配置内容长度: %d 字符", len(saved_config))
-            except Exception as e:
-                logger.warning("⚠️ 验证配置文件失败: %s", e)
         else:
             logger.error("❌ 配置文件保存失败，文件不存在")
         
         logger.info("📦 === 所有数据保存完成 ===")
-        
-        # ========================================================
-        # 阶段2：断开信号，停止进程（数据保存完成后再执行）
-        # ========================================================
-        
-        # 🔒 保存完成后，立即断开终端 Dock 的 visibility_changed 信号！
-        # 这样后续的 hideEvent 就不会触发信号，避免覆盖配置
+    
+    def _disconnect_terminal_signals(self):
+        """断开终端 Dock 的 visibility_changed 信号"""
         if hasattr(self, '_canvas_host') and self._canvas_host:
             ch = self._canvas_host
             if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
@@ -1043,31 +1106,15 @@ class BNOSMainWindow(QMainWindow):
                     ch._terminal_dock.visibility_changed.disconnect()
                     logger.info("✅ 终端信号已断开")
                 except Exception as e:
-                    logger.warning("⚠️ 断开信号失败（可能已经断开）: %s", e)
-        
-        # 停止终端中的所有子进程（避免 QProcess: Destroyed while process is still running）
+                    logger.warning("⚠️ 断开信号失败: %s", e)
+    
+    def _stop_terminal_subprocesses(self):
+        """停止终端中的所有子进程"""
         if hasattr(self, '_canvas_host') and self._canvas_host:
             ch = self._canvas_host
             if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
                 logger.info("停止终端进程...")
                 ch._terminal_dock.stop_all_terminals()
-        
-        # 停止统一轮询管理器（在配置保存完成后）
-        logger.info("停止轮询管理器...")
-        polling_manager.stop()
-        
-        # 停止 IPC 和子进程（在配置保存完成后）
-        logger.info("停止 IPC 和子进程...")
-        if self._process_manager:
-            self._process_manager.stop_all()
-        if self._ipc_server:
-            self._ipc_server.stop()
-        
-        # ========================================================
-        # 阶段3：执行关闭
-        # ========================================================
-        logger.info("✅ 窗口关闭流程完成，所有数据已安全保存")
-        event.accept()
     
     def _force_stop_all_nodes(self, node_names):
         """强制停止所有指定节点进程"""
@@ -1412,78 +1459,10 @@ class BNOSMainWindow(QMainWindow):
                 return
         
         # ========================================================
-        # 阶段1：同步和保存所有数据（先保存，再关闭）
-        # ========================================================
-        logger.info("� === 开始保存所有数据 ===")
-        
-        # 同步当前主窗口数据到活动画布（用于保存）
-        if hasattr(self, '_canvas_host') and self._canvas_host:
-            self._canvas_host.update_canvas_data_from_main_window(self.canvas)
-        
-        # 保存所有画布布局（通过CanvasHost）
-        if self.current_project_path and hasattr(self, '_canvas_host'):
-            self._canvas_host.save_all_layouts(self.current_project_path)
-        
-        # 保存窗口状态（包括所有 Dock 尺寸）
-        logger.info("💾 保存窗口状态...")
-        self.save_window_state()
-        self.app_config.set("last_project", self.current_project_path)
-        
-        # 保存面板可见性状态
-        logger.info("💾 保存面板可见性...")
-        self._save_panel_visibility()
-        
-        # 保存所有浮动面板的位置（即使它们没有被手动关闭）
-        panels = [
-            ('node_list', getattr(self, 'node_list_floating', None)),
-            ('resource_monitor', getattr(self, 'resource_monitor_floating', None)),
-            ('node_monitor', getattr(self, 'node_monitor', None)),
-        ]
-        for panel_name, panel_widget in panels:
-            if panel_widget and panel_widget.isVisible():
-                logger.info("保存面板位置: %s = (%d, %d)", panel_name, panel_widget.pos().x(), panel_widget.pos().y())
-                self._save_panel_position(panel_name, panel_widget)
-        
-        # 强制同步保存配置到文件（确保所有修改都写入磁盘）
-        logger.info("💾 强制保存配置到文件...")
-        self.app_config.save()
-        
-        # 验证保存是否成功
-        if os.path.exists(self.app_config.config_file):
-            logger.info("✅ 配置文件保存成功: %s", self.app_config.config_file)
-            # 读取验证
-            try:
-                with open(self.app_config.config_file, 'r', encoding='utf-8') as f:
-                    saved_config = f.read()
-                    logger.debug("已保存的配置内容长度: %d 字符", len(saved_config))
-            except Exception as e:
-                logger.warning("⚠️ 验证配置文件失败: %s", e)
-        else:
-            logger.error("❌ 配置文件保存失败，文件不存在")
-        
-        logger.info("📦 === 所有数据保存完成 ===")
-        
-        # ========================================================
-        # 阶段2：断开信号，停止进程（数据保存完成后再执行）
-        # ========================================================
-        
-        # 🔒 保存完成后，立即断开终端 Dock 的 visibility_changed 信号
-        if hasattr(self, '_canvas_host') and self._canvas_host:
-            ch = self._canvas_host
-            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
-                logger.info("🔒 断开终端 Dock 的 visibility_changed 信号 (重启)...")
-                try:
-                    ch._terminal_dock.visibility_changed.disconnect()
-                    logger.info("✅ 终端信号已断开")
-                except Exception as e:
-                    logger.warning("⚠️ 断开信号失败（可能已经断开）: %s", e)
-        
-        # 停止终端中的所有子进程
-        if hasattr(self, '_canvas_host') and self._canvas_host:
-            ch = self._canvas_host
-            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
-                logger.info("停止终端进程...")
-                ch._terminal_dock.stop_all_terminals()
+        # 阶段1-2：保存数据 + 断开信号停止进程（复用解耦关闭方法）
+        self._shutdown_save_all_data()
+        self._disconnect_terminal_signals()
+        self._stop_terminal_subprocesses()
         
         self._process_manager.stop_all()
         if self._ipc_server:
@@ -1535,3 +1514,10 @@ class BNOSMainWindow(QMainWindow):
     def show_about(self):
         """显示关于对话框"""
         themed_message(self, t("k_title_about"), t("_k_about_text"), "info")
+
+    def _on_node_service_status(self, name: str, status: NodeStatus):
+        """接收节点控制服务的状态变化通知（解耦回调）"""
+        if hasattr(self, 'node_list_panel') and self.node_list_panel:
+            self.node_list_panel.update_node_status(name, status.value)
+        if self.canvas:
+            self.canvas.sync_all_nodes_display()

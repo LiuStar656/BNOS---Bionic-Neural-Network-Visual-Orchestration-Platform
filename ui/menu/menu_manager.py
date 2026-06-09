@@ -47,18 +47,6 @@ class MenuManager:
         
         file_menu.addSeparator()
         
-        node_list_action = QAction(t("k_node_list_dock"), main_window)
-        node_list_action.setCheckable(True)
-        visibility = main_window.app_config.get('panel_visibility', {})
-        is_visible = visibility.get('node_list_dock', visibility.get('node_list', False))
-        node_list_action.setChecked(is_visible)
-        node_list_action.setStatusTip(t("k_menu_toggle_nodes"))
-        node_list_action.triggered.connect(main_window.toggle_node_list_panel)
-        file_menu.addAction(node_list_action)
-        main_window.toggle_nodes_action = node_list_action
-        
-        file_menu.addSeparator()
-        
         ActionFactory.create_action(main_window, "view.color_settings", menu=file_menu)
         ActionFactory.create_action(main_window, "view.settings", menu=file_menu)
         
@@ -97,7 +85,18 @@ class MenuManager:
         edit_menu.addSeparator()
         
         ActionFactory.create_action(main_window, "view.toggle_node_monitor", menu=edit_menu)
-        ActionFactory.create_action(main_window, "view.toggle_node_list", menu=edit_menu)
+        
+        # 节点列表(Dock) — 使用手动QAction确保功能正常
+        node_list_action = QAction(t("k_node_list_dock"), main_window)
+        node_list_action.setCheckable(True)
+        visibility = main_window.app_config.get('panel_visibility', {})
+        is_visible = visibility.get('node_list_dock', visibility.get('node_list', False))
+        node_list_action.setChecked(is_visible)
+        node_list_action.setStatusTip(t("k_menu_toggle_nodes"))
+        node_list_action.triggered.connect(main_window.toggle_node_list_panel)
+        edit_menu.addAction(node_list_action)
+        main_window.toggle_nodes_action = node_list_action
+        
         ActionFactory.create_action(main_window, "view.toggle_resource_monitor", menu=edit_menu)
 
         # ========== 工具菜单 ==========

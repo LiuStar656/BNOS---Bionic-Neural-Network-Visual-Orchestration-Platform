@@ -137,6 +137,30 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         self._save_timer = QTimer()
         self._save_timer.setSingleShot(True)
         self._save_timer.timeout.connect(self._auto_save_layout)
+        
+        # ===== 控制器组合层（解耦Step 7）=====
+        # 委托到现有mixin方法，为未来完全移除mixin继承做准备
+        self._init_controllers()
+    
+    def _init_controllers(self):
+        """初始化控制器组合层（委托模式）"""
+        from ui.canvas.controllers import (
+            CanvasConnectionController,
+            CanvasBatchOperations,
+            BoxSelectionController,
+            CanvasMenuController,
+            CanvasLayoutController,
+            CanvasColorController,
+            CanvasZoomController,
+        )
+        self.connections = CanvasConnectionController(self)
+        self.batch_ops    = CanvasBatchOperations(self)
+        self.box_select   = BoxSelectionController(self)
+        self.menus        = CanvasMenuController(self)
+        self.layout_ctrl  = CanvasLayoutController(self)
+        self.colors       = CanvasColorController(self)
+        self.zoom_ctrl    = CanvasZoomController(self)
+        print("[Decouple] Canvas控制器组合层已激活 (7个控制器, 委托模式)")
 
     def drawBackground(self, painter, rect):
         """背景：直接用 canvas_bg_color 填充（绕过可能被 stylesheet 覆盖的默认行为）"""

@@ -13,7 +13,7 @@ def register_view_actions(main_window):
         name_i18n="k_node_list_dock",
         category=ActionCategory.VIEW,
         description_i18n="k_menu_toggle_nodes",
-        execute_fn=lambda ctx: (main_window.toggle_node_list_panel(), True)[1],
+        execute_fn=lambda ctx: (main_window.panel_manager.toggle_panel("node_list"), True)[1],
     ))
     
     ActionRegistry.register(ActionDefinition(

@@ -213,11 +213,10 @@ class NodeConfigDialog(FloatingPanel):
         open_terminal_btn.clicked.connect(self.open_terminal)
         quick_layout.addWidget(open_terminal_btn)
         
-        # 打开 VSCode 工作区按钮
-        open_vscode_btn = QPushButton("打开VSCode")
-        open_vscode_btn.setStyleSheet("background-color: #666666; color: white; padding: 10px;")
-        open_vscode_btn.clicked.connect(self.open_vscode_workspace)
-        quick_layout.addWidget(open_vscode_btn)
+        # IDE 打开按钮（统一由 IDEScanner 构建，无外部硬编码）
+        from ui.core.ide_scanner import ide_scanner
+        ide_scanner._app_config = self.parent_window.app_config if self.parent_window and hasattr(self.parent_window, 'app_config') else None
+        ide_scanner.add_buttons_to_layout(quick_layout, self.node_name, self.node_path)
         
         right_layout.addWidget(quick_group)
         
@@ -301,86 +300,6 @@ class NodeConfigDialog(FloatingPanel):
             parent_window=self.parent_window,
             dialog_parent=self
         )
-    
-    def _check_vscode_installed(self):
-        """检测 VSCode 是否已安装（通过 code 命令）"""
-        try:
-            system = platform.system()
-            if system == "Windows":
-                # Windows: 使用 where 命令检查
-                result = subprocess.run(['where', 'code'], 
-                                      capture_output=True, 
-                                      timeout=3)
-                return result.returncode == 0
-            else:
-                # macOS/Linux: 使用 which 命令检查
-                result = subprocess.run(['which', 'code'], 
-                                      capture_output=True, 
-                                      timeout=3)
-                return result.returncode == 0
-        except Exception:
-            return False
-
-    def open_vscode_workspace(self):
-        """打开为 VSCode 工作区"""
-        try:
-            # 容错：检查文件夹是否存在
-            if not os.path.exists(self.node_path) or not os.path.isdir(self.node_path):
-                themed_message(self, t("k_title_warning"), t("_k_node_folder_not_exist").format(path=self.node_path), "warning")
-                return
-            
-            # 预检测 VSCode 是否安装
-            vscode_installed = self._check_vscode_installed()
-            if not vscode_installed:
-                reply = themed_message(self, t("k_title_vscode_not_found"), t("_k_vscode_not_found"),
-                    "question")
-                if not reply:
-                    return
-            
-            # 生成 .code-workspace 文件路径
-            workspace_file = os.path.join(self.node_path, f"{self.node_name}.code-workspace")
-            
-            # 创建标准的 VSCode 工作区配置（使用相对路径）
-            workspace_config = {
-                "folders": [
-                    {
-                        "path": "."
-                    }
-                ],
-                "settings": {
-                    "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe" if platform.system() == "Windows" else "${workspaceFolder}/venv/bin/python",
-                    "files.exclude": {
-                        "**/__pycache__": True,
-                        "**/*.pyc": True
-                    }
-                }
-            }
-            
-            # 写入工作区配置文件
-            with open(workspace_file, 'w', encoding='utf-8') as f:
-                json.dump(workspace_config, f, indent=2, ensure_ascii=False)
-            
-            # 如果 VSCode 已安装，尝试自动打开
-            if vscode_installed:
-                system = platform.system()
-                try:
-                    if system == "Windows":
-                        subprocess.Popen(['code', workspace_file], shell=True)
-                    elif system == "Darwin":  # macOS
-                        subprocess.Popen(['code', workspace_file])
-                    else:  # Linux
-                        subprocess.Popen(['code', workspace_file])
-                    
-                    themed_message(self, t("k_title_success"), t("_k_workspace_created").format(path=workspace_file), "info")
-                except Exception as e:
-                    themed_message(self, t("k_title_workspace_created"), t("_k_workspace_created_no_open").format(path=workspace_file, err=str(e)), "info")
-            else:
-                themed_message(self, t("k_title_workspace_created"), t("_k_workspace_created_no_code").format(path=workspace_file), "info")
-            
-        except Exception as e:
-            themed_message(self, t("k_title_error"), t("_k_vscode_workspace_create_fail").format(err=str(e)), "error")
-            import traceback
-            traceback.print_exc()
     
     def open_terminal(self):
         """打开命令行并激活虚拟环境"""

@@ -1,0 +1,6 @@
+{
+  "di_test": "依赖注入容器初始化成功!",
+  "bnos": {
+    "decouple": "v1.0-active"
+  }
+}

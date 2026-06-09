@@ -125,6 +125,7 @@
   "k_open_dir": "打开目录",
   "k_open_terminal": "打开终端",
   "k_open_vscode": "打开VSCode",
+  "_k_open_trae": "打开 Trae IDE",
   "k_view_log": "查看日志",
   "k_edit_config": "编辑配置",
 

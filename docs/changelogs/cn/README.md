@@ -6,14 +6,15 @@
 ---
 
 <details open>
-<summary><strong>【2026-06-09】V2.0.9 - CanvasHost 分割条位置持久化修复</strong></summary>
+<summary><strong>【2026-06-09】V2.0.9 - CanvasHost 分割条位置持久化 & 架构解耦与功能统一化</strong></summary>
 
 [查看完整更新](./2026-06-09/README.md)
 
 **主要更新：**
 - CanvasHost 窗口分割条位置持久化
-- 支持自动/手动打开项目时恢复分割条位置
-- 双重保存机制确保正确性
+- 引入 EventBus、DI 容器、ShutdownOrchestrator 等 8 个基础设施模块
+- Action 系统扩展至 50 个 Action，画布+节点菜单统一
+- 消除两大面板间 ~800 行重复代码
 
 </details>
 

@@ -125,6 +125,7 @@
   "k_open_dir": "Open Folder",
   "k_open_terminal": "Open Terminal",
   "k_open_vscode": "Open in VSCode",
+  "_k_open_trae": "Open in Trae IDE",
   "k_view_log": "View Log",
   "k_edit_config": "Edit Config",
 
