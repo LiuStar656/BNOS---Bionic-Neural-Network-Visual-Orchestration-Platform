@@ -2,7 +2,9 @@
 节点项（对应VueFlow节点）
 继承自 QGraphicsRectItem，负责节点的视觉渲染、锚点管理和交互处理
 """
-from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem, QGraphicsEllipseItem, QGraphicsItem
+import os
+from PyQt6.QtWidgets import (QGraphicsRectItem, QGraphicsTextItem, QGraphicsEllipseItem,
+    QGraphicsItem, QGraphicsProxyWidget)
 from PyQt6.QtCore import Qt, QPointF, QRectF
 from PyQt6.QtGui import QPen, QColor, QBrush, QFont, QPainterPath
 from datetime import datetime
@@ -29,6 +31,9 @@ class NodeItem(QGraphicsRectItem):
         self._style = style or DarkRectNodeStyle()
         self._style.node_width = w
         self._style.node_height = h
+        # 保存节点原始尺寸，以便切换样式后能还原到正常大小
+        self._rect_default_width = w
+        self._rect_default_height = h
         
         self.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
         self.setFlags(
@@ -70,6 +75,16 @@ class NodeItem(QGraphicsRectItem):
         
         self._expand_label = QGraphicsTextItem(">>", self)
         self._expand_label.setZValue(5)
+        
+        # 如果是圆点样式，不支持展开按钮
+        if self._style.is_dot:
+            self._expand_btn.setAcceptHoverEvents(False)
+            self._expand_btn.setCursor(Qt.CursorShape.ArrowCursor)
+            self._expand_label.setVisible(False)
+        
+        # 详细版参数控件（空初始化，由 DetailedNodeStyle.apply() 触发构建）
+        self._proxy_widgets: list = []
+        self._param_widgets: dict = {}
         
         # 选中环（最顶）
         self._selection_ring = QGraphicsEllipseItem(self)
@@ -179,26 +194,56 @@ class NodeItem(QGraphicsRectItem):
             self._start_time = None
                     
     def set_style(self, style):
-        """设置节点样式"""
+        """设置节点样式。
+
+        关键：
+          1. 切换前先销毁详细版控件
+          2. 根据样式类型 EXPLICITLY 设置 node_width/node_height
+             （不依赖类默认值，不依赖当前 rect 尺寸）
+          3. 详细版由内容驱动尺寸，方形用原始尺寸，圆形用 DotNodeStyle 默认
+        """
+        # 1) 清理：销毁所有 Proxy 控件、恢复缓存模式
+        if hasattr(self, '_proxy_widgets') and self._proxy_widgets:
+            self._destroy_detailed()
+
         self._style = style
-        self._style.node_width = self.rect().width()
-        self._style.node_height = self.rect().height()
-        
-        # 重新应用样式
+
+        # 2) 根据样式类型设置正确的尺寸（避免类默认值与实际不匹配）
+        from ui.canvas.items.node_style import (
+            RectNodeStyle, DotNodeStyle, DetailedNodeStyle
+        )
+        if isinstance(self._style, DotNodeStyle):
+            self._style.node_width = self._style.__class__.node_width  # 80
+            self._style.node_height = self._style.__class__.node_height  # 80
+        elif isinstance(self._style, DetailedNodeStyle):
+            # 详细版不硬编码，等 _build_detailed_view() 中 set_sizes() 计算
+            pass
+        elif isinstance(self._style, RectNodeStyle):
+            # 方形节点用原始尺寸（节点创建时传入的 w/h）
+            self._style.node_width = self._rect_default_width
+            self._style.node_height = self._rect_default_height
+
+        # 3) 应用新样式
         self._style.apply(self)
         self._style.apply_status(self, self.status)
-        
-        # 更新状态显示组件
+
+        # 4) 同步显示状态控件 + 重新布局（新尺寸）
         if self._style.status_show and not self._style.is_dot:
             if not self._status_widget:
                 self._status_widget = NodeStatusWidget(self)
-                self._status_widget.set_visible(True)
-                self._start_time = None
-                self._connect_resource_monitor_signals()
+            self._status_widget.set_visible(True)
+            self._status_widget.update_layout()
+            self._start_time = None
+            self._connect_resource_monitor_signals()
         else:
              if self._status_widget:
                  self._status_widget.set_visible(False)
                  self._status_widget = None
+
+        self._update_selection_ring(self.isSelected())
+        # 强制刷新
+        if self.scene():
+            self.scene().update()
       
     def _load_node_custom_colors(self):
         """加载节点的自定义颜色配置"""
@@ -445,3 +490,150 @@ class NodeItem(QGraphicsRectItem):
                 self.canvas.on_node_selected(self)
         
         super().mousePressEvent(event)
+    
+    # ========================================================================
+    #  详细版参数控件（ProxyWidget 系统）
+    # ========================================================================
+    
+    def _build_detailed_view(self):
+        """单 Proxy 容器构建：所有参数控件在同一个 QWidget/Proxy 中，
+        彻底解决 ComboBox 下拉弹窗被下方控件遮挡的 z-order 问题。
+
+        结构：
+          NodeItem (QGraphicsRectItem)
+            └── QGraphicsProxyWidget (single proxy, z=5)
+                  └── QWidget (container)
+                        └── QVBoxLayout
+                              ├── StringWidget/ComboBox/... (参数行 1)
+                              ├── ...
+                              └── TextWidget (参数行 n)
+        """
+        self._destroy_detailed()
+
+        config = self._get_node_config()
+        if not config:
+            return
+
+        from ui.core.node_config_parser import NodeConfigParser
+        if not NodeConfigParser.has_parameters(config):
+            return
+
+        params = NodeConfigParser.parse(config)
+        if not params:
+            return
+
+        from ui.canvas.parameter_widgets import (
+            ParameterWidget, LEFT_MARGIN, RIGHT_MARGIN
+        )
+        from PyQt6.QtWidgets import QWidget, QVBoxLayout
+
+        # ===== 构建容器 Widget 并把所有参数控件放进去 =====
+        container = QWidget()
+        v_layout = QVBoxLayout(container)
+        v_layout.setContentsMargins(LEFT_MARGIN, 4, RIGHT_MARGIN, 6)
+        v_layout.setSpacing(2)
+
+        built = []
+        for p in params:
+            current = config.get(p.name, p.default)
+            w = ParameterWidget.create(p, current)
+            w.value_changed.connect(self._on_param_changed)
+            v_layout.addWidget(w)
+            built.append(w)
+
+        # 让 Qt 布局计算出容器的自然尺寸
+        container.adjustSize()
+        cw, ch = container.width(), container.height()
+
+        # ===== 按容器真实尺寸重算节点外框并绘制 =====
+        header_h = getattr(self._style, "HEADER_HEIGHT", 26)
+        divider = getattr(self._style, "DIVIDER_HEIGHT", 4)
+        param_top = header_h + divider
+        self._style.set_sizes(cw, ch)
+        from ui.canvas.items.node_style import RectNodeStyle
+        RectNodeStyle.apply(self._style, self)
+
+        # ===== 关闭裁剪与缓存，让原生控件正确渲染 =====
+        self.setFlag(self.GraphicsItemFlag.ItemClipsChildrenToShape, False)
+        self.setCacheMode(self.CacheMode.NoCache)
+
+        # ===== 单个 QGraphicsProxyWidget 承载整个参数容器 =====
+        proxy = QGraphicsProxyWidget(self)
+        proxy.setWidget(container)
+        proxy.setPos(0, param_top)
+        proxy.setZValue(5)
+        proxy.setFlag(proxy.GraphicsItemFlag.ItemClipsChildrenToShape, False)
+        proxy.setFlag(proxy.GraphicsItemFlag.ItemClipsToShape, False)
+        proxy.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self._proxy_widgets.append(proxy)
+        self._param_widgets = {w.param.name: w for w in built}
+
+        self._subscribe_config_changes()
+
+    def _destroy_detailed(self):
+        """销毁详细版控件（样式切换时调用），恢复缓存模式"""
+        for p in self._proxy_widgets:
+            p.setWidget(None)
+            if self.scene():
+                self.scene().removeItem(p)
+        self._proxy_widgets.clear()
+        self._param_widgets.clear()
+        # 恢复节点的 DeviceCoordinateCache（默认渲染性能优化）
+        self.setCacheMode(self.CacheMode.DeviceCoordinateCache)
+
+    def _on_param_changed(self, name: str, value):
+        """参数变更 → 写回 config.json"""
+        config = self._get_node_config()
+        if config is not None:
+            config[name] = value
+            self._save_node_config(config)
+
+    def _get_node_config(self):
+        """获取当前节点的 config 字典"""
+        pw = self._get_parent_window()
+        if pw:
+            data = pw.nodes_data.get(self.node_name, {})
+            return data.get('config')
+        return None
+
+    def _save_node_config(self, config: dict):
+        """保存 config 到文件并同步内存"""
+        pw = self._get_parent_window()
+        if not pw:
+            return
+        pw.nodes_data[self.node_name]['config'] = config
+        node_path = pw.nodes_data[self.node_name].get('path', '')
+        if node_path:
+            import json
+            cfg_path = os.path.join(node_path, 'config.json')
+            try:
+                with open(cfg_path, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                logger.warning("Failed to save config for %s: %s", self.node_name, e)
+
+    def _get_parent_window(self):
+        """获取 main_window 引用"""
+        if self.canvas and self.canvas.parent_window:
+            return self.canvas.parent_window
+        return None
+
+    def _subscribe_config_changes(self):
+        """订阅 config.json 外部变更信号（双向数据绑定）"""
+        pw = self._get_parent_window()
+        if pw and hasattr(pw, 'polling_manager'):
+            try:
+                pw.polling_manager.config_file_changed.connect(
+                    self._on_external_config_change)
+            except Exception:
+                pass  # 重复连接忽略
+
+    def _on_external_config_change(self, node_name: str):
+        """外部修改 config.json → 刷新画布控件"""
+        if node_name != self.node_name:
+            return
+        config = self._get_node_config()
+        if config:
+            for name, widget in self._param_widgets.items():
+                if name in config:
+                    widget.set_value(config[name])

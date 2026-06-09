@@ -124,7 +124,7 @@ class CanvasMenusMixin:
 
         # 配置节点
         ActionFactory.create_action(self, "node.config",
-                                     ActionContext(node_name=node_name), menu)
+                                     self._make_ctx(node_name=node_name), menu)
 
         # 展开节点
         ActionFactory.create_action(self, "canvas.expand_node",
@@ -288,16 +288,8 @@ class CanvasMenusMixin:
         cls = STYLES.get(style_key)
         if not cls:
             return
-        new_style = cls()
-        node_item._style = new_style
-        new_style.node_width = node_item.rect().width()
-        new_style.node_height = node_item.rect().height()
-        node_item.setCacheMode(QGraphicsItem.CacheMode.NoCache)
-        new_style.apply(node_item)
-        new_style.apply_status(node_item, node_item.status)
-        node_item._update_selection_ring(node_item.isSelected())
-        node_item.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
-        node_item.update()
+        # 关键：调用 node_item.set_style() — 它会正确清理详细版控件并使用新样式的默认尺寸
+        node_item.set_style(cls())
 
         all_edges = set()
         if hasattr(node_item, 'output_anchor'):

@@ -72,8 +72,14 @@ class NodeStatusWidget:
         self.duration_text.setFont(font)
         
     def _layout_widgets(self):
-        """布局状态显示组件 — 靠左从上到下排列"""
-        w, h = self._style.node_width, self._style.node_height
+        """布局状态显示组件 — 靠左从上到下排列。
+
+        注意：始终从 node_item._style 读取当前尺寸，不缓存旧样式引用。
+        这样切换样式（尤其是详细版 → 方形）时，状态栏会正确缩放到新尺寸。
+        """
+        # 始终读取当前 style，而不是缓存的引用
+        current_style = self.node_item._style
+        w, h = current_style.node_width, current_style.node_height
         left_margin = 10  # 左边距
         start_y = 12     # 起始Y坐标（在名称下方）
         
@@ -94,12 +100,13 @@ class NodeStatusWidget:
         self.mem_bar.setRect(left_margin, mem_y + 12, 0, 6)
         
     def update_status(self, cpu_percent, mem_mb, duration_seconds):
-        """更新状态信息"""
+        """更新状态信息。始终使用当前样式尺寸。"""
         self.cpu_percent = max(0, min(100, cpu_percent))
         self.mem_mb = max(0, mem_mb)
         self.duration_seconds = max(0, duration_seconds)
-        
-        w, h = self._style.node_width, self._style.node_height
+
+        current_style = self.node_item._style
+        w, h = current_style.node_width, current_style.node_height
         left_margin = 10
         start_y = 12
         

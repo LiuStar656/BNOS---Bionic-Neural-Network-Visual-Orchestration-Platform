@@ -9,6 +9,15 @@ from .action_registry import ActionRegistry
 def register_canvas_actions(main_window):
     """注册画布相关功能"""
 
+    def _get_canvas(ctx):
+        """统一 canvas 获取：extra → main_window.canvas → main_window.get_canvas()"""
+        canvas = (ctx.extra or {}).get('canvas') if ctx.extra else None
+        if canvas is None and hasattr(main_window, 'canvas'):
+            canvas = main_window.canvas
+        if canvas is None and hasattr(main_window, 'get_canvas'):
+            canvas = main_window.get_canvas()
+        return canvas
+
     # ======================== 基础画布操作 ========================
 
     ActionRegistry.register(ActionDefinition(
@@ -20,28 +29,49 @@ def register_canvas_actions(main_window):
         execute_fn=lambda ctx: main_window.clear_connections() or True,
     ))
 
+    def execute_clear_selection(ctx):
+        canvas = _get_canvas(ctx)
+        if canvas and hasattr(canvas, 'clear_box_selection'):
+            canvas.clear_box_selection()
+            return True
+        return False
+
     ActionRegistry.register(ActionDefinition(
         id="canvas.clear_selection",
         name_i18n="k_select_clear",
         category=ActionCategory.CANVAS,
         description_i18n="k_select_clear",
-        execute_fn=lambda ctx: main_window.get_canvas().clear_box_selection() if hasattr(main_window, 'get_canvas') else False,
+        execute_fn=execute_clear_selection,
     ))
+
+    def execute_reset_view(ctx):
+        canvas = _get_canvas(ctx)
+        if canvas and hasattr(canvas, 'reset_view'):
+            canvas.reset_view()
+            return True
+        return False
 
     ActionRegistry.register(ActionDefinition(
         id="canvas.reset_view",
         name_i18n="k_canvas_reset_view",
         category=ActionCategory.CANVAS,
         description_i18n="k_canvas_reset_view",
-        execute_fn=lambda ctx: main_window.get_canvas().reset_view() if hasattr(main_window, 'get_canvas') else False,
+        execute_fn=execute_reset_view,
     ))
+
+    def execute_clear_listen_config(ctx):
+        canvas = _get_canvas(ctx)
+        if canvas and hasattr(canvas, 'batch_clear_listen_config'):
+            canvas.batch_clear_listen_config()
+            return True
+        return False
 
     ActionRegistry.register(ActionDefinition(
         id="canvas.clear_listen_config",
         name_i18n="k_canvas_clear_config",
         category=ActionCategory.CANVAS,
         description_i18n="k_canvas_clear_config",
-        execute_fn=lambda ctx: main_window.get_canvas().batch_clear_listen_config() if hasattr(main_window, 'get_canvas') else False,
+        execute_fn=execute_clear_listen_config,
     ))
 
     # ======================== 连线操作 ========================

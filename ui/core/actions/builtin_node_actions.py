@@ -70,10 +70,19 @@ def register_node_actions(main_window):
     
     def execute_node_config(ctx: ActionContext) -> bool:
         if ctx.node_name:
-            canvas = main_window.get_canvas() if hasattr(main_window, 'get_canvas') else None
+            # 优先从 context 中取 canvas 引用（通过 _make_ctx 注入）
+            canvas = None
+            if ctx.extra and 'canvas' in ctx.extra:
+                canvas = ctx.extra['canvas']
+            # 否则从 main_window 获取（canvas 是直接属性）
+            if canvas is None and hasattr(main_window, 'canvas'):
+                canvas = main_window.canvas
+            # 最后兜底
+            if canvas is None and hasattr(main_window, 'get_canvas'):
+                canvas = main_window.get_canvas()
             if canvas and hasattr(canvas, 'open_node_config'):
                 canvas.open_node_config(ctx.node_name)
-            return True
+                return True
         return False
     
     ActionRegistry.register(ActionDefinition(

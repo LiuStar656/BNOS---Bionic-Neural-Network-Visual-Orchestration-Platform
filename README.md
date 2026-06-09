@@ -153,12 +153,24 @@ This documentation provides deep technical insights beyond what's covered in thi
 - Dragging nodes **auto-pushes** away adjacent nodes to prevent overlap
 - Node expand button `>>` for quick output/config access
 
+### 🔍 IDE Auto-Scanner & Right-Click Menu Action Integration
+
+- **Cross-platform IDE Detection**: Automatically detects locally installed VSCode and Trae IDE
+- **Four-layer Detection Chain**: Memory cache → app_config persistence → PATH command → environment variable / process scan → file system scan
+- **Non-standard Path Support**: Through environment variable derivation and process scanning, covers custom drive letters (e.g., `F:\Trae CN\`)
+- **Action System Driven**: All IDE functions (Open VSCode, Open Trae IDE, `.code-workspace` generation) registered in the unified Action system
+- **Canvas Right-click Menu**: Quick IDE access from both single-node and blank-area menus
+- **Node Config Dialog**: Quick access buttons for VSCode workspace and Trae IDE
+- **Global Singleton**: `ide_scanner` global singleton, results persisted to `app_config.json`
+
 ### 🎯 Node Style System
 
 - **Rect Nodes** (default): Standard rectangular style with full anchors, expand button, status indicators
 - **Dot Nodes**: Compact circular style with three-layer z-architecture (indicator > input > output), text below left-aligned
+- **Detailed Nodes** (ComfyUI-style): Renders parameter editing controls directly on the canvas, supports 11 parameter types (string/text/password/int/float/bool/enum/file/directory/color/range), parameter changes written back to `config.json` in real time
 - **Style Persistence**: Each node's style auto-saved to `canvas_layout.json`, fully restored on restart
 - **Selection Ring**: Dot nodes display a floating selection ring (z=10) on selection
+- **Precise Size Restoration**: Switch freely between Detailed ↔ Rect ↔ Dot modes with no widget residues or size drift
 
 ### 📂 Project Management
 
@@ -188,6 +200,7 @@ This documentation provides deep technical insights beyond what's covered in thi
 - **Attention Mechanism Rules**: Visual table editor for filter rules (add/delete/modify/query)
 - **Real-time Validation**: Changes take effect immediately without neuron restart
 - **Terminal Integration**: One-click terminal launch with activated venv for debugging
+- **Detailed Mode Editing**: Switch nodes to detailed view to edit 11 parameter types directly on the canvas — changes instantly written back to `config.json` (supports `parameters` field declarations)
 
 ### 📊 Real-time Monitoring
 
@@ -280,7 +293,7 @@ graph TB
 | **Entry Point** | `bnos_gui.py` | Initialize QApplication, launch MainWindow |
 | **Main Window** | `ui/main_window.py` | Integrate UI components, AppConfig, Toast, node data |
 | **Canvas** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
-| **Node Styles** | `ui/canvas/items/node_style.py` | Node style system (rect/dot), 3-layer z-architecture |
+| **Node Styles** | `ui/canvas/items/node_style.py` | Node style system (rect/dot/detailed), 3-layer z-architecture |
 | **Node List** | `ui/panels/node_list_panel.py` | Tree view, groups, drag-drop, multi-select |
 | **Property Panel** | `ui/panels/property_panel.py` | Config editor, log viewer, process control, colors |
 | **Expand Panel** | `ui/panels/node_expand_panel.py` | output.json viewer/editor with live refresh |
@@ -288,6 +301,9 @@ graph TB
 | **Group Manager** | `ui/panels/node_group_manager.py` | Node group CRUD and persistence |
 | **Floating Panel** | `ui/core/floating_panel.py` | Base class for frameless translucent panels |
 | **Logger** | `ui/core/logger.py` | Global logger (console INFO + file DEBUG) |
+| **IDE Scanner** | `ui/core/ide_scanner.py` | Auto-detects VSCode / Trae IDE, 4-layer detection chain |
+| **Parameter Parser** | `ui/core/node_config_parser.py` | Parses parameters field from node config.json |
+| **Parameter Widget Factory** | `ui/canvas/parameter_widgets.py` | Qt widget factory for 11 parameter types |
 | **Toast Queue** | `ui/core/toast/toast_queue_manager.py` | Toast notification queue management |
 | **Action System** | `ui/core/actions/` | Unified action registry and factory |
 | **Menu Manager** | `ui/menu/menu_manager.py` | Unified menu bar (File/Edit/Tools/Help) |
@@ -493,6 +509,7 @@ Method 3: Canvas node right-click → ⚙️ Open Config
 - **💻 Terminal**: Open terminal with activated venv (Windows: CMD, macOS: Terminal, Linux: gnome-terminal/konsole)
 - **📁 Explorer**: Open node folder in file explorer
 - **🔧 VSCode Workspace**: Generate `.code-workspace` file and open in VSCode with configured Python interpreter
+- **🌟 Trae IDE**: Open node folder directly in Trae IDE (auto-detects installation path, including non-standard locations)
 - **▶️/⏹️ Start/Stop**: Control node process
 - **📄 Logs**: View `listener.log` in real-time
 
@@ -841,7 +858,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-06-08
+- **Last Updated**: 2026-06-10
 
 
 ---

@@ -342,11 +342,56 @@ class DotNodeStyle(NodeStyle):
 
 
 # ============================================================
+#  详细版节点样式（ComfyUI 式画布直显）
+# ============================================================
+
+class DetailedNodeStyle(RectNodeStyle):
+    """详细版节点 — 画布上直显参数编辑控件
+
+    尺寸由子控件内容驱动（两阶段构建）：
+      1. 先 build 所有参数控件并测量其自然尺寸
+      2. 节点宽度 = 最长标签 + 最长控件 + 左右边距 + 间距
+      3. 节点高度 = 标题高度 + 分隔带 + Σ(控件高度) + 底部留白
+    """
+    style_key: str = "detailed"
+    style_name: str = "详细版"
+    is_dot: bool = False
+    status_show: bool = False
+
+    # 布局常量（边距/间距，不涉及尺寸）
+    HEADER_HEIGHT = 26   # 标题行（节点名文本占位高度）
+    DIVIDER_HEIGHT = 4   # 标题与参数区之间的间隔
+    ROW_HEIGHT = 24      # 单行参数的基准高度
+    BOTTOM_PADDING = 6
+    MIN_NODE_WIDTH = 240  # 节点最小宽度兜底
+
+    def __init__(self):
+        super().__init__()
+        self._computed_width = self.MIN_NODE_WIDTH
+        self._computed_height = 120
+
+    def set_sizes(self, content_width: int, content_height: int):
+        """由 NodeItem 调用 — 根据实际内容尺寸设置节点宽高"""
+        self._computed_width = max(self.MIN_NODE_WIDTH, content_width)
+        self._computed_height = self.HEADER_HEIGHT + self.DIVIDER_HEIGHT + content_height + self.BOTTOM_PADDING
+        self.node_width = self._computed_width
+        self.node_height = self._computed_height
+
+    def apply(self, node_item):
+        """详细版 apply 的核心逻辑在 _build_detailed_view 中（两阶段）：
+        先测量子控件尺寸 → 再调用 RectNodeStyle.apply 绘制方框 → 最后嵌入控件"""
+        if hasattr(node_item, "_status_widget") and node_item._status_widget:
+            node_item._status_widget.set_visible(False)
+        node_item._build_detailed_view()
+
+
+# ============================================================
 #  注册表
 # ============================================================
 
 STYLES = {
     "rect": DarkRectNodeStyle,
     "dot": DotNodeStyle,
+    "detailed": DetailedNodeStyle,
 }
 DEFAULT_STYLE = "rect"

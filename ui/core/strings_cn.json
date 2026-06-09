@@ -127,6 +127,9 @@
   "k_open_vscode": "打开VSCode",
   "_k_open_trae": "打开 Trae IDE",
   "_k_ide_not_found": "未找到 {ide_name}\n\n请确保已安装 {ide_name}。",
+  "k_node_style_detailed": "详细版",
+  "k_node_style_square": "方形版",
+  "k_node_style_circular": "圆形版",
   "k_view_log": "查看日志",
   "k_edit_config": "编辑配置",
 

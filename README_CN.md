@@ -146,12 +146,24 @@
 - 拖拽节点**自动推开**相邻节点，防止重叠
 - 节点展开按钮 `>>` 快速查看输出和配置
 
+### 🔍 IDE 自动扫描与右键菜单 Action 集成
+
+- **跨平台 IDE 检测**：自动检测本地已安装的 VSCode 和 Trae IDE
+- **四层检测链路**：内存缓存 → app_config 持久化 → PATH 命令 → 环境变量/进程扫描 → 文件系统
+- **非标准路径支持**：通过环境变量推导 + 进程扫描，覆盖自定义盘符（如 `F:\Trae CN\`）的安装位置
+- **Action 系统驱动**：所有 IDE 功能键（打开 VSCode、打开 Trae IDE、生成 `.code-workspace`）已注册到统一 Action 系统
+- **画布右键菜单**：单个节点 / 空白区域菜单中均可快速使用 IDE 打开
+- **节点配置对话框**：快捷按钮区包含 VSCode 工作区、Trae IDE 打开按钮
+- **全局单例**：`ide_scanner` 全局单例，结果持久化至 `app_config.json`
+
 ### 🎯 节点样式系统
 
 - **方形节点**（默认）：标准矩形样式，带完整锚点、展开按钮、状态指示灯
 - **圆形节点**：紧凑圆形样式，三层 z 轴架构（指示灯>输入锚点>输出锚点），文字下方左对齐
+- **详细版节点**（ComfyUI 风格）：在画布上直接渲染参数编辑控件，支持 11 种参数类型（string/text/password/int/float/bool/enum/file/directory/color/range），参数修改即时写回 `config.json`
 - **样式持久化**：每个节点的样式自动保存到 `canvas_layout.json`，重启后完整恢复
 - **选中环**：圆形节点选中时显示浮动选中环（z=10），不遮挡节点本体
+- **尺寸精确还原**：详细版 ↔ 方形版 ↔ 圆形版之间任意切换，节点尺寸和状态栏无残留
 
 ### 📂 项目管理
 
@@ -181,6 +193,7 @@
 - **注意力机制规则表**：可视化编辑 Filter 规则，支持增删改查
 - **实时验证**：配置修改立即生效，无需重启节点
 - **终端集成**：一键打开终端并激活独立运行环境进行调试
+- **详细版编辑**：切换到详细版节点视图，直接在画布上编辑 11 种参数类型，修改即时写回 `config.json`（支持 `parameters` 字段声明）
 
 ### 📊 实时监控
 
@@ -271,7 +284,7 @@ graph TB
 | **主入口** | `bnos_gui.py` | 初始化 QApplication，启动主窗口 |
 | **主窗口** | `ui/main_window.py` | 整合 UI 组件，管理 AppConfig、节点数据、Toast |
 | **画布** | `ui/canvas/canvas_view.py` | QGraphicsView 实现节点绘制、拖拽、连线 |
-| **节点样式** | `ui/canvas/items/node_style.py` | 节点样式系统（方形/圆形），三层 z 轴架构 |
+| **节点样式** | `ui/canvas/items/node_style.py` | 节点样式系统（方形/圆形/详细版），三层 z 轴架构 |
 | **节点列表** | `ui/panels/node_list_panel.py` | 节点/分组树形视图，拖拽分组，多选操作 |
 | **属性面板** | `ui/panels/property_panel.py` | 配置编辑器、日志查看器、进程控制、颜色设置 |
 | **展开面板** | `ui/panels/node_expand_panel.py` | 节点 output.json 查看/编辑，自动刷新 |
@@ -279,6 +292,9 @@ graph TB
 | **分组管理器** | `ui/panels/node_group_manager.py` | 节点分组创建/删除/持久化 |
 | **浮动基类** | `ui/core/floating_panel.py` | 统一所有悬浮窗的窗口类型和交互 |
 | **日志模块** | `ui/core/logger.py` | 全局 logger（控制台+文件双通道） |
+| **IDE 扫描器** | `ui/core/ide_scanner.py` | 自动检测 VSCode / Trae IDE，四层检测链路 |
+| **参数解析器** | `ui/core/node_config_parser.py` | 解析节点 config.json 的 parameters 字段 |
+| **参数控件工厂** | `ui/canvas/parameter_widgets.py` | 11 种参数类型的 Qt 控件工厂 |
 | **Toast 队列** | `ui/core/toast/toast_queue_manager.py` | Toast 通知队列管理 |
 | **动作系统** | `ui/core/actions/` | 统一动作注册表和工厂 |
 | **进程管理** | `ui/core/node_process.py` | 统一进程启停/PID/健康检测 |
@@ -483,6 +499,7 @@ Ctrl + 单击多选节点 → 右键 → 批量启动/停止
 - **终端**：打开已激活虚拟环境的终端（Windows: CMD, macOS: Terminal, Linux: gnome-terminal/konsole）
 - **资源管理器**：在文件浏览器中打开节点文件夹
 - **VSCode 工作区**：生成 `.code-workspace` 文件并在 VSCode 中打开（已配置 Python 解释器）
+- **Trae IDE**：在 Trae IDE 中直接打开节点文件夹（自动检测安装路径，含非标准安装位置）
 - **启动/停止**：控制节点进程
 - **日志**：实时查看 `listener.log`
 
@@ -823,7 +840,7 @@ MIT License © 2026 阿东与守一工作室
 - **开发团队**：阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **邮箱**：1240543656@qq.com
-- **最后更新**：2026-06-08
+- **最后更新**：2026-06-10
 
 
 ---
