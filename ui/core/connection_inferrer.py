@@ -37,15 +37,39 @@ class ConnectionInferrer:
         """
         扫描所有节点 config.json，反推全部连线关系。
 
+        扫描来源：
+          - listen_upper_file → target_port=None（默认大锚点）
+          - port_mappings → target_port=端口名（小锚点）
+
         Returns:
-            [{"source": "上游节点名", "target": "下游节点名"}, ...]
+            [{"source": "上游节点名", "target": "下游节点名", "target_port": None|"prompt"|...}, ...]
             未找到有效 upstream 的节点不出现在结果中。
         """
         edges = []
         for node_name, node_info in self.nodes_data.items():
-            upstream = self._get_upstream_node_name(node_name, node_info)
-            if upstream:
-                edges.append({"source": upstream, "target": node_name})
+            config = node_info.get("config", {})
+            # 1) listen_upper_file → 默认锚点
+            listen_file = config.get("listen_upper_file", "")
+            if listen_file and listen_file.strip():
+                upstream = self._extract_node_name_from_path(
+                    listen_file.strip().replace("\\", "/"))
+                if upstream:
+                    edges.append({"source": upstream, "target": node_name, "target_port": None})
+
+            # 2) port_mappings → 小锚点
+            port_maps = config.get("port_mappings", {})
+            if isinstance(port_maps, dict):
+                for port_name, path in port_maps.items():
+                    if not path or not isinstance(path, str):
+                        continue
+                    upstream = self._extract_node_name_from_path(
+                        path.strip().replace("\\", "/"))
+                    if upstream:
+                        edges.append({
+                            "source": upstream,
+                            "target": node_name,
+                            "target_port": port_name,
+                        })
         return edges
 
     def compare_with_existing(self, existing_edges: List[dict]) -> dict:

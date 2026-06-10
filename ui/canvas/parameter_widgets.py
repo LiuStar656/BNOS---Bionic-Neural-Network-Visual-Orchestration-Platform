@@ -50,6 +50,7 @@ class ParameterWidget(QWidget):
     def _apply_row_height(self, h: int = ROW_HEIGHT):
         """参数行高度统一 — 不限制宽度（让 QVBoxLayout 横向填满容器）"""
         self.setMinimumHeight(h)
+        _apply_dark_style(self)
 
     def get_value(self):
         return self._current
@@ -81,7 +82,7 @@ class ParameterWidget(QWidget):
 
 
 def _make_label(text, font=None) -> QLabel:
-    """创建参数标签：右对齐，最小宽度由内容决定（字体测量）"""
+    """创建参数标签：右对齐，最小宽度由内容决定（字体测量），深色主题文字色"""
     label = QLabel(text)
     if font:
         label.setFont(font)
@@ -90,7 +91,51 @@ def _make_label(text, font=None) -> QLabel:
     # 标签宽度 = 文本宽度 + 少量呼吸空间
     label.setFixedWidth(max(LABEL_MIN_WIDTH, text_width + 8))
     label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+    label.setStyleSheet("color: #cccccc; background: transparent;")
     return label
+
+
+# ========== 深色主题控件样式（用于嵌入画布上的节点） ==========
+DARK_CONTROL_QSS = """
+QLineEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    border: 1px solid #3a3a3a;
+    border-radius: 3px;
+    padding: 2px 4px;
+    selection-background-color: #094771;
+    selection-color: #ffffff;
+}
+QLineEdit:focus, QPlainTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+    border: 1px solid #007acc;
+}
+QComboBox QAbstractItemView {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    selection-background-color: #094771;
+    border: 1px solid #3a3a3a;
+}
+QCheckBox {
+    color: #cccccc;
+    background: transparent;
+}
+QPushButton {
+    background-color: #3a3a3a;
+    color: #e0e0e0;
+    border: 1px solid #555555;
+    border-radius: 3px;
+    padding: 2px 8px;
+}
+QPushButton:hover {
+    background-color: #4a4a4a;
+}
+"""
+
+
+def _apply_dark_style(widget):
+    """为控件统一应用深色主题样式"""
+    widget.setStyleSheet(DARK_CONTROL_QSS)
+    widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
 
 
 # ========================================================================

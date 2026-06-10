@@ -74,6 +74,11 @@ class CanvasLayoutMixin:
                     end_name = name
             if start_name and end_name:
                 ed = {"source": start_name, "target": end_name}
+                # 持久化端口名（多锚点系统：重启后可恢复正确的锚点绑定）
+                if edge.start_anchor and hasattr(edge.start_anchor, 'port_name') and edge.start_anchor.port_name:
+                    ed["source_port"] = edge.start_anchor.port_name
+                if edge.end_anchor and hasattr(edge.end_anchor, 'port_name') and edge.end_anchor.port_name:
+                    ed["target_port"] = edge.end_anchor.port_name
                 # 保存折叠点
                 wp_data = edge.to_dict() if hasattr(edge, 'to_dict') else {}
                 if wp_data:
@@ -98,6 +103,13 @@ class CanvasLayoutMixin:
         if not os.path.exists(layout_file):
             self._load_color_settings(project_path)
             return
+
+        # 【关键】加载期间停止自动保存定时器，避免把重建锚点过程中把错误的绑定状态写回文件
+        if hasattr(self, '_save_timer') and self._save_timer:
+            try:
+                self._save_timer.stop()
+            except Exception:
+                pass
 
         try:
             self._load_color_settings(project_path)
@@ -261,18 +273,54 @@ class CanvasLayoutMixin:
             # ---- 连线 ----
             existing = set()
             for e in self.edges:
-                sn = tn = None
+                sn = tn = tp = None
                 for n, nd in self.nodes.items():
                     if nd == e.start_node: sn = n
                     if nd == e.end_node: tn = n
-                if sn and tn: existing.add((sn, tn))
+                if hasattr(e, 'end_anchor') and e.end_anchor and hasattr(e.end_anchor, 'port_name'):
+                    tp = e.end_anchor.port_name
+                    if tp == "default": tp = None
+                if sn and tn: existing.add((sn, tn, tp))
             for ed in layout_data.get("edges", []):
                 sn, tn = ed.get("source"), ed.get("target")
-                if (sn, tn) in existing: continue
+                tp = ed.get("target_port")
+                if tp == "default": tp = None
+                if (sn, tn, tp) in existing: continue
                 if sn in self.nodes and tn in self.nodes:
                     source_node = self.nodes[sn]
                     target_node = self.nodes[tn]
-                    edge = EdgeItem(source_node, target_node, self)
+
+                    # 提前查找正确的端口锚点，传给构造函数，
+                    # 避免 _setup_anchor_binding 误绑到默认锚点
+                    src_port = ed.get("source_port")
+                    tgt_port = ed.get("target_port")
+                    src_anchor = None
+                    tgt_anchor = None
+                    if src_port and hasattr(source_node, 'anchor_manager'):
+                        src_anchor = source_node.anchor_manager.get_output(src_port)
+                    if tgt_port and hasattr(target_node, 'anchor_manager'):
+                        tgt_anchor = target_node.anchor_manager.get_input(tgt_port)
+
+                    # 关键保护：如果明确指定了非 default 的端口但找不到锚点，
+                    # 跳过这条线并警告，不允许 fallback 到 default 锚点
+                    if tgt_port and tgt_port != "default" and tgt_anchor is None:
+                        logger.warning(
+                            "[load_layout] 跳过连线: 目标节点 '%s' 上找不到端口 '%s' 的锚点 "
+                            "(可能节点 config 中 input_ports 缺少 source='node'): %s -> %s",
+                            tn, tgt_port, sn, tn
+                        )
+                        continue
+                    if src_port and src_port != "default" and src_anchor is None:
+                        logger.warning(
+                            "[load_layout] 跳过连线: 源节点 '%s' 上找不到端口 '%s' 的锚点: %s -> %s",
+                            sn, src_port, sn, tn
+                        )
+                        continue
+
+                    edge = EdgeItem(source_node, target_node, self,
+                                    target_anchor=tgt_anchor, source_anchor=src_anchor,
+                                    target_port_name=tgt_port, source_port_name=src_port)
+
                     # 恢复折叠点（使用延迟同步模式，不立即调用 _sync_abs_to_rel）
                     if hasattr(edge, 'from_dict'):
                         # 使用 defer_sync=True 延迟同步，确保锚点坐标就绪后再转换
@@ -290,41 +338,74 @@ class CanvasLayoutMixin:
                 try:
                     inferrer = ConnectionInferrer(project_path, self.parent_window.nodes_data)
                     config_edges = inferrer.infer_all_edges()
-                    config_set = {(e["source"], e["target"]) for e in config_edges}
+                    # 去重键 = (source, target, target_port)
+                    config_set = {
+                        (e["source"], e["target"], e.get("target_port"))
+                        for e in config_edges
+                    }
 
-                    # 重建画布当前连线集合
+                    # 重建画布当前连线集合（含端口信息）
                     canvas_set = set()
+                    # 同时收集 (source, target) 用于跨端口去重：
+                    # 如果已有任意端口的连线，不补默认端口线
+                    canvas_pair_set = set()
                     for e in self.edges:
-                        sn = tn = None
+                        sn = tn = tp = None
                         for n, nd in self.nodes.items():
                             if nd == e.start_node: sn = n
                             if nd == e.end_node: tn = n
-                        if sn and tn: canvas_set.add((sn, tn))
+                        if hasattr(e, 'end_anchor') and e.end_anchor and hasattr(e.end_anchor, 'port_name'):
+                            tp = e.end_anchor.port_name
+                            if tp == "default": tp = None  # default ↔ None 互认
+                        if sn and tn:
+                            canvas_set.add((sn, tn, tp))
+                            canvas_pair_set.add((sn, tn))
 
                     # config 有但画布没有 → 自动补充
                     added = 0
-                    for src, tgt in (config_set - canvas_set):
+                    for src, tgt, port in (config_set - canvas_set):
+                        # 跨端口去重：如果同 (source, target) 已有任意端口的连线，跳过默认端口补线
+                        if port is None and (src, tgt) in canvas_pair_set:
+                            continue
                         if src in self.nodes and tgt in self.nodes:
-                            # 避免重复
+                            # 避免重复（含端口维度）
                             already = False
                             for e in self.edges:
-                                if e.start_node == self.nodes[src] and e.end_node == self.nodes[tgt]:
+                                if e.start_node != self.nodes[src] or e.end_node != self.nodes[tgt]:
+                                    continue
+                                ep = None
+                                if hasattr(e, 'end_anchor') and e.end_anchor and hasattr(e.end_anchor, 'port_name'):
+                                    ep = e.end_anchor.port_name
+                                    if ep == "default": ep = None
+                                if ep == port:
                                     already = True
                                     break
                             if not already:
-                                edge = EdgeItem(self.nodes[src], self.nodes[tgt])
+                                # 查找端口锚点
+                                tgt_anchor = None
+                                if port and hasattr(self.nodes[tgt], 'anchor_manager'):
+                                    tgt_anchor = self.nodes[tgt].anchor_manager.get_input(port)
+                                edge = EdgeItem(self.nodes[src], self.nodes[tgt], self,
+                                                target_anchor=tgt_anchor,
+                                                target_port_name=port)
                                 self.scene.addItem(edge)
                                 self.edges.append(edge)
                                 edge.update_path()
                                 added += 1
-                                logger.info("[Config兜底] 补充缺失连线: %s → %s", src, tgt)
+                                if port:
+                                    logger.info("[Config兜底] 补充缺失连线(端口=%s): %s → %s", port, src, tgt)
+                                else:
+                                    logger.info("[Config兜底] 补充缺失连线: %s → %s", src, tgt)
 
                     # 画布有但 config 没有 → 警告（不自动删除，避免误删手动连线）
                     stale = canvas_set - config_set
                     if stale:
-                        stale_list = ", ".join(f"{s}→{t}" for s, t in stale)
+                        stale_list = ", ".join(
+                            f"{s}→{t}" + (f"({p})" if p else "")
+                            for s, t, p in stale
+                        )
                         logger.warning(
-                            "[Config兜底] 画布存在但config中无listen_upper_file对应的连线: %s",
+                            "[Config兜底] 画布存在但config中无对应连线: %s",
                             stale_list
                         )
 
@@ -366,18 +447,67 @@ class CanvasLayoutMixin:
             logger.info("布局文件损坏: %s", e)
     
     def _validate_edge_anchor_binding(self):
-        """校验并修复连线与锚点的双向绑定关系"""
+        """校验并修复连线与锚点的双向绑定关系。
+
+        关键修复：
+        1. edge.end_anchor 可能引用了一个已从场景中移除的旧 AnchorItem
+        2. 优先使用 edge._desired_target_port_name 查找正确锚点（而不是当前可能
+           已经 fallback 到 default 的 end_anchor.port_name）
+        3. 指定了非 default 端口但找不到时，不允许 fallback 到 default
+        """
         fixed_count = 0
-        
+
         for edge in self.edges:
-            # 检查锚点引用是否正确
-            if not edge.start_anchor or not edge.end_anchor:
-                # 重新建立锚点引用
-                if hasattr(edge.start_node, 'output_anchor'):
-                    edge.start_anchor = edge.start_node.output_anchor
-                if hasattr(edge.end_node, 'input_anchor'):
-                    edge.end_anchor = edge.end_node.input_anchor
-            
+            # —— 输入端绑定检查 ——
+            if (edge.end_anchor is None
+                    or (hasattr(edge.end_anchor, "scene") and edge.end_anchor.scene() is None)):
+                # 优先使用期望的端口名，其次使用当前锚点的 port_name
+                desired_port = getattr(edge, '_desired_target_port_name', None)
+                if desired_port and desired_port != "default":
+                    saved_port = desired_port
+                elif edge.end_anchor is not None and hasattr(edge.end_anchor, "port_name"):
+                    saved_port = edge.end_anchor.port_name
+                else:
+                    saved_port = None
+
+                new_anchor = None
+                if hasattr(edge.end_node, "anchor_manager"):
+                    new_anchor = edge.end_node.anchor_manager.get_input(saved_port)
+
+                # 只有在未指定特定端口名时才允许 fallback 到 default
+                if (new_anchor is None
+                        and (not desired_port or desired_port == "default")
+                        and hasattr(edge.end_node, "input_anchor")):
+                    new_anchor = edge.end_node.input_anchor
+
+                if new_anchor is not None:
+                    edge.end_anchor = new_anchor
+
+            # —— 输出端绑定检查 ——
+            if (edge.start_anchor is None
+                    or (hasattr(edge.start_anchor, "scene") and edge.start_anchor.scene() is None)):
+                # 优先使用期望的端口名
+                desired_port = getattr(edge, '_desired_source_port_name', None)
+                if desired_port and desired_port != "default":
+                    saved_port = desired_port
+                elif edge.start_anchor is not None and hasattr(edge.start_anchor, "port_name"):
+                    saved_port = edge.start_anchor.port_name
+                else:
+                    saved_port = None
+
+                new_anchor = None
+                if hasattr(edge.start_node, "anchor_manager"):
+                    new_anchor = edge.start_node.anchor_manager.get_output(saved_port)
+
+                # 只有在未指定特定端口名时才允许 fallback
+                if (new_anchor is None
+                        and (not desired_port or desired_port == "default")
+                        and hasattr(edge.start_node, "output_anchor")):
+                    new_anchor = edge.start_node.output_anchor
+
+                if new_anchor is not None:
+                    edge.start_anchor = new_anchor
+
             # 检查连线是否已注册到锚点
             needs_fix = False
             if edge.start_anchor and edge not in edge.start_anchor.edges:
@@ -386,9 +516,14 @@ class CanvasLayoutMixin:
             if edge.end_anchor and edge not in edge.end_anchor.edges:
                 edge.end_anchor.add_edge(edge)
                 needs_fix = True
-            
+
             if needs_fix:
                 fixed_count += 1
-        
+                # 刷新路径
+                try:
+                    edge.update_path()
+                except Exception:
+                    pass
+
         if fixed_count > 0:
             logger.info("[绑定校验] 修复了 %d 条连线的锚点绑定", fixed_count)

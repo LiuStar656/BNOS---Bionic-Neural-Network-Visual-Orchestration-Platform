@@ -121,7 +121,7 @@ class CanvasBatchOpsMixin:
             self._save_timer.start(500)
 
     def batch_clear_listen_config(self):
-        """批量清除选中节点的 listen_upper_file 配置及画布连线"""
+        """批量清除选中节点的输入监听配置及画布连线（包括 port_mappings 和 listen_upper_file）"""
         if not self.box_selected_nodes:
             return
 
@@ -130,16 +130,31 @@ class CanvasBatchOpsMixin:
             if self.parent_window and node_name in self.parent_window.nodes_data:
                 node_info = self.parent_window.nodes_data[node_name]
                 config = node_info['config']
+                need_save = False
 
                 if config.get('listen_upper_file'):
                     config['listen_upper_file'] = ""
+                    need_save = True
+                    cleared_count += 1
 
+                # 同时清除所有小锚点（input_port）的连接映射
+                if config.get('port_mappings'):
+                    config['port_mappings'] = {}
+                    need_save = True
+                    cleared_count += 1
+
+                # 同时清除指向其他节点的 out_connections
+                if config.get('out_connections'):
+                    config['out_connections'] = {}
+                    need_save = True
+                    cleared_count += 1
+
+                if need_save:
                     config_path = os.path.join(node_info['path'], "config.json")
                     try:
                         with open(config_path, 'w', encoding='utf-8') as f:
                             json.dump(config, f, indent=2, ensure_ascii=False)
-                        cleared_count += 1
-                        logger.info("已清除节点 %s 的监听配置", node_name)
+                        logger.info("已清除节点 %s 的监听配置及端口映射", node_name)
                     except Exception as e:
                         logger.error("保存配置失败: %s", e)
 

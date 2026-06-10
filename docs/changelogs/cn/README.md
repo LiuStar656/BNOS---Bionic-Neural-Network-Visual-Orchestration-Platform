@@ -6,6 +6,32 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-11】V2.0.11 - 连线端口锚点绑定保护与 canvas_layout 防改写</strong></summary>
+
+[查看完整更新](./2026-06-11/README.md)
+
+**主要更新：**
+- EdgeItem 新增期望端口名字段（_desired_target_port_name），锚点重建后能重新找到正确锚点
+- 指定端口但找不到锚点时跳过连线（不 fallback 到 default），canvas_layout.json 不再被错误改写
+- _validate_edge_anchor_binding 优先使用期望端口名查找，而非当前已错绑的锚点名
+- 手动连线时也传递端口名参数，确保全链路一致性
+
+</details>
+
+<details>
+<summary><strong>【2026-06-10】V2.0.10 - IDE 自动扫描 & 自适应节点视图 & 多锚点系统完善</strong></summary>
+
+[查看完整更新](./2026-06-10/README.md)
+
+**主要更新：**
+- IDEScanner 自动扫描器，跨平台检测 VSCode / Trae IDE
+- 第三种节点样式「面板模式」（ComfyUI 风格），11 种参数控件
+- 多输入端口支持（prompt / context 等），均匀分布在节点左侧
+- 端口映射修正（default → listen_upper_file），连线持久化不再丢失
+
+</details>
+
+<details>
 <summary><strong>【2026-06-09】V2.0.9 - CanvasHost 分割条位置持久化 & 架构解耦与功能统一化</strong></summary>
 
 [查看完整更新](./2026-06-09/README.md)

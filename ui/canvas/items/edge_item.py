@@ -34,12 +34,16 @@ class EdgeItem(QGraphicsPathItem):
     WAYPOINT_HIT_RADIUS = 14   # 已有折叠点拖拽判定半径
     LONG_PRESS_MS = 250
 
-    def __init__(self, start_node, end_node, canvas=None, target_anchor=None):
+    def __init__(self, start_node, end_node, canvas=None, target_anchor=None, source_anchor=None,
+                 target_port_name=None, source_port_name=None):
         super().__init__()
         self.start_node = start_node
         self.end_node = end_node
         self.canvas = canvas
         self._target_anchor = target_anchor  # 显式指定的目标锚点
+        self._source_anchor = source_anchor  # 显式指定的源锚点
+        self._desired_target_port_name = target_port_name  # 期望绑定的目标端口名（如"prompt"/"context"等）
+        self._desired_source_port_name = source_port_name  # 期望绑定的源端口名
         self._base_width = 2.5
         self._edge_color = QColor("#4A90E2")
 
@@ -61,7 +65,7 @@ class EdgeItem(QGraphicsPathItem):
 
         # ItemCoordinateCache: setPath时自动失效旧缓存，不产生残留
         self.setCacheMode(QGraphicsPathItem.CacheMode.ItemCoordinateCache)
-        self.setZValue(0)  # 线条层：最低
+        self.setZValue(20)  # 线条层：最顶层，不被节点/锚点遮挡
         self.update_edge_style()
 
         self.setFlag(QGraphicsPathItem.GraphicsItemFlag.ItemIsSelectable, True)
@@ -79,19 +83,47 @@ class EdgeItem(QGraphicsPathItem):
         self._setup_anchor_binding()
     
     def _setup_anchor_binding(self):
-        """建立与锚点的双向绑定（支持多输入端口）"""
-        # 获取输出锚点
-        if hasattr(self.start_node, 'output_anchor'):
+        """建立与锚点的双向绑定（支持多输入/输出端口）
+
+        关键规则：
+        - 如果指定了特定端口名（如 prompt / context）但找不到对应锚点，不 fallback 到 default，
+          保持 end_anchor = None，后续 _validate_edge_anchor_binding 会尝试修复或发出警告
+        - 只有在未指定端口名时才允许使用 default 锚点
+        """
+        # 输出端绑定
+        if self._source_anchor:
+            self.start_anchor = self._source_anchor
+        elif self._desired_source_port_name and hasattr(self.start_node, 'anchor_manager'):
+            self.start_anchor = self.start_node.anchor_manager.get_output(self._desired_source_port_name)
+        elif hasattr(self.start_node, 'output_anchor'):
             self.start_anchor = self.start_node.output_anchor
-        
-        # 获取输入锚点（优先使用显式指定的锚点）
+
+        # 输入端绑定
         if self._target_anchor:
             self.end_anchor = self._target_anchor
-        elif hasattr(self.end_node, '_default_input_anchor') and self.end_node._default_input_anchor:
-            self.end_anchor = self.end_node._default_input_anchor
+        elif self._desired_target_port_name and hasattr(self.end_node, 'anchor_manager'):
+            self.end_anchor = self.end_node.anchor_manager.get_input(self._desired_target_port_name)
         elif hasattr(self.end_node, 'input_anchor'):
-            self.end_anchor = self.end_node.input_anchor
-        
+            # 只有在未指定特定端口名时才允许 fallback 到 default
+            if not self._desired_target_port_name:
+                self.end_anchor = self.end_node.input_anchor
+            else:
+                logger.warning(
+                    "[EdgeItem] 指定端口 '%s' 但找不到对应锚点，不绑定到默认锚点: %s → %s",
+                    self._desired_target_port_name,
+                    getattr(self.start_node, 'node_name', '?'),
+                    getattr(self.end_node, 'node_name', '?')
+                )
+
+        logger.debug(
+            "[EdgeItem] _setup_anchor_binding: desired_target_port=%s, found_end_anchor=%s, "
+            "end_anchor.port_name=%s, start_anchor.port_name=%s",
+            self._desired_target_port_name,
+            self.end_anchor is not None,
+            getattr(self.end_anchor, 'port_name', None) if self.end_anchor else None,
+            getattr(self.start_anchor, 'port_name', None) if self.start_anchor else None
+        )
+
         # 双向绑定：将连线注册到锚点
         if self.start_anchor:
             self.start_anchor.add_edge(self)
@@ -130,23 +162,69 @@ class EdgeItem(QGraphicsPathItem):
 
     def _endpoints(self):
         """获取连线端点的场景坐标 - 使用 mapToScene 确保坐标正确跟随节点移动"""
-        # 安全检查：确保锚点存在且已添加到场景
-        if not self.start_anchor or not self.start_anchor.scene():
-            # 回退到节点中心点
-            return self.start_node.sceneBoundingRect().center(), self.end_node.sceneBoundingRect().center()
-        
-        if not self.end_anchor or not self.end_anchor.scene():
-            # 回退到节点中心点
-            return self.start_node.sceneBoundingRect().center(), self.end_node.sceneBoundingRect().center()
-        
-        # 获取锚点在父节点中的中心点（相对于节点的坐标）
-        start_anchor_center = self.start_anchor.boundingRect().center()
-        end_anchor_center = self.end_anchor.boundingRect().center()
-        
-        # 使用 mapToScene 转换到场景坐标（确保实时跟随节点移动）
-        start = self.start_anchor.mapToScene(start_anchor_center)
-        end = self.end_anchor.mapToScene(end_anchor_center)
-        
+        # 安全检查：确保锚点存在且已添加到场景；否则回退到节点上现存的锚点
+        def _resolve_anchor(node, prefer_attr: str, fallback_attr: str):
+            anchor = getattr(self, prefer_attr, None)
+            if anchor is not None and anchor.scene() is not None:
+                return anchor
+            # 锚点已从场景移除（可能是样式切换/重启时重建了锚点）
+            # → 从 node 的 anchor_manager 查找可用锚点
+            if node is None:
+                return None
+            am = getattr(node, "anchor_manager", None)
+            if am is not None:
+                if prefer_attr == "end_anchor":
+                    # 优先保留原 port_name（如果锚点上还有记录）
+                    port_name = getattr(anchor, "port_name", None) if anchor is not None else None
+                    cand = am.get_input(port_name) if port_name else am.get_default_input()
+                    if cand is not None and cand.scene() is not None:
+                        return cand
+                else:
+                    port_name = getattr(anchor, "port_name", None) if anchor is not None else None
+                    cand = am.get_output(port_name) if port_name else am.get_default_output()
+                    if cand is not None and cand.scene() is not None:
+                        return cand
+            # 向后兼容：旧节点可能只有 .input_anchor / .output_anchor 属性
+            cand = getattr(node, fallback_attr, None)
+            if cand is not None and getattr(cand, "scene", lambda: None)() is not None:
+                return cand
+            # 最后兜底：直接返回 cand（可能是 QGraphicsItem 但 scene 为空）
+            return cand if cand is not None else None
+
+        start_anchor = _resolve_anchor(self.start_node, "start_anchor", "output_anchor")
+        end_anchor = _resolve_anchor(self.end_node, "end_anchor", "input_anchor")
+
+        # 确保双向绑定的 self.start_anchor / self.end_anchor 引用也是最新的
+        if start_anchor is not None and start_anchor is not self.start_anchor:
+            self.start_anchor = start_anchor
+            try:
+                start_anchor.add_edge(self)
+            except Exception:
+                pass
+        if end_anchor is not None and end_anchor is not self.end_anchor:
+            self.end_anchor = end_anchor
+            try:
+                end_anchor.add_edge(self)
+            except Exception:
+                pass
+
+        if start_anchor is None or end_anchor is None:
+            # 最终回退：节点中心（极端兜底）
+            s_rect = self.start_node.sceneBoundingRect() if self.start_node else None
+            e_rect = self.end_node.sceneBoundingRect() if self.end_node else None
+            return (
+                s_rect.center() if s_rect else self.start_node.pos() if self.start_node else None,
+                e_rect.center() if e_rect else self.end_node.pos() if self.end_node else None,
+            )
+
+        # 计算锚点在父节点中的中心点（相对于节点的坐标）
+        start_anchor_center = start_anchor.boundingRect().center()
+        end_anchor_center = end_anchor.boundingRect().center()
+
+        # 使用 mapToScene 转换到场景坐标
+        start = start_anchor.mapToScene(start_anchor_center)
+        end = end_anchor.mapToScene(end_anchor_center)
+
         return start, end
 
     # ── 相对坐标系统：折叠点以投影比例存储，随节点移动 ──

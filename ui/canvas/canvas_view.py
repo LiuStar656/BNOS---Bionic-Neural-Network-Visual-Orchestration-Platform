@@ -293,9 +293,12 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         # 如果正在连线中，更新临时连线的终点跟随鼠标
         if self.is_connecting and self.temp_edge and self.connect_source:
             scene_pos = self.mapToScene(event.position().toPoint())
-            # 使用 mapToScene 获取锚点场景坐标（确保正确跟随节点）
-            anchor_center = self.connect_source.output_anchor.boundingRect().center()
-            start_pos = self.connect_source.output_anchor.mapToScene(anchor_center)
+            # 使用 mapToScene 获取锚点场景坐标（支持指定源锚点）
+            source_anchor = getattr(self, '_connect_source_anchor', None)
+            if source_anchor is None:
+                source_anchor = self.connect_source.output_anchor
+            anchor_center = source_anchor.boundingRect().center()
+            start_pos = source_anchor.mapToScene(anchor_center)
 
             # 简单直线临时连线
             path = QPainterPath(start_pos)
@@ -376,25 +379,51 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         # 获取点击位置的项
         item = self.itemAt(event.position().toPoint())
         
-        # ✅ 连线模式：点击锚点→完成连接，点击节点→完成连接，点击连线→查找末端节点完成连接，否则取消
+        # ✅ 连线模式：点击锚点→完成连接（传入 clicked_anchor），
+        #         点击节点/连线→完成连接（用默认锚点），否则取消
         if self.is_connecting and event.button() == Qt.MouseButton.LeftButton:
             target_node = None
-            # 获取点击位置上的所有 items（按 z 排序），跳过临时连线虚线
+            clicked_anchor = None
+            scene_pos = self.mapToScene(event.position().toPoint())
             for probe in self.items(event.position().toPoint()):
                 if probe is self.temp_edge:
                     continue
+                # 优先识别锚点（AnchorItem 是 QGraphicsEllipseItem 的子类，通常挂在 NodeItem 下）
+                if isinstance(probe, AnchorItem):
+                    clicked_anchor = probe
+                    # 向上找父 NodeItem
+                    parent = probe.parentItem()
+                    while parent is not None:
+                        if isinstance(parent, NodeItem):
+                            target_node = parent
+                            break
+                        parent = parent.parentItem()
+                    break
                 if isinstance(probe, NodeItem):
                     target_node = probe
                     break
-                # 点击连线或箭头 → 优先用末端节点作为目标
+                # 点击连线 → 用末端节点作为目标
                 if isinstance(probe, EdgeItem):
                     target_node = probe.end_node
                     break
-            logger.debug("mousePress: item=%s, target_node=%s, connect_source=%s",
-                         type(item).__name__, target_node.node_name if target_node else None,
+            # 兜底：如果没精确点中 AnchorItem，但命中了 NodeItem，
+            # 则在节点局部坐标系下找最近的输入锚点（解决 panel 模式下 proxy 控件挡住锚点小圆点的问题）
+            if target_node is not None and clicked_anchor is None:
+                local_pos = target_node.mapFromScene(scene_pos)
+                clicked_anchor = target_node.find_nearest_input_anchor(local_pos, max_dist=60)
+                if clicked_anchor is None and target_node.anchor_manager.input_anchors:
+                    # 进一步兜底：若节点上只有 1 个输入锚点，直接用它
+                    input_list = list(target_node.anchor_manager.input_anchors.values())
+                    if len(input_list) == 1:
+                        clicked_anchor = input_list[0]
+            logger.debug("mousePress: item=%s, target_node=%s, anchor=%s (port=%s), connect_source=%s",
+                         type(item).__name__,
+                         target_node.node_name if target_node else None,
+                         "ok" if clicked_anchor else "None",
+                         getattr(clicked_anchor, 'port_name', None),
                          self.connect_source.node_name if self.connect_source else None)
             if target_node and target_node != self.connect_source:
-                self.complete_connection_to_input(target_node)
+                self.complete_connection_to_input(target_node, clicked_anchor)
                 logger.debug("连线完成到 %s", target_node.node_name)
                 event.accept()
                 return
@@ -934,10 +963,9 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
                     
     def clear_canvas(self):
         """清空画布"""
-        # 移除所有连线
+        # 移除所有连线（走 remove_edge 以清理 config.json 中的 port_mappings / listen_upper_file）
         for edge in self.edges[:]:
-            edge.remove_from_scene()
-        self.edges.clear()
+            self.remove_edge(edge)
         
         # 移除所有节点
         for node_name, node in self.nodes.items():
@@ -976,6 +1004,9 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
     def _auto_save_layout(self):
         """自动保存布局（防抖）"""
         if self.parent_window and self.parent_window.current_project_path:
+            for i, edge in enumerate(self.edges):
+                ep = getattr(edge.end_anchor, 'port_name', None) if edge.end_anchor else None
+                logger.debug("[auto_save] edge#%d end_anchor.port_name=%s", i, ep)
             self.save_layout(self.parent_window.current_project_path)
     
     # apply_color_settings 等颜色方法已移至 CanvasColorsMixin（canvas_colors.py）

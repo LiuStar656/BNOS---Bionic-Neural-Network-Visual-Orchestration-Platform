@@ -10,7 +10,8 @@ Click on dates below to view detailed updates for that date:
 
 ### [2026-06-10](./2026-06-10/)
 - **Phase 10**: IDE Auto Detection + Right-Click Menu Action Integration (cross-platform VSCode / Trae IDE detection, non-standard path recognition)
-- **Phase 12**: Adaptive Node View (ComfyUI-Style Detailed Mode), 11 parameter widget types, rendered directly on canvas with real-time config.json sync
+- **Phase 12**: Adaptive Node View (ComfyUI-Style Panel Mode), 11 parameter widget types, rendered directly on canvas with real-time config.json sync
+- **Multi-Anchor Refinement**: Anchor differentiation (16px/10px), port mapping correction, edge persistence, batch cleanup
 
 ### [2026-06-09](./2026-06-09/)
 - **CanvasHost Splitter Position Persistence**: Save divider positions between the left node panel and right debug panel to app_config

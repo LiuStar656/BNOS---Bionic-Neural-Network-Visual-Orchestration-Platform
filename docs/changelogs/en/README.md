@@ -6,6 +6,32 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-11】V2.0.11 - Edge Anchor Port Binding Protection & canvas_layout Anti-Corruption</strong></summary>
+
+[View Full Update](./2026-06-11/README.md)
+
+**Main Updates:**
+- EdgeItem adds desired port name fields (_desired_target_port_name), enabling correct anchor lookup after reconstruction
+- Skip edges when specified port anchor missing (no fallback to default), canvas_layout.json no longer silently rewritten
+- _validate_edge_anchor_binding uses desired port name priority over current (possibly wrong) anchor port name
+- Manual edge creation also passes port name args, ensuring end-to-end consistency
+
+</details>
+
+<details>
+<summary><strong>【2026-06-10】V2.0.10 - IDE Auto-Detection & Adaptive Node View & Multi-Anchor Refinement</strong></summary>
+
+[View Full Update](./2026-06-10/README.md)
+
+**Main Updates:**
+- IDEScanner auto-scanner, cross-platform VSCode / Trae IDE detection
+- Third node style "Panel" (ComfyUI-style), 11 parameter widget types
+- Multi-input port support (prompt / context etc.), distributed on node left side
+- Port mapping correction (default → listen_upper_file), edge persistence no longer lost
+
+</details>
+
+<details>
 <summary><strong>【2026-06-09】V2.0.9 - CanvasHost Splitter Position Persistence Fix</strong></summary>
 
 [View Full Update](./2026-06-09/README.md)

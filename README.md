@@ -310,6 +310,18 @@ graph TB
 | **Node Creator** | `ui/creators/node_creator_manager.py` | Multi-language node creation manager |
 | **Tools** | `tools/python_create_node.py` | Python node template generator (venv + scripts) |
 
+---
+
+### 📖 Module Documentation
+
+Detailed documentation for each major module:
+
+| Module | Directory | Documentation |
+|--------|-----------|---------------|
+| **Canvas System** | `ui/canvas/` | [Canvas Module README](ui/canvas/README.md) — Canvas view, layout persistence, connection management, batch operations, drawing layer |
+| **Canvas Items** | `ui/canvas/items/` | [Items Module README](ui/canvas/items/README.md) — NodeItem, EdgeItem, AnchorItem, AnchorManager, NodeStyle (3 styles, multi-anchor) |
+| **Core Infrastructure** | `ui/core/` | [Core Module README](ui/core/README.md) — EventBus, DIContainer, ProcessManager, PollingManager, Action System (50+ actions), Toast, i18n, Theme, IDE Scanner, Configuration Parser |
+| **Change Log** | `docs/changelogs/` | [Changelog Index](docs/changelogs/README.md) — Version history, with Chinese and English versions per release |
 
 ---
 

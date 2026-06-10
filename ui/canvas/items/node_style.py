@@ -113,6 +113,20 @@ class RectNodeStyle(NodeStyle):
     expand_font_bold: bool = True
 
     def apply(self, node_item):
+        # —— 清理 panel 模式留下的 proxy widgets ——
+        if hasattr(node_item, "_proxy_widgets") and node_item._proxy_widgets:
+            for p in node_item._proxy_widgets:
+                try:
+                    p.setWidget(None)
+                    if p.scene():
+                        p.scene().removeItem(p)
+                except Exception:
+                    pass
+            node_item._proxy_widgets.clear()
+        # —— 同时清理参数行位置缓存 ——
+        if hasattr(node_item, "_param_row_positions"):
+            node_item._param_row_positions.clear()
+
         from PyQt6.QtGui import QPen, QBrush, QFont
         from PyQt6.QtCore import Qt
         w, h = self.node_width, self.node_height
@@ -175,21 +189,24 @@ class RectNodeStyle(NodeStyle):
             node_item._out_label.setPos(w + self.out_label_x, h / 2 + self.label_y)
             node_item._out_label.setVisible(True)
 
-        # 锚点（在节点本体上方一线）- 框图模式仅支持单锚点
-        if hasattr(node_item, 'input_anchor'):
-            node_item.input_anchor.setRect(0, 0, 16, 16)  # 重置锚点尺寸为标准大小
-            node_item.input_anchor.setPos(self.anchor_in_x, h / 2 - 8)
-            node_item.input_anchor.setZValue(1)
-            node_item.input_anchor.setVisible(True)
-        if hasattr(node_item, 'output_anchor'):
-            node_item.output_anchor.setRect(0, 0, 16, 16)  # 重置锚点尺寸为标准大小
-            node_item.output_anchor.setPos(w - 8, h / 2 - 8)
-            node_item.output_anchor.setZValue(1)
-            node_item.output_anchor.setVisible(True)
-        
-        # 框图模式不支持多输入端口，清理可能存在的多锚点
-        if hasattr(node_item, '_destroy_multi_input_anchors'):
-            node_item._destroy_multi_input_anchors()
+        # 锚点（框图模式：左右各一个 default 单锚点）
+        # 委托给 AnchorManager.layout_for_rect，不再直接操作 AnchorItem
+        if hasattr(node_item, 'anchor_manager'):
+            node_item.anchor_manager.layout_for_rect(w, h)
+        elif hasattr(node_item, 'input_anchor'):
+            # 兜底：老代码路径（理论上永远不会走到）
+            if node_item.input_anchor:
+                node_item.input_anchor.setRect(0, 0, 16, 16)
+                node_item.input_anchor.setPos(self.anchor_in_x, h / 2 - 8)
+                node_item.input_anchor.setZValue(1)
+                node_item.input_anchor.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
+                node_item.input_anchor.setVisible(True)
+            if hasattr(node_item, 'output_anchor') and node_item.output_anchor:
+                node_item.output_anchor.setRect(0, 0, 16, 16)
+                node_item.output_anchor.setPos(w - 8, h / 2 - 8)
+                node_item.output_anchor.setZValue(1)
+                node_item.output_anchor.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
+                node_item.output_anchor.setVisible(True)
 
         # 展开按钮
         ex, ey = w + self.expand_x, self.expand_y
@@ -264,6 +281,20 @@ class DotNodeStyle(NodeStyle):
     lang_font_size: int = 7
 
     def apply(self, node_item):
+        # —— 清理 panel 模式留下的 proxy widgets ——
+        if hasattr(node_item, "_proxy_widgets") and node_item._proxy_widgets:
+            for p in node_item._proxy_widgets:
+                try:
+                    p.setWidget(None)
+                    if p.scene():
+                        p.scene().removeItem(p)
+                except Exception:
+                    pass
+            node_item._proxy_widgets.clear()
+        # —— 清理参数行位置缓存 ——
+        if hasattr(node_item, "_param_row_positions"):
+            node_item._param_row_positions.clear()
+
         from PyQt6.QtWidgets import QGraphicsEllipseItem
         from PyQt6.QtGui import QPen, QBrush, QFont
         from PyQt6.QtCore import Qt
@@ -284,28 +315,38 @@ class DotNodeStyle(NodeStyle):
         node_item.status_indicator.setVisible(False)
         node_item._expand_btn_rect.setRect(-100, -100, 1, 1)
 
-        # ===== 三层锚点架构 =====
-        # 输出锚点 — 最下层 (z=4)，尺寸=指示灯
+        # ===== 圆形节点：单锚点（不支持多输入，会重叠）=====
+        # 委托给 AnchorManager.layout_for_dot，不再直接操作 AnchorItem
         out_sz = r * 2
-        node_item.output_anchor.setRect(0, 0, out_sz, out_sz)
-        node_item.output_anchor.setPos(cx, cy)
-        node_item.output_anchor.setZValue(4)
-        node_item.output_anchor.setVisible(True)
-        node_item.output_anchor.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-
-        # 输入锚点 — 中层 (z=5)，比指示灯大
-        # 圆形节点不支持多输入端口（会重叠），始终使用单锚点
         in_extra = 6
         in_sz = r * 2 + in_extra
-        node_item.input_anchor.setRect(0, 0, in_sz, in_sz)
-        node_item.input_anchor.setPos(cx - in_extra // 2, cy - in_extra // 2)
-        node_item.input_anchor.setZValue(5)
-        node_item.input_anchor.setVisible(True)
-        node_item.input_anchor.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-        
-        # 确保多锚点被清理（如果之前是其他样式）
-        if hasattr(node_item, '_destroy_multi_input_anchors'):
-            node_item._destroy_multi_input_anchors()
+        anchor_out_pos = (cx, cy)
+        anchor_in_pos = (cx - in_extra // 2, cy - in_extra // 2)
+
+        if hasattr(node_item, 'anchor_manager'):
+            node_item.anchor_manager.layout_for_dot(
+                w, h,
+                anchor_in_size=in_sz, anchor_in_pos=anchor_in_pos,
+                anchor_out_size=out_sz, anchor_out_pos=anchor_out_pos,
+            )
+        else:
+            # 兜底：老代码路径
+            if hasattr(node_item, 'destroy_all_anchors'):
+                node_item.destroy_all_anchors()
+            if hasattr(node_item, '_ensure_default_anchors'):
+                node_item._ensure_default_anchors()
+            if hasattr(node_item, 'output_anchor') and node_item.output_anchor:
+                node_item.output_anchor.setRect(0, 0, out_sz, out_sz)
+                node_item.output_anchor.setPos(cx, cy)
+                node_item.output_anchor.setZValue(4)
+                node_item.output_anchor.setVisible(True)
+                node_item.output_anchor.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            if hasattr(node_item, 'input_anchor') and node_item.input_anchor:
+                node_item.input_anchor.setRect(0, 0, in_sz, in_sz)
+                node_item.input_anchor.setPos(cx - in_extra // 2, cy - in_extra // 2)
+                node_item.input_anchor.setZValue(5)
+                node_item.input_anchor.setVisible(True)
+                node_item.input_anchor.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
 
         # 指示灯 — 最上层 (z=6)，可点击穿透
         body_sz = r * 2
@@ -355,24 +396,55 @@ class DotNodeStyle(NodeStyle):
 # ============================================================
 
 class DetailedNodeStyle(RectNodeStyle):
-    """面板模式节点 — 画布上直显参数编辑控件
+    """ComfyUI 风格面板模式节点 — 画布上直显参数编辑控件
+
+    核心特征：
+      - 圆角矩形边框（8px 圆角）
+      - 顶部彩色标题栏（按语言/类型区分颜色）
+      - 每行一个端口/参数：[左侧锚点] + [标签] + [参数控件]
+      - 深色背景（#2d2d30），浅色文字
+      - 右侧独立输出锚点（底部一行）
 
     尺寸由子控件内容驱动（两阶段构建）：
       1. 先 build 所有参数控件并测量其自然尺寸
-      2. 节点宽度 = 最长标签 + 最长控件 + 左右边距 + 间距
-      3. 节点高度 = 标题高度 + 分隔带 + Σ(控件高度) + 底部留白
+      2. 节点宽度 = 最长标签 + 最长控件 + 左右边距 + 锚点预留
+      3. 节点高度 = 标题高度 + Σ(行高) + 底部留白
     """
     style_key: str = "detailed"
     style_name: str = "k_node_style_detailed"
     is_dot: bool = False
     status_show: bool = False
 
-    # 布局常量（边距/间距，不涉及尺寸）
-    HEADER_HEIGHT = 26   # 标题行（节点名文本占位高度）
-    DIVIDER_HEIGHT = 4   # 标题与参数区之间的间隔
-    ROW_HEIGHT = 24      # 单行参数的基准高度
-    BOTTOM_PADDING = 6
-    MIN_NODE_WIDTH = 240  # 节点最小宽度兜底
+    # === ComfyUI 风格布局常量 ===
+    CORNER_RADIUS = 8           # 圆角半径
+    HEADER_HEIGHT = 28           # 标题栏高度
+    HEADER_TEXT_PADDING = 10     # 标题栏左右内边距
+    ROW_HEIGHT = 32             # 单行基准高度
+    ROW_SPACING = 2             # 行间距
+    BOTTOM_PADDING = 8           # 底部留白
+    LABEL_WIDTH = 80             # 标签列固定宽度
+    ANCHOR_ZONE_WIDTH = 16       # 左侧锚点预留宽度
+    LEFT_INNER_PADDING = 12       # 内容区左边距
+    RIGHT_INNER_PADDING = 12       # 内容区右边距
+    MIN_NODE_WIDTH = 380         # 节点最小宽度（确保内容有足够空间）
+
+    # === ComfyUI 风格颜色 ===
+    body_bg = "#2d2d30"         # 节点主体背景色
+    body_border = "#454545"     # 节点边框色
+    header_text_color = "#ffffff"  # 标题栏文字色（白）
+    body_text_color = "#cccccc"     # 主体文字色
+
+    # 标题栏颜色：按语言/类型区分（ComfyUI 风格的节点颜色）
+    HEADER_COLORS = {
+        "python": "#49cc90",    # 绿色系 - Python 节点
+        "rust": "#dea584",      # 橙色系 - Rust 节点
+        "node": "#3c873a",      # 深绿 - Node.js 节点
+        "default": "#555555",   # 灰色 - 默认
+    }
+
+    @classmethod
+    def header_color_for(cls, language: str) -> str:
+        return cls.HEADER_COLORS.get((language or "").lower(), cls.HEADER_COLORS["default"])
 
     def __init__(self):
         super().__init__()
@@ -382,20 +454,55 @@ class DetailedNodeStyle(RectNodeStyle):
     def set_sizes(self, content_width: int, content_height: int):
         """由 NodeItem 调用 — 根据实际内容尺寸设置节点宽高"""
         self._computed_width = max(self.MIN_NODE_WIDTH, content_width)
-        self._computed_height = self.HEADER_HEIGHT + self.DIVIDER_HEIGHT + content_height + self.BOTTOM_PADDING
+        self._computed_height = self.HEADER_HEIGHT + content_height + self.BOTTOM_PADDING
         self.node_width = self._computed_width
         self.node_height = self._computed_height
 
     def apply(self, node_item):
-        """详细版 apply 的核心逻辑在 _build_detailed_view 中（两阶段）：
-        先测量子控件尺寸 → 再调用 RectNodeStyle.apply 绘制方框 → 最后嵌入控件"""
+        """ComfyUI 风格 apply：
+        1. 清理旧样式（brush/pen/tags）
+        2. _build_detailed_view 构建参数控件 → 计算节点尺寸
+        3. build_anchors_from_config 根据 config 生成多锚点
+        """
+        # 关闭缓存模式（详细版中有 proxy widgets，缓存会导致视觉错误）
+        from PyQt6.QtWidgets import QGraphicsItem
+        node_item.setCacheMode(QGraphicsItem.CacheMode.NoCache)
+
+        # 确保 QGraphicsRectItem 不绘制额外的方形背景/边框（paint 完全由我们控制）
+        from PyQt6.QtGui import QBrush, QPen, QColor
+        from PyQt6.QtCore import Qt
+        node_item.setBrush(QBrush(QColor(0, 0, 0, 0)))  # 透明
+        node_item.setPen(QPen(Qt.PenStyle.NoPen))
+
+        # 隐藏状态控件
         if hasattr(node_item, "_status_widget") and node_item._status_widget:
             node_item._status_widget.set_visible(False)
+        # 隐藏 IN/OUT 标签（ComfyUI 风格不显示，改为行内标签）
+        if hasattr(node_item, "_in_label") and node_item._in_label:
+            node_item._in_label.setVisible(False)
+        if hasattr(node_item, "_out_label") and node_item._out_label:
+            node_item._out_label.setVisible(False)
+        # 隐藏展开按钮
+        if hasattr(node_item, "_expand_btn") and node_item._expand_btn:
+            node_item._expand_btn.setVisible(False)
+        if hasattr(node_item, "_expand_label") and node_item._expand_label:
+            node_item._expand_label.setVisible(False)
+        # 隐藏状态灯
+        if hasattr(node_item, "status_indicator") and node_item.status_indicator:
+            node_item.status_indicator.setVisible(False)
+        # 隐藏语言标签（标题栏已经显示节点名）
+        if hasattr(node_item, "lang_text") and node_item.lang_text:
+            node_item.lang_text.setVisible(False)
+
+        # 构建详细视图（标题栏 + 参数控件 + 锚点位置）
         node_item._build_detailed_view()
-        
-        # 构建多输入锚点（根据 config.json 中的 input_ports 定义）
-        if hasattr(node_item, "_build_multi_input_anchors"):
-            node_item._build_multi_input_anchors()
+
+        # 构建多输入锚点
+        if hasattr(node_item, "build_anchors_from_config"):
+            config = None
+            if hasattr(node_item, "_get_node_config"):
+                config = node_item._get_node_config()
+            node_item.build_anchors_from_config(config)
 
 
 # ============================================================

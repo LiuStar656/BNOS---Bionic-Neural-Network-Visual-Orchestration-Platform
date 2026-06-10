@@ -30,12 +30,33 @@ class ParameterDef:
 
 @dataclass
 class InputPortDef:
-    """单个输入端口的定义"""
-    name: str           # 端口唯一标识
-    label: str = ""     # 端口显示名称
-    type: str = "default"  # 数据类型（用于连线兼容性校验）
-    required: bool = False  # 是否必需连接
-    description: str = ""   # 端口描述
+    """单个输入端口的定义
+
+    source 字段控制端口的"数据来源模式"（与 AnchorManager.PortSource 对应）：
+        - "node" : 需要从上游节点连入数据 → 在画布上生成锚点
+        - "edit" : 用户手动输入（文本框 / 下拉框）→ 由参数面板渲染
+        - "param": 可选参数（有 default）→ 由参数面板渲染
+        - None   : 未指定 → 默认不生成锚点（保持旧节点兼容）
+    """
+    name: str                        # 端口唯一标识
+    label: str = ""                  # 端口显示名称
+    type: str = "default"            # 数据类型（用于连线兼容性校验）
+    required: bool = False           # 是否必需连接
+    description: str = ""            # 端口描述
+    source: Optional[str] = None     # 数据来源（见上方注释）
+
+
+@dataclass
+class OutputPortDef:
+    """单个输出端口的定义
+
+    节点可以有多个输出端口，每个输出端口都在画布右侧生成一个锚点，
+    可供下游节点连线使用。
+    """
+    name: str                        # 端口唯一标识
+    label: str = ""                  # 端口显示名称
+    type: str = "default"            # 数据类型
+    description: str = ""            # 端口描述
 
 
 class NodeConfigParser:
@@ -80,3 +101,22 @@ class NodeConfigParser:
     def get_input_port_names(config: dict) -> list[str]:
         """获取所有输入端口名称"""
         return [p["name"] for p in (config.get("input_ports") or [])]
+
+    # -- 输出端口 --
+    @staticmethod
+    def parse_output_ports(config: dict) -> list[OutputPortDef]:
+        """从 config.json 中提取输出端口定义列表"""
+        raw = config.get("output_ports", [])
+        if not raw:
+            return []
+        return [OutputPortDef(**p) for p in raw]
+
+    @staticmethod
+    def has_output_ports(config: dict) -> bool:
+        """检查配置是否包含输出端口定义"""
+        return bool(config.get("output_ports"))
+
+    @staticmethod
+    def get_output_port_names(config: dict) -> list[str]:
+        """获取所有输出端口名称"""
+        return [p["name"] for p in (config.get("output_ports") or [])]

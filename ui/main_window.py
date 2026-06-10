@@ -1216,12 +1216,9 @@ class BNOSMainWindow(QMainWindow):
         from ui.core.project_manager import project_refresh
         project_refresh(self, async_mode=False)
         
-        # 创建画布
+        # 创建画布（_create_canvas_dock 内部已调用一次 load_layout，无需再调）
         if hasattr(self, '_canvas_host'):
             self._canvas_host.add_canvas_dock(project_name, project_dir)
-        
-        # 加载布局
-        self._canvas_host.load_layout_for_active(project_dir)
         
         # ===== 关键：恢复 CanvasHost 的状态（包括分割条位置） =====
         from ui.core.window_state_manager import restore_canvas_host_state

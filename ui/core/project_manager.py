@@ -112,7 +112,7 @@ def project_open(main_window):
         # 如果没有CanvasHost，按原来的方式处理
         canvas = main_window._canvas_host.add_canvas_dock(project_name, project_dir)
     
-    _canvas_call(main_window, 'load_layout', project_dir)
+    # 注意：_create_canvas_dock 内部已调用一次 load_layout，此处无需再调
     
     # ===== 关键：恢复 CanvasHost 的状态（包括分割条位置） =====
     from ui.core.window_state_manager import restore_canvas_host_state

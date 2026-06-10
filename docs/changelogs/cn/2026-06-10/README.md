@@ -2,7 +2,7 @@
 
 ## 📋 更新概述
 
-本次更新完成了 Phase 10（IDE 工作区集成）和 **Phase 12（自适应节点视图）**。新增 IDEScanner 自动扫描器、4 个 IDE Action 注册到 Action 系统，以及第三种节点样式「详细版」（类似 ComfyUI，在画布上直接渲染参数编辑控件）。
+本次更新完成了 Phase 10（IDE 工作区集成）、**Phase 12（自适应节点视图）** 以及**多锚点系统完善与连线持久化**。新增 IDEScanner 自动扫描器、4 个 IDE Action 注册到 Action 系统、第三种节点样式「面板模式」（类似 ComfyUI），以及锚点差异化定位、端口映射修正、连线持久化等关键修复。
 
 ---
 
@@ -127,6 +127,29 @@
 
 ---
 
+### 5. 🔧 多锚点系统完善与连线持久化
+
+**功能描述**：
+- 锚点差异化：主输入锚点（`listen_upper_file`）16px 左边界居中，附加输入端口锚点 10px 紧贴标签左侧
+- 端口映射修正：`port_name="default"` 写入 `listen_upper_file` 而非 `port_mappings["default"]`
+- 连线层级提升：EdgeItem z-value 0 → 20，确保连线始终在最顶层
+- 持久化修复：`canvas_layout.json` 保存 `source_port` / `target_port`，重启后恢复正确锚点绑定
+- 批量清除完善：`clear_canvas` 和 `batch_clear_listen_config` 正确处理 `port_mappings` 清理
+
+**修改文件**（8 个文件）：
+- 修改 `ui/canvas/items/anchor_item.py`（双尺寸锚点支持）
+- 修改 `ui/canvas/items/anchor_manager.py`（size 参数、动态距离计算）
+- 修改 `ui/canvas/items/node_item.py`（小锚点坐标计算）
+- 修改 `ui/canvas/items/edge_item.py`（z-value 提升）
+- 修改 `ui/canvas/canvas_connections.py`（端口映射分发）
+- 修改 `ui/canvas/canvas_layout.py`（持久化 + 绑定校验）
+- 修改 `ui/canvas/canvas_view.py`（clear_canvas 修复）
+- 修改 `ui/canvas/canvas_batch_ops.py`（批量清除完善）
+
+**详细文档**：[多锚点系统完善与连线持久化](./03_多锚点系统完善与连线持久化.md)
+
+---
+
 ## 🎯 总览
 
 | 功能 | 状态 |
@@ -144,6 +167,11 @@
 | 双向数据绑定（即时写回 config.json） | ✅ 完成 |
 | 样式切换无尺寸错乱 | ✅ 完成 |
 | 样式切换无控件残留 | ✅ 完成 |
+| 主/副锚点尺寸差异化（16px / 10px） | ✅ 完成 |
+| 端口映射正确分发（default → listen_upper_file） | ✅ 完成 |
+| 连线层级提升至最顶层（z=20） | ✅ 完成 |
+| 连线端口信息持久化（重启不丢失） | ✅ 完成 |
+| 批量清除 port_mappings 支持 | ✅ 完成 |
 
 ---
 

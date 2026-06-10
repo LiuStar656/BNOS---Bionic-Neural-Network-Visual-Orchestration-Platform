@@ -304,6 +304,19 @@ graph TB
 
 ---
 
+### 📖 模块文档
+
+各核心模块详细文档：
+
+| 模块 | 目录 | 文档 |
+|------|------|------|
+| **画布系统** | `ui/canvas/` | [Canvas 模块 README](ui/canvas/README.md) — 画布视图、布局持久化、连线管理、批量操作、绘图层 |
+| **画布项** | `ui/canvas/items/` | [Items 模块 README](ui/canvas/items/README.md) — NodeItem、EdgeItem、AnchorItem、AnchorManager、节点样式（3 种样式、多锚点） |
+| **核心基础设施** | `ui/core/` | [Core 模块 README](ui/core/README.md) — EventBus、DIContainer、ProcessManager、PollingManager、Action 系统（50+ 动作）、Toast、i18n、主题、IDE 扫描器、配置解析 |
+| **更新日志** | `docs/changelogs/` | [更新日志索引](docs/changelogs/README.md) — 版本历史，每个版本有中英文说明 |
+
+---
+
 ## 🚀 快速开始
 
 ### 前置要求

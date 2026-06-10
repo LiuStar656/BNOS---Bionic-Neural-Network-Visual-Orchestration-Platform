@@ -2,7 +2,7 @@
 
 ## 📋 Update Overview
 
-This update completes Phase 10 (IDE Workspace Integration) and **Phase 12 (Adaptive Node View)**. Introduces the IDEScanner auto detector, 4 IDE Actions registered in the Action system, and a third node style "Detailed" — ComfyUI-style parameter controls rendered directly on the canvas.
+This update completes Phase 10 (IDE Workspace Integration), **Phase 12 (Adaptive Node View)**, and **Multi-Anchor System Refinement with Edge Persistence**. Introduces the IDEScanner auto detector, 4 IDE Actions registered in the Action system, a third node style "Panel" (ComfyUI-style controls on canvas), plus anchor differentiation, port mapping fixes, edge persistence, and batch cleanup improvements.
 
 ---
 
@@ -116,6 +116,29 @@ This update completes Phase 10 (IDE Workspace Integration) and **Phase 12 (Adapt
 
 ---
 
+### 5. 🔧 Multi-Anchor System Refinement & Edge Persistence
+
+**Feature Description**:
+- Anchor differentiation: main input anchor (`listen_upper_file`) 16px centered on left edge; additional input port anchors 10px, tight against label left side
+- Port mapping fix: `port_name="default"` writes to `listen_upper_file` instead of `port_mappings["default"]`
+- Edge z-layer boost: EdgeItem z-value 0 → 20, ensuring edges always render on top
+- Persistence fix: `canvas_layout.json` saves `source_port` / `target_port`, restoring correct anchor binding after restart
+- Batch cleanup: `clear_canvas` and `batch_clear_listen_config` now properly handle `port_mappings`
+
+**Modified Files** (8 files):
+- Modified `ui/canvas/items/anchor_item.py` (dual-size anchor support)
+- Modified `ui/canvas/items/anchor_manager.py` (size param, dynamic distance calc)
+- Modified `ui/canvas/items/node_item.py` (small anchor coordinate calc)
+- Modified `ui/canvas/items/edge_item.py` (z-value boost)
+- Modified `ui/canvas/canvas_connections.py` (port mapping dispatch)
+- Modified `ui/canvas/canvas_layout.py` (persistence + binding validation)
+- Modified `ui/canvas/canvas_view.py` (clear_canvas fix)
+- Modified `ui/canvas/canvas_batch_ops.py` (batch cleanup enhancement)
+
+**Detailed Document**: [Multi-Anchor System Refinement & Edge Persistence](./03_Multi_Anchor_Refinement_and_Edge_Persistence.md)
+
+---
+
 ## 🎯 Overview
 
 | Feature | Status |
@@ -133,6 +156,11 @@ This update completes Phase 10 (IDE Workspace Integration) and **Phase 12 (Adapt
 | Bidirectional Data Binding (real-time config.json write-back) | ✅ Completed |
 | Style Switching Without Size Distortion | ✅ Completed |
 | Style Switching Without Widget Residues | ✅ Completed |
+| Main / Sub Anchor Size Differentiation (16px / 10px) | ✅ Completed |
+| Port Mapping Dispatch (default → listen_upper_file) | ✅ Completed |
+| Edge Z-Layer Boost (z=20) | ✅ Completed |
+| Edge Port Info Persistence (no loss on restart) | ✅ Completed |
+| Batch Clear port_mappings Support | ✅ Completed |
 
 ---
 
