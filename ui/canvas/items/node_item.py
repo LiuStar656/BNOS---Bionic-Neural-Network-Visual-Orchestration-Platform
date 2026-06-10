@@ -49,6 +49,11 @@ class NodeItem(QGraphicsRectItem):
         self.input_anchor = AnchorItem(0, 0, "input", self)
         self.output_anchor = AnchorItem(0, 0, "output", self)
         
+        # 多输入锚点容器（支持多个输入端口）
+        self.input_anchors: dict[str, AnchorItem] = {}  # name -> AnchorItem
+        self.input_port_labels: dict[str, QGraphicsTextItem] = {}  # name -> Label
+        self._default_input_anchor = None  # 默认输入锚点（兼容旧代码）
+        
         # IN / OUT 标签（文字层）
         self._in_label = QGraphicsTextItem("IN", self)
         self._in_label.setZValue(4)
@@ -468,14 +473,60 @@ class NodeItem(QGraphicsRectItem):
                     event.accept()
                     return
 
-                # 方块节点：输入锚点（完成连线）
+                # 方块节点：输入锚点（完成连线）- 支持多输入端口
                 input_anchor_rect = QRectF(-8, h / 2 - 8, 16, 16)
-                if input_anchor_rect.contains(pos_in_item):
-                    logger.debug("NodeItem: 点击输入锚点 area, is_connecting=%s, canvas=%s",
-                                 self.canvas.is_connecting if self.canvas else None, self.canvas is not None)
+                clicked_anchor = None
+                click_x, click_y = pos_in_item.x(), pos_in_item.y()
+                
+                # 检查是否启用了多输入端口
+                has_multi_anchors = hasattr(self, 'input_anchors') and self.input_anchors
+                
+                if has_multi_anchors and len(self.input_anchors) > 0:
+                    # 多端口模式：只检查多输入锚点
+                    logger.info(f"NodeItem: 多端口模式，点击位置=({click_x:.1f}, {click_y:.1f})")
+                    
+                    # 计算左侧锚点区域 (x: -16 到 8)
+                    if -16 <= click_x <= 8:
+                        # 在锚点区域内，找最近的锚点
+                        min_dist = float('inf')
+                        closest_anchor = None
+                        
+                        for anchor_name, anchor in self.input_anchors.items():
+                            anchor_x = anchor.pos().x()
+                            anchor_y = anchor.pos().y()
+                            # 计算距离（考虑锚点尺寸16x16，中心在+8,+8）
+                            dist = ((click_x - (anchor_x + 8)) ** 2 + (click_y - (anchor_y + 8)) ** 2) ** 0.5
+                            logger.debug(f"NodeItem: 锚点 '{anchor_name}' at ({anchor_x:.1f}, {anchor_y:.1f}), 距离={dist:.2f}")
+                            
+                            # 如果点击在锚点范围内（半径12像素）
+                            if dist <= 12:
+                                clicked_anchor = anchor
+                                logger.info(f"NodeItem: 点击锚点 '{anchor_name}'")
+                                break
+                            
+                            # 记录最近的锚点
+                            if dist < min_dist:
+                                min_dist = dist
+                                closest_anchor = anchor
+                        
+                        # 如果没有精确点击到锚点，但在锚点区域附近，选择最近的
+                        if not clicked_anchor and closest_anchor and min_dist <= 20:
+                            clicked_anchor = closest_anchor
+                            logger.info(f"NodeItem: 选择最近锚点 '{closest_anchor.port_name}'")
+                
+                else:
+                    # 单端口模式：检查默认单锚点
+                    if input_anchor_rect.contains(pos_in_item):
+                        clicked_anchor = self.input_anchor
+                        logger.info(f"NodeItem: 单端口模式，点击默认锚点")
+                
+                if clicked_anchor:
+                    logger.debug("NodeItem: 点击输入锚点 %s, is_connecting=%s", 
+                                 clicked_anchor.port_name if hasattr(clicked_anchor, 'port_name') else 'default',
+                                 self.canvas.is_connecting if self.canvas else None)
                     if self.canvas and self.canvas.is_connecting:
                         logger.debug("NodeItem: 完成连线到 %s", self.node_name)
-                        self.canvas.complete_connection_to_input(self)
+                        self.canvas.complete_connection_to_input(self, clicked_anchor)
                     event.accept()
                     return
 
@@ -509,6 +560,10 @@ class NodeItem(QGraphicsRectItem):
                               └── TextWidget (参数行 n)
         """
         self._destroy_detailed()
+        
+        # 先销毁旧的多输入锚点（样式切换时）
+        if hasattr(self, '_destroy_multi_input_anchors'):
+            self._destroy_multi_input_anchors()
 
         config = self._get_node_config()
         if not config:
@@ -581,6 +636,113 @@ class NodeItem(QGraphicsRectItem):
         # 恢复节点的 DeviceCoordinateCache（默认渲染性能优化）
         self.setCacheMode(self.CacheMode.DeviceCoordinateCache)
 
+    def _build_multi_input_anchors(self):
+        """构建多输入锚点（根据 config.json 中的 input_ports 定义）"""
+        # 先清除旧的多输入锚点
+        self._destroy_multi_input_anchors()
+        
+        config = self._get_node_config()
+        if not config:
+            # 没有配置，使用默认锚点
+            self._default_input_anchor = self.input_anchor
+            self.input_anchor.setVisible(True)
+            return
+        
+        from ui.core.node_config_parser import NodeConfigParser
+        ports = NodeConfigParser.parse_input_ports(config)
+        if not ports:
+            # 没有定义多端口，使用默认锚点
+            self._default_input_anchor = self.input_anchor
+            self.input_anchor.setVisible(True)
+            return
+        
+        # 确保节点已经完成布局
+        self.updateGeometry()
+        
+        # 计算锚点垂直分布位置
+        header_h = getattr(self._style, "HEADER_HEIGHT", 26)
+        divider = getattr(self._style, "DIVIDER_HEIGHT", 4)
+        # 使用节点实际高度
+        total_h = self.rect().height() if self.rect().height() > 0 else 150
+        
+        logger.info(f"_build_multi_input_anchors: 节点高度={total_h}, 端口数量={len(ports)}")
+        
+        # 锚点区域可用高度（减去标题、分隔带和底部留白）
+        available_h = total_h - header_h - divider - 16
+        port_count = len(ports)
+        
+        if port_count == 1:
+            # 单端口居中
+            spacing = 0
+            start_y = header_h + divider + available_h / 2
+        else:
+            # 多端口均匀分布
+            spacing = available_h / (port_count - 1) if port_count > 1 else 0
+            start_y = header_h + divider + 8  # 从顶部开始，留一点边距
+        
+        # 创建每个端口锚点
+        from PyQt6.QtGui import QColor
+        from PyQt6.QtWidgets import QGraphicsTextItem
+        
+        for i, port in enumerate(ports):
+            # 计算锚点位置
+            anchor_y = start_y + i * spacing - 8  # 减去锚点半径(8)使其居中
+            anchor_x = -8  # 左侧边缘
+            
+            # 创建锚点
+            anchor = AnchorItem(0, 0, "input", self)
+            anchor.setPos(anchor_x, anchor_y)
+            anchor.setZValue(10)
+            anchor.setVisible(True)
+            anchor.port_name = port.name
+            anchor.port_type = port.type
+            anchor.setToolTip(f"{port.label or port.name} ({port.type})")
+            self.input_anchors[port.name] = anchor
+            
+            logger.info(f"_build_multi_input_anchors: 创建锚点 '{port.name}' at ({anchor_x}, {anchor_y:.1f})")
+            
+            # 添加端口标签
+            label_text = port.label if port.label else port.name
+            label = QGraphicsTextItem(label_text, self)
+            label.setPos(12, start_y + i * spacing - 6)
+            label.setZValue(9)
+            label.setDefaultTextColor(QColor("#888"))
+            label.setFont(self._get_label_font())
+            self.input_port_labels[port.name] = label
+        
+        # 设置默认锚点（优先选择必需端口，否则选第一个）
+        required_port = next((p for p in ports if p.required), None)
+        default_port_name = required_port.name if required_port else ports[0].name
+        self._default_input_anchor = self.input_anchors.get(default_port_name)
+        
+        # 隐藏旧的单锚点
+        self.input_anchor.setVisible(False)
+        
+        logger.info(f"_build_multi_input_anchors: 默认锚点={self._default_input_anchor.port_name if self._default_input_anchor else None}")
+    
+    def _destroy_multi_input_anchors(self):
+        """销毁多输入锚点（样式切换时调用）"""
+        for anchor in self.input_anchors.values():
+            if self.scene():
+                self.scene().removeItem(anchor)
+        self.input_anchors.clear()
+        
+        for label in self.input_port_labels.values():
+            if self.scene():
+                self.scene().removeItem(label)
+        self.input_port_labels.clear()
+        
+        # 恢复默认锚点可见性
+        self.input_anchor.setVisible(True)
+        self._default_input_anchor = self.input_anchor
+    
+    def _get_label_font(self):
+        """获取端口标签字体"""
+        from PyQt6.QtGui import QFont
+        font = QFont()
+        font.setPointSize(10)
+        return font
+    
     def _on_param_changed(self, name: str, value):
         """参数变更 → 写回 config.json"""
         config = self._get_node_config()

@@ -34,11 +34,12 @@ class EdgeItem(QGraphicsPathItem):
     WAYPOINT_HIT_RADIUS = 14   # 已有折叠点拖拽判定半径
     LONG_PRESS_MS = 250
 
-    def __init__(self, start_node, end_node, canvas=None):
+    def __init__(self, start_node, end_node, canvas=None, target_anchor=None):
         super().__init__()
         self.start_node = start_node
         self.end_node = end_node
         self.canvas = canvas
+        self._target_anchor = target_anchor  # 显式指定的目标锚点
         self._base_width = 2.5
         self._edge_color = QColor("#4A90E2")
 
@@ -78,11 +79,17 @@ class EdgeItem(QGraphicsPathItem):
         self._setup_anchor_binding()
     
     def _setup_anchor_binding(self):
-        """建立与锚点的双向绑定"""
-        # 获取锚点引用
+        """建立与锚点的双向绑定（支持多输入端口）"""
+        # 获取输出锚点
         if hasattr(self.start_node, 'output_anchor'):
             self.start_anchor = self.start_node.output_anchor
-        if hasattr(self.end_node, 'input_anchor'):
+        
+        # 获取输入锚点（优先使用显式指定的锚点）
+        if self._target_anchor:
+            self.end_anchor = self._target_anchor
+        elif hasattr(self.end_node, '_default_input_anchor') and self.end_node._default_input_anchor:
+            self.end_anchor = self.end_node._default_input_anchor
+        elif hasattr(self.end_node, 'input_anchor'):
             self.end_anchor = self.end_node.input_anchor
         
         # 双向绑定：将连线注册到锚点

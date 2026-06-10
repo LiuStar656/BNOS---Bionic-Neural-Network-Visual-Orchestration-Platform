@@ -47,13 +47,15 @@ class CanvasConnectionsMixin:
         path.lineTo(scene_pos)
         self.temp_edge.setPath(path)
 
-    def complete_connection_to_input(self, target_node):
-        """完成连线到输入锚点"""
-        logger.debug("complete_connection_to_input: source=%s, target=%s, is_connecting=%s",
+    def complete_connection_to_input(self, target_node, clicked_anchor=None):
+        """完成连线到输入锚点（支持指定锚点）"""
+        logger.debug("complete_connection_to_input: source=%s, target=%s, anchor=%s, is_connecting=%s",
                      self.connect_source.node_name if self.connect_source else None,
-                     target_node.node_name, self.is_connecting)
+                     target_node.node_name,
+                     clicked_anchor.port_name if clicked_anchor else None,
+                     self.is_connecting)
         if self.connect_source and self.connect_source != target_node:
-            self.create_edge(self.connect_source, target_node)
+            self.create_edge(self.connect_source, target_node, clicked_anchor)
 
         if self.temp_edge:
             self.scene.removeItem(self.temp_edge)
@@ -63,12 +65,23 @@ class CanvasConnectionsMixin:
         self.connect_source = None
         self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
 
-    def create_edge(self, source_node, target_node):
-        """创建连线并配置上下游关系"""
-        for edge in self.edges:
-            if edge.start_node == source_node and edge.end_node == target_node:
-                themed_message(self, t("k_title_info"), t("k_canvas_edge_exists"), "info")
-                return
+    def create_edge(self, source_node, target_node, target_anchor=None):
+        """创建连线并配置上下游关系（支持指定目标锚点）"""
+        # 如果指定了锚点，检查是否已存在到该锚点的连线
+        if target_anchor and hasattr(target_anchor, 'port_name'):
+            for edge in self.edges:
+                if edge.start_node == source_node and edge.end_node == target_node:
+                    # 如果已存在到同一节点但不同端口的连线，允许创建
+                    if hasattr(edge, 'end_anchor') and edge.end_anchor:
+                        if edge.end_anchor == target_anchor:
+                            themed_message(self, t("k_title_info"), t("k_canvas_edge_exists"), "info")
+                            return
+        else:
+            # 未指定锚点或旧版单锚点，使用原有检查逻辑
+            for edge in self.edges:
+                if edge.start_node == source_node and edge.end_node == target_node:
+                    themed_message(self, t("k_title_info"), t("k_canvas_edge_exists"), "info")
+                    return
 
         source_name = None
         target_name = None
@@ -87,7 +100,20 @@ class CanvasConnectionsMixin:
             source_output_path = os.path.abspath(os.path.join(source_path, "output.json"))
 
             target_config = target_info['config']
-            target_config['listen_upper_file'] = source_output_path
+            
+            # 如果指定了端口，保存端口映射关系
+            if target_anchor and hasattr(target_anchor, 'port_name'):
+                port_name = target_anchor.port_name
+                # 初始化或更新端口映射
+                if 'port_mappings' not in target_config:
+                    target_config['port_mappings'] = {}
+                target_config['port_mappings'][port_name] = source_output_path
+                logger.info(f"create_edge: 配置端口映射 {port_name} -> {source_output_path}")
+                logger.debug(f"create_edge: 完整端口映射: {target_config.get('port_mappings', {})}")
+            else:
+                # 旧版单锚点逻辑
+                target_config['listen_upper_file'] = source_output_path
+                logger.info(f"create_edge: 使用旧版单锚点逻辑，listen_upper_file={source_output_path}")
 
             config_path = os.path.join(target_info['path'], "config.json")
             try:
@@ -98,19 +124,20 @@ class CanvasConnectionsMixin:
             except Exception as e:
                 logger.error("保存配置失败: %s", e)
 
-        edge = EdgeItem(source_node, target_node, self)
+        edge = EdgeItem(source_node, target_node, self, target_anchor)
         self.scene.addItem(edge)
         self.edges.append(edge)
         edge.update_path()
 
-        logger.info("创建连线: %s -> %s", source_name, target_name)
+        logger.info("创建连线: %s -> %s%s", source_name, target_name, 
+                    f" (port: {target_anchor.port_name})" if target_anchor else "")
 
         if self.parent_window and self.parent_window.current_project_path:
             self._save_timer.stop()
             self._save_timer.start(500)
 
     def remove_edge(self, edge):
-        """移除连线"""
+        """移除连线（支持多输入端口）"""
         if edge in self.edges:
             target_name = None
             for name, node in self.nodes.items():
@@ -121,7 +148,16 @@ class CanvasConnectionsMixin:
             if target_name and self.parent_window and target_name in self.parent_window.nodes_data:
                 target_info = self.parent_window.nodes_data[target_name]
                 target_config = target_info['config']
-                target_config['listen_upper_file'] = ""
+                
+                # 如果是多端口连线，移除对应的端口映射
+                if edge.end_anchor and hasattr(edge.end_anchor, 'port_name'):
+                    port_name = edge.end_anchor.port_name
+                    if 'port_mappings' in target_config and port_name in target_config['port_mappings']:
+                        del target_config['port_mappings'][port_name]
+                        logger.debug("已移除端口映射: %s", port_name)
+                else:
+                    # 旧版单锚点逻辑
+                    target_config['listen_upper_file'] = ""
 
                 config_path = os.path.join(target_info['path'], "config.json")
                 try:

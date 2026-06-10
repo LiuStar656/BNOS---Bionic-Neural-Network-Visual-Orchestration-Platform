@@ -135,7 +135,7 @@ class CanvasMenusMixin:
         style_menu = menu.addMenu(t("k_node_style"))
         for key, cls in STYLES.items():
             st = cls()
-            a = QAction(st.style_name, style_menu)
+            a = QAction(t(st.style_name), style_menu)
             a.triggered.connect(partial(self._switch_node_style, key, node_item))
             style_menu.addAction(a)
 

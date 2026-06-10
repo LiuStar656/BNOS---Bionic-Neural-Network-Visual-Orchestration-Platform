@@ -73,7 +73,7 @@ class NodeStyle:
 class RectNodeStyle(NodeStyle):
     """方框节点样式基类"""
     style_key: str = "rect"
-    style_name: str = "方形"
+    style_name: str = "k_node_style_square"
     is_dot: bool = False
     status_show: bool = True  # 方形节点显示状态信息
 
@@ -175,7 +175,7 @@ class RectNodeStyle(NodeStyle):
             node_item._out_label.setPos(w + self.out_label_x, h / 2 + self.label_y)
             node_item._out_label.setVisible(True)
 
-        # 锚点（在节点本体上方一线）
+        # 锚点（在节点本体上方一线）- 框图模式仅支持单锚点
         if hasattr(node_item, 'input_anchor'):
             node_item.input_anchor.setRect(0, 0, 16, 16)  # 重置锚点尺寸为标准大小
             node_item.input_anchor.setPos(self.anchor_in_x, h / 2 - 8)
@@ -186,6 +186,10 @@ class RectNodeStyle(NodeStyle):
             node_item.output_anchor.setPos(w - 8, h / 2 - 8)
             node_item.output_anchor.setZValue(1)
             node_item.output_anchor.setVisible(True)
+        
+        # 框图模式不支持多输入端口，清理可能存在的多锚点
+        if hasattr(node_item, '_destroy_multi_input_anchors'):
+            node_item._destroy_multi_input_anchors()
 
         # 展开按钮
         ex, ey = w + self.expand_x, self.expand_y
@@ -248,9 +252,9 @@ class LightRectNodeStyle(RectNodeStyle):
 # ============================================================
 
 class DotNodeStyle(NodeStyle):
-    """圆形节点"""
+    """节点模式"""
     style_key: str = "dot"
-    style_name: str = "圆形"
+    style_name: str = "k_node_style_circular"
     is_dot: bool = True
 
     node_width: int = 80
@@ -290,6 +294,7 @@ class DotNodeStyle(NodeStyle):
         node_item.output_anchor.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
 
         # 输入锚点 — 中层 (z=5)，比指示灯大
+        # 圆形节点不支持多输入端口（会重叠），始终使用单锚点
         in_extra = 6
         in_sz = r * 2 + in_extra
         node_item.input_anchor.setRect(0, 0, in_sz, in_sz)
@@ -297,6 +302,10 @@ class DotNodeStyle(NodeStyle):
         node_item.input_anchor.setZValue(5)
         node_item.input_anchor.setVisible(True)
         node_item.input_anchor.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        
+        # 确保多锚点被清理（如果之前是其他样式）
+        if hasattr(node_item, '_destroy_multi_input_anchors'):
+            node_item._destroy_multi_input_anchors()
 
         # 指示灯 — 最上层 (z=6)，可点击穿透
         body_sz = r * 2
@@ -342,11 +351,11 @@ class DotNodeStyle(NodeStyle):
 
 
 # ============================================================
-#  详细版节点样式（ComfyUI 式画布直显）
+#  面板模式节点样式（ComfyUI 式画布直显）
 # ============================================================
 
 class DetailedNodeStyle(RectNodeStyle):
-    """详细版节点 — 画布上直显参数编辑控件
+    """面板模式节点 — 画布上直显参数编辑控件
 
     尺寸由子控件内容驱动（两阶段构建）：
       1. 先 build 所有参数控件并测量其自然尺寸
@@ -354,7 +363,7 @@ class DetailedNodeStyle(RectNodeStyle):
       3. 节点高度 = 标题高度 + 分隔带 + Σ(控件高度) + 底部留白
     """
     style_key: str = "detailed"
-    style_name: str = "详细版"
+    style_name: str = "k_node_style_detailed"
     is_dot: bool = False
     status_show: bool = False
 
@@ -383,6 +392,10 @@ class DetailedNodeStyle(RectNodeStyle):
         if hasattr(node_item, "_status_widget") and node_item._status_widget:
             node_item._status_widget.set_visible(False)
         node_item._build_detailed_view()
+        
+        # 构建多输入锚点（根据 config.json 中的 input_ports 定义）
+        if hasattr(node_item, "_build_multi_input_anchors"):
+            node_item._build_multi_input_anchors()
 
 
 # ============================================================

@@ -127,9 +127,9 @@
   "k_open_vscode": "Open in VSCode",
   "_k_open_trae": "Open in Trae IDE",
   "_k_ide_not_found": "{ide_name} not found.\n\nPlease ensure {ide_name} is installed.",
-  "k_node_style_detailed": "Detailed",
-  "k_node_style_square": "Square",
-  "k_node_style_circular": "Circular",
+  "k_node_style_detailed": "Panel",
+  "k_node_style_square": "Block",
+  "k_node_style_circular": "Node",
   "k_view_log": "View Log",
   "k_edit_config": "Edit Config",
 

@@ -1,5 +1,5 @@
 """
-节点配置解析器 — 从 config.json 中提取参数定义
+节点配置解析器 — 从 config.json 中提取参数定义和输入端口定义
 """
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -28,6 +28,16 @@ class ParameterDef:
     dynamic_options: Optional[dict] = None
 
 
+@dataclass
+class InputPortDef:
+    """单个输入端口的定义"""
+    name: str           # 端口唯一标识
+    label: str = ""     # 端口显示名称
+    type: str = "default"  # 数据类型（用于连线兼容性校验）
+    required: bool = False  # 是否必需连接
+    description: str = ""   # 端口描述
+
+
 class NodeConfigParser:
     """节点配置解析器"""
 
@@ -52,3 +62,21 @@ class NodeConfigParser:
     def has_parameters(config: dict) -> bool:
         """检查配置是否包含参数定义"""
         return bool(config.get("parameters"))
+
+    @staticmethod
+    def parse_input_ports(config: dict) -> list[InputPortDef]:
+        """从 config.json 中提取输入端口定义列表"""
+        raw = config.get("input_ports", [])
+        if not raw:
+            return []
+        return [InputPortDef(**p) for p in raw]
+
+    @staticmethod
+    def has_input_ports(config: dict) -> bool:
+        """检查配置是否包含输入端口定义"""
+        return bool(config.get("input_ports"))
+
+    @staticmethod
+    def get_input_port_names(config: dict) -> list[str]:
+        """获取所有输入端口名称"""
+        return [p["name"] for p in (config.get("input_ports") or [])]
