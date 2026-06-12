@@ -368,6 +368,26 @@ def _load_start_json(node_path):
         return None
 
 
+def _check_directory_permissions(node_path):
+    """检查节点目录权限
+    
+    Returns:
+        tuple: (valid: bool, error_msg: str)
+    """
+    if not os.path.exists(node_path):
+        return False, f"节点目录不存在: {node_path}"
+    
+    # 检查读取权限
+    if not os.access(node_path, os.R_OK):
+        return False, f"无法读取节点目录（权限不足）: {node_path}"
+    
+    # 检查写入权限（需要创建日志文件等）
+    if not os.access(node_path, os.W_OK):
+        return False, f"无法写入节点目录（权限不足）: {node_path}"
+    
+    return True, ""
+
+
 def start_node_process(node_info):
     """启动节点进程并写入 PID 文件（仅使用 JSON 配置启动）
     
@@ -379,6 +399,12 @@ def start_node_process(node_info):
 
     logger.info("开始启动节点: %s", node_name)
     logger.debug("节点路径: %s", node_path)
+
+    # 0. 检查目录权限
+    perm_valid, perm_error = _check_directory_permissions(node_path)
+    if not perm_valid:
+        logger.error("节点目录权限检查失败: %s", perm_error)
+        return False, perm_error
 
     # 1. 先清理可能残留的旧进程（PID 文件丢失的孤儿）
     logger.debug("启动前清理残留进程: %s", node_name)

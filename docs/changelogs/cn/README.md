@@ -6,6 +6,20 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-12】V2.0.12 - 主窗口解耦与代码质量全面提升</strong></summary>
+
+[查看完整更新](./2026-06-12/README.md)
+
+**主要更新：**
+- ApplicationContext 单例类聚合 11 个全局服务，统一生命周期管理
+- 主窗口从 1500 行精简到 **499行**，拆分为 7 个 Mixin 模块（状态、生命周期、业务、面板、IPC、节点控制、交互）
+- 代码质量改进：类型注解、代码去重、增强错误处理
+- 跨平台支持：Windows/macOS/Linux
+- 修复 Unicode 编码、权限检查、路径验证等问题
+
+</details>
+
+<details>
 <summary><strong>【2026-06-11】V2.0.11 - 连线端口锚点绑定保护与 canvas_layout 防改写</strong></summary>
 
 [查看完整更新](./2026-06-11/README.md)

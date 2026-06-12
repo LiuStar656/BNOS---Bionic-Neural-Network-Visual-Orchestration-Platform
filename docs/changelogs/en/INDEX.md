@@ -8,6 +8,14 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-06-12](./2026-06-12/)
+- **P2 Optimization: Main Window Further Decoupling**: Reduced main window file from ~1500 lines to **499 lines**, added 4 new Mixin modules (Panel Management, IPC Communication, Node Control, Window Interaction) for fine-grained responsibility separation
+- **Bug Fixes**: Fixed 5 issues including Unicode encoding, permission checking, path validation
+- **Code Quality Improvements**: Added type annotations, code deduplication, cross-platform support (Windows/macOS/Linux)
+
+### [2026-06-11](./2026-06-11/)
+- **Edge Anchor Port Binding Protection & canvas_layout Anti-Corruption**: Fixed edge port anchor loss after restart, introduced "Desired Port Name Memory" mechanism and "Anchor-Missing No-Degradation" protection
+
 ### [2026-06-10](./2026-06-10/)
 - **Phase 10**: IDE Auto Detection + Right-Click Menu Action Integration (cross-platform VSCode / Trae IDE detection, non-standard path recognition)
 - **Phase 12**: Adaptive Node View (ComfyUI-Style Panel Mode), 11 parameter widget types, rendered directly on canvas with real-time config.json sync
@@ -79,4 +87,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-06-10
+**Last Updated**: 2026-06-12

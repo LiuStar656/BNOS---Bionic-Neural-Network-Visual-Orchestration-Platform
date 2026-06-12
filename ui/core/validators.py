@@ -9,6 +9,7 @@
         print(message)
 """
 import re
+import os
 
 
 class NodeNameValidator:
@@ -81,7 +82,8 @@ class PathValidator:
             return False, "路径不能为空"
         
         # 检查路径穿越
-        if '..' in path.split(os.sep):
+        normalized = os.path.normpath(path)
+        if '..' in normalized.split(os.sep):
             return False, "路径不能包含父目录引用"
         
         return True, ""

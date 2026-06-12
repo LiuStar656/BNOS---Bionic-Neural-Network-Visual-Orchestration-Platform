@@ -6,6 +6,20 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-12】V2.0.12 - Main Window Decoupling & Code Quality Enhancement</strong></summary>
+
+[View Full Update](./2026-06-12/README.md)
+
+**Main Updates:**
+- ApplicationContext singleton aggregates 11 global services with unified lifecycle management
+- Main window reduced from 1500 lines to **499 lines**, split into 7 Mixin modules (State, Lifecycle, Actions, Panel, IPC, Node Control, Interaction)
+- Code quality improvements: type annotations, code deduplication, enhanced error handling
+- Cross-platform support: Windows/macOS/Linux
+- Fixed Unicode encoding, permission checking, path validation issues
+
+</details>
+
+<details>
 <summary><strong>【2026-06-11】V2.0.11 - Edge Anchor Port Binding Protection & canvas_layout Anti-Corruption</strong></summary>
 
 [View Full Update](./2026-06-11/README.md)
