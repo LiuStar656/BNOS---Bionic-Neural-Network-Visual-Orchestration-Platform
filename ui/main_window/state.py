@@ -37,11 +37,11 @@ class MainWindowStateMixin:
         为了让 Qt restoreState() 能找到 Dock，必须在 restoreState() 之前创建
         """
         visibility = self.app_config.get('panel_visibility', {})
-        logger.info("🔴 开始恢复面板状态(立即创建Dock)，配置值: %s", visibility)
+        logger.info("[PANEL] 开始恢复面板状态(立即创建Dock)，配置值: %s", visibility)
         
         # 检查旧的配置项（兼容旧版本）
         old_visible = self.app_config.get('node_list_panel', {}).get('visible', False)
-        logger.info("🔴 旧配置项 node_list_panel.visible: %s", old_visible)
+        logger.info("[PANEL] 旧配置项 node_list_panel.visible: %s", old_visible)
         
         # ===== 节点列表面板 =====
         # 优先使用新格式（带后缀），只有当新格式不存在时才使用旧格式（基础键）
@@ -54,14 +54,14 @@ class MainWindowStateMixin:
         if show_node_float is None:
             show_node_float = False
         
-        logger.info("🔴 节点列表 - dock: %s, floating: %s", show_node_dock, show_node_float)
+        logger.info("[PANEL] 节点列表 - dock: %s, floating: %s", show_node_dock, show_node_float)
         
         # 根据配置分别显示，不再强制优先显示Dock版
         if show_node_dock:
-            logger.info("🔴 立即恢复节点列表 Dock 版")
+            logger.info("[PANEL] 立即恢复节点列表 Dock 版")
             self.toggle_node_list_panel(True)
         if show_node_float:
-            logger.info("🔴 立即恢复节点列表 浮动版")
+            logger.info("[PANEL] 立即恢复节点列表 浮动版")
             self.show_node_list_floating()
         
         # ===== 资源监测面板 =====
@@ -73,13 +73,13 @@ class MainWindowStateMixin:
         if show_resource_float is None:
             show_resource_float = False
         
-        logger.info("🔴 资源监测 - dock: %s, floating: %s", show_resource_dock, show_resource_float)
+        logger.info("[PANEL] 资源监测 - dock: %s, floating: %s", show_resource_dock, show_resource_float)
         
         if show_resource_dock:
-            logger.info("🔴 立即恢复资源监测 Dock 版")
+            logger.info("[PANEL] 立即恢复资源监测 Dock 版")
             self.show_resource_monitor_dock()
         if show_resource_float:
-            logger.info("🔴 立即恢复资源监测 浮动版")
+            logger.info("[PANEL] 立即恢复资源监测 浮动版")
             self.show_resource_monitor()
         
         # ===== 节点监测面板 =====
@@ -91,10 +91,10 @@ class MainWindowStateMixin:
         if show_monitor_float is None:
             show_monitor_float = False
         
-        logger.info("🔴 节点监测 - dock: %s, floating: %s", show_monitor_dock, show_monitor_float)
+        logger.info("[PANEL] 节点监测 - dock: %s, floating: %s", show_monitor_dock, show_monitor_float)
         
         if show_monitor_dock:
-            logger.info("🔴 立即恢复节点监测 Dock 版")
+            logger.info("[PANEL] 立即恢复节点监测 Dock 版")
             self.show_node_monitor_dock()
         if show_monitor_float:
             logger.info("🔴 立即恢复节点监测 浮动版")
@@ -103,7 +103,7 @@ class MainWindowStateMixin:
         # ===== 终端 Dock =====
         # 终端 Dock 由 window_state_manager 恢复，这里不处理
         show_terminal = visibility.get('terminal_dock', False)
-        logger.info("🔴 终端 - dock(将由window_state_manager处理): %s", show_terminal)
+        logger.info("[PANEL] 终端 - dock(将由window_state_manager处理): %s", show_terminal)
     
     def _restore_terminal_dock(self):
         """恢复终端 Dock 可见性（必须在主窗口 show 后调用）"""
@@ -182,22 +182,27 @@ class MainWindowStateMixin:
             if hasattr(ch, '_terminal_dock'):
                 term_visible = ch._terminal_dock.isVisible()
                 visibility['terminal_dock'] = term_visible
-                logger.info("💾 _save_panel_visibility: terminal_dock = %s", term_visible)
+                logger.info("[SAVE] _save_panel_visibility: terminal_dock = %s", term_visible)
         
         logger.info("保存面板可见性状态: %s", visibility)
         self.app_config.set('panel_visibility', visibility)
     
     def _restore_terminal_dock(self):
-        """恢复终端 Dock 的可见性"""
+        """恢复终端 Dock 的可见性
+        
+        注意：仅在终端已初始化（画布已创建）时才恢复可见性。
+        如果终端尚未初始化，则跳过 —— 它将在第一个画布创建时自动初始化。
+        """
         visibility = self.app_config.get("panel_visibility", {})
         show_terminal = visibility.get("terminal_dock", True)
         
         if hasattr(self, '_canvas_host') and self._canvas_host:
-            if hasattr(self._canvas_host, '_terminal_dock') and self._canvas_host._terminal_dock:
+            ch = self._canvas_host
+            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
                 if show_terminal:
-                    self._canvas_host._terminal_dock.show()
+                    ch._terminal_dock.show()
                 else:
-                    self._canvas_host._terminal_dock.hide()
+                    ch._terminal_dock.hide()
     
     def auto_open_last_project(self):
         """自动打开上次打开的项目：

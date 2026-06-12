@@ -20,7 +20,7 @@ import base64
 def save_state(main_window):
     """保存窗口状态"""
     try:
-        logger.info("💾 ===== 开始保存窗口状态 =====")
+        logger.info("[SAVE] ===== 开始保存窗口状态 =====")
         
         # 1. 保存窗口几何信息
         geometry = {
@@ -50,7 +50,7 @@ def save_state(main_window):
                 "qt_state": canvas_host_state_base64,
                 "area_layouts": canvas_host_area_layouts
             }
-            logger.info("💾 已保存 CanvasHost 状态")
+            logger.info("[SAVE] 已保存 CanvasHost 状态")
         
         # 4. 收集所有 Dock 信息（用于补充调整尺寸）
         dock_info = _collect_dock_info(main_window)
@@ -72,7 +72,7 @@ def save_state(main_window):
         }
         
         main_window.app_config.set("dock_layout", full_state)
-        logger.info("💾 保存完成: %d 个 Dock, %d 个区域", 
+        logger.info("[SAVE] 保存完成: %d 个 Dock, %d 个区域", 
                     len(dock_info), len(area_layouts))
         
         # 7. 保存画布视图状态（保持原逻辑）
@@ -89,7 +89,7 @@ def save_state(main_window):
                 main_window.canvas.save_layout(main_window.current_project_path)
         
         main_window.app_config.save()
-        logger.info("💾 ===== 窗口状态保存完成 =====")
+        logger.info("[SAVE] ===== 窗口状态保存完成 =====")
         
     except Exception as e:
         logger.error("❌ 保存窗口状态失败: %s", e, exc_info=True)
@@ -126,7 +126,7 @@ def _collect_area_layouts(main_window):
                 "orientation": orientation,
                 "docks": area_docks
             }
-            logger.debug("💾 区域 %s 布局: %d 个 Dock", area_name, len(area_docks))
+            logger.debug("[SAVE] 区域 %s 布局: %d 个 Dock", area_name, len(area_docks))
     
     return area_layouts
 
@@ -162,7 +162,7 @@ def _collect_canvas_host_area_layouts(canvas_host):
                 "orientation": orientation,
                 "docks": area_docks
             }
-            logger.debug("💾 CanvasHost 区域 %s 布局: %d 个 Dock", area_name, len(area_docks))
+            logger.debug("[SAVE] CanvasHost 区域 %s 布局: %d 个 Dock", area_name, len(area_docks))
     
     return area_layouts
 
@@ -200,7 +200,7 @@ def _collect_dock_info(main_window):
             }
         
         docks_info.append(dock_data)
-        logger.debug("💾 收集 Dock: %s (floating=%s, area=%s, w=%d, h=%d)", 
+        logger.debug("[SAVE] 收集 Dock: %s (floating=%s, area=%s, w=%d, h=%d)", 
                     title, dock.isFloating(), area_name, dock.width(), dock.height())
     
     return docks_info
@@ -267,7 +267,7 @@ def restore_state(main_window):
     【注意】CanvasHost 的恢复会在项目打开后单独调用，因为画布 Dock 在那时才创建
     """
     try:
-        logger.info("📐 ===== 开始恢复窗口状态 =====")
+        logger.info("[WS] ===== 开始恢复窗口状态 =====")
         
         # 1. 恢复窗口几何信息
         geom = main_window.app_config.get("window_geometry")
@@ -289,7 +289,7 @@ def restore_state(main_window):
             from PyQt6.QtCore import QTimer
             
             # ===== 阶段 1：立即恢复 Qt 原生状态 =====
-            logger.info("📐 阶段 1：立即恢复 Qt 原生状态")
+            logger.info("[WS] 阶段 1：立即恢复 Qt 原生状态")
             _restore_phase1(main_window, dock_layout)
             
             # ===== 阶段 2：第一次调整尺寸 =====
@@ -301,10 +301,10 @@ def restore_state(main_window):
             # ===== 阶段 4：恢复终端 Dock =====
             QTimer.singleShot(500, lambda: _restore_phase4(main_window, dock_layout))
         else:
-            logger.info("📐 未找到增强版布局数据，使用简单恢复")
+            logger.info("[WS] 未找到增强版布局数据，使用简单恢复")
             _restore_simple(main_window)
         
-        logger.info("📐 ===== 主窗口状态恢复启动 =====")
+        logger.info("[WS] ===== 主窗口状态恢复启动 =====")
         
     except Exception as e:
         logger.error("❌ 恢复窗口状态失败: %s", e, exc_info=True)
@@ -317,7 +317,7 @@ def restore_canvas_host_state(main_window):
     应该在项目打开后调用
     """
     try:
-        logger.info("📐 ===== 开始恢复 CanvasHost 状态 =====")
+        logger.info("[WS] ===== 开始恢复 CanvasHost 状态 =====")
         
         dock_layout = main_window.app_config.get("dock_layout")
         
@@ -326,7 +326,7 @@ def restore_canvas_host_state(main_window):
             from PyQt6.QtCore import QTimer
             
             # ===== 阶段 5：恢复 CanvasHost 的 Qt 原生状态 =====
-            logger.info("📐 阶段 5：恢复 CanvasHost Qt 原生状态")
+            logger.info("[WS] 阶段 5：恢复 CanvasHost Qt 原生状态")
             _restore_phase5(main_window, dock_layout)
             
             # ===== 阶段 6：第一次调整 CanvasHost 尺寸 =====
@@ -335,9 +335,9 @@ def restore_canvas_host_state(main_window):
             # ===== 阶段 7：第二次调整 CanvasHost 尺寸（巩固分割条位置） =====
             QTimer.singleShot(400, lambda: _restore_phase7(main_window, dock_layout))
         else:
-            logger.info("📐 未找到 CanvasHost 状态数据")
+            logger.info("[WS] 未找到 CanvasHost 状态数据")
         
-        logger.info("📐 ===== CanvasHost 状态恢复启动 =====")
+        logger.info("[WS] ===== CanvasHost 状态恢复启动 =====")
         
     except Exception as e:
         logger.error("❌ 恢复 CanvasHost 状态失败: %s", e, exc_info=True)
@@ -345,21 +345,21 @@ def restore_canvas_host_state(main_window):
 
 def _restore_phase1(main_window, dock_layout):
     """阶段 1：恢复 Qt 原生状态（最关键！恢复布局和分割条位置）"""
-    logger.info("📐 [阶段 1] 恢复 Qt 原生状态")
+    logger.info("[WS] [阶段 1] 恢复 Qt 原生状态")
     
     try:
         qt_state_base64 = dock_layout.get("qt_state")
         if qt_state_base64:
             qt_state = base64.b64decode(qt_state_base64.encode('utf-8'))
             main_window.restoreState(qt_state)
-            logger.info("📐 ✅ Qt 原生状态已恢复（包含布局和分割条位置）")
+            logger.info("[WS] [OK] Qt 原生状态已恢复（包含布局和分割条位置）")
     except Exception as e:
-        logger.warning("📐 恢复 Qt 原生状态失败: %s", e)
+        logger.warning("[WS] 恢复 Qt 原生状态失败: %s", e)
 
 
 def _restore_phase2(main_window, dock_layout):
     """阶段 2：第一次用 area_layouts 调整尺寸"""
-    logger.info("📐 [阶段 2] 第一次调整 Dock 尺寸")
+    logger.info("[WS] [阶段 2] 第一次调整 Dock 尺寸")
     
     area_layouts = dock_layout.get("area_layouts", {})
     
@@ -379,7 +379,7 @@ def _restore_phase2(main_window, dock_layout):
 
 def _restore_phase3(main_window, dock_layout):
     """阶段 3：第二次调整尺寸（巩固分割条位置）"""
-    logger.info("📐 [阶段 3] 第二次调整 Dock 尺寸（巩固分割条）")
+    logger.info("[WS] [阶段 3] 第二次调整 Dock 尺寸（巩固分割条）")
     
     area_layouts = dock_layout.get("area_layouts", {})
     
@@ -428,10 +428,10 @@ def _restore_from_area_layouts(main_window, area_layouts, pass_num=1):
                 qt_orientation = Qt.Orientation.Horizontal if orientation == "horizontal" else Qt.Orientation.Vertical
                 main_window.resizeDocks(area_dock_widgets, area_dock_sizes, qt_orientation)
                 
-                logger.info("📐 [第%d次] %s区域: %s", 
+                logger.info("[WS] [第%d次] %s区域: %s", 
                            pass_num, area_name, area_dock_sizes)
             except Exception as e:
-                logger.warning("📐 调整失败: %s", e)
+                logger.warning("[WS] 调整失败: %s", e)
 
 
 def _restore_area_docks_legacy(main_window, area_name, docks_info, pass_num=1):
@@ -464,19 +464,19 @@ def _restore_area_docks_legacy(main_window, area_name, docks_info, pass_num=1):
                 orientation = Qt.Orientation.Vertical
             
             main_window.resizeDocks(area_dock_widgets, area_dock_sizes, orientation)
-            logger.info("📐 [第%d次][旧版] %s: %s", 
+            logger.info("[WS] [第%d次][旧版] %s: %s", 
                        pass_num, area_name, area_dock_sizes)
         except Exception as e:
-            logger.warning("📐 调整失败: %s", e)
+            logger.warning("[WS] 调整失败: %s", e)
 
 
 def _restore_phase4(main_window, dock_layout):
     """阶段 4：恢复终端 Dock"""
-    logger.info("📐 [阶段 4] 恢复终端 Dock")
+    logger.info("[WS] [阶段 4] 恢复终端 Dock")
     
     terminal_info = dock_layout.get("terminal_dock")
     if not terminal_info:
-        logger.info("📐 未找到终端 Dock 信息")
+        logger.info("[WS] 未找到终端 Dock 信息")
         return
     
     if hasattr(main_window, '_canvas_host') and main_window._canvas_host:
@@ -498,18 +498,18 @@ def _restore_phase4(main_window, dock_layout):
                 if height:
                     try:
                         canvas_host.resizeDocks([term_dock], [height], Qt.Orientation.Vertical)
-                        logger.info("📐 终端高度已设置: %d", height)
+                        logger.info("[WS] 终端高度已设置: %d", height)
                     except Exception as e:
-                        logger.warning("📐 终端调整失败: %s", e)
+                        logger.warning("[WS] 终端调整失败: %s", e)
             
-            logger.info("📐 终端 Dock 恢复完成: visible=%s", visible)
+            logger.info("[WS] 终端 Dock 恢复完成: visible=%s", visible)
     
-    logger.info("📐 ===== 主窗口状态恢复完成 =====")
+    logger.info("[WS] ===== 主窗口状态恢复完成 =====")
 
 
 def _restore_phase5(main_window, dock_layout):
     """阶段 5：恢复 CanvasHost 的 Qt 原生状态（最关键！恢复布局和分割条位置）"""
-    logger.info("📐 [阶段 5] 恢复 CanvasHost Qt 原生状态")
+    logger.info("[WS] [阶段 5] 恢复 CanvasHost Qt 原生状态")
     
     try:
         canvas_host_state = dock_layout.get("canvas_host_state")
@@ -520,18 +520,18 @@ def _restore_phase5(main_window, dock_layout):
                 if canvas_host_qt_state_base64:
                     canvas_host_qt_state = base64.b64decode(canvas_host_qt_state_base64.encode('utf-8'))
                     canvas_host.restoreState(canvas_host_qt_state)
-                    logger.info("📐 ✅ CanvasHost Qt 原生状态已恢复（包含布局和分割条位置）")
+                    logger.info("[WS] [OK] CanvasHost Qt 原生状态已恢复（包含布局和分割条位置）")
     except Exception as e:
-        logger.warning("📐 恢复 CanvasHost Qt 原生状态失败: %s", e)
+        logger.warning("[WS] 恢复 CanvasHost Qt 原生状态失败: %s", e)
 
 
 def _restore_phase6(main_window, dock_layout):
     """阶段 6：第一次调整 CanvasHost 尺寸"""
-    logger.info("📐 [阶段 6] 第一次调整 CanvasHost 尺寸")
+    logger.info("[WS] [阶段 6] 第一次调整 CanvasHost 尺寸")
     
     canvas_host_state = dock_layout.get("canvas_host_state")
     if not canvas_host_state:
-        logger.info("📐 未找到 CanvasHost 状态")
+        logger.info("[WS] 未找到 CanvasHost 状态")
         return
     
     area_layouts = canvas_host_state.get("area_layouts", {})
@@ -543,11 +543,11 @@ def _restore_phase6(main_window, dock_layout):
 
 def _restore_phase7(main_window, dock_layout):
     """阶段 7：第二次调整 CanvasHost 尺寸（巩固分割条位置）"""
-    logger.info("📐 [阶段 7] 第二次调整 CanvasHost 尺寸（巩固分割条）")
+    logger.info("[WS] [阶段 7] 第二次调整 CanvasHost 尺寸（巩固分割条）")
     
     canvas_host_state = dock_layout.get("canvas_host_state")
     if not canvas_host_state:
-        logger.info("📐 未找到 CanvasHost 状态")
+        logger.info("[WS] 未找到 CanvasHost 状态")
         return
     
     area_layouts = canvas_host_state.get("area_layouts", {})
@@ -556,7 +556,7 @@ def _restore_phase7(main_window, dock_layout):
             canvas_host = main_window._canvas_host
             _restore_canvas_host_from_area_layouts(canvas_host, area_layouts, pass_num=2)
     
-    logger.info("📐 ===== CanvasHost 状态完全恢复 =====")
+    logger.info("[WS] ===== CanvasHost 状态完全恢复 =====")
 
 
 def _restore_canvas_host_from_area_layouts(canvas_host, area_layouts, pass_num=1):
@@ -590,10 +590,10 @@ def _restore_canvas_host_from_area_layouts(canvas_host, area_layouts, pass_num=1
                 qt_orientation = Qt.Orientation.Horizontal if orientation == "horizontal" else Qt.Orientation.Vertical
                 canvas_host.resizeDocks(area_dock_widgets, area_dock_sizes, qt_orientation)
                 
-                logger.info("📐 [CanvasHost 第%d次] %s区域: %s", 
+                logger.info("[WS] [CanvasHost 第%d次] %s区域: %s", 
                            pass_num, area_name, area_dock_sizes)
             except Exception as e:
-                logger.warning("📐 CanvasHost 调整失败: %s", e)
+                logger.warning("[WS] CanvasHost 调整失败: %s", e)
 
 
 def _restore_simple(main_window):

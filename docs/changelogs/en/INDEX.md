@@ -8,6 +8,12 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-06-13](./2026-06-13/)
+- **Logging System Architecture Redesign**: Dual-file separation (`bnos.log` daily rotation + `bnos_error.log` size rotation), three-layer anti-bloat filters, ERROR/CRITICAL never filtered with independent storage
+- **PollingManager Fix**: Fixed QObject C++ layer init crash (`super().__init__()` ordering issue)
+- **Panel Loading Order Optimization**: CanvasHost loads canvas panels before terminal, reducing startup flicker
+- **Emoji Cleanup**: Full replacement with `[TAG]` labels, eliminating Windows GBK encoding errors
+
 ### [2026-06-12](./2026-06-12/)
 - **P2 Optimization: Main Window Further Decoupling**: Reduced main window file from ~1500 lines to **499 lines**, added 4 new Mixin modules (Panel Management, IPC Communication, Node Control, Window Interaction) for fine-grained responsibility separation
 - **Bug Fixes**: Fixed 5 issues including Unicode encoding, permission checking, path validation
@@ -87,4 +93,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-06-12
+**Last Updated**: 2026-06-13

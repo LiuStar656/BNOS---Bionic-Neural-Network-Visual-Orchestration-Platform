@@ -741,7 +741,7 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
                         json.dump(upstream_config, f, indent=2, ensure_ascii=False)
                     logger.info("已清除上游节点 %s 的监听配置", upstream_name)
                 except Exception as e:
-                    logger.info(f"❌ 保存配置失败: {e}")
+                    logger.info(f"[FAIL] 保存配置失败: {e}")
         
         # 4. 清除下游节点的 listen_upper_file（因为上游被删除了）
         for downstream_name in downstream_nodes:
@@ -756,7 +756,7 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
                         json.dump(downstream_config, f, indent=2, ensure_ascii=False)
                     logger.info("已清除下游节点 %s 的监听配置", downstream_name)
                 except Exception as e:
-                    logger.info(f"❌ 保存配置失败: {e}")
+                    logger.info(f"[FAIL] 保存配置失败: {e}")
         
         # 5. 从画布中移除节点
         node = self.nodes[node_name]
@@ -837,7 +837,7 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         """重置视图到默认状态"""
         self.resetTransform()
         self.centerOn(0, 0)
-        logger.info("✅ 视图已重置")
+        logger.info("[OK] 视图已重置")
 
     def _load_draw_toolbar_config(self):
         """从 app_config 加载绘图工具栏显示状态"""

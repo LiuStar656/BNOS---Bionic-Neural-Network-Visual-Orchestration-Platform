@@ -463,7 +463,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
     
     def _shutdown_save_all_data(self):
         """保存所有数据（布局/窗口状态/面板可见性/浮动面板位置）"""
-        logger.info("📦 === 开始保存所有数据 ===")
+        logger.info("[SHUTDOWN] === 开始保存所有数据 ===")
         
         if hasattr(self, '_canvas_host') and self._canvas_host:
             self._canvas_host.update_canvas_data_from_main_window(self.canvas)
@@ -471,11 +471,11 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         if self.current_project_path and hasattr(self, '_canvas_host'):
             self._canvas_host.save_all_layouts(self.current_project_path)
         
-        logger.info("💾 保存窗口状态...")
+        logger.info("[SAVE] 保存窗口状态...")
         self.save_window_state()
         self.app_config.set("last_project", self.current_project_path)
         
-        logger.info("💾 保存面板可见性...")
+        logger.info("[SAVE] 保存面板可见性...")
         self._save_panel_visibility()
         
         # 保存所有浮动面板的位置
@@ -489,7 +489,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
                 logger.info("保存面板位置: %s", panel_name)
                 self._save_panel_position(panel_name, panel_widget)
         
-        logger.info("💾 强制保存配置到文件...")
+        logger.info("[SAVE] 强制保存配置到文件...")
         self.app_config.save()
         
         import os
@@ -508,9 +508,9 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
                 logger.info("🔒 断开终端 Dock 的 visibility_changed 信号...")
                 try:
                     ch._terminal_dock.visibility_changed.disconnect()
-                    logger.info("✅ 终端信号已断开")
+                    logger.info("[OK] 终端信号已断开")
                 except Exception as e:
-                    logger.warning("⚠️ 断开信号失败: %s", e)
+                    logger.warning("[WARN] 断开信号失败: %s", e)
     
     def _stop_terminal_subprocesses(self):
         """停止终端中的所有子进程"""

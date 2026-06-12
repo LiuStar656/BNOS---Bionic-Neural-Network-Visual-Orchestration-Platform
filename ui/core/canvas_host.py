@@ -134,8 +134,8 @@ class CanvasHost(QMainWindow):
         # 设置样式
         self._setup_styles()
         
-        # 初始化终端 Dock
-        self._init_terminal_dock()
+        # 标记终端是否已初始化
+        self._terminal_initialized = False
         
         # 设置Dock选项以支持标签页堆叠（将在创建第一个画布时启用）
         # 初始时保持默认设置，因为空白缓冲层作为中央控件
@@ -248,7 +248,11 @@ class CanvasHost(QMainWindow):
         # 9. 设置为活动画布
         self._active_canvas = canvas
         
-        # 9. 连接信号 - 监听关闭事件和焦点变化事件
+        # 10. 如果是第一个画布，初始化终端 Dock（确保画布先加载）
+        if len(self._canvas_docks) == 1:
+            self._init_terminal_dock()
+        
+        # 11. 连接信号 - 监听关闭事件和焦点变化事件
         canvas_dock.closed.connect(lambda dock: self._on_canvas_dock_closed(dock))
         canvas_dock.dockLocationChanged.connect(lambda area, c=canvas: self._on_canvas_location_changed(area, c))
         canvas_dock.visibilityChanged.connect(lambda visible, c=canvas: self._on_canvas_visibility_changed(visible, c))
@@ -499,8 +503,17 @@ class CanvasHost(QMainWindow):
         """是否显示空白缓冲层"""
         return self._blank_placeholder is not None
     
+    def _ensure_terminal_initialized(self):
+        """确保终端已初始化（仅第一次调用时真正初始化）"""
+        if self._terminal_initialized:
+            return
+        self._init_terminal_dock()
+    
     def _init_terminal_dock(self):
         """初始化终端 Dock，停靠在底部区域"""
+        if self._terminal_initialized:
+            return
+            
         self._terminal_dock = TerminalDock(self, self._parent_window)
         
         # 停靠在底部区域
@@ -515,6 +528,9 @@ class CanvasHost(QMainWindow):
         # 延迟连接可见性信号，避免初始化阶段的 hide() 覆盖持久化状态
         from PyQt6.QtCore import QTimer
         QTimer.singleShot(650, self._connect_terminal_signals)
+        
+        self._terminal_initialized = True
+        logger.info("CanvasHost: 终端 Dock 已初始化")
     
     def _connect_terminal_signals(self):
         """延迟连接终端 Dock 的信号，避免与 restoreState 冲突"""
@@ -539,13 +555,13 @@ class CanvasHost(QMainWindow):
         from ui.core.logger import logger
         
         if getattr(self, '_is_closing', False):
-            logger.info("⚠️ _save_terminal_visibility_state: 正在关闭中，跳过保存 visible=%s", visible)
+            logger.info("[SKIP] _save_terminal_visibility_state: 正在关闭中，跳过保存 visible=%s", visible)
             return
         
         if not self._parent_window:
             return
         
-        logger.info("💾 _save_terminal_visibility_state: 保存 terminal_dock = %s", visible)
+        logger.info("[SAVE] _save_terminal_visibility_state: 保存 terminal_dock = %s", visible)
         visibility = self._parent_window.app_config.get('panel_visibility', {})
         visibility['terminal_dock'] = visible
         self._parent_window.app_config.set('panel_visibility', visibility)
@@ -553,6 +569,9 @@ class CanvasHost(QMainWindow):
     
     def toggle_terminal(self):
         """切换终端 Dock 的显示/隐藏"""
+        # 确保终端已初始化
+        self._ensure_terminal_initialized()
+        
         if self._terminal_dock.isVisible():
             self._terminal_dock.hide()
         else:
@@ -572,7 +591,7 @@ class CanvasHost(QMainWindow):
         
         # 关闭过程中不保存状态，防止 hideEvent 覆盖 closeEvent 中已保存的正确状态
         if getattr(self, '_is_closing', False):
-            logger.info("⚠️ _on_terminal_visibility_changed: 正在关闭中，跳过处理")
+            logger.info("[SKIP] _on_terminal_visibility_changed: 正在关闭中，跳过处理")
             return
         
         # 保存状态

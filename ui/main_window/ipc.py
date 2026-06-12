@@ -112,7 +112,7 @@ class MainWindowIPCMixin:
             self._canvas_host._is_closing = True
             if hasattr(self._canvas_host, '_terminal_dock') and self._canvas_host._terminal_dock:
                 self._canvas_host._terminal_dock._is_closing = True
-                logger.info("🔒 设置 TerminalDock._is_closing = True (重启)")
+                logger.info("[LOCK] 设置 TerminalDock._is_closing = True (重启)")
 
         running_nodes = []
         for node_name, node_info in self.nodes_data.items():
@@ -156,6 +156,6 @@ class MainWindowIPCMixin:
         if self._ipc_server:
             self._ipc_server.stop()
 
-        logger.info("🚀 准备重启应用...")
+        logger.info("[RESTART] 准备重启应用...")
         from PyQt6.QtWidgets import QApplication
         QApplication.instance().exit(42)

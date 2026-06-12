@@ -134,7 +134,7 @@ class MainWindowLifecycleMixin:
                 return
         
         # 通过 ShutdownOrchestrator 执行保存+停止流程
-        logger.info("📦 === 启动关闭编排器 ===")
+        logger.info("[SHUTDOWN] === 启动关闭编排器 ===")
         try:
             self._shutdown_orchestrator.execute()
         except Exception as e:
@@ -157,7 +157,7 @@ class MainWindowLifecycleMixin:
         self.save_window_state()
         self.app_config.set("last_project", self.current_project_path)
         
-        logger.info("💾 保存面板可见性...")
+        logger.info("[SAVE] 保存面板可见性...")
         self._save_panel_visibility()
         
         # 保存所有浮动面板的位置
@@ -169,7 +169,7 @@ class MainWindowLifecycleMixin:
         for panel_name, panel_widget in panels:
             self._save_panel_position(panel_name, panel_widget)
         
-        logger.info("✅ 所有数据保存完成")
+        logger.info("[OK] 所有数据保存完成")
     
     def moveEvent(self, event):
         """窗口移动事件"""

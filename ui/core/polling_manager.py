@@ -64,9 +64,14 @@ class PollingManager(QObject):
         return cls._instance
     
     def __init__(self, parent=None):
+        # 【关键】对于 QObject 子类，必须始终调用 super().__init__()
+        # 否则 Qt 的 C++ 层会报错：super-class __init__() was never called
+        super().__init__(parent)
+        
+        # 单例检查：如果已初始化，跳过后续初始化逻辑
         if PollingManager._initialized:
             return
-        super().__init__(parent)
+        
         PollingManager._initialized = True
         
         # ---- 基础路径 ----
@@ -102,8 +107,8 @@ class PollingManager(QObject):
         self._global_watched_files = {}
         # 全局日志缓存（最近1000行）
         self._log_cache = {
-            "bnos_console.log": [],
-            "bnos_gui.log": []
+            "bnos.log": [],
+            "bnos_error.log": []
         }
         
         # ---- 应用状态 ----
@@ -184,7 +189,7 @@ class PollingManager(QObject):
     def _init_global_watchers(self):
         """初始化全局文件监控器"""
         # 监控全局日志文件
-        for log_file in ["bnos_console.log", "bnos_gui.log"]:
+        for log_file in ["bnos.log", "bnos_error.log"]:
             path = os.path.join(self._logs_dir, log_file)
             self._add_global_watcher(path)
         
@@ -300,7 +305,7 @@ class PollingManager(QObject):
     
     def _poll_global_logs(self):
         """检查全局日志文件变化"""
-        for log_file in ["bnos_console.log", "bnos_gui.log"]:
+        for log_file in ["bnos.log", "bnos_error.log"]:
             path = os.path.join(self._logs_dir, log_file)
             if path not in self._global_watched_files:
                 continue
