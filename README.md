@@ -296,7 +296,7 @@ graph TB
 | **ApplicationContext** | `ui/core/application_context.py` | Singleton aggregator for all global services |
 | **Canvas** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
 | **CanvasHost** | `ui/core/canvas_host.py` | Canvas host and panel docking management |
-| **Node Styles** | `ui/canvas/items/node_style.py` | Node style system (rect/dot/detailed), 3-layer z-architecture |
+| **Node Styles** | `ui/canvas/items/styles/` | Node style system (rect/dot/detailed), StyleRegistry, 3-layer z-architecture |
 | **Node List** | `ui/panels/node_list_panel.py` | Tree view, groups, drag-drop, multi-select |
 | **Property Panel** | `ui/panels/property_panel.py` | Config editor, log viewer, process control, colors |
 | **Expand Panel** | `ui/panels/node_expand_panel.py` | output.json viewer/editor with live refresh |
@@ -306,7 +306,7 @@ graph TB
 | **Logger** | `ui/core/logger.py` | Global logger with rotation (console + file) |
 | **IDE Scanner** | `ui/core/ide_scanner.py` | Auto-detects VSCode / Trae IDE, 4-layer detection chain |
 | **Parameter Parser** | `ui/core/node_config_parser.py` | Parses parameters field from node config.json |
-| **Parameter Widget Factory** | `ui/canvas/parameter_widgets.py` | Qt widget factory for 11 parameter types |
+| **Parameter Widget Library** | `ui/canvas/parameter_widgets/` | Qt widget library for 11 param types with WidgetRegistry                       |
 | **Toast Queue** | `ui/core/toast/toast_queue_manager.py` | Toast notification queue management |
 | **Action System** | `ui/core/actions/` | Unified action registry and factory |
 | **EventBus** | `ui/core/event_bus.py` | Global event publishing/subscription system |
@@ -636,9 +636,14 @@ BNOS/
 │   │       ├── action_registry.py
 │   │       ├── action_factory.py
 │   │       ├── builtin_project_actions.py
-│   │       ├── builtin_node_actions.py
+│   │       ├── builtin_node_actions.py  # Redirect → node/ subpackage
 │   │       ├── builtin_canvas_actions.py
-│   │       └── builtin_view_actions.py
+│   │       ├── builtin_view_actions.py
+│   │       └── node/              # Node-related actions (Registry-based)
+│   │           ├── __init__.py        # register_node_actions() aggregator
+│   │           ├── _lifecycle.py / _context_menu.py / _batch.py
+│   │           ├── _selection.py / _group.py / _ungrouped.py
+│   │           └── _ide.py / _style.py
 │   │
 │   ├── menu/                      # Menu system
 │   │   └── menu_manager.py       # Menu bar manager
@@ -661,9 +666,25 @@ BNOS/
 │   │       ├── anchor_item.py    # Anchor (I/O port)
 │   │       ├── anchor_manager.py # Anchor management
 │   │       ├── node_item.py      # Node container
-│   │       ├── node_style.py     # Node style system (rect/dot)
 │   │       ├── node_status_widget.py
-│   │       └── edge_item.py      # Bezier curve edge
+│   │       ├── edge_item.py      # Bezier curve edge
+│   │       ├── styles/           # Node style system (Registry-based)
+│   │       │   ├── __init__.py   # StyleRegistry + re-exports
+│   │       │   ├── _base.py      # NodeStyle base class
+│   │       │   ├── rect.py       # RectNodeStyle + Dark/Light variants
+│   │       │   ├── dot.py        # DotNodeStyle
+│   │       │   └── detailed.py   # DetailedNodeStyle
+│   │       └── node_style.py     # Compatibility redirect
+│   │
+│   ├── graphic_items/             # Drawing graphics (Registry-based)
+│   │   ├── __init__.py            # GraphicRegistry + re-exports
+│   │   ├── _base.py               # GraphicBase + constants
+│   │   ├── rect.py / round_rect.py / polygon.py / arrow.py / text.py
+│   │
+│   ├── parameter_widgets/         # Parameter widgets (Registry-based)
+│   │   ├── __init__.py            # WidgetRegistry + re-exports
+│   │   ├── _base.py               # ParameterWidget base + constants
+│   │   └── string.py / text.py / int_widget.py / ... (11 types)
 │   │
 │   ├── panels/                    # Panels
 │   │   ├── node_list_panel.py    # Node list panel
@@ -678,7 +699,11 @@ BNOS/
 │   │   ├── node_monitor_dock.py  # Dock-style node monitor
 │   │   ├── resource_monitor.py   # Resource monitor
 │   │   ├── resource_monitor_dock.py
-│   │   └── panel_process.py      # Panel process isolation
+│   │   ├── panel_process.py      # Panel process isolation
+│   │   └── _shared/              # Shared panel components
+│   │       ├── node_log_sub_panel.py
+│   │       ├── node_panel_sync_mixin.py
+│   │       └── system_resource_collector.py
 │   │
 │   ├── dialogs/                   # Dialogs
 │   │   ├── color_settings_dialog.py
@@ -720,13 +745,14 @@ BNOS/
 - ✅ **Test Coverage**: 28+ unit tests covering core modules
 - ✅ **Unified Floating Panels**: All windows share `FloatingPanel` base class
 - ✅ **Modular Canvas**: Split into Items/Core/Mixin multi-layer architecture
-- ✅ **Node Style System**: Abstract base class + implementations, rect/dot styles switchable
+- ✅ **Node Style System**: 3 styles managed via StyleRegistry
+- ✅ **Registry-Driven Architecture**: Styles, parameter widgets, graphics, and Actions all use "Split + Registry" pattern; new types require only 2 changes
 - ✅ **Separation of Concerns**: UI rendering isolated from business logic
-- ✅ **Backward Compatible**: Old import paths still work via Facade pattern
+- ✅ **Backward Compatible**: Old import paths still work via Facade + redirects
 - ✅ **Extensible**: Easy to add custom node types and interactions
 - ✅ **Global Logger**: All print() migrated to logger with rotation
 - ✅ **Toast Queue Management**: FIFO ordering, smart replacement, priority display
-- ✅ **Unified Action System**: Centralized action registry with i18n support
+- ✅ **Unified Action System**: Centralized action registry with i18n support (~80 Actions)
 - ✅ **Atomic Config Writes**: Safe configuration persistence with backup
 - ✅ **Validators**: Path & node name validation with security checks
 - ✅ **Shutdown Orchestrator**: Clean shutdown sequence management
@@ -753,14 +779,21 @@ def detect_language(self, node_path):
 
 #### Customizing Node Styles
 
-Modify `NodeItem.__init__()` in `ui/canvas/items/node_item.py`:
+In `ui/canvas/items/styles/` add a new style class:
 
 ```python
-# Node background color
-self.setBrush(QBrush(QColor("#f8f9fa")))  # Change color
+class MyCustomStyle(NodeStyle):
+    style_key = "custom"
+    def apply(self, node_item):
+        # Custom node appearance
+        node_item.setRect(0, 0, 160, 90)
+        # ... more customizations
+```
 
-# Node dimensions
-super().__init__(x, y, w, h, None)  # w=140, h=80 adjustable
+Then register in `__init__.py`:
+
+```python
+StyleRegistry._styles["custom"] = MyCustomStyle
 ```
 
 #### Adding Toolbar Buttons
@@ -929,7 +962,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-06-12
+- **Last Updated**: 2026-06-13
 
 
 ---

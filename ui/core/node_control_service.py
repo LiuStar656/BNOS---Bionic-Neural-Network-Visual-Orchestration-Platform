@@ -4,6 +4,7 @@
 from typing import Dict, List, Optional, Callable
 from PyQt6.QtCore import QObject, QThread
 from pathlib import Path
+from ui.core.logger import logger
 import subprocess
 import os
 import signal
@@ -77,7 +78,7 @@ class NodeControlService:
             self._monitor(name, process)
             return True
         except Exception as e:
-            print(f"Error starting node {name}: {e}")
+            logger.error("启动节点 %s 失败: %s", name, e)
             node_info.status = NodeStatus.ERROR
             self._notify(name, NodeStatus.ERROR)
             return False
@@ -111,7 +112,7 @@ class NodeControlService:
             self._notify(name, NodeStatus.STOPPED)
             return True
         except Exception as e:
-            print(f"Error stopping node {name}: {e}")
+            logger.error("停止节点 %s 失败: %s", name, e)
             node_info.status = NodeStatus.ERROR
             self._notify(name, NodeStatus.ERROR)
             return False
@@ -133,7 +134,7 @@ class NodeControlService:
                     self.nodes[name].status = NodeStatus.ERROR
                     self._notify(name, NodeStatus.ERROR)
             except Exception as e:
-                print(f"Monitor error for {name}: {e}")
+                logger.warning("节点 %s 监控异常: %s", name, e)
         monitor_thread = QThread()
         monitor_worker = QObject()
         monitor_worker.moveToThread(monitor_thread)
@@ -146,7 +147,7 @@ class NodeControlService:
             try:
                 cb(name, status)
             except Exception as e:
-                print(f"Callback error: {e}")
+                logger.warning("状态回调异常: %s", e)
 
     def subscribe(self, callback: Callable):
         self._status_callbacks.append(callback)

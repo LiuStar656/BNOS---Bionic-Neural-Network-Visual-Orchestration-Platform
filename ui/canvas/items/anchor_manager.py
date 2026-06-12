@@ -266,19 +266,23 @@ class AnchorManager:
         self.output_anchors["default"] = out_anchor
 
         # —— 8. 迁移 edges（把旧锚点的 edge 绑定到新锚点，保持连线路径）——
-        # 规则：按 port_name 匹配；找不到则用默认锚点兜底
-        # 输入端
+        # 规则：优先使用 EdgeItem 自带的 _desired_target_port_name（连接时记录的原始端口名），
+        #       其次用旧锚点的 port_name，都找不到用 default 锚点兜底
         migrated_edge_ids: set[int] = set()
-        for port_name, edges in old_input_edges:
-            new_anchor = self.input_anchors.get(port_name)
-            if new_anchor is None:
-                new_anchor = self.input_anchors.get("default")
-            if new_anchor is None:
-                new_anchor = next(iter(self.input_anchors.values()), None)
-            if new_anchor is None:
-                continue
+        for _port_name, edges in old_input_edges:
             for edge in edges:
                 try:
+                    # 优先用 edge 自带的期望端口名（样式切换时不会丢失）
+                    desired_port = getattr(edge, '_desired_target_port_name', None)
+                    new_anchor = self.input_anchors.get(desired_port) if desired_port else None
+                    if new_anchor is None:
+                        new_anchor = self.input_anchors.get(_port_name)
+                    if new_anchor is None:
+                        new_anchor = self.input_anchors.get("default")
+                    if new_anchor is None:
+                        new_anchor = next(iter(self.input_anchors.values()), None)
+                    if new_anchor is None:
+                        continue
                     edge.end_anchor = new_anchor
                     new_anchor.add_edge(edge)
                     edge.update_path()
@@ -301,25 +305,27 @@ class AnchorManager:
                     pass
 
         # —— 8b. 兜底：从 canvas.edges 扫描到的 edge 兜底迁移 ——
-        # 某些情况下 anchor.edges 在 clear_edges 之前已被清空，
-        # 但 edge 对象本身仍然持有对旧锚点的引用，需要在这里重新挂到新锚点。
         for kind, port_name, edge in canvas_edges_extra:
             if id(edge) in migrated_edge_ids:
                 continue
             try:
                 if kind == "input":
-                    new_anchor = self.input_anchors.get(port_name) or self.input_anchors.get("default")
-                    if new_anchor is None and self.input_anchors:
-                        new_anchor = next(iter(self.input_anchors.values()))
+                    # 优先用 edge 自带的期望端口名
+                    desired_port = getattr(edge, '_desired_target_port_name', None)
+                    new_anchor = (self.input_anchors.get(desired_port) if desired_port else None) \
+                                 or self.input_anchors.get(port_name) \
+                                 or self.input_anchors.get("default") \
+                                 or (next(iter(self.input_anchors.values())) if self.input_anchors else None)
                     if new_anchor is None:
                         continue
                     edge.end_anchor = new_anchor
                     new_anchor.add_edge(edge)
                     edge.update_path()
                 else:
-                    new_anchor = self.output_anchors.get("default")
-                    if new_anchor is None and self.output_anchors:
-                        new_anchor = next(iter(self.output_anchors.values()))
+                    desired_port = getattr(edge, '_desired_source_port_name', None)
+                    new_anchor = (self.output_anchors.get(desired_port) if desired_port else None) \
+                                 or self.output_anchors.get("default") \
+                                 or (next(iter(self.output_anchors.values())) if self.output_anchors else None)
                     if new_anchor is None:
                         continue
                     edge.start_anchor = new_anchor

@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QGraphicsItem
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
-from ui.canvas.items.node_style import STYLES
+from ui.canvas.items.styles import StyleRegistry
 from ui.core.i18n import t
 from ui.core.actions import ActionFactory, ActionContext, ActionRegistry
 from ui.core.actions.builtin_node_actions import register_node_actions
@@ -20,7 +20,7 @@ from ui.core.utils.file_utils import get_project_root, open_terminal_in_director
 
 
 class CanvasMenusMixin:
-    """右键菜单 Mixin"""
+    """右键菜单 Mixin — 全部通过 Action 系统分发"""
 
     # ---- helpers ----
 
@@ -89,7 +89,7 @@ class CanvasMenusMixin:
         ActionFactory.create_action(self, "node.stop", ctx, menu)
         menu.addSeparator()
 
-        # 批量移除（动态名称）
+        # 批量移除（动态文本 — 保留 menu.addAction 但走 ActionRegistry）
         a = QAction(t("_k_batch_remove_selected").replace("{count}", str(count)), menu)
         a.triggered.connect(lambda: self._dispatch("canvas.batch_remove"))
         menu.addAction(a)
@@ -107,7 +107,7 @@ class CanvasMenusMixin:
         menu = QMenu(self)
         node_name = node_item.node_name
 
-        # 启动/停止（main_window 操作，无需 extra）
+        # 启动/停止
         if self.parent_window and node_name in self.parent_window.nodes_data:
             status = self.parent_window.nodes_data[node_name].get('status')
             ctx = ActionContext(node_name=node_name)
@@ -122,36 +122,35 @@ class CanvasMenusMixin:
                                      self._make_ctx(node_name=node_name), menu)
         menu.addSeparator()
 
-        # 配置节点
+        # 配置 / 展开节点
         ActionFactory.create_action(self, "node.config",
                                      self._make_ctx(node_name=node_name), menu)
-
-        # 展开节点
         ActionFactory.create_action(self, "canvas.expand_node",
                                      self._make_ctx(node_name=node_name), menu)
         menu.addSeparator()
 
-        # 样式子菜单（动态列表，保持手动构建）
+        # 样式子菜单（动态从 StyleRegistry 构建，通过 Action 系统分发）
         style_menu = menu.addMenu(t("k_node_style"))
-        for key, cls in STYLES.items():
+        for key in StyleRegistry.keys():
+            cls = StyleRegistry.get(key)
             st = cls()
-            a = QAction(t(st.style_name), style_menu)
-            a.triggered.connect(partial(self._switch_node_style, key, node_item))
-            style_menu.addAction(a)
+            ActionFactory.create_action(self, "node.change_style",
+                ActionContext(extra={'canvas': self, 'node_item': node_item, 'style_key': key}),
+                style_menu
+            )
+            # 用样式名覆盖 label（ActionFactory 用的是 i18n key，这里需要动态名称）
+            last_action = style_menu.actions()[-1] if style_menu.actions() else None
+            if last_action and not last_action.isSeparator():
+                last_action.setText(t(st.style_name))
 
         menu.addSeparator()
 
-        # 节点颜色子菜单（需要 NodeItem 引用，保持手动）
+        # 节点颜色子菜单（通过 Action 系统分发）
         color_menu = menu.addMenu(t("k_node_color"))
-        a = QAction(t("k_node_bg_color"), color_menu)
-        a.triggered.connect(partial(self.change_node_background_color, node_item))
-        color_menu.addAction(a)
-        a = QAction(t("k_node_border_color"), color_menu)
-        a.triggered.connect(partial(self.change_node_border_color, node_item))
-        color_menu.addAction(a)
-        a = QAction(t("k_node_text_color"), color_menu)
-        a.triggered.connect(partial(self.change_node_text_color, node_item))
-        color_menu.addAction(a)
+        color_ctx = ActionContext(extra={'canvas': self, 'node_item': node_item})
+        ActionFactory.create_action(self, "node.change_bg_color", color_ctx, color_menu)
+        ActionFactory.create_action(self, "node.change_border_color", color_ctx, color_menu)
+        ActionFactory.create_action(self, "node.change_text_color", color_ctx, color_menu)
 
         menu.addSeparator()
 
@@ -194,7 +193,7 @@ class CanvasMenusMixin:
     def _show_canvas_menu(self, event):
         menu = QMenu(self)
 
-        # 新建节点（动态子菜单，使用 ActionRegistry）
+        # 新建节点（通过 ActionFactory）
         new_menu = menu.addMenu(t("k_canvas_new_node"))
         _lang_list = [
             ("k_lang_python", "Python"),
@@ -205,11 +204,8 @@ class CanvasMenusMixin:
             ("k_lang_cpp", "C++ (开发中)"),
             ("k_lang_shell", "Shell (开发中)"),
         ]
-        for i18n_k, lang_name in _lang_list:
-            a = QAction(t(i18n_k), new_menu)
-            a.triggered.connect(
-                lambda checked, ln=lang_name: self._dispatch(f"canvas.new_node.{ln}"))
-            new_menu.addAction(a)
+        for i18n_key, lang_name in _lang_list:
+            ActionFactory.create_action(self, f"canvas.new_node.{lang_name}", menu=new_menu)
         menu.addSeparator()
 
         # 节点监控
@@ -217,7 +213,7 @@ class CanvasMenusMixin:
 
         menu.addSeparator()
 
-        # 打开终端（平台相关，保持手动但路由到 ActionRegistry）
+        # 打开终端（平台相关 — 动态菜单，保留手动构建）
         terminal_menu = menu.addMenu(t("k_canvas_open_terminal"))
         if platform.system() == "Windows":
             a = QAction(t("k_canvas_open_terminal_powershell"), terminal_menu)
@@ -250,7 +246,7 @@ class CanvasMenusMixin:
         ActionFactory.create_action(self, "canvas.reset_view", menu=menu)
         menu.addSeparator()
 
-        # 绘画工具栏（动态文本）
+        # 绘画工具栏（动态文本 — 保留 menu.addAction，路由到 ActionRegistry）
         toolbar_visible = self.draw_layer._toolbar_visible if hasattr(self, 'draw_layer') else False
         action_text = t("k_canvas_hide_draw_toolbar") if toolbar_visible else t("k_canvas_show_draw_toolbar")
         a = QAction(action_text, menu)
@@ -284,11 +280,10 @@ class CanvasMenusMixin:
     # ---- 节点样式切换 ----
 
     def _switch_node_style(self, style_key, node_item):
-        from ui.canvas.items.node_style import STYLES
-        cls = STYLES.get(style_key)
+        from ui.canvas.items.styles import StyleRegistry
+        cls = StyleRegistry.get(style_key)
         if not cls:
             return
-        # 关键：调用 node_item.set_style() — 它会正确清理详细版控件并使用新样式的默认尺寸
         node_item.set_style(cls())
 
         all_edges = set()

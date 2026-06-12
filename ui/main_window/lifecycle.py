@@ -145,7 +145,7 @@ class MainWindowLifecycleMixin:
     
     def _shutdown_save_all_data(self):
         """保存所有数据（布局/窗口状态/面板可见性/浮动面板位置）"""
-        logger.info("📦 === 开始保存所有数据 ===")
+        logger.info("[SHUTDOWN] === 开始保存所有数据 ===")
         
         if hasattr(self, '_canvas_host') and self._canvas_host:
             self._canvas_host.update_canvas_data_from_main_window(self.canvas)
@@ -153,23 +153,34 @@ class MainWindowLifecycleMixin:
         if self.current_project_path and hasattr(self, '_canvas_host'):
             self._canvas_host.save_all_layouts(self.current_project_path)
         
-        logger.info("💾 保存窗口状态...")
+        logger.info("[SAVE] 保存窗口状态...")
         self.save_window_state()
         self.app_config.set("last_project", self.current_project_path)
         
         logger.info("[SAVE] 保存面板可见性...")
         self._save_panel_visibility()
         
-        # 保存所有浮动面板的位置
+        # 保存所有浮动面板的位置（仅可见的）
         panels = [
             ('node_list', getattr(self, 'node_list_floating', None)),
             ('resource_monitor', getattr(self, 'resource_monitor_floating', None)),
             ('node_monitor', getattr(self, 'node_monitor', None)),
         ]
         for panel_name, panel_widget in panels:
-            self._save_panel_position(panel_name, panel_widget)
+            if panel_widget and panel_widget.isVisible():
+                logger.info("保存面板位置: %s", panel_name)
+                self._save_panel_position(panel_name, panel_widget)
         
-        logger.info("[OK] 所有数据保存完成")
+        logger.info("[SAVE] 强制保存配置到文件...")
+        self.app_config.save()
+        
+        import os
+        if os.path.exists(self.app_config.config_file):
+            logger.info("配置文件保存成功: %s", self.app_config.config_file)
+        else:
+            logger.error("配置文件保存失败，文件不存在")
+        
+        logger.info("[SHUTDOWN] === 所有数据保存完成 ===")
     
     def moveEvent(self, event):
         """窗口移动事件"""

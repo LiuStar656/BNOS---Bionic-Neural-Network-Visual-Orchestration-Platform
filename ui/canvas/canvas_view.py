@@ -160,7 +160,7 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         self.layout_ctrl  = CanvasLayoutController(self)
         self.colors       = CanvasColorController(self)
         self.zoom_ctrl    = CanvasZoomController(self)
-        print("[Decouple] Canvas控制器组合层已激活 (7个控制器, 委托模式)")
+        logger.info("Canvas控制器组合层已激活 (7个控制器, 委托模式)")
 
     def drawBackground(self, painter, rect):
         """背景：直接用 canvas_bg_color 填充（绕过可能被 stylesheet 覆盖的默认行为）"""

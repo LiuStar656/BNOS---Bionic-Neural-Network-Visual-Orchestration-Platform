@@ -5,6 +5,7 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, Type, Dict, Any, Callable, Optional
 from pathlib import Path
+from ui.core.logger import logger
 import json
 
 T = TypeVar('T')
@@ -34,7 +35,7 @@ class JsonFileConfig(IConfig):
             if self.config_path.exists():
                 self._data = json.loads(self.config_path.read_text(encoding='utf-8'))
         except Exception as e:
-            print(f"[DI] 配置加载失败: {e}")
+            logger.warning("[DI] 配置加载失败: %s", e)
             self._data = {}
 
     def save(self):
@@ -45,7 +46,7 @@ class JsonFileConfig(IConfig):
                 encoding='utf-8'
             )
         except Exception as e:
-            print(f"[DI] 配置保存失败: {e}")
+            logger.warning("[DI] 配置保存失败: %s", e)
 
     def get(self, key: str, default=None):
         keys = key.split('.')

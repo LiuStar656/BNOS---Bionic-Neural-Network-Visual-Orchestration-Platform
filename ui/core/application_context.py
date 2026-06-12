@@ -54,7 +54,7 @@ class ApplicationContext:
         self._event_bus = EventBus()
         
         # 核心服务（不依赖主窗口）
-        self._polling = PollingManager()
+        self._polling = PollingManager.instance()
         self._node_control = NodeControlService()
         self._process_manager = ProcessManager()
         
@@ -157,11 +157,11 @@ class ApplicationContext:
         
         # 停止轮询
         if hasattr(self, '_polling'):
-            self._polling.stop_all()
+            self._polling.stop()
         
         # 停止进程
         if hasattr(self, '_process_manager'):
-            self._process_manager.terminate_all()
+            self._process_manager.stop_all()
         
         # 保存配置
         if hasattr(self, '_config'):

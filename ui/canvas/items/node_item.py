@@ -12,7 +12,7 @@ from ui.core.logger import logger
 
 from ui.canvas.items.anchor_item import AnchorItem, ANCHOR_SIZE, ANCHOR_HALF
 from ui.canvas.items.anchor_manager import AnchorManager
-from ui.canvas.items.node_style import DarkRectNodeStyle
+from ui.canvas.items.styles import DarkRectNodeStyle
 from ui.canvas.items.node_status_widget import NodeStatusWidget
 
 
@@ -230,8 +230,8 @@ class NodeItem(QGraphicsRectItem):
                 if self._start_time is None:
                     self._start_time = datetime.now()
                 self._connect_resource_monitor_signals()
-            else:
-                # 如果还没有状态组件，创建一个
+            elif self._style.status_show:
+                # 仅当当前样式支持状态显示时才创建（节点模式/面板模式不创建）
                 self._status_widget = NodeStatusWidget(self)
                 self._status_widget.set_visible(True)
                 self._start_time = datetime.now()
@@ -256,16 +256,14 @@ class NodeItem(QGraphicsRectItem):
         self._style = style
 
         # 2) 根据样式类型设置正确的尺寸（避免类默认值与实际不匹配）
-        from ui.canvas.items.node_style import (
-            RectNodeStyle, DotNodeStyle, DetailedNodeStyle
-        )
-        if isinstance(self._style, DotNodeStyle):
-            self._style.node_width = self._style.__class__.node_width  # 80
-            self._style.node_height = self._style.__class__.node_height  # 80
-        elif isinstance(self._style, DetailedNodeStyle):
+        sk = self._style.style_key
+        if sk == "dot":
+            self._style.node_width = 80
+            self._style.node_height = 80
+        elif sk == "detailed":
             # 详细版不硬编码，等 _build_detailed_view() 中 set_sizes() 计算
             pass
-        elif isinstance(self._style, RectNodeStyle):
+        elif sk == "rect":
             # 方形节点用原始尺寸（节点创建时传入的 w/h）
             self._style.node_width = self._rect_default_width
             self._style.node_height = self._rect_default_height
@@ -310,16 +308,14 @@ class NodeItem(QGraphicsRectItem):
                 custom_color = QColor(config['custom_bg_color'])
                 if custom_color.isValid():
                     self.setBrush(QBrush(custom_color))
-            except:
+            except Exception:
                 pass
-        
-        # 应用自定义边框色
         if 'custom_border_color' in config:
             try:
                 custom_color = QColor(config['custom_border_color'])
                 if custom_color.isValid():
                     self.setPen(QPen(custom_color, 2))
-            except:
+            except Exception:
                 pass
         
         # 应用自定义文字色
@@ -328,7 +324,7 @@ class NodeItem(QGraphicsRectItem):
                 custom_color = QColor(config['custom_text_color'])
                 if custom_color.isValid():
                     self.name_text.setDefaultTextColor(custom_color)
-            except:
+            except Exception:
                 pass
         
     def update_display(self, node_name=None, language=None, status=None):
@@ -462,9 +458,8 @@ class NodeItem(QGraphicsRectItem):
         if is_dot:
             return
 
-        # —— 判断是否是 DetailedNodeStyle（面板模式） ——
-        from ui.canvas.items.node_style import DetailedNodeStyle
-        is_detailed = isinstance(self._style, DetailedNodeStyle)
+        # —— 判断是否是面板模式 ——
+        is_detailed = self._style.style_key == "detailed"
 
         rect = self.rect()
         w = rect.width()
@@ -475,11 +470,11 @@ class NodeItem(QGraphicsRectItem):
             from PyQt6.QtGui import QPainterPath, QPainter
             painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-            corner_radius = DetailedNodeStyle.CORNER_RADIUS
-            header_h = DetailedNodeStyle.HEADER_HEIGHT
-            body_bg = DetailedNodeStyle.body_bg
-            body_border = DetailedNodeStyle.body_border
-            header_color = DetailedNodeStyle.header_color_for(self.language)
+            corner_radius = self._style.CORNER_RADIUS
+            header_h = self._style.HEADER_HEIGHT
+            body_bg = self._style.body_bg
+            body_border = self._style.body_border
+            header_color = self._style.header_color_for(self.language)
             node_rect = QRectF(0, 0, w, h)
 
             # —— 1. 主体圆角矩形背景 ——
@@ -654,7 +649,7 @@ class NodeItem(QGraphicsRectItem):
             return
 
         from ui.core.node_config_parser import NodeConfigParser, ParameterDef
-        from ui.canvas.items.node_style import DetailedNodeStyle
+        from ui.canvas.items.styles import DetailedNodeStyle
         style = DetailedNodeStyle
 
         # --- 解析：输入端口（需锚点） + 参数 ---
@@ -857,28 +852,66 @@ class NodeItem(QGraphicsRectItem):
             self._save_node_config(config)
 
     def _get_node_config(self):
-        """获取当前节点的 config 字典"""
+        """获取当前节点的 config 字典（合并磁盘 config.json + 内存运行时状态）
+
+        解决 start.json 启动时整体替换 node_info['config'] 导致 parameters/input_ports
+        元数据丢失的问题——始终从磁盘加载完整 config.json，仅对运行时字段
+        （listen_upper_file/output_file/out_connections 等）用内存值覆盖。
+        """
         pw = self._get_parent_window()
-        if pw:
-            data = pw.nodes_data.get(self.node_name, {})
-            return data.get('config')
-        return None
+        if not pw:
+            return None
+        path = pw.nodes_data.get(self.node_name, {}).get('path', '')
+        if not path:
+            return None
+        # 从磁盘加载完整 config.json（始终包含 parameters/input_ports）
+        cfg_path = os.path.join(path, 'config.json')
+        merged = {}
+        try:
+            if os.path.exists(cfg_path):
+                import json
+                with open(cfg_path, 'r', encoding='utf-8') as f:
+                    merged = json.load(f)
+        except Exception:
+            pass
+        # 运行时字段：用内存中的值覆盖（这些值是执行过程中动态更新的）
+        mem_config = pw.nodes_data.get(self.node_name, {}).get('config', {})
+        for key in ('listen_upper_file', 'output_file', 'out_connections', 'filter', 'output_type', 'port_mappings'):
+            if key in mem_config:
+                merged[key] = mem_config[key]
+        return merged
 
     def _save_node_config(self, config: dict):
-        """保存 config 到文件并同步内存"""
+        """保存 config 到文件并同步内存（保护 parameters/input_ports 不被覆盖丢失）
+
+        解决 start.json 启动覆盖导致元数据丢失后，保存回来的 config 不含
+        parameters/input_ports，再次加载时无法构建面板的问题。
+        """
         pw = self._get_parent_window()
         if not pw:
             return
-        pw.nodes_data[self.node_name]['config'] = config
         node_path = pw.nodes_data[self.node_name].get('path', '')
-        if node_path:
-            import json
-            cfg_path = os.path.join(node_path, 'config.json')
-            try:
-                with open(cfg_path, 'w', encoding='utf-8') as f:
-                    json.dump(config, f, indent=2, ensure_ascii=False)
-            except Exception as e:
-                logger.warning("Failed to save config for %s: %s", self.node_name, e)
+        if not node_path:
+            return
+        import json
+        cfg_path = os.path.join(node_path, 'config.json')
+        # 从磁盘加载完整 config（保护 parameters/input_ports 等元数据）
+        saved_config = dict(config)
+        try:
+            if os.path.exists(cfg_path):
+                with open(cfg_path, 'r', encoding='utf-8') as f:
+                    disk_config = json.load(f)
+                for key in ('parameters', 'input_ports', 'output_ports'):
+                    if key in disk_config and key not in saved_config:
+                        saved_config[key] = disk_config[key]
+        except Exception:
+            pass
+        pw.nodes_data[self.node_name]['config'] = saved_config
+        try:
+            with open(cfg_path, 'w', encoding='utf-8') as f:
+                json.dump(saved_config, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.warning("Failed to save config for %s: %s", self.node_name, e)
 
     def _get_parent_window(self):
         """获取 main_window 引用"""

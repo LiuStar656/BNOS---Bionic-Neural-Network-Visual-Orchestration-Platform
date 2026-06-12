@@ -5,6 +5,7 @@ from typing import Dict, Type, Callable, Any, Optional
 from PyQt6.QtWidgets import QWidget, QDockWidget
 from PyQt6.QtCore import Qt
 from pathlib import Path
+from ui.core.logger import logger
 import json
 
 
@@ -122,7 +123,7 @@ class PanelManager:
                     if key in self.registry.get_all_keys():
                         self.toggle_panel(key, visible)
         except Exception as e:
-            print(f"Error loading panel states: {e}")
+            logger.error("加载面板状态失败: %s", e)
 
     def save_panel_states(self):
         try:
@@ -139,7 +140,7 @@ class PanelManager:
             with open(self.config_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"Error saving panel states: {e}")
+            logger.error("保存面板状态失败: %s", e)
 
     def show_panel(self, key: str):
         self.toggle_panel(key, True)

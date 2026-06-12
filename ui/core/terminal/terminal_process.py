@@ -68,7 +68,7 @@ class TerminalProcess(QObject):
         except UnicodeDecodeError:
             try:
                 data = data_bytes.decode('gbk')
-            except:
+            except Exception:
                 data = data_bytes.decode('utf-8', errors='replace')
         
         data = self._strip_ansi(data)

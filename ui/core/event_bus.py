@@ -4,6 +4,7 @@
 """
 from typing import Dict, List, Callable, Any
 from PyQt6.QtCore import QObject, pyqtSignal
+from ui.core.logger import logger
 import threading
 
 
@@ -47,7 +48,7 @@ class EventBus(QObject):
             try:
                 handler(data)
             except Exception as e:
-                print(f"[EventBus] Error handling '{event_type}': {e}")
+                logger.warning("[EventBus] Error handling '%s': %s", event_type, e)
 
 
 # 全局事件总线单例

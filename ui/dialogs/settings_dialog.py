@@ -203,13 +203,13 @@ class SettingsDialog(FloatingPanel):
         if lang_changed or proc_changed:
             if lang_changed:
                 try: self.main_window.app_config.set("language", lang)
-                except: pass
+                except Exception: pass
             if proc_changed:
                 self.main_window.CANVAS_PROCESS_MODE = proc_mode
                 try: self.main_window.app_config.set("process_mode", proc_mode)
-                except: pass
+                except Exception: pass
             try: self.main_window.app_config.save()
-            except: pass
+            except Exception: pass
             themed_message(self, t("_k_settings_restart_title"),
                 t("_k_settings_restart_msg"), "info")
             self.close()

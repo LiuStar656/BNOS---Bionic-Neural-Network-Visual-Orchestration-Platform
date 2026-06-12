@@ -1,8 +1,12 @@
 """
-节点监测面板 - 全局实时日志查看组件
-参照 NodeListPanel 样式：无边框、半透明深色背景、可拖动
+节点监测面板 - 全局实时日志查看组件（浮动版）
+无边框、半透明深色背景、可拖动
 父窗口 + QScrollArea + 多个 NodeLogSubPanel 子窗口
 支持节点资源占用检测
+
+与 node_monitor_dock.py 共享:
+  - SystemResourceCollector: 系统+节点资源数据采集
+  - NodePanelSyncMixin: 子面板同步逻辑
 """
 import os
 import subprocess
@@ -11,16 +15,23 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTextEdit, QGroupBox, QWidget, QScrollArea, QProgressBar
 )
-from ui.core.i18n import t
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtGui import QFont
+from ui.core.i18n import t
 from ui.core.floating_panel import FloatingPanel
 from ui.core.utils.dialog_utils import themed_message
 from ui.core.polling_manager import polling_manager
+from ui.panels._shared.system_resource_collector import SystemResourceCollector
+from ui.panels._shared.node_panel_sync_mixin import NodePanelSyncMixin
 
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  NodeLogSubPanel — 浮动版
+#  特有: Refresh/Clear/Dir 按钮、折叠指示符、CPU > 80% 变红
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 class NodeLogSubPanel(QGroupBox):
-    """单个节点的日志子面板（可折叠）"""
+    """单个节点的日志子面板（可折叠）— 浮动版特有 UI"""
 
     def __init__(self, node_name, node_path, node_status="stopped", parent=None):
         super().__init__(parent)
@@ -29,8 +40,8 @@ class NodeLogSubPanel(QGroupBox):
         self._collapsed = False
         self._log_file = os.path.join(node_path, "logs", "listener.log")
         self._resource_timer = None
-        self._last_cpu = 0
-        self._last_memory = 0
+        self._last_cpu = 0.0
+        self._last_memory = 0.0
 
         self.setStyleSheet("""
             QGroupBox {
@@ -51,19 +62,19 @@ class NodeLogSubPanel(QGroupBox):
         self._init_ui(node_status)
         self._load_log()
 
-        # 订阅 polling_manager 日志变更信号（替代独立定时器）
         polling_manager.watch_log(node_path, "listener.log")
         polling_manager.log_file_changed.connect(self._on_external_log_change)
 
-        # 启动资源监测定时器（每秒更新）
         self._start_resource_timer()
+
+    # ──── UI 构建（浮动版特有）────
 
     def _init_ui(self, status):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(3)
 
-        # ---- 标题栏（可点击折叠）----
+        # 标题栏（可点击折叠）
         title_row = QHBoxLayout()
         status_text = t("k_status_running") if status == 'running' else t("k_status_stopped")
         status_color = "#4CAF50" if status == 'running' else "#999"
@@ -93,11 +104,10 @@ class NodeLogSubPanel(QGroupBox):
         title_row.addWidget(self._collapse_indicator)
         layout.addLayout(title_row)
 
-        # ---- 资源占用显示 ----
+        # 资源占用显示
         resource_row = QHBoxLayout()
         resource_row.setSpacing(8)
 
-        # CPU
         cpu_layout = QVBoxLayout()
         self._cpu_label = QLabel("CPU: 0%")
         self._cpu_label.setStyleSheet("color: #4CAF50; font-size: 9px;")
@@ -105,22 +115,11 @@ class NodeLogSubPanel(QGroupBox):
         self._cpu_bar.setRange(0, 100)
         self._cpu_bar.setValue(0)
         self._cpu_bar.setMaximumWidth(80)
-        self._cpu_bar.setStyleSheet("""
-            QProgressBar {
-                background-color: rgba(255, 255, 255, 10);
-                border-radius: 3px;
-                height: 6px;
-            }
-            QProgressBar::chunk {
-                background-color: #4CAF50;
-                border-radius: 3px;
-            }
-        """)
+        self._cpu_bar.setStyleSheet(self._cpu_bar_css("#4CAF50"))
         cpu_layout.addWidget(self._cpu_label)
         cpu_layout.addWidget(self._cpu_bar)
         resource_row.addLayout(cpu_layout)
 
-        # 内存
         mem_layout = QVBoxLayout()
         self._mem_label = QLabel("MEM: 0 MB")
         self._mem_label.setStyleSheet("color: #2196F3; font-size: 9px;")
@@ -128,17 +127,7 @@ class NodeLogSubPanel(QGroupBox):
         self._mem_bar.setRange(0, 100)
         self._mem_bar.setValue(0)
         self._mem_bar.setMaximumWidth(80)
-        self._mem_bar.setStyleSheet("""
-            QProgressBar {
-                background-color: rgba(255, 255, 255, 10);
-                border-radius: 3px;
-                height: 6px;
-            }
-            QProgressBar::chunk {
-                background-color: #2196F3;
-                border-radius: 3px;
-            }
-        """)
+        self._mem_bar.setStyleSheet(self._mem_bar_css("#2196F3"))
         mem_layout.addWidget(self._mem_label)
         mem_layout.addWidget(self._mem_bar)
         resource_row.addLayout(mem_layout)
@@ -161,7 +150,7 @@ class NodeLogSubPanel(QGroupBox):
         """)
         layout.addWidget(self._log_editor)
 
-        # 底部按钮栏
+        # 底部按钮栏（浮动版特有）
         btn_row = QHBoxLayout()
         btn_style = (
             "background-color: #444444; color: white; padding: 2px 8px; "
@@ -186,15 +175,34 @@ class NodeLogSubPanel(QGroupBox):
         btn_row.addStretch()
         layout.addLayout(btn_row)
 
+    @staticmethod
+    def _cpu_bar_css(color):
+        return f"""
+            QProgressBar {{
+                background-color: rgba(255, 255, 255, 10);
+                border-radius: 3px;
+                height: 6px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {color};
+                border-radius: 3px;
+            }}
+        """
+
+    @staticmethod
+    def _mem_bar_css(color):
+        return NodeLogSubPanel._cpu_bar_css(color)
+
+    # ──── 定时器 + 资源采集（委托给 SystemResourceCollector）────
+
     def _start_resource_timer(self):
-        """启动资源监测定时器"""
         self._resource_timer = QTimer(self)
         self._resource_timer.timeout.connect(self._update_resources)
-        self._resource_timer.start(2000)  # 2秒间隔，减少CPU占用
+        self._resource_timer.start(2000)  # 2秒间隔
 
     def _update_resources(self):
-        """更新节点资源占用信息"""
-        pid = self._get_node_pid()
+        """更新节点资源占用 — 委托 SystemResourceCollector"""
+        pid = SystemResourceCollector.get_node_pid(self.node_path)
         if not pid:
             self._cpu_label.setText("CPU: -")
             self._cpu_bar.setValue(0)
@@ -202,88 +210,36 @@ class NodeLogSubPanel(QGroupBox):
             self._mem_bar.setValue(0)
             return
 
-        try:
-            if not psutil.pid_exists(pid):
-                self._cpu_label.setText("CPU: -")
-                self._cpu_bar.setValue(0)
-                self._mem_label.setText("MEM: -")
-                self._mem_bar.setValue(0)
-                return
+        if not psutil.pid_exists(pid):
+            self._cpu_label.setText("CPU: -")
+            self._cpu_bar.setValue(0)
+            self._mem_label.setText("MEM: -")
+            self._mem_bar.setValue(0)
+            return
 
-            process = psutil.Process(pid)
-            cpu_total = 0
-            mem_total = 0
+        cpu_total, mem_mb = SystemResourceCollector.collect_process_resources(pid)
+        if cpu_total is None:
+            return
 
-            # 获取进程及其所有子进程的资源占用
-            for child in process.children(recursive=True):
-                try:
-                    cpu_total += child.cpu_percent()
-                    mem_total += child.memory_info().rss
-                except:
-                    pass
+        mem_percent = (mem_mb * 1024 * 1024 / psutil.virtual_memory().total) * 100
 
-            try:
-                cpu_total += process.cpu_percent()
-                mem_total += process.memory_info().rss
-            except:
-                pass
+        self._cpu_label.setText(f"CPU: {cpu_total:.1f}%")
+        self._cpu_bar.setValue(min(int(cpu_total), 100))
+        self._mem_label.setText(f"MEM: {mem_mb:.1f} MB")
+        self._mem_bar.setValue(min(int(mem_percent), 100))
 
-            mem_mb = mem_total / (1024 ** 2)
-            mem_percent = (mem_total / psutil.virtual_memory().total) * 100
+        # 浮动版特有：CPU > 80% 进度条变红
+        if cpu_total > 80:
+            self._cpu_bar.setStyleSheet(self._cpu_bar_css("#F44336"))
+        else:
+            self._cpu_bar.setStyleSheet(self._cpu_bar_css("#4CAF50"))
 
-            self._cpu_label.setText(f"CPU: {cpu_total:.1f}%")
-            self._cpu_bar.setValue(min(int(cpu_total), 100))
-            self._mem_label.setText(f"MEM: {mem_mb:.1f} MB")
-            self._mem_bar.setValue(min(int(mem_percent), 100))
-
-            # 更新进度条颜色（高占用时变红）
-            if cpu_total > 80:
-                self._cpu_bar.setStyleSheet("""
-                    QProgressBar {
-                        background-color: rgba(255, 255, 255, 10);
-                        border-radius: 3px;
-                        height: 6px;
-                    }
-                    QProgressBar::chunk {
-                        background-color: #F44336;
-                        border-radius: 3px;
-                    }
-                """)
-            else:
-                self._cpu_bar.setStyleSheet("""
-                    QProgressBar {
-                        background-color: rgba(255, 255, 255, 10);
-                        border-radius: 3px;
-                        height: 6px;
-                    }
-                    QProgressBar::chunk {
-                        background-color: #4CAF50;
-                        border-radius: 3px;
-                    }
-                """)
-
-        except Exception as e:
-            pass
-
-    def _get_node_pid(self):
-        """获取节点进程 PID"""
-        pid_file = os.path.join(self.node_path, ".pid")
-        if os.path.exists(pid_file):
-            try:
-                with open(pid_file, 'r') as f:
-                    return int(f.read().strip())
-            except:
-                pass
-        return None
-
-    # ==================== 功能 ====================
+    # ──── 日志操作 ────
 
     def _load_log(self):
-        """加载日志文件内容"""
         if not os.path.exists(self._log_file):
             self._log_editor.setPlainText("# 暂无日志\n# 节点启动后将自动生成")
             return
-
         try:
             with open(self._log_file, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
@@ -291,21 +247,18 @@ class NodeLogSubPanel(QGroupBox):
                 self._log_editor.setPlainText(t("k_log_empty"))
             else:
                 self._log_editor.setPlainText(content)
-            # 滚动到底部
             scrollbar = self._log_editor.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum())
         except Exception as e:
             self._log_editor.setPlainText(f"# 读取失败: {e}")
 
     def _on_external_log_change(self, node_path, log_filename):
-        """polling_manager 信号：日志文件被外部修改"""
         if node_path == self.node_path:
             self._load_log()
 
     def _clear_log(self):
-        """清空日志文件"""
-        reply = themed_message(self, t("k_title_confirm_clear"), t("_k_clear_log_confirm").format(name=self.node_name),
-            "question")
+        reply = themed_message(self, t("k_title_confirm_clear"),
+            t("_k_clear_log_confirm").format(name=self.node_name), "question")
         if not reply:
             return
         try:
@@ -314,10 +267,10 @@ class NodeLogSubPanel(QGroupBox):
                 f.write("")
             self._log_editor.setPlainText(t("k_log_cleared"))
         except Exception as e:
-            themed_message(self, t("k_title_error"), t("_k_clear_failed").format(err=str(e)), "error")
+            themed_message(self, t("k_title_error"),
+                t("_k_clear_failed").format(err=str(e)), "error")
 
     def _open_folder(self):
-        """打开节点目录"""
         import platform
         system = platform.system()
         if system == "Windows":
@@ -328,22 +281,19 @@ class NodeLogSubPanel(QGroupBox):
             subprocess.Popen(['xdg-open', self.node_path])
 
     def _toggle_collapse(self):
-        """切换展开/折叠"""
         self._collapsed = not self._collapsed
         self._log_editor.setVisible(not self._collapsed)
         self._collapse_indicator.setText(">" if self._collapsed else "v")
 
     def unsubscribe_monitor(self):
-        """取消订阅 polling_manager（面板移除时调用）"""
         polling_manager.unwatch_log(self.node_path, "listener.log")
         if self._resource_timer:
             self._resource_timer.stop()
             self._resource_timer = None
 
-    # ==================== 状态更新 ====================
+    # ──── 状态更新（浮动版特有：三态 running/idle/stopped）────
 
     def update_status(self, status):
-        """外部更新状态显示（三态：running/idle/stopped）"""
         if status == 'running':
             status_text = t("k_status_running")
             status_color = "#4CAF50"
@@ -370,37 +320,41 @@ class NodeLogSubPanel(QGroupBox):
         """)
 
 
-class NodeMonitor(FloatingPanel):
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  NodeMonitor — 浮动版
+#  使用 NodePanelSyncMixin 消除同步逻辑重复
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class NodeMonitor(FloatingPanel, NodePanelSyncMixin):
     """节点监测面板（浮动半透明悬浮窗）"""
 
     def __init__(self, parent=None):
-        super().__init__(parent, title=t("k_info_monitor"))
+        FloatingPanel.__init__(self, parent, title=t("k_info_monitor"))
+        NodePanelSyncMixin.__init__(self)  # no-op but ensures proper MRO
         self._sub_panels = {}
-        
-        # 订阅全局节点状态变化
+
         polling_manager.node_status_changed.connect(self._on_node_status_changed)
 
         self.resize(420, 600)
         self.setMinimumSize(320, 350)
         self._init_ui()
 
-        # 定时刷新子面板列表（每 3 秒检查画布节点变化）
         self._list_timer = QTimer(self)
         self._list_timer.timeout.connect(self._sync_panels)
         self._list_timer.start(3000)
 
         self._sync_panels()
 
+    def _create_sub_panel(self, node_name, node_path, status):
+        """工厂方法 — 创建浮动版 NodeLogSubPanel"""
+        return NodeLogSubPanel(node_name, node_path, status)
+
     def _init_ui(self):
-        """初始化UI"""
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._scroll.setStyleSheet("""
-            QScrollArea {
-                background: transparent;
-                border: none;
-            }
+            QScrollArea { background: transparent; border: none; }
             QScrollBar:vertical {
                 background: rgba(255, 255, 255, 5);
                 width: 6px;
@@ -426,69 +380,6 @@ class NodeMonitor(FloatingPanel):
         self.content_layout.addWidget(self._scroll, 1)
 
         self.hint(t("k_info_monitor_hint"))
-
-    # ==================== 同步逻辑 ====================
-
-    def _sync_panels(self):
-        """同步子面板列表与画布节点"""
-        if not self.parent_window:
-            return
-
-        canvas = getattr(self.parent_window, 'canvas', None)
-
-        # 如果画布不存在或画布上没有节点，清空所有子面板
-        if not canvas or not hasattr(canvas, 'nodes') or not canvas.nodes:
-            # 移除所有子面板
-            for name in list(self._sub_panels.keys()):
-                self._remove_sub_panel(name)
-            return
-
-        canvas_nodes = set(canvas.nodes.keys())
-        current_nodes = set(self._sub_panels.keys())
-
-        # 移除已不在画布上的节点子面板
-        removed = current_nodes - canvas_nodes
-        for name in removed:
-            self._remove_sub_panel(name)
-
-        # 添加新节点子面板
-        added = canvas_nodes - current_nodes
-        for name in added:
-            if name in self.parent_window.nodes_data:
-                node_info = self.parent_window.nodes_data[name]
-                self._add_sub_panel(name, node_info.get('path', ''),
-                                    node_info.get('status', 'stopped'))
-
-        # 更新状态
-        for name in self._sub_panels:
-            if name in self.parent_window.nodes_data:
-                status = self.parent_window.nodes_data[name].get('status', 'stopped')
-                self._sub_panels[name].update_status(status)
-
-    def _add_sub_panel(self, node_name, node_path, status):
-        """添加一个节点日志子面板"""
-        sub = NodeLogSubPanel(node_name, node_path, status)
-        # 插入到 stretch 之前
-        self._panel_layout.insertWidget(self._panel_layout.count() - 1, sub)
-        self._sub_panels[node_name] = sub
-
-    def _remove_sub_panel(self, node_name):
-        """移除节点日志子面板"""
-        if node_name in self._sub_panels:
-            sub = self._sub_panels[node_name]
-            sub.unsubscribe_monitor()
-            self._panel_layout.removeWidget(sub)
-            sub.deleteLater()
-            del self._sub_panels[node_name]
-
-    def _on_node_status_changed(self, node_name, new_status):
-        """处理全局节点状态变化信号"""
-        if node_name in self._sub_panels:
-            self._sub_panels[node_name].update_status(new_status)
-
-    # ==================== 拖动（继承自 FloatingPanel 基类）====================
-
-    # ==================== 生命周期 ====================
 
     def _on_close(self):
         for sub in self._sub_panels.values():

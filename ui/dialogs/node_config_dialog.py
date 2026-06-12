@@ -332,7 +332,7 @@ class NodeConfigDialog(FloatingPanel):
                         cmd = f"cd '{self.node_path}' && source venv/bin/activate && echo '已激活虚拟环境' && exec bash"
                         subprocess.Popen([terminal, '-e', f'bash -c "{cmd}"'])
                         break
-                    except:
+                    except Exception:
                         continue
         except Exception as e:
             themed_message(self, t("k_title_error"), t("_k_terminal_open_fail").format(err=str(e)), "error")
@@ -412,7 +412,7 @@ class NodeConfigDialog(FloatingPanel):
             if self.parent_window and self.node_name in self.parent_window.nodes_data:
                 try:
                     self.parent_window.nodes_data[self.node_name]['config'] = data
-                except:
+                except Exception:
                     pass
                 if hasattr(self.parent_window, 'canvas'):
                     self.parent_window.canvas.sync_node_display(self.node_name)

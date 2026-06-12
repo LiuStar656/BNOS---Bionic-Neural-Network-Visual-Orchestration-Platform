@@ -14,6 +14,9 @@ def register_view_actions(main_window):
         category=ActionCategory.VIEW,
         description_i18n="k_menu_toggle_nodes",
         execute_fn=lambda ctx: (main_window.panel_manager.toggle_panel("node_list"), True)[1],
+        is_checked_fn=lambda ctx: main_window.app_config.get('panel_visibility', {}).get(
+            'node_list_dock', main_window.app_config.get('panel_visibility', {}).get('node_list', False)
+        ),
     ))
     
     ActionRegistry.register(ActionDefinition(
@@ -73,6 +76,17 @@ def register_view_actions(main_window):
         shortcut_id="settings",
         description_i18n="_k_settings_title",
         execute_fn=lambda ctx: (main_window.open_settings(), True)[1],
+    ))
+    
+    ActionRegistry.register(ActionDefinition(
+        id="view.toggle_terminal",
+        name_i18n="k_view_toggle_terminal",
+        category=ActionCategory.VIEW,
+        description_i18n="k_menu_toggle_terminal",
+        execute_fn=lambda ctx: (main_window.toggle_terminal(), True)[1],
+        is_checked_fn=lambda ctx: main_window.app_config.get('panel_visibility', {}).get(
+            'terminal_dock', False
+        ),
     ))
     
     ActionRegistry.register(ActionDefinition(

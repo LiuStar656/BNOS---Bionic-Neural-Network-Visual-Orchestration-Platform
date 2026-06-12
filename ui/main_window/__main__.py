@@ -51,6 +51,7 @@ from ui.core.shutdown_orchestrator import ShutdownOrchestrator
 from ui.main_window.state import MainWindowStateMixin
 from ui.main_window.lifecycle import MainWindowLifecycleMixin
 from ui.main_window.actions import MainWindowActionsMixin
+from ui.core.actions import ActionFactory
 from ui.main_window.panel import MainWindowPanelMixin
 from ui.main_window.ipc import MainWindowIPCMixin
 from ui.main_window.node import MainWindowNodeControlMixin
@@ -175,11 +176,10 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         self._inline_menubar.setObjectName("titleBarMenu")
         MenuManager.init_menu(self, self._inline_menubar)
         
-        # 全局 Ctrl+D 删除动作
-        self._action_delete = QAction(self)
-        self._action_delete.setShortcut("Ctrl+D")
-        self._action_delete.triggered.connect(self._on_ctrl_d)
-        self.addAction(self._action_delete)
+        # 全局 Ctrl+D 删除动作（通过 Action 系统）
+        delete_action = ActionFactory.create_action(self, "canvas.delete_selected")
+        if delete_action:
+            self.addAction(delete_action)
         
         # 标题栏：标题 + 菜单 + 按钮同行
         self._title_bar = DarkTitleBar(self, "BnosConsole", self._inline_menubar)
@@ -458,64 +458,5 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
             self._terminal_restored = True
             # 延迟恢复，确保 CanvasHost 内的画布 dock 也已完成创建
             QTimer.singleShot(100, self._restore_terminal_dock)
-    
-    # ===== 关闭辅助方法（由 ShutdownOrchestrator 调用） =====
-    
-    def _shutdown_save_all_data(self):
-        """保存所有数据（布局/窗口状态/面板可见性/浮动面板位置）"""
-        logger.info("[SHUTDOWN] === 开始保存所有数据 ===")
-        
-        if hasattr(self, '_canvas_host') and self._canvas_host:
-            self._canvas_host.update_canvas_data_from_main_window(self.canvas)
-        
-        if self.current_project_path and hasattr(self, '_canvas_host'):
-            self._canvas_host.save_all_layouts(self.current_project_path)
-        
-        logger.info("[SAVE] 保存窗口状态...")
-        self.save_window_state()
-        self.app_config.set("last_project", self.current_project_path)
-        
-        logger.info("[SAVE] 保存面板可见性...")
-        self._save_panel_visibility()
-        
-        # 保存所有浮动面板的位置
-        panels = [
-            ('node_list', getattr(self, 'node_list_floating', None)),
-            ('resource_monitor', getattr(self, 'resource_monitor_floating', None)),
-            ('node_monitor', getattr(self, 'node_monitor', None)),
-        ]
-        for panel_name, panel_widget in panels:
-            if panel_widget and panel_widget.isVisible():
-                logger.info("保存面板位置: %s", panel_name)
-                self._save_panel_position(panel_name, panel_widget)
-        
-        logger.info("[SAVE] 强制保存配置到文件...")
-        self.app_config.save()
-        
-        import os
-        if os.path.exists(self.app_config.config_file):
-            logger.info("✅ 配置文件保存成功: %s", self.app_config.config_file)
-        else:
-            logger.error("❌ 配置文件保存失败，文件不存在")
-        
-        logger.info("📦 === 所有数据保存完成 ===")
-    
-    def _disconnect_terminal_signals(self):
-        """断开终端 Dock 的 visibility_changed 信号"""
-        if hasattr(self, '_canvas_host') and self._canvas_host:
-            ch = self._canvas_host
-            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
-                logger.info("🔒 断开终端 Dock 的 visibility_changed 信号...")
-                try:
-                    ch._terminal_dock.visibility_changed.disconnect()
-                    logger.info("[OK] 终端信号已断开")
-                except Exception as e:
-                    logger.warning("[WARN] 断开信号失败: %s", e)
-    
-    def _stop_terminal_subprocesses(self):
-        """停止终端中的所有子进程"""
-        if hasattr(self, '_canvas_host') and self._canvas_host:
-            ch = self._canvas_host
-            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
-                logger.info("停止终端进程...")
-                ch._terminal_dock.stop_all_terminals()
+    # 关闭辅助方法（_shutdown_save_all_data / _disconnect_terminal_signals / _stop_terminal_subprocesses）
+    # —— 定义在 lifecycle.py 的 MainWindowLifecycleMixin 中，由 ShutdownOrchestrator 统一调用

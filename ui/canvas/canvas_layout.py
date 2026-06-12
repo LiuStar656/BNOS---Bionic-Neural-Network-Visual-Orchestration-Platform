@@ -164,8 +164,8 @@ class CanvasLayoutMixin:
                     node.setRect(0, 0, w, h)
                     # 恢复节点样式
                     sk = pos_data.get("style", "rect")
-                    from ui.canvas.items.node_style import STYLES
-                    st_cls = STYLES.get(sk, STYLES["rect"])
+                    from ui.canvas.items.styles import StyleRegistry
+                    st_cls = StyleRegistry.get(sk)
                     if type(node._style).__name__ != st_cls.__name__:
                         ns = st_cls()
                         node._style = ns
@@ -202,8 +202,8 @@ class CanvasLayoutMixin:
                     
                     # 创建样式对象并设置尺寸
                     sk = pos_data.get("style", "rect")
-                    from ui.canvas.items.node_style import STYLES
-                    st_cls = STYLES.get(sk, STYLES["rect"])
+                    from ui.canvas.items.styles import StyleRegistry
+                    st_cls = StyleRegistry.get(sk)
                     node_style = st_cls()
                     node_style.node_width = w
                     node_style.node_height = h
@@ -225,7 +225,7 @@ class CanvasLayoutMixin:
                                     color = QColor(cc[key])
                                     if color.isValid():
                                         action(color)
-                                except:
+                                except Exception:
                                     pass
                     
                     # 添加到画布和节点字典
@@ -250,8 +250,8 @@ class CanvasLayoutMixin:
                     x, y = pos_data.get("x", 200), pos_data.get("y", 150)
                     w, h = pos_data.get("width", 140), pos_data.get("height", 80)
                     sk = pos_data.get("style", "rect")
-                    from ui.canvas.items.node_style import STYLES
-                    st_cls = STYLES.get(sk, STYLES["rect"])
+                    from ui.canvas.items.styles import StyleRegistry
+                    st_cls = StyleRegistry.get(sk)
                     node_style = st_cls()
                     node_style.node_width = w
                     node_style.node_height = h

@@ -286,7 +286,7 @@ graph TB
 | **ApplicationContext** | `ui/core/application_context.py`       | 单例全局服务聚合器                        |
 | **画布**                 | `ui/canvas/canvas_view.py`             | QGraphicsView 实现节点绘制、拖拽、连线       |
 | **CanvasHost**         | `ui/core/canvas_host.py`               | 画布宿主和面板停靠管理                      |
-| **节点样式**               | `ui/canvas/items/node_style.py`        | 节点样式系统（方形/圆形/详细版），三层 z 轴架构       |
+| **节点样式**               | `ui/canvas/items/styles/`            | 节点样式系统（方形/圆形/详细版），StyleRegistry 统一注册，三层 z 轴架构       |
 | **节点列表**               | `ui/panels/node_list_panel.py`         | 节点/分组树形视图，拖拽分组，多选操作              |
 | **属性面板**               | `ui/panels/property_panel.py`          | 配置编辑器、日志查看器、进程控制、颜色设置            |
 | **展开面板**               | `ui/panels/node_expand_panel.py`       | 节点 output.json 查看/编辑，自动刷新        |
@@ -296,7 +296,7 @@ graph TB
 | **日志模块**               | `ui/core/logger.py`                    | 全局 logger（带轮转功能）                 |
 | **IDE 扫描器**            | `ui/core/ide_scanner.py`               | 自动检测 VSCode / Trae IDE，四层检测链路    |
 | **参数解析器**              | `ui/core/node_config_parser.py`        | 解析节点 config.json 的 parameters 字段 |
-| **参数控件工厂**             | `ui/canvas/parameter_widgets.py`       | 11 种参数类型的 Qt 控件工厂                |
+| **参数控件工厂**             | `ui/canvas/parameter_widgets/`       | 11 种参数类型的 Qt 控件库，WidgetRegistry 统一注册              |
 | **Toast 队列**           | `ui/core/toast/toast_queue_manager.py` | Toast 通知队列管理                     |
 | **动作系统**               | `ui/core/actions/`                     | 统一动作注册表和工厂                       |
 | **EventBus**           | `ui/core/event_bus.py`                 | 全局事件发布/订阅系统                      |
@@ -640,13 +640,18 @@ BNOS/
 │   │   │   └── toast_queue_manager.py
 │   │   └── actions/               # 统一动作系统
 │   │       ├── __init__.py
-│   │       ├── action_definition.py
-│   │       ├── action_registry.py
-│   │       ├── action_factory.py
-│   │       ├── builtin_project_actions.py
-│   │       ├── builtin_node_actions.py
-│   │       ├── builtin_canvas_actions.py
-│   │       └── builtin_view_actions.py
+│   │   │   ├── action_definition.py
+│   │   │   ├── action_registry.py
+│   │   │   ├── action_factory.py
+│   │   │   ├── builtin_project_actions.py
+│   │   │   ├── builtin_node_actions.py  # 重定向 → node/ 子包
+│   │   │   ├── builtin_canvas_actions.py
+│   │   │   ├── builtin_view_actions.py
+│   │   │   └── node/              # 节点操作 Action（注册表驱动）
+│   │   │       ├── __init__.py        # register_node_actions() 汇总入口
+│   │   │       ├── _lifecycle.py / _context_menu.py / _batch.py
+│   │   │       ├── _selection.py / _group.py / _ungrouped.py
+│   │   │       └── _ide.py / _style.py
 │   │
 │   ├── menu/                      # 菜单系统
 │   │   └── menu_manager.py        # 菜单栏管理器
@@ -671,7 +676,24 @@ BNOS/
 │   │       ├── node_item.py       # 节点项
 │   │       ├── node_style.py      # 节点样式系统（方形/圆形）
 │   │       ├── node_status_widget.py
-│   │       └── edge_item.py       # 连线项（贝塞尔曲线）
+│   │       ├── edge_item.py       # 连线项（贝塞尔曲线）
+│   │       ├── styles/            # 节点样式系统（注册表驱动）
+│   │       │   ├── __init__.py    # StyleRegistry + re-export
+│   │       │   ├── _base.py       # NodeStyle 基类
+│   │       │   ├── rect.py        # RectNodeStyle + Dark/Light 变体
+│   │       │   ├── dot.py         # DotNodeStyle
+│   │       │   └── detailed.py    # DetailedNodeStyle
+│   │       └── node_style.py      # 兼容重定向
+│   │
+│   ├── graphic_items/             # 绘图图形（注册表驱动）
+│   │   ├── __init__.py            # GraphicRegistry + re-export
+│   │   ├── _base.py               # GraphicBase + 常量
+│   │   ├── rect.py / round_rect.py / polygon.py / arrow.py / text.py
+│   │
+│   ├── parameter_widgets/         # 参数控件（注册表驱动）
+│   │   ├── __init__.py            # WidgetRegistry + re-export
+│   │   ├── _base.py               # ParameterWidget 基类 + 常量
+│   │   └── string.py / text.py / int_widget.py / ...（11 种类型）
 │   │
 │   ├── panels/                    # 面板组件
 │   │   ├── node_list_panel.py     # 节点列表悬浮面板
@@ -686,7 +708,11 @@ BNOS/
 │   │   ├── node_monitor_dock.py   # Dock 样式节点监测
 │   │   ├── resource_monitor.py    # 资源监测
 │   │   ├── resource_monitor_dock.py
-│   │   └── panel_process.py      # 面板进程隔离
+│   │   ├── panel_process.py      # 面板进程隔离
+│   │   └── _shared/              # 共享面板组件
+│   │       ├── node_log_sub_panel.py
+│   │       ├── node_panel_sync_mixin.py
+│   │       └── system_resource_collector.py
 │   │
 │   ├── dialogs/                   # 对话框组件
 │   │   ├── color_settings_dialog.py
@@ -766,7 +792,7 @@ def detect_language(self, node_path):
 
 #### 自定义节点样式
 
-在 `ui/canvas/items/node_style.py` 中添加新样式类：
+在 `ui/canvas/items/styles/` 中添加新样式类：
 
 ```python
 class MyCustomStyle(NodeStyle):
@@ -775,6 +801,12 @@ class MyCustomStyle(NodeStyle):
         # 自定义节点外观
         node_item.setRect(0, 0, 160, 90)
         # ... 更多定制
+```
+
+然后在 `__init__.py` 中注册：
+
+```python
+StyleRegistry._styles["custom"] = MyCustomStyle
 ```
 
 #### 添加菜单项
@@ -949,7 +981,7 @@ MIT License © 2026 阿东与守一工作室
 - **开发团队**：阿东与守一工作室
 - **GitHub**: <https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform>
 - **邮箱**：<1240543656@qq.com>
-- **最后更新**：2026-06-12
+- **最后更新**：2026-06-13
 
 ***
 

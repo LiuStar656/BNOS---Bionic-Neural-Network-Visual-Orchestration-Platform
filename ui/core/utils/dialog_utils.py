@@ -156,7 +156,7 @@ def _load_lazy_dir_items(parent_item, full_path, filter_ext=None):
                         break
                 if not has_subdir:
                     QTreeWidgetItem(child, ["...", ""])
-            except:
+            except Exception:
                 QTreeWidgetItem(child, ["...", ""])
         
         # 添加文件

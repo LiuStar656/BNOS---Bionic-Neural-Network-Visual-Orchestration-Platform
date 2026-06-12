@@ -271,7 +271,23 @@ def register_canvas_actions(main_window):
         execute_fn=execute_canvas_default_edge_color,
     ))
 
-    # ======================== IDE 工作区操作（通过 Action 系统统一管理） ========================
+    # ======================== 全局快捷键操作 ========================
+
+    def execute_canvas_delete_selected(ctx: ActionContext) -> bool:
+        canvas = _get_canvas(ctx)
+        if canvas and hasattr(canvas.parent_window, '_on_ctrl_d'):
+            canvas.parent_window._on_ctrl_d()
+            return True
+        return False
+
+    ActionRegistry.register(ActionDefinition(
+        id="canvas.delete_selected",
+        name_i18n="_k_delete_selected",
+        category=ActionCategory.CANVAS,
+        shortcut_id="delete_selected",
+        description_i18n="_k_delete_selected",
+        execute_fn=execute_canvas_delete_selected,
+    ))
 
     def execute_workspace_open_vscode(ctx: ActionContext) -> bool:
         from ui.core.ide_scanner import ide_scanner
