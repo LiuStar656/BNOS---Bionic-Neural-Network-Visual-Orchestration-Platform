@@ -13,6 +13,8 @@
 **Main Updates:**
 - ApplicationContext singleton aggregates 11 global services with unified lifecycle management
 - Main window reduced from 1500 lines to **499 lines**, split into 7 Mixin modules (State, Lifecycle, Actions, Panel, IPC, Node Control, Interaction)
+- Testing framework with 9 test files and 28+ unit test cases
+- i18n string key standardization using `{domain}.{object}.{action}` naming convention
 - Code quality improvements: type annotations, code deduplication, enhanced error handling
 - Cross-platform support: Windows/macOS/Linux
 - Fixed Unicode encoding, permission checking, path validation issues

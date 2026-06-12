@@ -44,6 +44,22 @@
 - Added cross-platform support, type annotations, code deduplication
 - Fixed Unicode encoding, permission checking, path validation issues
 
+### 6. P2 Optimization: Testing Framework
+
+[View Details](./02_P2_Optimization_Testing_Framework.md)
+
+- Created `tests/` directory with 9 test files
+- 28+ unit test cases covering validators, config, event bus, polling, DI container
+- Added pytest configuration for automated testing
+
+### 7. P2 Optimization: i18n String Key Standardization
+
+[View Details](./07_P2_Optimization_i18n.md)
+
+- Standardized all string keys using `{domain}.{object}.{action}` naming convention
+- Synchronized Chinese and English string files
+- Improved maintainability and internationalization support
+
 ---
 
 ## Main Updates

@@ -48,13 +48,13 @@ from ui.core.di import container, IConfig
 from ui.core.panel_manager import PanelManager
 from ui.core.node_control_service import node_control_service, NodeStatus
 from ui.core.shutdown_orchestrator import ShutdownOrchestrator
-from ui.main_window_state import MainWindowStateMixin
-from ui.main_window_lifecycle import MainWindowLifecycleMixin
-from ui.main_window_actions import MainWindowActionsMixin
-from ui.main_window_panel import MainWindowPanelMixin
-from ui.main_window_ipc import MainWindowIPCMixin
-from ui.main_window_node import MainWindowNodeControlMixin
-from ui.main_window_interaction import MainWindowInteractionMixin
+from ui.main_window.state import MainWindowStateMixin
+from ui.main_window.lifecycle import MainWindowLifecycleMixin
+from ui.main_window.actions import MainWindowActionsMixin
+from ui.main_window.panel import MainWindowPanelMixin
+from ui.main_window.ipc import MainWindowIPCMixin
+from ui.main_window.node import MainWindowNodeControlMixin
+from ui.main_window.interaction import MainWindowInteractionMixin
 
 
 class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin, MainWindowActionsMixin, MainWindowPanelMixin, MainWindowIPCMixin, MainWindowNodeControlMixin, MainWindowInteractionMixin):
