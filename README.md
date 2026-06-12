@@ -290,9 +290,12 @@ graph TB
 
 | Module | File | Description |
 |--------|------|-------------|
-| **Entry Point** | `bnos_gui.py` | Initialize QApplication, launch MainWindow |
-| **Main Window** | `ui/main_window.py` | Integrate UI components, AppConfig, Toast, node data |
+| **Entry Point** | `bnos_console.py` | Initialize QApplication, launch MainWindow |
+| **Main Window** | `ui/main_window/__main__.py` | Integrated UI hub (< 500 lines, 7 Mixin modules) |
+| **Main Window Mixins** | `ui/main_window/*.py` | State, Lifecycle, Actions, Panel, IPC, NodeControl, Interaction |
+| **ApplicationContext** | `ui/core/application_context.py` | Singleton aggregator for all global services |
 | **Canvas** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
+| **CanvasHost** | `ui/core/canvas_host.py` | Canvas host and panel docking management |
 | **Node Styles** | `ui/canvas/items/node_style.py` | Node style system (rect/dot/detailed), 3-layer z-architecture |
 | **Node List** | `ui/panels/node_list_panel.py` | Tree view, groups, drag-drop, multi-select |
 | **Property Panel** | `ui/panels/property_panel.py` | Config editor, log viewer, process control, colors |
@@ -300,14 +303,20 @@ graph TB
 | **Node Monitor** | `ui/panels/node_monitor.py` | Real-time logs for all canvas nodes |
 | **Group Manager** | `ui/panels/node_group_manager.py` | Node group CRUD and persistence |
 | **Floating Panel** | `ui/core/floating_panel.py` | Base class for frameless translucent panels |
-| **Logger** | `ui/core/logger.py` | Global logger (console INFO + file DEBUG) |
+| **Logger** | `ui/core/logger.py` | Global logger with rotation (console + file) |
 | **IDE Scanner** | `ui/core/ide_scanner.py` | Auto-detects VSCode / Trae IDE, 4-layer detection chain |
 | **Parameter Parser** | `ui/core/node_config_parser.py` | Parses parameters field from node config.json |
 | **Parameter Widget Factory** | `ui/canvas/parameter_widgets.py` | Qt widget factory for 11 parameter types |
 | **Toast Queue** | `ui/core/toast/toast_queue_manager.py` | Toast notification queue management |
 | **Action System** | `ui/core/actions/` | Unified action registry and factory |
+| **EventBus** | `ui/core/event_bus.py` | Global event publishing/subscription system |
+| **DIContainer** | `ui/core/di.py` | Dependency injection container |
+| **PollingManager** | `ui/core/polling_manager.py` | Unified polling for node status, logs, config |
+| **ProcessManager** | `ui/core/process_manager.py` | Process lifecycle management with IPC |
+| **NodeControlService** | `ui/core/node_control_service.py` | Node control service with global state |
 | **Menu Manager** | `ui/menu/menu_manager.py` | Unified menu bar (File/Edit/Tools/Help) |
 | **Node Creator** | `ui/creators/node_creator_manager.py` | Multi-language node creation manager |
+| **Validators** | `ui/core/validators.py` | Node name and path validation utilities |
 | **Tools** | `tools/python_create_node.py` | Python node template generator (venv + scripts) |
 
 ---
@@ -558,47 +567,78 @@ Toolbar → New Project → Select Folder
 BNOS/
 │
 ├── bnos_console.py                # Main entry point
-├── launcher.py                    # Alternative launcher
 ├── build_bnos.spec                # PyInstaller spec
 ├── app_config.json                # App settings (window state, last project)
 ├── canvas_layout.json             # Canvas layout persistence
 ├── color_settings.json            # Color settings persistence
 │
+├── tests/                         # Unit tests (Pytest)
+│   ├── __init__.py
+│   ├── test_validators.py        # Node name and path validation
+│   ├── test_app_config.py        # Config persistence
+│   ├── test_event_bus.py         # Event publishing/subscription
+│   ├── test_di_container.py       # Dependency injection container
+│   ├── test_polling_manager.py    # Polling manager
+│   └── ...                       # Other test modules
+│
 ├── ui/                            # UI modules
 │   ├── __init__.py
-│   ├── main_window.py            # Main window
-│   ├── canvas_widget.py          # Compatibility layer (Facade, 15 lines)
+│   ├── canvas_widget.py          # Compatibility layer (Facade)
 │   │
-│   ├── core/                      # Core components
-│   │   ├── app_config.py         # App config persistence
+│   ├── main_window/               # Main window module (split into 7 Mixins)
+│   │   ├── __init__.py
+│   │   ├── __main__.py           # Main window hub (~499 lines)
+│   │   ├── state.py              # State management Mixin
+│   │   ├── lifecycle.py          # Lifecycle events Mixin
+│   │   ├── actions.py            # Business actions Mixin
+│   │   ├── panel.py              # Panel management Mixin
+│   │   ├── ipc.py                # IPC communication Mixin
+│   │   ├── node.py               # Node control Mixin
+│   │   └── interaction.py         # User interaction Mixin
+│   │
+│   ├── core/                      # Core components & services
+│   │   ├── app_config.py         # App config persistence (atomic writes)
+│   │   ├── application_context.py # ApplicationContext singleton
 │   │   ├── theme.py              # Dark QSS theme
 │   │   ├── node_process.py       # Node process management
 │   │   ├── dark_title_bar.py     # VSCode-style title bar
 │   │   ├── floating_panel.py     # Floating panel base class
-│   │   ├── logger.py             # Global logger (console + file)
+│   │   ├── logger.py             # Global logger with rotation
 │   │   ├── i18n.py               # Internationalization support
-│   │   ├── toast/                # Toast notification system
-│   │   │   ├── toast_notification.py
-│   │   │   └── toast_queue_manager.py
-│   │   ├── actions/              # Unified action system
-│   │   │   ├── __init__.py
-│   │   │   ├── action_definition.py
-│   │   │   ├── action_registry.py
-│   │   │   ├── action_factory.py
-│   │   │   ├── builtin_project_actions.py
-│   │   │   ├── builtin_node_actions.py
-│   │   │   ├── builtin_canvas_actions.py
-│   │   │   └── builtin_view_actions.py
+│   │   ├── validators.py         # Node name & path validation
+│   │   ├── event_bus.py          # Event publishing/subscription
+│   │   ├── di.py                 # Dependency injection container
+│   │   ├── polling_manager.py    # Unified polling manager
+│   │   ├── process_manager.py    # Process lifecycle with IPC
+│   │   ├── node_control_service.py # Node control service
+│   │   ├── shutdown_orchestrator.py # Shutdown sequence management
+│   │   ├── panel_manager.py      # Panel management service
+│   │   ├── dock_manager.py       # Dock panel manager
+│   │   ├── canvas_host.py        # Canvas host and docking
+│   │   ├── shortcut_manager.py   # Keyboard shortcut manager
+│   │   ├── node_registry.py      # Node registry system
+│   │   ├── ide_scanner.py        # IDE auto-detection
+│   │   ├── node_config_parser.py # Parameter field parser
+│   │   ├── window_state_manager.py # Window state persistence
+│   │   ├── external_node_manager.py # External node mounting
+│   │   ├── import_export_manager.py # Node import/export
+│   │   ├── ipc.py                # IPC server/client
 │   │   ├── utils/                # Utility modules
 │   │   │   ├── dialog_utils.py
 │   │   │   ├── file_utils.py
 │   │   │   └── log_viewer.py
-│   │   ├── canvas_host.py         # Canvas host management
-│   │   ├── dock_manager.py        # Dock panel manager
-│   │   ├── polling_manager.py     # Unified polling manager
-│   │   ├── shortcut_manager.py    # Keyboard shortcut manager
-│   │   ├── node_registry.py       # Node registry system
-│   │   └── ...                   # Other core modules
+│   │   ├── toast/                # Toast notification system
+│   │   │   ├── toast_notification.py
+│   │   │   └── toast_queue_manager.py
+│   │   └── actions/              # Unified action system
+│   │       ├── __init__.py
+│   │       ├── action_definition.py
+│   │       ├── action_registry.py
+│   │       ├── action_factory.py
+│   │       ├── builtin_project_actions.py
+│   │       ├── builtin_node_actions.py
+│   │       ├── builtin_canvas_actions.py
+│   │       └── builtin_view_actions.py
 │   │
 │   ├── menu/                      # Menu system
 │   │   └── menu_manager.py       # Menu bar manager
@@ -610,10 +650,16 @@ BNOS/
 │   │   ├── canvas_layout.py      # Layout persistence Mixin
 │   │   ├── canvas_menus.py       # Context menu Mixin
 │   │   ├── canvas_connections.py # Synapse connection management
+│   │   ├── canvas_batch_ops.py   # Batch operations
+│   │   ├── canvas_box_select.py  # Box selection
+│   │   ├── canvas_process.py     # Canvas process isolation
+│   │   ├── controllers.py        # Canvas controllers
+│   │   ├── draw_layer.py         # Drawing layer
 │   │   ├── draw_toolbar.py       # Drawing toolbar
 │   │   └── items/                # Graphics items
 │   │       ├── __init__.py
 │   │       ├── anchor_item.py    # Anchor (I/O port)
+│   │       ├── anchor_manager.py # Anchor management
 │   │       ├── node_item.py      # Node container
 │   │       ├── node_style.py     # Node style system (rect/dot)
 │   │       ├── node_status_widget.py
@@ -623,13 +669,16 @@ BNOS/
 │   │   ├── node_list_panel.py    # Node list panel
 │   │   ├── node_list_dock.py     # Dock-style node list
 │   │   ├── node_list_context.py  # Context menu for node list
+│   │   ├── node_list_drag.py     # Node list drag-drop
+│   │   ├── node_list_ops.py      # Node list operations
 │   │   ├── property_panel.py     # Config dialog + color settings
 │   │   ├── node_group_manager.py # Group management
 │   │   ├── node_expand_panel.py  # Node expand panel
 │   │   ├── node_monitor.py       # Node monitor (live logs)
 │   │   ├── node_monitor_dock.py  # Dock-style node monitor
 │   │   ├── resource_monitor.py   # Resource monitor
-│   │   └── resource_monitor_dock.py
+│   │   ├── resource_monitor_dock.py
+│   │   └── panel_process.py      # Panel process isolation
 │   │
 │   ├── dialogs/                   # Dialogs
 │   │   ├── color_settings_dialog.py
@@ -655,6 +704,9 @@ BNOS/
 ├── docs/                          # Project documentation
 │   ├── TECHNICAL_DOCUMENTATION.md
 │   ├── changelogs/               # Update logs
+│   │   ├── cn/                  # Chinese changelogs
+│   │   ├── en/                  # English changelogs
+│   │   └── INDEX.md             # Changelog index
 │   └── ...                       # Other documentation files
 │
 └── nodes/                         # Runtime node directory
@@ -662,16 +714,23 @@ BNOS/
 ```
 
 **Architecture Highlights**:
+- ✅ **Main Window Decoupled**: Split into 7 Mixin modules, < 500 lines total
+- ✅ **ApplicationContext Singleton**: Centralized service aggregation & lifecycle
+- ✅ **EventBus & DIContainer**: Loosely coupled architecture, testable components
+- ✅ **Test Coverage**: 28+ unit tests covering core modules
 - ✅ **Unified Floating Panels**: All windows share `FloatingPanel` base class
 - ✅ **Modular Canvas**: Split into Items/Core/Mixin multi-layer architecture
 - ✅ **Node Style System**: Abstract base class + implementations, rect/dot styles switchable
 - ✅ **Separation of Concerns**: UI rendering isolated from business logic
 - ✅ **Backward Compatible**: Old import paths still work via Facade pattern
 - ✅ **Extensible**: Easy to add custom node types and interactions
-- ✅ **Global Logger**: All print() migrated to logger (console + file)
+- ✅ **Global Logger**: All print() migrated to logger with rotation
 - ✅ **Toast Queue Management**: FIFO ordering, smart replacement, priority display
 - ✅ **Unified Action System**: Centralized action registry with i18n support
-- ✅ **Lean Codebase**: `main_window.py` 935 lines, `canvas_view.py` ~1200 lines
+- ✅ **Atomic Config Writes**: Safe configuration persistence with backup
+- ✅ **Validators**: Path & node name validation with security checks
+- ✅ **Shutdown Orchestrator**: Clean shutdown sequence management
+- ✅ **PollingManager**: Unified polling for status, logs, config
 
 ### Extending BNOS
 
@@ -870,7 +929,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-06-10
+- **Last Updated**: 2026-06-12
 
 
 ---
