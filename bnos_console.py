@@ -63,6 +63,11 @@ def main():
         # 初始化图标系统（加载 Codicon 字体）
         codicon.init()
 
+        # 初始化应用上下文
+        from ui.core.application_context import ApplicationContext
+        app_context = ApplicationContext()
+        app_context.initialize()
+
         if progress_file:
             _progress(progress_file, 45, "Qt initialized")
 
@@ -70,6 +75,9 @@ def main():
         if progress_file:
             _progress(progress_file, 55, "Building main window...")
         window = BNOSMainWindow()
+        
+        # 初始化依赖主窗口的 UI 服务
+        app_context.initialize_ui_services(window)
 
         if progress_file:
             _progress(progress_file, 80, "Main window ready")
@@ -82,6 +90,10 @@ def main():
 
         window.show()
         ret = app.exec()
+        
+        # 关闭应用上下文
+        app_context.shutdown()
+        
         if ret == 42:
             # 使用重启脚本，确保先完全关闭再启动新进程
             import subprocess
