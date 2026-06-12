@@ -190,7 +190,7 @@ class NodeLogSubPanel(QGroupBox):
         """启动资源监测定时器"""
         self._resource_timer = QTimer(self)
         self._resource_timer.timeout.connect(self._update_resources)
-        self._resource_timer.start(1000)
+        self._resource_timer.start(2000)  # 2秒间隔，减少CPU占用
 
     def _update_resources(self):
         """更新节点资源占用信息"""

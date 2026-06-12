@@ -87,9 +87,8 @@ class BNOSMainWindow(QMainWindow):
         # 无边框 + 自定义标题栏
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         
-        # 限制主窗口大小
+        # 限制主窗口大小（保留最小尺寸，移除最大尺寸限制支持高分辨率显示器）
         self.setMinimumSize(1024, 768)  # 最小尺寸：1024x768
-        self.setMaximumSize(1920, 1080)  # 最大尺寸：1920x1080
         
         # 初始化UI
         self.init_ui()

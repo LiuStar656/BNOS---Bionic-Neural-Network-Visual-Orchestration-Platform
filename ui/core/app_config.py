@@ -93,15 +93,31 @@ class AppConfig:
             logger.error("加载配置失败: %s", e)
 
     def save(self):
+        tmp_path = self.config_file + ".tmp"
+        bak_path = self.config_file + ".bak"
+        
         try:
             d = os.path.dirname(self.config_file)
             if not os.path.exists(d):
                 os.makedirs(d)
-            with open(self.config_file, 'w', encoding='utf-8') as f:
+            
+            with open(tmp_path, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=2, ensure_ascii=False)
+            
+            if os.path.exists(self.config_file):
+                os.replace(self.config_file, bak_path)
+            
+            os.replace(tmp_path, self.config_file)
+            
+            if os.path.exists(bak_path):
+                os.remove(bak_path)
+            
             logger.info("配置已保存: %s", self.config_file)
         except Exception as e:
+            if os.path.exists(bak_path):
+                os.replace(bak_path, self.config_file)
             logger.error("保存配置失败: %s", e)
+            raise e
 
     def get(self, key, default=None):
         return self.config.get(key, default)

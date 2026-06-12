@@ -53,7 +53,7 @@ class ResourceMonitorDock(QWidget):
 
         self._update_timer = QTimer(self)
         self._update_timer.timeout.connect(self._update_stats)
-        self._update_timer.start(1000)
+        self._update_timer.start(3000)  # 3秒间隔，减少CPU占用
 
         QTimer.singleShot(500, self._update_stats)
 

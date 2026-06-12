@@ -11,6 +11,7 @@ BNOS 全局日志配置模块
 import logging
 import sys
 from pathlib import Path
+from logging.handlers import RotatingFileHandler
 
 
 def setup_logger(name: str = "BNOS") -> logging.Logger:
@@ -33,11 +34,17 @@ def setup_logger(name: str = "BNOS") -> logging.Logger:
     console_handler.setFormatter(console_fmt)
     logger.addHandler(console_handler)
 
-    # 文件输出（DEBUG 级别，保留完整日志）
+    # 文件输出（DEBUG 级别，使用日志轮转）
     log_dir = Path(__file__).parent.parent.parent / "logs"
     log_dir.mkdir(exist_ok=True)
-    file_handler = logging.FileHandler(
-        log_dir / "bnos_console.log", encoding='utf-8'
+    
+    # 使用 RotatingFileHandler 实现日志轮转
+    # 单个文件最大 5MB，保留 3 个备份
+    file_handler = RotatingFileHandler(
+        log_dir / "bnos_console.log",
+        maxBytes=5 * 1024 * 1024,  # 5MB
+        backupCount=3,
+        encoding='utf-8'
     )
     file_handler.setLevel(logging.DEBUG)
     file_fmt = logging.Formatter(
