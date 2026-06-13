@@ -191,6 +191,9 @@ class CanvasConnectionsMixin:
             self._save_timer.stop()
             self._save_timer.start(500)
 
+        # 自动录制命令
+        self._record_create_edge(source_name, target_name)
+
     def remove_edge(self, edge):
         """移除连线（支持多输入/输出端口）"""
         if edge in self.edges:
@@ -201,6 +204,18 @@ class CanvasConnectionsMixin:
                     target_name = name
                 if node == edge.start_node:
                     source_name = name
+
+            # 自动录制命令（重放期间跳过）
+            # 注：录制时 DeleteEdgeCommand.execute() 会内部调用 remove_edge 完成实际移除
+            if source_name and target_name:
+                target_port = getattr(edge, '_desired_target_port_name', None)
+                source_port = getattr(edge, '_desired_source_port_name', None)
+                self._record_delete_edge(source_name, target_name,
+                                         target_port, source_port)
+
+            # 如果录制时内部已完成移除，后续清理无需重复执行
+            if edge not in self.edges:
+                return
 
             if target_name and self.parent_window and target_name in self.parent_window.nodes_data:
                 target_info = self.parent_window.nodes_data[target_name]

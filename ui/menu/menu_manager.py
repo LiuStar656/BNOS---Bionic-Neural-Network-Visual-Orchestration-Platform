@@ -88,6 +88,7 @@ class MenuManager:
 
         ActionFactory.create_action(main_window, "view.node_monitor", menu=tools_menu)
         ActionFactory.create_action(main_window, "view.resource_monitor", menu=tools_menu)
+        ActionFactory.create_action(main_window, "view.history_panel", menu=tools_menu)
         ActionFactory.create_action(main_window, "view.node_list_floating", menu=tools_menu)
 
         tools_menu.addSeparator()

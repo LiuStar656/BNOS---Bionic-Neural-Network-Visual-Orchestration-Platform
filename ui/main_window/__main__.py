@@ -180,6 +180,26 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         delete_action = ActionFactory.create_action(self, "canvas.delete_selected")
         if delete_action:
             self.addAction(delete_action)
+
+        # 全局 Ctrl+Z 撤销 / Ctrl+Y 重做
+        from ui.core.commands.history_manager import history_manager
+        from PyQt6.QtGui import QAction
+        self._undo_action = QAction("撤销", self)
+        self._undo_action.setShortcut("Ctrl+Z")
+        self._undo_action.triggered.connect(history_manager.undo)
+        self.addAction(self._undo_action)
+
+        self._redo_action = QAction("重做", self)
+        self._redo_action.setShortcut("Ctrl+Y")
+        self._redo_action.triggered.connect(history_manager.redo)
+        self.addAction(self._redo_action)
+
+        history_manager.can_undo_changed.connect(self._on_can_undo_changed)
+        history_manager.can_redo_changed.connect(self._on_can_redo_changed)
+
+        # 注入 EventBus（延迟绑定，避免循环导入）
+        from ui.core.event_bus import event_bus
+        history_manager.set_event_bus(event_bus)
         
         # 标题栏：标题 + 菜单 + 按钮同行
         self._title_bar = DarkTitleBar(self, "BnosConsole", self._inline_menubar)
@@ -224,6 +244,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         self.node_list_panel = None
         self.resource_monitor = None
         self.node_monitor_dock = None
+        self.history_panel = None
     
     def show_toast(self, message, toast_type="info", duration=3000, node_name=None, operation_type=None):
         """便捷方法：显示Toast通知（通过队列管理器实现有序显示）

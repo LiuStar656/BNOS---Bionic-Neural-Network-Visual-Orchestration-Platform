@@ -136,6 +136,16 @@
 - **PID 文件持久化**：启动时写 `.pid`，停止时删除，节点运行状态可追溯
 - **跨会话恢复**：重启 GUI 自动扫描 `.pid` 检测后台运行进程，恢复 ● 运行状态
 - **定期健康检查**：每 3 秒轮询运行中进程，崩溃节点自动标记为 ○ 已停止
+- **进程树原子杀**：`taskkill /F /T` 确保子进程与主进程同步终止，消除僵尸进程
+- **PID 优先检测**：`OpenProcess` 直接检测进程存活，性能提升 10x+
+
+### 🔄 Photoshop 风格历史回滚
+
+- **Command 模式**：所有画布操作（节点增删/移动、连线增删）自动录制为可逆 Command
+- **HistoryManager 单例**：扁平命令列表 + current_index 指针，支持 undo/redo/跳转到任意历史状态
+- **HistoryPanel 面板**：可视化历史记录列表，显示操作描述和时间，点击任意条目跳转
+- **锚点精确恢复**：多端口场景下 undo/redo 正确恢复锚点绑定，不 fallback 到 default 锚点
+- **自动录制**：连线增删、节点移动等操作自动录制，无需手动触发
 
 ### 🖱️ 统一选择系统
 
@@ -305,6 +315,8 @@ graph TB
 | **ProcessManager**     | `ui/core/process_manager.py`           | 进程生命周期管理（含 IPC）                  |
 | **NodeControlService** | `ui/core/node_control_service.py`      | 节点控制服务（全局状态）                     |
 | **进程管理**               | `ui/core/node_process.py`              | 统一进程启停/PID/健康检测                  |
+| **历史管理**               | `ui/core/commands/history_manager.py`  | Photoshop 风格历史回滚，扁平命令列表 + current_index |
+| **命令系统**               | `ui/core/commands/`                    | Command 模式：node_commands / edge_commands / base |
 | **菜单管理**               | `ui/menu/menu_manager.py`              | 统一管理菜单栏所有功能                      |
 | **节点创建器**              | `ui/creators/node_creator_manager.py`  | 多语言节点创建管理器（Python/Rust）          |
 | **验证器**                | `ui/core/validators.py`                | 节点名称和路径验证工具                      |
@@ -631,6 +643,11 @@ BNOS/
 │   │   ├── external_node_manager.py # 外部节点挂载
 │   │   ├── import_export_manager.py # 节点导入/导出
 │   │   ├── ipc.py                # IPC 服务器/客户端
+│   │   ├── commands/             # 历史回滚命令系统
+│   │   │   ├── base.py           # Command 基类
+│   │   │   ├── history_manager.py # HistoryManager 单例
+│   │   │   ├── node_commands.py  # 节点操作命令
+│   │   │   └── edge_commands.py  # 连线操作命令
 │   │   ├── utils/                 # 工具模块
 │   │   │   ├── dialog_utils.py
 │   │   │   ├── file_utils.py
@@ -708,6 +725,7 @@ BNOS/
 │   │   ├── node_monitor_dock.py   # Dock 样式节点监测
 │   │   ├── resource_monitor.py    # 资源监测
 │   │   ├── resource_monitor_dock.py
+│   │   ├── history_panel.py        # 历史记录面板
 │   │   ├── panel_process.py      # 面板进程隔离
 │   │   └── _shared/              # 共享面板组件
 │   │       ├── node_log_sub_panel.py

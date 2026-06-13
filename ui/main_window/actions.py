@@ -16,11 +16,17 @@ from ui.core.i18n import t
 
 
 class MainWindowActionsMixin:
-    """
-    主窗口业务操作 Mixin
-    
-    提供各种业务操作方法，需要与 BNOSMainWindow 配合使用。
-    """
+    """主窗口业务操作 Mixin，提供各种业务操作方法"""
+
+    def _on_can_undo_changed(self, can_undo: bool):
+        """撤销状态变更回调"""
+        if hasattr(self, '_undo_action'):
+            self._undo_action.setEnabled(can_undo)
+
+    def _on_can_redo_changed(self, can_redo: bool):
+        """重做状态变更回调"""
+        if hasattr(self, '_redo_action'):
+            self._redo_action.setEnabled(can_redo)
     
     def _show_message_box(self, title: str, message: str, 
                           icon: QMessageBox.Icon = QMessageBox.Icon.Information) -> None:

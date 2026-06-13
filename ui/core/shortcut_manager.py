@@ -19,6 +19,8 @@ DEFAULTS = {
     "resource_monitor":("Ctrl+Shift+R",  "k_resource_monitor"),
     "new_canvas_tab":  ("Ctrl+T",        "k_new_canvas_tab"),
     "delete_selected": ("Ctrl+D",        "_k_delete_selected"),
+    "undo":            ("Ctrl+Z",        "k_edit_undo"),
+    "redo":            ("Ctrl+Y",        "k_edit_redo"),
 }
 
 # 需要 QAction.setShortcut(hotkey) 处理空快捷键

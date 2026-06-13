@@ -158,3 +158,14 @@ class MainWindowPanelMixin:
         elif self.node_monitor_dock == widget:
             self.node_monitor_dock = None
             self._save_panel_visibility_state('node_monitor_dock', False)
+        elif self.history_panel == widget:
+            self.history_panel = None
+            self._save_panel_visibility_state('history_dock', False)
+
+    def show_history_panel(self):
+        """打开历史记录面板（Dock版）- 停靠到右侧"""
+        if not hasattr(self, 'history_panel') or self.history_panel is None:
+            from ui.panels.history_panel import HistoryPanelWidget
+            self.history_panel = HistoryPanelWidget(self)
+        self._dock_manager.add_panel_to_dock(self.history_panel, t("k_view_history_panel"), edge='right')
+        self._save_panel_visibility_state('history_dock', True)

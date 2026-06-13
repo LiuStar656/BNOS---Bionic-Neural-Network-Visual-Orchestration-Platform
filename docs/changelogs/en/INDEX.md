@@ -13,6 +13,9 @@ Click on dates below to view detailed updates for that date:
 - **PollingManager Fix**: Fixed QObject C++ layer init crash (`super().__init__()` ordering issue)
 - **Panel Loading Order Optimization**: CanvasHost loads canvas panels before terminal, reducing startup flicker
 - **Emoji Cleanup**: Full replacement with `[TAG]` labels, eliminating Windows GBK encoding errors
+- **Process Management Comprehensive Fix**: `taskkill /F /T` atomic process tree kill, PID-priority detection (10x+), pipe anti-blocking, thread leak fixes
+- **Photoshop-Style History Rollback**: Command pattern + HistoryManager singleton + HistoryPanel UI with click-to-jump
+- **Resource Monitor and Other Bug Fixes**: Network download 100% on startup, node style switch size not updating, history panel menu entry
 
 ### [2026-06-12](./2026-06-12/)
 - **P2 Optimization: Main Window Further Decoupling**: Reduced main window file from ~1500 lines to **499 lines**, added 4 new Mixin modules (Panel Management, IPC Communication, Node Control, Window Interaction) for fine-grained responsibility separation

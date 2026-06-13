@@ -288,8 +288,10 @@ class NodeItem(QGraphicsRectItem):
           2. 根据样式类型 EXPLICITLY 设置 node_width/node_height
              （不依赖类默认值，不依赖当前 rect 尺寸）
           3. 详细版由内容驱动尺寸，方形用原始尺寸，圆形用 DotNodeStyle 默认
+          4. 缓存刷新：DeviceCoordinateCache 在 setRect 后可能不自动失效（PyQt 缓存时序问题），
+             需显式禁用→设置 rect→重新启用→触发 update()
         """
-        # 1) 清理：销毁所有 Proxy 控件、恢复缓存模式
+        # 1) 清理：销毁所有 Proxy 控件（内部会先设 NoCache 再重置 rect）
         if hasattr(self, '_proxy_widgets') and self._proxy_widgets:
             self._destroy_detailed()
 
@@ -309,6 +311,10 @@ class NodeItem(QGraphicsRectItem):
             self._style.node_height = self._rect_default_height
 
         # 3) 应用新样式
+        # 关键：先确保缓存为 NoCache（若从 _destroy_detailed 出来可能仍是 NoCache）
+        self.setCacheMode(self.CacheMode.NoCache)
+        self.prepareGeometryChange()
+        self.setRect(0, 0, self._style.node_width, self._style.node_height)
         self._style.apply(self)
         self._style.apply_status(self, self.status)
 
@@ -321,14 +327,39 @@ class NodeItem(QGraphicsRectItem):
             self._start_time = None
             self._connect_resource_monitor_signals()
         else:
-             if self._status_widget:
-                 self._status_widget.set_visible(False)
-                 self._status_widget = None
+            if self._status_widget:
+                self._status_widget.set_visible(False)
+                self._status_widget = None
 
         self._update_selection_ring(self.isSelected())
-        # 强制刷新
+
+        # 5) 非 detailed 模式重新启用 DeviceCoordinateCache，并强制刷新
+        #    延迟重置：解决 deleteLater() 的 widget 在事件循环中清理后可能触发
+        #    意外几何更新的问题
+        target_w = self._style.node_width
+        target_h = self._style.node_height
+        if sk != "detailed":
+            self.setCacheMode(self.CacheMode.DeviceCoordinateCache)
+
         if self.scene():
             self.scene().update()
+
+        # 6) 兜底：在事件循环处理完所有 pending 事件后，再次强制修正 rect
+        #    避免 proxy widget 的 deferred deletion / 布局事件等覆盖 setRect 结果
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, lambda: self._ensure_rect(target_w, target_h))
+
+    def _ensure_rect(self, w, h):
+        """兜底：事件循环后强制校正节点尺寸"""
+        if self._style.style_key == "detailed":
+            return  # 详细版由内容驱动尺寸
+        current_rect = self.rect()
+        if abs(current_rect.width() - w) > 0.5 or abs(current_rect.height() - h) > 0.5:
+            self.prepareGeometryChange()
+            self.setCacheMode(self.CacheMode.NoCache)
+            self.setRect(0, 0, w, h)
+            self.setCacheMode(self.CacheMode.DeviceCoordinateCache)
+            self.update()
       
     def _load_node_custom_colors(self):
         """加载节点的自定义颜色配置"""
@@ -867,15 +898,19 @@ class NodeItem(QGraphicsRectItem):
         self._subscribe_config_changes()
 
     def _destroy_detailed(self):
-        """销毁详细版控件（样式切换时调用），恢复缓存模式"""
+        """销毁详细版控件（样式切换时调用），恢复缓存模式和默认尺寸"""
         for p in self._proxy_widgets:
+            w = p.widget()
+            if w:
+                w.deleteLater()
             p.setWidget(None)
             if self.scene():
                 self.scene().removeItem(p)
         self._proxy_widgets.clear()
         self._param_widgets.clear()
-        # 恢复节点的 DeviceCoordinateCache（默认渲染性能优化）
-        self.setCacheMode(self.CacheMode.DeviceCoordinateCache)
+        # 先禁用缓存再重置 rect，确保旧缓存在尺寸变更后被彻底丢弃
+        self.setCacheMode(self.CacheMode.NoCache)
+        self.setRect(0, 0, self._rect_default_width, self._rect_default_height)
 
     def _get_label_font(self):
         """获取端口标签字体"""

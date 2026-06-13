@@ -6,6 +6,22 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-13】V2.0.13 - Logging System Redesign & History Rollback</strong></summary>
+
+[View Full Update](./2026-06-13/README.md)
+
+**Main Updates:**
+- Logging architecture redesign: dual-file (`bnos.log` + `bnos_error.log`), three-layer anti-bloat
+- Process management comprehensive fix: `taskkill /F /T` atomic process tree kill, PID-priority detection (10x+ perf), pipe anti-blocking, thread leak fixes
+- Photoshop-style history rollback: Command pattern + HistoryManager singleton + HistoryPanel UI
+- Resource monitor network download 100% on first load fix
+- Node style switch size not updating fix (DeviceCoordinateCache invalidation timing)
+- History panel menu entry addition
+- Encoding: emoji cleanup + SafeStreamHandler double safeguard
+
+</details>
+
+<details>
 <summary><strong>【2026-06-12】V2.0.12 - Main Window Decoupling & Code Quality Enhancement</strong></summary>
 
 [View Full Update](./2026-06-12/README.md)

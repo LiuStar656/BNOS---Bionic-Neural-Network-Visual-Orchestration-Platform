@@ -560,5 +560,12 @@
   "k_terminal_input_hint": "输入命令...",
 
   "k_view_toggle_terminal": "切换终端",
-  "k_menu_toggle_terminal": "显示/隐藏终端Dock"
+  "k_menu_toggle_terminal": "显示/隐藏终端Dock",
+
+  "k_edit_undo": "撤销",
+  "k_edit_redo": "重做",
+  "k_edit_can_undo": "可撤销",
+  "k_edit_cannot_undo": "无可撤销操作",
+  "k_edit_clear_history": "清空",
+  "k_view_history_panel": "历史记录"
 }

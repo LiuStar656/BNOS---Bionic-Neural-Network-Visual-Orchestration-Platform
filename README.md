@@ -145,6 +145,16 @@ This documentation provides deep technical insights beyond what's covered in thi
 - **PID File Persistence**: Writes `.pid` on start, deletes on stop for traceable node status
 - **Cross-Session Recovery**: GUI restart auto-scans `.pid` to detect background processes, restores ● running state
 - **Periodic Health Check**: Polls running processes every 3s, crashed nodes auto-marked ○ stopped
+- **Atomic Process Tree Kill**: `taskkill /F /T` ensures child processes terminate synchronously with parents, eliminating zombie processes
+- **PID-Priority Detection**: `OpenProcess` for direct process liveness check, 10x+ performance improvement
+
+### 🔄 Photoshop-Style History Rollback
+
+- **Command Pattern**: All canvas operations (node add/delete/move, edge add/delete) auto-recorded as reversible Commands
+- **HistoryManager Singleton**: Flat command list + current_index pointer, supports undo/redo/jump to any history state
+- **HistoryPanel UI**: Visual history list showing operation descriptions and timestamps, click any entry to jump
+- **Precise Anchor Restoration**: Multi-port undo/redo correctly restores anchor bindings, no fallback to default anchor
+- **Auto-Recording**: Edge creation/deletion, node movement, etc. auto-recorded — no manual trigger needed
 
 ### 🖱️ Unified Selection System
 
@@ -315,6 +325,8 @@ graph TB
 | **ProcessManager** | `ui/core/process_manager.py` | Process lifecycle management with IPC |
 | **NodeControlService** | `ui/core/node_control_service.py` | Node control service with global state |
 | **Menu Manager** | `ui/menu/menu_manager.py` | Unified menu bar (File/Edit/Tools/Help) |
+| **History Manager** | `ui/core/commands/history_manager.py` | Photoshop-style history rollback, flat command list + current_index |
+| **Command System** | `ui/core/commands/` | Command pattern: node_commands / edge_commands / base |
 | **Node Creator** | `ui/creators/node_creator_manager.py` | Multi-language node creation manager |
 | **Validators** | `ui/core/validators.py` | Node name and path validation utilities |
 | **Tools** | `tools/python_create_node.py` | Python node template generator (venv + scripts) |
@@ -623,6 +635,11 @@ BNOS/
 │   │   ├── external_node_manager.py # External node mounting
 │   │   ├── import_export_manager.py # Node import/export
 │   │   ├── ipc.py                # IPC server/client
+│   │   ├── commands/             # History rollback command system
+│   │   │   ├── base.py           # Command base class
+│   │   │   ├── history_manager.py # HistoryManager singleton
+│   │   │   ├── node_commands.py  # Node operation commands
+│   │   │   └── edge_commands.py  # Edge operation commands
 │   │   ├── utils/                # Utility modules
 │   │   │   ├── dialog_utils.py
 │   │   │   ├── file_utils.py
@@ -699,6 +716,7 @@ BNOS/
 │   │   ├── node_monitor_dock.py  # Dock-style node monitor
 │   │   ├── resource_monitor.py   # Resource monitor
 │   │   ├── resource_monitor_dock.py
+│   │   ├── history_panel.py      # History panel
 │   │   ├── panel_process.py      # Panel process isolation
 │   │   └── _shared/              # Shared panel components
 │   │       ├── node_log_sub_panel.py

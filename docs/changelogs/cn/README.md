@@ -6,6 +6,22 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-13】V2.0.13 - 日志系统架构重设计 & 历史回滚功能</strong></summary>
+
+[查看完整更新](./2026-06-13/README.md)
+
+**主要更新：**
+- 日志系统架构重设计：双文件分离（`bnos.log` + `bnos_error.log`），三层防臃肿
+- 进程管理全量性能安全修复：`taskkill /F /T` 进程树原子杀、PID 优先检测（10x+ 性能提升）、管道防阻塞、线程泄漏修复
+- Photoshop 风格历史回滚：Command 模式 + HistoryManager 单例 + HistoryPanel 可视化面板
+- 资源监测网络下载首次满载修复
+- 节点样式切换尺寸不更新修复（DeviceCoordinateCache 缓存失效时序问题）
+- 历史记录面板菜单入口补充
+- 编码兼容：Emoji 清理 + SafeStreamHandler 双重保障
+
+</details>
+
+<details>
 <summary><strong>【2026-06-12】V2.0.12 - 主窗口解耦与代码质量全面提升</strong></summary>
 
 [查看完整更新](./2026-06-12/README.md)
@@ -13,6 +29,8 @@
 **主要更新：**
 - ApplicationContext 单例类聚合 11 个全局服务，统一生命周期管理
 - 主窗口从 1500 行精简到 **499行**，拆分为 7 个 Mixin 模块（状态、生命周期、业务、面板、IPC、节点控制、交互）
+- 测试框架：9 个测试文件，28+ 个单元测试用例
+- i18n 字符串 Key 标准化，采用 `{domain}.{object}.{action}` 命名规范
 - 代码质量改进：类型注解、代码去重、增强错误处理
 - 跨平台支持：Windows/macOS/Linux
 - 修复 Unicode 编码、权限检查、路径验证等问题

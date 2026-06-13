@@ -552,5 +552,12 @@
   "k_terminal_input_hint": "Enter command...",
 
   "k_view_toggle_terminal": "Toggle Terminal",
-  "k_menu_toggle_terminal": "Show/Hide Terminal Dock"
+  "k_menu_toggle_terminal": "Show/Hide Terminal Dock",
+
+  "k_edit_undo": "Undo",
+  "k_edit_redo": "Redo",
+  "k_edit_can_undo": "Can Undo",
+  "k_edit_cannot_undo": "Nothing to Undo",
+  "k_edit_clear_history": "Clear",
+  "k_view_history_panel": "History"
 }

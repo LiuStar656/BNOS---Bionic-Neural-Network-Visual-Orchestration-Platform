@@ -20,12 +20,12 @@ class SystemResourceCollector:
     """系统+节点资源数据采集器（纯数据层，不涉及 UI 渲染）"""
 
     def __init__(self):
-        self._last_net_sent = 0
-        self._last_net_recv = 0
-        # 预热 psutil（第一次调用 cpu_percent 返回 0）
+        # 预热 psutil（第一次调用 cpu_percent 返回 0；net_io 防止首次差分为累计总量）
         psutil.cpu_percent()
         try:
-            psutil.net_io_counters()
+            io = psutil.net_io_counters()
+            self._last_net_sent = io.bytes_sent
+            self._last_net_recv = io.bytes_recv
         except Exception:
             pass
 

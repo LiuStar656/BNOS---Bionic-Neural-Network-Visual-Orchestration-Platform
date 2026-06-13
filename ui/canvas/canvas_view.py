@@ -52,6 +52,9 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_window = parent
+
+        # 命令重放保护（防止 undo/redo 时重复录制）
+        self._replay_depth = 0
         
         # ===== 画布场景尺寸配置 =====
         self.canvas_width = 5000   # 画布宽度（像素）
@@ -665,6 +668,9 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         self.nodes[node_name] = node  # 添加到nodes字典
         
         logger.info("节点 %s 已添加到画布 (位置: %d, %d)", node_name, x, y)
+
+        # 自动录制命令（重放期间跳过）
+        self._record_create_node(node_name)
         
     def remove_node_from_canvas(self, node_name):
         """从画布移除节点"""
@@ -698,6 +704,9 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         
         if not reply:
             return
+        
+        # 自动录制删除命令（需在修改前调用以收集状态）
+        self._record_delete_node(node_name)
         
         # 1. 找到所有与该节点相关的连线
         edges_to_remove = []
@@ -1008,5 +1017,74 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
                 ep = getattr(edge.end_anchor, 'port_name', None) if edge.end_anchor else None
                 logger.debug("[auto_save] edge#%d end_anchor.port_name=%s", i, ep)
             self.save_layout(self.parent_window.current_project_path)
+
+    # ── 命令录制辅助方法 ──
+
+    def _begin_replay(self):
+        """进入命令重放模式（防止 undo/redo 中重复录制命令）"""
+        self._replay_depth += 1
+
+    def _end_replay(self):
+        """退出命令重放模式"""
+        if self._replay_depth > 0:
+            self._replay_depth -= 1
+
+    @property
+    def _is_replaying(self) -> bool:
+        return self._replay_depth > 0
+
+    def _record_create_node(self, node_name: str):
+        """录制创建节点命令到历史（仅记录，不二次执行）"""
+        if self._is_replaying:
+            return
+        try:
+            from ui.core.commands.node_commands import CreateNodeCommand
+            from ui.core.commands.history_manager import history_manager
+            if history_manager.state.is_recording:
+                history_manager.record_only(CreateNodeCommand(node_name, self))
+        except Exception:
+            pass
+
+    def _record_delete_node(self, node_name: str):
+        """录制删除节点命令到历史（需在删除前调用以收集状态）"""
+        if self._is_replaying:
+            return
+        try:
+            from ui.core.commands.node_commands import DeleteNodeCommand
+            from ui.core.commands.history_manager import history_manager
+            if history_manager.state.is_recording:
+                history_manager.execute_command(
+                    DeleteNodeCommand(node_name, self, self.parent_window)
+                )
+        except Exception:
+            pass
+
+    def _record_create_edge(self, src_name: str, tgt_name: str):
+        """录制创建连线命令到历史（仅记录，不二次执行）"""
+        if self._is_replaying:
+            return
+        try:
+            from ui.core.commands.edge_commands import CreateEdgeCommand
+            from ui.core.commands.history_manager import history_manager
+            if history_manager.state.is_recording:
+                history_manager.record_only(CreateEdgeCommand(src_name, tgt_name, self))
+        except Exception:
+            pass
+
+    def _record_delete_edge(self, src_name: str, tgt_name: str,
+                            target_port_name=None, source_port_name=None):
+        """录制删除连线命令到历史（需在删除前调用）"""
+        if self._is_replaying:
+            return
+        try:
+            from ui.core.commands.edge_commands import DeleteEdgeCommand
+            from ui.core.commands.history_manager import history_manager
+            if history_manager.state.is_recording:
+                history_manager.execute_command(
+                    DeleteEdgeCommand(src_name, tgt_name,
+                                      target_port_name, source_port_name, None, self)
+                )
+        except Exception:
+            pass
     
     # apply_color_settings 等颜色方法已移至 CanvasColorsMixin（canvas_colors.py）
