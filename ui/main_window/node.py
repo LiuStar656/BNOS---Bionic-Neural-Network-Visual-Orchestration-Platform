@@ -136,9 +136,9 @@ class MainWindowNodeControlMixin:
             self.show_toast(t("_k_node_not_running_toast").format(name=node_name), "info")
             return
 
-        self.node_list_panel.update_node_status(node_name, 'stopped')
+        self.node_list_panel.update_node_status(node_name, 'stopping')
         if self.canvas:
-            self.canvas.update_node_status(node_name, 'stopped')
+            self.canvas.update_node_status(node_name, 'stopping')
         self.show_toast(t("_k_node_stopping").format(name=node_name), "info",
                         node_name=node_name, operation_type="stop")
 
@@ -150,15 +150,24 @@ class MainWindowNodeControlMixin:
             return
 
         node_info = self.nodes_data[node_name]
-        stop_node_process(node_info)
+        success, err_msg = stop_node_process(node_info)
 
         def on_complete():
-            self.node_list_panel.update_node_status(node_name, 'stopped')
-            if self.canvas:
-                self.canvas.update_node_status(node_name, 'stopped')
-            self.show_toast(t("_k_node_stopped").format(name=node_name), "success",
-                            node_name=node_name, operation_type="stop")
-            node_control_service._notify(node_name, NodeStatus.STOPPED)
+            if success:
+                self.node_list_panel.update_node_status(node_name, 'stopped')
+                if self.canvas:
+                    self.canvas.update_node_status(node_name, 'stopped')
+                self.show_toast(t("_k_node_stopped").format(name=node_name), "success",
+                                node_name=node_name, operation_type="stop")
+                node_control_service._notify(node_name, NodeStatus.STOPPED)
+            else:
+                # 杀失败 → 保持原状态，让健康检查发现僵尸
+                from ui.core.utils.dialog_utils import themed_message
+                from ui.core.i18n import t as i18n_t
+                themed_message(self, i18n_t("k_title_error"),
+                               i18n_t("_k_stop_fail").format(name=node_name, err=err_msg or ""),
+                               "error")
+                node_control_service._notify(node_name, NodeStatus.ERROR)
 
         QTimer.singleShot(10, on_complete)
 

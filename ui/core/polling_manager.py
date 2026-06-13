@@ -147,7 +147,25 @@ class PollingManager(QObject):
         if task_name in self._tasks:
             self._tasks[task_name]['enabled'] = enabled
             logger.debug(f"Task {task_name} {'enabled' if enabled else 'disabled'}")
-    
+
+    # ==================== 清理接口 ====================
+
+    def cleanup_node_watchers(self, node_path: str):
+        """移除指定节点的所有监控器"""
+        self._log_watchers = {
+            k: v for k, v in self._log_watchers.items()
+            if k[0] != node_path
+        }
+        self._config_watchers.pop(node_path, None)
+        self._output_watchers.pop(node_path, None)
+
+    def cleanup_all_watchers(self):
+        """清空所有节点级监控器"""
+        self._log_watchers.clear()
+        self._config_watchers.clear()
+        self._output_watchers.clear()
+        logger.info("所有节点级监控器已清理")
+
     # ==================== 启动/停止 ====================
     
     def start(self, nodes_data=None):

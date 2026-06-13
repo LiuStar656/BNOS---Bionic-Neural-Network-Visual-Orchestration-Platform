@@ -139,9 +139,49 @@ class MainWindowLifecycleMixin:
             self._shutdown_orchestrator.execute()
         except Exception as e:
             logger.error("关闭编排器执行失败: %s", e)
-        
+
+        # ── 清理链：防止信号/内存泄漏 ──
+        self._cleanup_on_shutdown()
+
         logger.info("✅ 窗口关闭流程完成，所有数据已安全保存")
         event.accept()
+
+    def _cleanup_on_shutdown(self):
+        """窗口关闭时的清理链（释放 NodeItem 信号、监控器、回调等）"""
+        logger.info("[CLEANUP] 开始关闭清理链...")
+
+        # 1. 释放画布上所有 NodeItem 的信号连接和子对象
+        if self.canvas:
+            canvas = self.canvas
+            try:
+                all_items = canvas.items() if hasattr(canvas, 'items') else []
+                for item in all_items:
+                    if hasattr(item, 'dispose'):
+                        try:
+                            item.dispose()
+                        except Exception as e:
+                            logger.debug("dispose node_item 异常: %s", e)
+                logger.debug("[CLEANUP] NodeItem 信号已断开")
+            except Exception as e:
+                logger.warning("[CLEANUP] NodeItem 清理异常: %s", e)
+
+        # 2. 清空 PollingManager 节点级监控器
+        try:
+            from ui.core.polling_manager import polling_manager
+            polling_manager.cleanup_all_watchers()
+            logger.debug("[CLEANUP] 监控器已清理")
+        except Exception as e:
+            logger.warning("[CLEANUP] 监控器清理异常: %s", e)
+
+        # 3. 清空 NodeControlService 回调列表
+        try:
+            from ui.core.node_control_service import node_control_service
+            node_control_service._status_callbacks.clear()
+            logger.debug("[CLEANUP] 状态回调已清理")
+        except Exception as e:
+            logger.warning("[CLEANUP] 回调清理异常: %s", e)
+
+        logger.info("[CLEANUP] 清理链完成")
     
     def _shutdown_save_all_data(self):
         """保存所有数据（布局/窗口状态/面板可见性/浮动面板位置）"""

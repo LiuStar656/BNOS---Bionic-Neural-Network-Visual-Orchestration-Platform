@@ -191,144 +191,42 @@ def _find_node_processes(node_path):
     return pids
 
 
-def _get_process_tree(root_pid):
-    """递归获取进程树中的所有进程 PID（包括主进程和所有子进程）
+def _kill_process_tree(root_pid):
+    """原子杀整棵进程树（使用系统级 /T 递归，无竞态窗口）
     
-    Args:
-        root_pid: 根进程 PID
+    Windows:  taskkill /F /T /PID  ← 内核递归杀所有后代
+    Linux:    killpg(sig=SIGKILL)  ← 杀进程组
     
     Returns:
-        list: 所有进程 PID（包括 root_pid），按深度优先排序（子进程在前）
+        bool: True 表示至少有一个进程被成功终止
     """
-    all_pids = []
-    
     try:
         if os.name == 'nt':
-            # Windows: 使用 WMI 查询进程树
             result = subprocess.run(
-                ['powershell', '-Command',
-                 f"Get-CimInstance Win32_Process | "
-                 f"ForEach-Object {{ $_.ProcessId.ToString() + '|' + ($_.ParentProcessId ?? 0).ToString() }}"],
-                capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW
+                ['taskkill', '/F', '/T', '/PID', str(root_pid)],
+                capture_output=True, timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
-            
-            # 构建 PID -> ParentPID 映射
-            pid_to_parent = {}
-            for line in result.stdout.strip().split('\n'):
-                line = line.strip()
-                if '|' not in line:
-                    continue
-                pid_str, parent_str = line.split('|', 1)
-                try:
-                    pid = int(pid_str)
-                    parent = int(parent_str)
-                    pid_to_parent[pid] = parent
-                except ValueError:
-                    pass
-            
-            # 递归查找所有子进程
-            def find_children(parent_pid):
-                children = [p for p, pp in pid_to_parent.items() if pp == parent_pid]
-                for child in children:
-                    all_pids.append(child)
-                    find_children(child)
-            
-            # 先添加子进程，再添加根进程
-            find_children(root_pid)
-            all_pids.append(root_pid)
-            
-        else:
-            # Linux/Mac: 使用 /proc 或 ps 查询进程树
-            try:
-                # 尝试使用 pstree
-                result = subprocess.run(
-                    ['pstree', '-p', str(root_pid)],
-                    capture_output=True, text=True, timeout=5
-                )
-                # 解析 pstree 输出，提取所有 PID
-                import re
-                pids_found = re.findall(r'(\d+)', result.stdout)
-                for pid_str in pids_found:
-                    try:
-                        pid = int(pid_str)
-                        if pid not in all_pids:
-                            all_pids.append(pid)
-                    except ValueError:
-                        pass
-            except (subprocess.SubprocessError, FileNotFoundError):
-                # 回退到 ps 命令
-                result = subprocess.run(
-                    ['ps', '-ef'],
-                    capture_output=True, text=True, timeout=5
-                )
-                # 构建 PID -> ParentPID 映射
-                pid_to_parent = {}
-                for line in result.stdout.strip().split('\n')[1:]:  # 跳过标题行
-                    parts = line.split()
-                    if len(parts) >= 3:
-                        try:
-                            pid = int(parts[1])
-                            parent = int(parts[2])
-                            pid_to_parent[pid] = parent
-                        except ValueError:
-                            pass
-                
-                # 递归查找所有子进程
-                def find_children(parent_pid):
-                    children = [p for p, pp in pid_to_parent.items() if pp == parent_pid]
-                    for child in children:
-                        all_pids.append(child)
-                        find_children(child)
-                
-                find_children(root_pid)
-                all_pids.append(root_pid)
-    
-    except Exception as e:
-        logger.debug("查询进程树异常: %s", e)
-        # 回退：只返回根进程
-        all_pids = [root_pid]
-    
-    return all_pids
-
-
-def _kill_process_tree(root_pid):
-    """彻底终止进程树（包括主进程和所有子进程）
-    
-    Args:
-        root_pid: 根进程 PID
-    
-    Returns:
-        int: 成功终止的进程数量
-    """
-    # 先获取进程树
-    all_pids = _get_process_tree(root_pid)
-    logger.debug("进程树包含 %d 个进程: %s", len(all_pids), all_pids)
-    
-    killed = 0
-    
-    # 按顺序终止进程（子进程在前，根进程在后）
-    for pid in all_pids:
-        try:
-            if os.name == 'nt':
-                result = subprocess.run(
-                    ['taskkill', '/F', '/PID', str(pid)],
-                    capture_output=True, timeout=5, creationflags=subprocess.CREATE_NO_WINDOW
-                )
-                if result.returncode == 0:
-                    killed += 1
-                    logger.debug("已终止进程 PID=%d", pid)
+            # taskkill /T 返回 0 表示成功终止了至少一个进程
+            # 255 通常是"进程名不存在但 PID 不匹配"或"拒绝访问"
+            if result.returncode == 0:
+                logger.info("已终止进程树 PID=%d", root_pid)
+                return True
             else:
-                os.kill(pid, signal.SIGKILL)
-                killed += 1
-                logger.debug("已终止进程 PID=%d", pid)
-        except (ProcessLookupError, OSError):
-            # 进程已不存在
-            pass
-        except Exception as e:
-            logger.warning("终止进程 PID=%d 失败: %s", pid, e)
-    
-    logger.info("进程树终止完成，共终止 %d/%d 个进程", killed, len(all_pids))
-    return killed
+                logger.warning("终止进程树 PID=%d 失败 (exit=%d): %s",
+                               root_pid, result.returncode, result.stderr.strip())
+                return False
+        else:
+            os.killpg(os.getpgid(root_pid), signal.SIGKILL)
+            logger.info("已终止进程组 PGID=%d", root_pid)
+            return True
+    except (ProcessLookupError, OSError):
+        # 进程已不存在
+        logger.debug("进程 PID=%d 已不存在", root_pid)
+        return True  # 已死 = 成功
+    except Exception as e:
+        logger.warning("终止进程树 PID=%d 异常: %s", root_pid, e)
+        return False
 
 
 def _kill_all_node_processes(node_path):
@@ -468,8 +366,8 @@ def start_node_process(node_info):
                 [python_exe, listener_py],
                 cwd=node_path,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 text=True
             )
         else:
@@ -477,8 +375,8 @@ def start_node_process(node_info):
                 [python_exe, listener_py],
                 cwd=node_path, 
                 start_new_session=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 text=True
             )
 
@@ -508,8 +406,12 @@ def start_node_process(node_info):
 
 def stop_node_process(node_info, force=False):
     """停止节点进程并删除 PID 文件
+
+    使用 taskkill /F /T 原子杀整棵进程树（支持任意语言）。
+    核心改进：先确认进程死亡，再改状态和删 PID 文件，不撒谎。
     
-    使用进程树追踪机制，彻底终止主进程及所有子进程（支持任意语言）。
+    Returns:
+        tuple: (success: bool, error_msg: str|None)
     """
     node_path = node_info['path']
     node_name = os.path.basename(node_path)
@@ -520,26 +422,39 @@ def stop_node_process(node_info, force=False):
     killed = False
     if pid is not None:
         try:
-            # 使用进程树终止机制
-            killed_count = _kill_process_tree(pid)
-            if killed_count > 0:
-                killed = True
-                logger.info("已终止进程树 PID=%d (%s)，共 %d 个进程", pid, node_name, killed_count)
+            killed = _kill_process_tree(pid)
+            if killed:
+                logger.info("已终止进程树 PID=%d (%s)", pid, node_name)
+                # 二次确认：等 0.5 秒后检查进程是否真的死了
+                import time
+                time.sleep(0.3)
+                if not _is_pid_alive(pid):
+                    logger.debug("PID=%d 确认已死亡", pid)
+                else:
+                    logger.warning("PID=%d 仍在运行，尝试进程扫描兜底", pid)
+                    killed = False
             else:
                 logger.warning("进程树终止失败 PID=%d (%s)", pid, node_name)
         except Exception as e:
             logger.warning("停止进程 PID=%d 异常: %s", pid, e)
 
-    # 兜底：进程树方式失败或 PID 不存在，用进程扫描清理
+    # 兜底：PID 方式失败，用进程扫描清理
     if not killed:
         remaining = _find_node_processes(node_path)
         if remaining:
             logger.warning("PID 方式未能终止 %s，使用进程扫描兜底清理 (发现 %d 个进程)",
                            node_name, len(remaining))
             _kill_all_node_processes(node_path)
+            import time
+            time.sleep(0.3)
+            remaining = _find_node_processes(node_path)
+            if remaining:
+                logger.error("兜底清理仍失败，%s 仍有 %d 个进程存活", node_name, len(remaining))
+                return False, f"无法终止进程 (剩余 {len(remaining)} 个)"
         else:
             logger.debug("未发现 %s 的残留进程", node_name)
 
+    # 确认死亡后才改状态
     node_info['process'] = None
     node_info['status'] = 'stopped'
     _delete_pid(node_path)
@@ -659,53 +574,62 @@ def _listener_has_active_child(pid):
 
 
 def check_running_processes(nodes_data):
-    """检测所有节点进程状态（三态：running/idle/stopped）
-    
-    先通过进程扫描检测实际的 Python 进程，再回退到 PID 文件和 process 对象。
-    区分 idle（listener 运行但无 main 子进程）和 running（listener + main 都在运行）。
-    
-    关键修复：优先通过进程扫描检测，避免脚本启动时记录的是脚本进程而非 Python 进程的问题。
+    """检测所有节点进程状态（PID 优先，进程扫描兜底，性能安全）
+
+    检测策略：
+      running/idle/stopping → PID 存活检测（毫秒）→ 进程扫描兜底（仅 PID 死时触发）
+      stopped              → 仅 PID 文件检测（发现僵尸），无 PID 则跳过
+
+    核心改进：
+      - 主路径仅 OpenProcess 调用，避免每轮 PowerShell 全量扫描
+      - stopped 节点不触发昂贵的进程扫描
+      - 僵尸进程（stopped 但 PID 存活）能被及时发现并修正
     """
     dead_nodes = []
     for name, info in nodes_data.items():
-        if info.get('status') not in ('running', 'idle'):
-            continue
-
+        current_status = info.get('status', 'stopped')
         node_path = info['path']
+
+        # 获取最优 PID 来源
         process = info.get('process')
-        pid = process.pid if process else _read_pid(node_path)
+        pid = process.pid if (process and process.poll() is None) else _read_pid(node_path)
 
-        # 优先通过进程扫描检测实际运行的 Python 进程
-        # 这是关键修复：脚本启动时记录的 process 可能是脚本进程而非 Python 进程
-        actual_pids = _find_node_processes(node_path)
-        
-        if actual_pids:
-            # 找到了实际运行的 Python 进程
-            actual_pid = actual_pids[0]
-            
-            # 更新 PID 文件（如果记录的 PID 不正确）
-            if pid != actual_pid:
+        # ── running / idle / stopping：PID 优先 ──
+        if current_status in ('running', 'idle', 'stopping'):
+            if pid and _is_pid_alive(pid):
+                new_status = 'running' if _listener_has_active_child(pid) else 'idle'
+                if current_status != new_status:
+                    info['status'] = new_status
+                    dead_nodes.append((name, None, new_status))
+                _write_pid(node_path, pid)
+                continue
+
+            # PID 不存活 → 兜底进程扫描
+            actual_pids = _find_node_processes(node_path)
+            if actual_pids:
+                actual_pid = actual_pids[0]
                 _write_pid(node_path, actual_pid)
-            
-            new_status = 'running' if _listener_has_active_child(actual_pid) else 'idle'
-            if info.get('status') != new_status:
-                info['status'] = new_status
-                dead_nodes.append((name, None, new_status))  # None=状态变更,非退出
-            continue
+                new_status = 'running' if _listener_has_active_child(actual_pid) else 'idle'
+                if current_status != new_status:
+                    info['status'] = new_status
+                dead_nodes.append((name, None, new_status))
+            else:
+                # 确认进程已退出
+                info['process'] = None
+                info['status'] = 'stopped'
+                _delete_pid(node_path)
+                dead_nodes.append((name, 0, 'stopped'))
+                logger.info("节点 %s 进程已退出", name)
 
-        # 进程扫描未找到 Python 进程 → 检查记录的 PID 是否仍存活
-        if pid is not None and _is_pid_alive(pid):
-            # 进程仍在运行，但进程扫描未找到（可能是权限或环境问题）
-            # 保留现有状态，不强制标记为 stopped
-            logger.warning("节点 %s PID=%d 仍存活，但进程扫描未找到匹配进程", name, pid)
-            continue  # ← 关键修复：保留节点状态
-            
-        # 确认进程已退出
-        exit_code = process.poll() if process else None
-        info['process'] = None
-        info['status'] = 'stopped'
-        _delete_pid(node_path)
-        dead_nodes.append((name, exit_code, 'stopped'))
-        logger.info("节点 %s 进程已退出 (exit code: %s)", name, exit_code)
+        # ── stopped：仅 PID 文件检测僵尸（不触发进程扫描）──
+        elif current_status == 'stopped':
+            if pid and _is_pid_alive(pid):
+                # 僵尸！状态是 stopped 但 PID 仍存活
+                new_status = 'running' if _listener_has_active_child(pid) else 'idle'
+                logger.warning("检测到僵尸进程: %s PID=%d，状态从 %s 修正为 %s",
+                               name, pid, current_status, new_status)
+                info['status'] = new_status
+                dead_nodes.append((name, None, new_status))
+            # 无 PID 文件且 status=stopped → 跳过（无扫描价值）
 
     return dead_nodes

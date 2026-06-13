@@ -218,7 +218,47 @@ class NodeItem(QGraphicsRectItem):
             # 如果节点正在运行，记录开始时间
             if node_info.get('status') in ['running', 'idle']:
                 self._start_time = datetime.now()
-            
+
+    def dispose(self):
+        """断开所有外部信号连接并清理子对象（防止信号/内存泄漏）
+
+        应在节点从画布移除或画布销毁前调用。
+        """
+        # 1. 断开资源监测面板信号
+        if self.canvas and self.canvas.parent_window:
+            parent = self.canvas.parent_window
+            try:
+                if hasattr(parent, 'resource_monitor_floating') and parent.resource_monitor_floating:
+                    parent.resource_monitor_floating.node_state_updated.disconnect(self._on_status_updated)
+            except (TypeError, RuntimeError):
+                pass
+            try:
+                if hasattr(parent, 'resource_monitor') and parent.resource_monitor:
+                    if hasattr(parent.resource_monitor, 'node_state_updated'):
+                        parent.resource_monitor.node_state_updated.disconnect(self._on_status_updated)
+            except (TypeError, RuntimeError):
+                pass
+
+        # 2. 停止状态组件的计时器
+        if self._status_widget:
+            try:
+                self._status_widget.stop_timer()
+            except Exception:
+                pass
+
+        # 3. 清理 proxy widget
+        for pw in self._proxy_widgets:
+            try:
+                if pw and pw.widget():
+                    pw.widget().deleteLater()
+            except Exception:
+                pass
+        self._proxy_widgets.clear()
+        self._param_widgets.clear()
+
+        # 4. 清除像素缓存（防止 QGraphicsScene 继续持有渲染数据）
+        self.setCacheMode(QGraphicsItem.CacheMode.NoCache)
+
     def update_status(self, status):
         """更新节点状态"""
         self.status = status

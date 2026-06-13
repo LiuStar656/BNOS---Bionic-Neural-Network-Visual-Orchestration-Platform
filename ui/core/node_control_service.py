@@ -35,6 +35,7 @@ class NodeControlService:
         self.nodes: Dict[str, NodeInfo] = {}
         self._active_processes: Dict[str, subprocess.Popen] = {}
         self._status_callbacks: List[Callable] = []
+        self._monitor_threads: Dict[str, QThread] = {}   # 可追踪的监控线程
 
     def register_node(self, name: str, path: str):
         self.nodes[name] = NodeInfo(name, path)
@@ -105,7 +106,6 @@ class NodeControlService:
                 else:
                     os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 process.wait()
-            del self._active_processes[name]
             node_info.process = None
             node_info.pid = None
             node_info.status = NodeStatus.STOPPED
@@ -116,6 +116,10 @@ class NodeControlService:
             node_info.status = NodeStatus.ERROR
             self._notify(name, NodeStatus.ERROR)
             return False
+        finally:
+            # 无论成功与否，清理进程引用和监控线程
+            self._active_processes.pop(name, None)
+            self._cleanup_monitor_thread(name)
 
     def stop_all_nodes(self):
         for name in list(self._active_processes.keys()):
@@ -127,6 +131,7 @@ class NodeControlService:
         return None
 
     def _monitor(self, name: str, process: subprocess.Popen):
+        """监控节点进程退出（线程可追踪、可清理）"""
         def run():
             try:
                 process.wait()
@@ -135,12 +140,22 @@ class NodeControlService:
                     self._notify(name, NodeStatus.ERROR)
             except Exception as e:
                 logger.warning("节点 %s 监控异常: %s", name, e)
+        # 先清理旧线程
+        self._cleanup_monitor_thread(name)
         monitor_thread = QThread()
         monitor_worker = QObject()
         monitor_worker.moveToThread(monitor_thread)
         monitor_thread.started.connect(run)
         monitor_thread.finished.connect(monitor_thread.deleteLater)
+        self._monitor_threads[name] = monitor_thread
         monitor_thread.start()
+
+    def _cleanup_monitor_thread(self, name: str):
+        """清理指定节点的监控线程"""
+        thread = self._monitor_threads.pop(name, None)
+        if thread and thread.isRunning():
+            thread.quit()
+            thread.wait(1000)
 
     def _notify(self, name: str, status: NodeStatus):
         for cb in self._status_callbacks:
