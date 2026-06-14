@@ -8,6 +8,9 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-06-14](./2026-06-14/)
+- **PyQt6 → PySide6 Full-Stack Migration**: License upgrade GPLv3 → LGPLv3, 100 source files with 233 import replacements, signal/slot syntax adaptation (pyqtSignal→Signal, pyqtSlot→Slot), zero business logic changes
+
 ### [2026-06-13](./2026-06-13/)
 - **Logging System Architecture Redesign**: Dual-file separation (`bnos.log` daily rotation + `bnos_error.log` size rotation), three-layer anti-bloat filters, ERROR/CRITICAL never filtered with independent storage
 - **PollingManager Fix**: Fixed QObject C++ layer init crash (`super().__init__()` ordering issue)
@@ -96,4 +99,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-06-13
+**Last Updated**: 2026-06-14
