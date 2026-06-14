@@ -5,7 +5,7 @@ import os
 import subprocess
 import platform
 import sys
-from PyQt6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QMessageBox
 from ui.core.utils.dialog_utils import themed_message
 from ui.core.logger import logger
 from ui.core.i18n import t

@@ -2,12 +2,12 @@
 节点列表面板 - 常驻半透明悬浮窗，显示项目中的所有节点
 支持多选、分组管理、批量操作（所有操作通过右键菜单）
 """
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QMenu, QMessageBox, QFileDialog, QInputDialog, QDialog, QPushButton, QTreeWidget, QTreeWidgetItem
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QColor, QFont
+from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtGui import QColor, QFont
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.floating_panel import FloatingPanel
@@ -32,8 +32,8 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
     """
     
     # 信号
-    node_double_clicked = pyqtSignal(str)  # 节点双击信号（添加到画布）
-    node_right_clicked = pyqtSignal(str, object)  # 节点右键信号
+    node_double_clicked = Signal(str)  # 节点双击信号（添加到画布）
+    node_right_clicked = Signal(str, object)  # 节点右键信号
     
     def __init__(self, parent=None):
         super().__init__(parent, title=t("k_node_list"))
@@ -415,7 +415,7 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
         if not group_name:
             return
         
-        from PyQt6.QtWidgets import QColorDialog
+        from PySide6.QtWidgets import QColorDialog
         color = QColorDialog.getColor(QColor("#7ED321"), self, t("k_color_select_group"))
         if not color.isValid():
             color = QColor("#7ED321")

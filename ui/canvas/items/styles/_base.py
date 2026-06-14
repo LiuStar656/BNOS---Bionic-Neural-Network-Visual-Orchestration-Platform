@@ -1,7 +1,7 @@
 """
 节点样式抽象基类 — 只定义属性，不实现渲染
 """
-from PyQt6.QtGui import QColor
+from PySide6.QtGui import QColor
 
 
 class NodeStyle:

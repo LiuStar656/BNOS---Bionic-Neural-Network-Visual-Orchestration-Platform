@@ -23,7 +23,7 @@
 
 ## 1. Project Overview
 
-BNOS is a PyQt6-based neural network visual orchestration platform providing visual node orchestration, process management, real-time monitoring, and more.
+BNOS is a PySide6-based neural network visual orchestration platform providing visual node orchestration, process management, real-time monitoring, and more.
 
 ### Core Features
 
@@ -37,7 +37,7 @@ BNOS is a PyQt6-based neural network visual orchestration platform providing vis
 
 ### Tech Stack
 
-- **Framework**: PyQt6 (Qt6 bindings)
+- **Framework**: PySide6 (Qt6 bindings)
 - **Language**: Python 3.8+
 - **IPC**: QLocalSocket / QLocalServer
 - **UI Styling**: QSS (Qt Style Sheets)
@@ -741,7 +741,7 @@ When PID file is missing or process exits abnormally:
 | `node_creation_worker.py` | 134 | Async node creation worker |
 | `process_manager.py` | 128 | UI subprocess manager |
 | `external_node_manager.py` | 120 | External node mount manager |
-| `splash_screen.py` | 112 | PyQt6 launch splash |
+| `splash_screen.py` | 112 | PySide6 launch splash |
 | `app_config.py` | 107 | App config manager |
 | `window_state_manager.py` | 71 | Window state manager |
 | `core_process.py` | 72 | Core business background process |

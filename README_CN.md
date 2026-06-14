@@ -13,7 +13,7 @@
 ![BNOS Banner](https://img.shields.io/badge/BNOS-可视化编排-blue?style=for-the-badge\&logo=python)
 ![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge\&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-已支持-orange?style=for-the-badge\&logo=rust)
-![PyQt6](https://img.shields.io/badge/PyQt6-最新-green?style=for-the-badge\&logo=qt)
+![PySide6](https://img.shields.io/badge/PySide6-最新-green?style=for-the-badge\&logo=qt)
 ![License](https://img.shields.io/badge/许可证-MIT-red?style=for-the-badge)
 
 **纯桌面端仿生神经网络可视化编排平台**
@@ -30,7 +30,7 @@
 
 ## 📖 项目简介
 
-**BNOS（Bionic Neural Network Program Operating System）** 是一款基于 **PyQt6** 开发的纯桌面端**仿生可视化编排平台**，专为 **BNOS 仿生神经网络节点系统** 提供图形化配置、拖拽式神经回路构建和实时监控能力。
+**BNOS（Bionic Neural Network Program Operating System）** 是一款基于 **PySide6** 开发的纯桌面端**仿生可视化编排平台**，专为 **BNOS 仿生神经网络节点系统** 提供图形化配置、拖拽式神经回路构建和实时监控能力。
 
 **多语言支持**：平台支持使用 **Python、Rust、Node.js、Go、Java、C++ 和 Ruby** 等多种编程语言实现节点，使开发者能够在单个神经网络架构中发挥不同编程语言的优势。每个节点在隔离环境中运行，具备原生性能特征。
 
@@ -269,7 +269,7 @@ BNOS 的核心资源抽象层，将节点、分组、挂载视为统一的可管
 
 ```mermaid
 graph TB
-    GUI["🖥️ BNOS GUI (PyQt6)"]
+    GUI["🖥️ BNOS GUI (PySide6)"]
     Panel["📋 节点列表面板<br/>(左上角)"]
     Canvas["🎨 神经网络画布<br/>[节点 & 突触]"]
     FS["📁 本地文件系统<br/>(nodes/)"]
@@ -380,7 +380,7 @@ python bnos_gui.py
 start_bnos_gui.bat
 ```
 
-> **提示**：首次运行会自动检查并安装 PyQt6（如果缺失），请耐心等待。
+> **提示**：首次运行会自动检查并安装 PySide6（如果缺失），请耐心等待。
 
 ### 创建第一个项目
 
@@ -858,7 +858,7 @@ pip install pyinstaller
 pyinstaller --onefile --windowed --name="BNOS" bnos_gui.py
 ```
 
-输出：`dist/BNOS.exe`（约 100MB+，包含 PyQt6）
+输出：`dist/BNOS.exe`（约 100MB+，包含 PySide6）
 
 ***
 
@@ -988,7 +988,7 @@ MIT License © 2026 阿东与守一工作室
 
 ## 🙏 致谢
 
-- **PyQt6 团队**：提供强大的跨平台 GUI 框架
+- **PySide6 团队**：提供强大的跨平台 GUI 框架
 - **BNOS 神经元系统**：提供核心仿生架构概念
 - **开源社区**：众多优秀项目的启发
 
@@ -1014,7 +1014,7 @@ MIT License © 2026 阿东与守一工作室
 ![BNOS Banner](https://img.shields.io/badge/BNOS-可视化编排-blue?style=for-the-badge\&logo=python)
 ![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge\&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-已支持-orange?style=for-the-badge\&logo=rust)
-![PyQt6](https://img.shields.io/badge/PyQt6-最新-green?style=for-the-badge\&logo=qt)
+![PySide6](https://img.shields.io/badge/PySide6-最新-green?style=for-the-badge\&logo=qt)
 ![License](https://img.shields.io/badge/许可证-MIT-red?style=for-the-badge)
 
 **纯桌面端仿生神经网络可视化编排平台**

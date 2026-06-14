@@ -15,7 +15,7 @@
 ![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
 ![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-Supported-orange?style=for-the-badge&logo=rust)
-![PyQt6](https://img.shields.io/badge/PyQt6-Latest-green?style=for-the-badge&logo=qt)
+![PySide6](https://img.shields.io/badge/PySide6-Latest-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-red?style=for-the-badge)
 
 **A Pure Desktop Bionic Visual Orchestration Platform**
@@ -35,7 +35,7 @@
 
 ## 📖 Overview
 
-**BNOS (Bionic Neural Network Program Operating System)** is a desktop-based visual orchestration platform built with **PyQt6**, designed for the BNOS Bionic Neural Network Node System. It provides graphical configuration, drag-and-drop neural circuit construction, and real-time monitoring capabilities.
+**BNOS (Bionic Neural Network Program Operating System)** is a desktop-based visual orchestration platform built with **PySide6**, designed for the BNOS Bionic Neural Network Node System. It provides graphical configuration, drag-and-drop neural circuit construction, and real-time monitoring capabilities.
 
 **Multi-Language Support**: The platform supports nodes implemented in **Python, Rust, Node.js, Go, Java, C++, and Ruby**, enabling developers to leverage the strengths of different programming languages within a single neural network architecture. Each node runs in an isolated environment with native performance characteristics.
 
@@ -279,7 +279,7 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 ```mermaid
 graph TB
     title BNOS System Architecture
-    GUI["🖥️ BNOS GUI (PyQt6)"]
+    GUI["🖥️ BNOS GUI (PySide6)"]
     Panel["📋 Node List Panel<br/>(Top-Left)"]
     Canvas["🎨 Neural Network Canvas<br/>[Nodes & Synapses]"]
     FS["📁 Local File System<br/>(nodes/)"]
@@ -389,7 +389,7 @@ python bnos_gui.py
 start_bnos_gui.bat
 ```
 
-> **Note**: First run will automatically check and install PyQt6 if missing.
+> **Note**: First run will automatically check and install PySide6 if missing.
 
 ### Your First Project
 
@@ -848,7 +848,7 @@ pip install pyinstaller
 pyinstaller --onefile --windowed --name="BNOS" bnos_gui.py
 ```
 
-Output: `dist/BNOS.exe` (~100MB+, includes PyQt6)
+Output: `dist/BNOS.exe` (~100MB+, includes PySide6)
 
 
 ---
@@ -968,7 +968,7 @@ Contributions welcome! Please read our guidelines:
 
 ## 🙏 Acknowledgments
 
-- **PyQt6 Team**: Powerful cross-platform GUI framework
+- **PySide6 Team**: Powerful cross-platform GUI framework
 - **BNOS Neuron System**: Core bionic architecture concepts
 - **Open Source Community**: Inspiration from countless excellent projects
 
@@ -998,7 +998,7 @@ Contributions welcome! Please read our guidelines:
 ![BNOS Banner](https://img.shields.io/badge/BNOS-Visual%20Orchestration-blue?style=for-the-badge&logo=python)
 ![Python](https://img.shields.io/badge/Python-3.12+-yellow?style=for-the-badge&logo=python)
 ![Rust](https://img.shields.io/badge/Rust-Supported-orange?style=for-the-badge&logo=rust)
-![PyQt6](https://img.shields.io/badge/PyQt6-Latest-green?style=for-the-badge&logo=qt)
+![PySide6](https://img.shields.io/badge/PySide6-Latest-green?style=for-the-badge&logo=qt)
 ![License](https://img.shields.io/badge/License-MIT-red?style=for-the-badge)
 
 **A Pure Desktop Bionic Visual Orchestration Platform**

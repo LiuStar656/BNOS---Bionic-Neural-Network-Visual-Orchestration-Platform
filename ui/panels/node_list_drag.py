@@ -1,7 +1,7 @@
 """
 节点列表拖放系统 Mixin — 处理节点在组之间、组与根级别之间的拖拽移动
 """
-from PyQt6.QtCore import Qt
+from PySide6.QtCore import Qt
 from ui.core.logger import logger
 from ui.core.i18n import t
 

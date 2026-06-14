@@ -6,7 +6,7 @@ import sys
 import json
 import subprocess
 from pathlib import Path
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QToolBar, QFileDialog, QMessageBox, QListWidget,
     QListWidgetItem, QTreeWidget, QTreeWidgetItem, QTextEdit,
@@ -15,13 +15,13 @@ from PyQt6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QMenu, QGraphicsView, QGraphicsScene,
     QInputDialog, QGraphicsOpacityEffect, QApplication
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRectF, QTimer, QThread, QEvent
-from PyQt6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction, QMouseEvent
+from PySide6.QtCore import Qt, Signal, QPoint, QRectF, QTimer, QThread, QEvent
+from PySide6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction, QMouseEvent
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.dark_title_bar import DarkTitleBar
 from ui.core.utils.dialog_utils import themed_message
-from PyQt6.QtWidgets import QMenuBar as _QMenuBar
+from PySide6.QtWidgets import QMenuBar as _QMenuBar
 
 from ui.canvas_widget import NodeCanvas
 from ui.dialogs.color_settings_dialog import ColorSettingsDialog
@@ -183,7 +183,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
 
         # 全局 Ctrl+Z 撤销 / Ctrl+Y 重做
         from ui.core.commands.history_manager import history_manager
-        from PyQt6.QtGui import QAction
+        from PySide6.QtGui import QAction
         self._undo_action = QAction("撤销", self)
         self._undo_action.setShortcut("Ctrl+Z")
         self._undo_action.triggered.connect(history_manager.undo)

@@ -2,16 +2,16 @@
 VSCode 风格的深色自定义标题栏
 标题 + 菜单栏 + 窗口按钮 同排，支持拖动、最小化、最大化/还原、关闭
 """
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QMenuBar
-from PyQt6.QtCore import Qt, QPoint, pyqtSignal
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QMenuBar
+from PySide6.QtCore import Qt, QPoint, Signal
 
 
 class DarkTitleBar(QWidget):
     """VSCode 风格深色标题栏"""
 
-    minimize_clicked = pyqtSignal()
-    maximize_clicked = pyqtSignal()
-    close_clicked = pyqtSignal()
+    minimize_clicked = Signal()
+    maximize_clicked = Signal()
+    close_clicked = Signal()
 
     def __init__(self, parent=None, title="BnosConsole", menubar=None):
         super().__init__(parent)

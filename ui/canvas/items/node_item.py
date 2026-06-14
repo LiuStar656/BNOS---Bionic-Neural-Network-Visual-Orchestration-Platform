@@ -3,10 +3,10 @@
 继承自 QGraphicsRectItem，负责节点的视觉渲染、锚点管理和交互处理
 """
 import os
-from PyQt6.QtWidgets import (QGraphicsRectItem, QGraphicsTextItem, QGraphicsEllipseItem,
+from PySide6.QtWidgets import (QGraphicsRectItem, QGraphicsTextItem, QGraphicsEllipseItem,
     QGraphicsItem, QGraphicsProxyWidget)
-from PyQt6.QtCore import Qt, QPointF, QRectF
-from PyQt6.QtGui import QPen, QColor, QBrush, QFont, QPainterPath
+from PySide6.QtCore import Qt, QPointF, QRectF
+from PySide6.QtGui import QPen, QColor, QBrush, QFont, QPainterPath
 from datetime import datetime
 from ui.core.logger import logger
 
@@ -346,7 +346,7 @@ class NodeItem(QGraphicsRectItem):
 
         # 6) 兜底：在事件循环处理完所有 pending 事件后，再次强制修正 rect
         #    避免 proxy widget 的 deferred deletion / 布局事件等覆盖 setRect 结果
-        from PyQt6.QtCore import QTimer
+        from PySide6.QtCore import QTimer
         QTimer.singleShot(0, lambda: self._ensure_rect(target_w, target_h))
 
     def _ensure_rect(self, w, h):
@@ -538,7 +538,7 @@ class NodeItem(QGraphicsRectItem):
 
         if is_detailed:
             # === ComfyUI 风格：圆角矩形 + 彩色标题栏 ===
-            from PyQt6.QtGui import QPainterPath, QPainter
+            from PySide6.QtGui import QPainterPath, QPainter
             painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
             corner_radius = self._style.CORNER_RADIUS
@@ -732,10 +732,10 @@ class NodeItem(QGraphicsRectItem):
             return
 
         # --- 构建容器 ---
-        from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+        from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                       QGraphicsProxyWidget, QSizePolicy)
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtGui import QFont, QColor
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QFont, QColor
         from ui.canvas.parameter_widgets import ParameterWidget
 
         container = QWidget()
@@ -914,7 +914,7 @@ class NodeItem(QGraphicsRectItem):
 
     def _get_label_font(self):
         """获取端口标签字体"""
-        from PyQt6.QtGui import QFont
+        from PySide6.QtGui import QFont
         font = QFont()
         font.setPointSize(10)
         return font

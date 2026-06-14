@@ -5,13 +5,13 @@
 与 resource_monitor_dock.py 共享:
   - SystemResourceCollector: 系统+节点资源数据采集
 """
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
     QGroupBox, QWidget, QTableWidget, QTableWidgetItem,
     QHeaderView
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QColor
 from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.polling_manager import polling_manager
@@ -22,7 +22,7 @@ from ui.panels._shared.system_resource_collector import shared_resource_collecto
 class ResourceMonitor(FloatingPanel):
     """硬件资源监测面板（浮动半透明悬浮窗）"""
 
-    node_state_updated = pyqtSignal(str, float, float)
+    node_state_updated = Signal(str, float, float)
 
     def __init__(self, parent=None):
         super().__init__(parent, title=t("k_resource_monitor"))

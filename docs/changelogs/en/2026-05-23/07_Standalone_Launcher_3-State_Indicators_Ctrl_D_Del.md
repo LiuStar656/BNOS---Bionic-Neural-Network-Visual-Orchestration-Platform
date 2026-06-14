@@ -4,7 +4,7 @@
 
 ### Standalone tkinter Launcher
 
-Replaced embedded PyQt6 splash with `launcher.py` (251 lines):
+Replaced embedded PySide6 splash with `launcher.py` (251 lines):
 - Pure tkinter, zero dependencies on venv, packable as standalone EXE
 - Splash appears instantly → background spawns venv pythonw → real-time progress file polling
 - Smooth progress bar animation, precisely synced with main program loading

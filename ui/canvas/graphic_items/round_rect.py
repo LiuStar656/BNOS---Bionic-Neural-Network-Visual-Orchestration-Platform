@@ -1,5 +1,5 @@
 """圆角矩形图形"""
-from PyQt6.QtCore import QRectF
+from PySide6.QtCore import QRectF
 from .rect import RectGraphic
 
 

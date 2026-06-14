@@ -9,7 +9,7 @@ Toast 队列管理器 - 实现提示信息的有序排队与依次显示
 5. 生命周期回调：Toast关闭后自动处理队列
 """
 from collections import deque
-from PyQt6.QtCore import QObject, pyqtSignal, QTimer
+from PySide6.QtCore import QObject, Signal, QTimer
 from typing import Optional, Dict, Any, Callable
 
 
@@ -33,7 +33,7 @@ class ToastQueueManager(QObject):
     _instance = None
     
     # 信号：请求显示Toast
-    show_toast_requested = pyqtSignal(dict)
+    show_toast_requested = Signal(dict)
     
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:

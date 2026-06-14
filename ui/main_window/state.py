@@ -258,7 +258,7 @@ class MainWindowStateMixin:
         
         # ===== 关键：恢复 CanvasHost 的状态（包括分割条位置） =====
         from ui.core.window_state_manager import restore_canvas_host_state
-        from PyQt6.QtCore import QTimer
+        from PySide6.QtCore import QTimer
         # 给一点时间让画布 Dock 完全创建
         QTimer.singleShot(200, lambda: restore_canvas_host_state(self))
         

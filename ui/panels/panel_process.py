@@ -10,8 +10,8 @@ _proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 if _proj_root not in sys.path:
     sys.path.insert(0, _proj_root)
 
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QTimer
 from ui.core.ipc import IPCClient
 from ui.core.logger import logger
 from ui.core.i18n import init_i18n

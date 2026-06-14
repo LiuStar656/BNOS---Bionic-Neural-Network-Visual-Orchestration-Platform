@@ -1,6 +1,6 @@
 """整数输入控件"""
-from PyQt6.QtWidgets import QSpinBox, QHBoxLayout
-from PyQt6.QtCore import Qt
+from PySide6.QtWidgets import QSpinBox, QHBoxLayout
+from PySide6.QtCore import Qt
 from ._base import ParameterWidget, _make_label, ROW_HEIGHT, CONTROL_HEIGHT, LAYOUT_SPACING, MIN_CONTROL_WIDTH
 
 

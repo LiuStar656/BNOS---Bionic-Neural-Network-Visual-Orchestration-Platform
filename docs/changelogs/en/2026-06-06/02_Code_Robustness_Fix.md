@@ -5,7 +5,7 @@
 ### Problem Description
 
 **Potential import dependency issue**
-- **Problem**: In commit 51eeb35, the developer removed the local import `from PyQt6.QtCore import QTimer` in `canvas_view.py`, but didn't explicitly indicate that the class relies on the QTimer import at the top of the file
+- **Problem**: In commit 51eeb35, the developer removed the local import `from PySide6.QtCore import QTimer` in `canvas_view.py`, but didn't explicitly indicate that the class relies on the QTimer import at the top of the file
 - **Risk**: Future refactoring might accidentally remove the QTimer import from the top of the file, leading to runtime errors
 
 ### Fix Solution

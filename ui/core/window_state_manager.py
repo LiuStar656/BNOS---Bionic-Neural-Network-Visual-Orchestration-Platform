@@ -11,8 +11,8 @@
    - 然后调用 Qt restoreState()（恢复布局和分割条位置）
    - 最后用 resizeDocks() 精确调整尺寸
 """
-from PyQt6.QtWidgets import QApplication, QDockWidget
-from PyQt6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QDockWidget
+from PySide6.QtCore import Qt
 from ui.core.logger import logger
 import base64
 
@@ -286,7 +286,7 @@ def restore_state(main_window):
         
         if dock_layout and dock_layout.get("version") in ["1.0", "1.1", "2.0", "3.0", "4.0"]:
             # 分阶段恢复（主窗口）
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             
             # ===== 阶段 1：立即恢复 Qt 原生状态 =====
             logger.info("[WS] 阶段 1：立即恢复 Qt 原生状态")
@@ -323,7 +323,7 @@ def restore_canvas_host_state(main_window):
         
         if dock_layout and dock_layout.get("version") in ["4.0"]:
             # 分阶段恢复（CanvasHost）
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             
             # ===== 阶段 5：恢复 CanvasHost 的 Qt 原生状态 =====
             logger.info("[WS] 阶段 5：恢复 CanvasHost Qt 原生状态")
@@ -598,7 +598,7 @@ def _restore_canvas_host_from_area_layouts(canvas_host, area_layouts, pass_num=1
 
 def _restore_simple(main_window):
     """简单版恢复（向后兼容）"""
-    from PyQt6.QtCore import QTimer
+    from PySide6.QtCore import QTimer
     
     def _restore_main_dock_sizes():
         main_dock_sizes = main_window.app_config.get("main_dock_sizes", {})

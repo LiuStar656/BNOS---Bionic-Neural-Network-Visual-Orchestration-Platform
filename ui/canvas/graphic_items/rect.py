@@ -1,6 +1,6 @@
 """矩形图形"""
-from PyQt6.QtCore import QRectF
-from PyQt6.QtGui import QPainterPath
+from PySide6.QtCore import QRectF
+from PySide6.QtGui import QPainterPath
 from ._base import GraphicBase
 
 

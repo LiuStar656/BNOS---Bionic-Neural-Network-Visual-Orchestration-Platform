@@ -13,11 +13,11 @@
   - 鼠标靠近线段中点时自动高亮手柄
 """
 import math
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QGraphicsPathItem, QGraphicsPolygonItem, QStyle,
 )
-from PyQt6.QtCore import Qt, QPointF, QLineF, QTimer
-from PyQt6.QtGui import (
+from PySide6.QtCore import Qt, QPointF, QLineF, QTimer
+from PySide6.QtGui import (
     QPen, QColor, QPainterPath, QPolygonF, QPainterPathStroker, QBrush,
 )
 from ui.core.logger import logger
@@ -144,7 +144,7 @@ class EdgeItem(QGraphicsPathItem):
         self.setPen(pen)
 
     def change_edge_color(self):
-        from PyQt6.QtWidgets import QColorDialog
+        from PySide6.QtWidgets import QColorDialog
         color = QColorDialog.getColor(self._edge_color, None, "选择连线颜色")
         if color.isValid():
             self._edge_color = color

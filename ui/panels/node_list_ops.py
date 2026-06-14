@@ -5,9 +5,9 @@
 import os
 import subprocess
 import time
-from PyQt6.QtWidgets import QTreeWidgetItem
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor
+from PySide6.QtWidgets import QTreeWidgetItem
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QColor
 
 from ui.core.logger import logger
 from ui.core.i18n import t
@@ -332,7 +332,7 @@ class NodeListOperationsMixin:
         group_name = themed_input_dialog(self, t("k_group_create_group"), t("k_node_input_new_group_name"))
         if not group_name:
             return
-        from PyQt6.QtWidgets import QColorDialog
+        from PySide6.QtWidgets import QColorDialog
         color = QColorDialog.getColor(QColor("#4A90E2"), self, t("k_color_select_group"))
         if not color.isValid():
             color = QColor("#4A90E2")

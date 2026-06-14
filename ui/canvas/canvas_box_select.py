@@ -1,7 +1,7 @@
 """
 框选系统 Mixin — 框选状态清除
 """
-from PyQt6.QtGui import QPen, QColor
+from PySide6.QtGui import QPen, QColor
 from ui.core.logger import logger
 
 

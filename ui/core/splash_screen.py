@@ -1,10 +1,10 @@
 """
 启动动画 — ASCII 字符拼成的 BNOS + 左下角日志 + 进度条
 """
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel,
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel,
                                QProgressBar, QTextEdit, QApplication)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 
 ASCII_BNOS = [
     " █████╗     ███╗  ██╗     █████╗     ██████╗ ",

@@ -1,9 +1,9 @@
 """
 面板模式节点样式 — ComfyUI 风格画布直显
 """
-from PyQt6.QtWidgets import QGraphicsItem
-from PyQt6.QtGui import QBrush, QPen, QColor
-from PyQt6.QtCore import Qt
+from PySide6.QtWidgets import QGraphicsItem
+from PySide6.QtGui import QBrush, QPen, QColor
+from PySide6.QtCore import Qt
 from .rect import RectNodeStyle
 
 

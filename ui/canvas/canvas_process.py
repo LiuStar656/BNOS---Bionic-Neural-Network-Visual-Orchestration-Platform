@@ -13,8 +13,8 @@ if _proj_root not in sys.path:
     sys.path.insert(0, _proj_root)
 
 import json
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QTimer, Qt
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QTimer, Qt
 from ui.core.ipc import IPCClient, A_ADD_NODE, A_REMOVE_NODE, A_UPDATE_STATUS
 from ui.core.ipc import A_CREATE_EDGE, A_REMOVE_EDGE, A_SYNC_DATA, A_CLEAR_ALL, A_WIN_SYNC
 from ui.core.ipc import E_NODE_SELECTED, E_NODE_DBLCLICKED, E_EDGE_CREATED, E_EDGE_REMOVED

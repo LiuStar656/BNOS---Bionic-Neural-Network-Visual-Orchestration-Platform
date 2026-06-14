@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 from ui.core.commands.base import Command, CommandResult
 from ui.core.commands.compound_commands import MacroCommand
@@ -83,10 +83,10 @@ class HistoryState:
 class HistoryManager(QObject):
     """历史记录管理器 - 单例（扁平列表 + 指针，支持 Photoshop 式跳转）"""
 
-    history_changed = pyqtSignal()       # 历史内容变更
-    can_undo_changed = pyqtSignal(bool)  # 是否可撤销
-    can_redo_changed = pyqtSignal(bool)  # 是否可重做
-    index_changed = pyqtSignal(int)      # 当前指针变更
+    history_changed = Signal()       # 历史内容变更
+    can_undo_changed = Signal(bool)  # 是否可撤销
+    can_redo_changed = Signal(bool)  # 是否可重做
+    index_changed = Signal(int)      # 当前指针变更
 
     _instance: Optional[HistoryManager] = None
 

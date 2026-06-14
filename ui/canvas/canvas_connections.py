@@ -3,10 +3,10 @@
 """
 import os
 import json
-from PyQt6.QtWidgets import QGraphicsPathItem, QMessageBox
+from PySide6.QtWidgets import QGraphicsPathItem, QMessageBox
 from ui.core.utils.dialog_utils import themed_message
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPen, QColor, QPainterPath
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPen, QColor, QPainterPath
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.canvas.items.edge_item import EdgeItem

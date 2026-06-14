@@ -7,9 +7,9 @@ BNOS 主窗口交互模块
 - 最大化/最小化切换
 - 快捷键处理
 """
-from PyQt6.QtCore import Qt, QEvent
-from PyQt6.QtGui import QMouseEvent
-from PyQt6.QtWidgets import QMainWindow
+from PySide6.QtCore import Qt, QEvent
+from PySide6.QtGui import QMouseEvent
+from PySide6.QtWidgets import QMainWindow
 from ui.core.theme import DARK_QSS
 
 
@@ -108,7 +108,7 @@ class MainWindowInteractionMixin:
         """Ctrl+D 统一删除：画布选区/节点列表/绘图图形/节点组"""
         if self.node_list_panel and self.node_list_panel.isVisible():
             try:
-                from PyQt6.QtWidgets import QApplication
+                from PySide6.QtWidgets import QApplication
                 fw = QApplication.focusWidget()
                 if fw and self.node_list_panel.isAncestorOf(fw):
                     sel = self.node_list_panel.get_selected_nodes()

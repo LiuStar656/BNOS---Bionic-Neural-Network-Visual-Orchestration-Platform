@@ -2,11 +2,11 @@
 统一深色对话框工具 — 完全自绘，不依赖 Windows 原生组件
 """
 import os
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout,
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout,
                                QWidget, QLineEdit, QTreeWidget, QTreeWidgetItem,
                                QComboBox, QHeaderView, QTextEdit, QSplitter)
-from PyQt6.QtCore import Qt, QDir, QPoint, QTimer, QSize
-from PyQt6.QtGui import QFont, QColor
+from PySide6.QtCore import Qt, QDir, QPoint, QTimer, QSize
+from PySide6.QtGui import QFont, QColor
 from ui.core.i18n import t
 
 
@@ -75,7 +75,7 @@ class ThemedDialogBase(QDialog):
             pc = parent.mapToGlobal(parent.rect().center())
             self.move(pc.x() - self.width() // 2, pc.y() - self.height() // 2)
         else:
-            from PyQt6.QtWidgets import QApplication
+            from PySide6.QtWidgets import QApplication
             screen = QApplication.primaryScreen()
             if screen:
                 geo = screen.availableGeometry()

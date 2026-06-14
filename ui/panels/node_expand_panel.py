@@ -6,13 +6,13 @@ output.json 编辑区：始终可编辑，输入自动保存到文件，外部�
 """
 import os
 import json
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTextEdit, QGroupBox, QMessageBox,
 )
 from ui.core.utils.dialog_utils import themed_message
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFont
 from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.logger import logger

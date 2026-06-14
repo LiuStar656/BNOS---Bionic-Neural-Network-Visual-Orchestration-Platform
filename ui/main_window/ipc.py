@@ -9,7 +9,7 @@ BNOS 主窗口IPC通信模块
 """
 import sys
 import os
-from PyQt6.QtCore import QTimer
+from PySide6.QtCore import QTimer
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.ipc import A_WIN_SYNC, A_SYNC_DATA, A_UPDATE_STATUS
@@ -157,5 +157,5 @@ class MainWindowIPCMixin:
             self._ipc_server.stop()
 
         logger.info("[RESTART] 准备重启应用...")
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         QApplication.instance().exit(42)

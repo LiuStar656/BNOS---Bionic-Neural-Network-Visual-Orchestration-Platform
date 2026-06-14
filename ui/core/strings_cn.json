@@ -408,7 +408,7 @@
   "_k_canvas_crashed": "画布进程已崩溃，正在重启...",
   "_k_start_node_tip": "启动选中的节点",
   "_k_stop_node_tip": "停止选中的节点",
-  "_k_about_text": "BNOS - Bionic Neural Network Program Operating System\n版本: 1.0.0\n仿生神经网络程序操作系统\n\n一款基于 PyQt6 的纯桌面端可视化节点编排平台。\n\n核心特性:\n• 项目管理：仿 VSCode 模式，新建/打开\n• 可视化编排：自由拖拽 + 连线\n• 多语言支持：Python、Rust 等\n• 环境隔离：每个节点独立 venv\n• 配置编辑：直接编辑 JSON\n• 实时监控：日志查看\n• 状态持久化：自动保存/恢复",
+  "_k_about_text": "BNOS - Bionic Neural Network Program Operating System\n版本: 1.0.0\n仿生神经网络程序操作系统\n\n一款基于 PySide6 的纯桌面端可视化节点编排平台。\n\n核心特性:\n• 项目管理：仿 VSCode 模式，新建/打开\n• 可视化编排：自由拖拽 + 连线\n• 多语言支持：Python、Rust 等\n• 环境隔离：每个节点独立 venv\n• 配置编辑：直接编辑 JSON\n• 实时监控：日志查看\n• 状态持久化：自动保存/恢复",
 
   "_k_panel": "面板",
   "_k_folder_picker_header": "📁 文件夹",

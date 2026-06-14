@@ -10,7 +10,7 @@ import shutil
 import subprocess
 from typing import Optional, Dict
 
-from PyQt6.QtWidgets import QPushButton, QMessageBox
+from PySide6.QtWidgets import QPushButton, QMessageBox
 
 from ui.core.i18n import t
 

@@ -12,7 +12,7 @@
 | 指标 | 数值 |
 |------|------|
 | 项目名称 | BNOS Console（Bionic Neural Network Program Operating System） |
-| 技术栈 | Python 3 + PyQt6（桌面端）/ tkinter（启动器） |
+| 技术栈 | Python 3 + PySide6（桌面端）/ tkinter（启动器） |
 | 程序文件总数 | **97** 个 Python 源文件（不含 `venv/` 等依赖目录） |
 | 总行数 | 25,677 行 |
 | **有效代码总行数（LOC）** | **17,425 行** |
@@ -223,14 +223,14 @@ class NodeCanvas(
 #### 🟡 良性模式参考：`PollingManager`（低耦合典范）
 
 ```python
-# [ui/core/polling_manager.py:39-55] 仅通过 pyqtSignal 暴露事件
-node_status_changed = pyqtSignal(str, str)      # (node_name, new_status)
-log_file_changed = pyqtSignal(str, str)         # (node_path, log_filename)
-global_log_changed = pyqtSignal(str, str)       # (log_file, content)
-config_file_changed = pyqtSignal(str)           # (node_path)
-global_config_changed = pyqtSignal(str)         # (config_file)
-output_json_changed = pyqtSignal(str, str)      # (node_path, content)
-app_state_changed = pyqtSignal(str)             # (state)
+# [ui/core/polling_manager.py:39-55] 仅通过 Signal 暴露事件
+node_status_changed = Signal(str, str)      # (node_name, new_status)
+log_file_changed = Signal(str, str)         # (node_path, log_filename)
+global_log_changed = Signal(str, str)       # (log_file, content)
+config_file_changed = Signal(str)           # (node_path)
+global_config_changed = Signal(str)         # (config_file)
+output_json_changed = Signal(str, str)      # (node_path, content)
+app_state_changed = Signal(str)             # (state)
 ```
 
 **仅数据耦合（Data Coupling）**：消费者只需订阅信号，无需了解内部实现。单例模式虽然是公共耦合，但由于信号/槽机制的解耦性，实际影响非常小。

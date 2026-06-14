@@ -1,10 +1,10 @@
 """
 终端界面组件
 """
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QTextEdit, QLineEdit, QSplitter
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PySide6.QtCore import Qt, Signal
 from ui.core.i18n import t
 from ui.core.logger import logger
 from .terminal_process import TerminalProcess

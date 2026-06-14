@@ -2,8 +2,8 @@
 面板管理器，负责管理各种面板的创建、显示和持久化
 """
 from typing import Dict, Type, Callable, Any, Optional
-from PyQt6.QtWidgets import QWidget, QDockWidget
-from PyQt6.QtCore import Qt
+from PySide6.QtWidgets import QWidget, QDockWidget
+from PySide6.QtCore import Qt
 from pathlib import Path
 from ui.core.logger import logger
 import json

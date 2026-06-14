@@ -3,8 +3,8 @@
 """
 import os
 import json
-from PyQt6.QtWidgets import QColorDialog
-from PyQt6.QtGui import QColor, QPen, QBrush
+from PySide6.QtWidgets import QColorDialog
+from PySide6.QtGui import QColor, QPen, QBrush
 from ui.core.logger import logger
 
 

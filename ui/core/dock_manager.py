@@ -2,11 +2,11 @@
 面板停靠管理器 - 使用Qt原生QDockWidget实现PS式停靠系统
 支持面板吸附边缘停靠、堆叠、自动隐藏、布局保存
 """
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QDockWidget, 
     QSplitter, QTabWidget, QToolButton, QLabel, QFrame
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QSize, QObject
+from PySide6.QtCore import Qt, Signal, QSize, QObject
 from ui.core.i18n import t
 from ui.icons.codicon import get_icon, get_icon_font
 
@@ -14,8 +14,8 @@ from ui.icons.codicon import get_icon, get_icon_font
 class BnosDockWidget(QDockWidget):
     """自定义DockWidget基类"""
     
-    closed = pyqtSignal(object)
-    visibility_changed = pyqtSignal(bool)
+    closed = Signal(object)
+    visibility_changed = Signal(bool)
     
     def __init__(self, title, parent=None):
         super().__init__(title, parent)
@@ -69,8 +69,8 @@ class BnosDockWidget(QDockWidget):
 class DockManager(QObject):
     """面板停靠管理器"""
     
-    panel_closed = pyqtSignal(QWidget)
-    dock_changed = pyqtSignal(str, bool)  # edge, is_docked
+    panel_closed = Signal(QWidget)
+    dock_changed = Signal(str, bool)  # edge, is_docked
     
     def __init__(self, main_window):
         super().__init__()

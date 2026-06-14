@@ -7,9 +7,9 @@
 - 新增 port_name / port_type / port_label 属性，记录该锚点对应的端口信息
 - 单锚点（默认 "default"）与多锚点（根据 input_ports 定义生成）共用同一类
 """
-from PyQt6.QtWidgets import QGraphicsEllipseItem
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPen, QColor
+from PySide6.QtWidgets import QGraphicsEllipseItem
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPen, QColor
 
 
 # 锚点几何常量。全系统共用，避免分散在各文件里硬编码 16/8。

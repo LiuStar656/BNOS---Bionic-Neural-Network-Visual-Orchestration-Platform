@@ -145,8 +145,8 @@ class DockManager(QObject):
 增强版窗口状态持久化管理
 结合 Qt 原生 saveState/restoreState 和自定义尺寸管理
 """
-from PyQt6.QtWidgets import QApplication, QDockWidget
-from PyQt6.QtCore import QByteArray, QBuffer, QIODevice, Qt
+from PySide6.QtWidgets import QApplication, QDockWidget
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt
 from ui.core.logger import logger
 import base64
 
@@ -321,7 +321,7 @@ def restore_state(main_window):
         
         if dock_layout and dock_layout.get("version") == "1.0":
             # 分阶段恢复
-            from PyQt6.QtCore import QTimer
+            from PySide6.QtCore import QTimer
             
             # 阶段 1：先延迟一下，确保 UI 初始化完成
             QTimer.singleShot(100, lambda: _restore_phase1(main_window, dock_layout))
@@ -350,7 +350,7 @@ def _restore_phase1(main_window, dock_layout):
         logger.warning("📐 恢复 Qt 原生状态失败: %s", e)
     
     # 阶段 2：延迟恢复 Dock 尺寸
-    from PyQt6.QtCore import QTimer
+    from PySide6.QtCore import QTimer
     QTimer.singleShot(200, lambda: _restore_phase2(main_window, dock_layout))
 
 
@@ -373,7 +373,7 @@ def _restore_phase2(main_window, dock_layout):
         _restore_area_docks(main_window, area_name, area_docks)
     
     # 阶段 3：恢复终端 Dock
-    from PyQt6.QtCore import QTimer
+    from PySide6.QtCore import QTimer
     QTimer.singleShot(100, lambda: _restore_phase3(main_window, dock_layout))
 
 
@@ -442,7 +442,7 @@ def _restore_phase3(main_window, dock_layout):
 
 def _restore_simple(main_window):
     """简单版恢复（向后兼容）"""
-    from PyQt6.QtCore import QTimer
+    from PySide6.QtCore import QTimer
     
     def _restore_main_dock_sizes():
         main_dock_sizes = main_window.app_config.get("main_dock_sizes", {})

@@ -1,7 +1,7 @@
 """
 全局快捷键管理器 — 集中定义、持久化、统一应用
 """
-from PyQt6.QtGui import QKeySequence
+from PySide6.QtGui import QKeySequence
 
 # 默认快捷键定义: id → (default_keystr, i18n_display_key)
 DEFAULTS = {

@@ -17,18 +17,18 @@
 import os
 import json
 import math
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsRectItem, 
     QGraphicsEllipseItem, QGraphicsPathItem, QGraphicsTextItem,
     QMenu, QMessageBox, QGraphicsItem, QGraphicsPolygonItem, QGraphicsTextItem,
     QColorDialog
 )
-from PyQt6.QtCore import Qt, QPointF, QRectF, QTimer
-from PyQt6.QtGui import (
+from PySide6.QtCore import Qt, QPointF, QRectF, QTimer
+from PySide6.QtGui import (
     QPainter, QPen, QColor, QBrush, QFont, QPainterPath,
     QPolygonF, QAction
 )
-from PyQt6.QtCore import QPointF
+from PySide6.QtCore import QPointF
 
 from ui.core.logger import logger
 from ui.core.i18n import t
@@ -257,7 +257,7 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
             current_pos = event.pos()
             
             # 创建 QRect（widget坐标）并规范化
-            from PyQt6.QtCore import QRect
+            from PySide6.QtCore import QRect
             widget_rect = QRect(self.box_select_start_pos, current_pos).normalized()
             
             # 将 widget 坐标转换为 scene 坐标
@@ -481,7 +481,7 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
                 self.is_box_selecting = True
                 self.box_select_start_pos = event.position().toPoint()
                 
-                from PyQt6.QtWidgets import QGraphicsRectItem
+                from PySide6.QtWidgets import QGraphicsRectItem
                 self.box_select_rect = QGraphicsRectItem()
                 self.box_select_rect.setPen(QPen(QColor("#2196F3"), 1.5, Qt.PenStyle.DashLine))
                 self.box_select_rect.setBrush(QColor(33, 150, 243, 30))

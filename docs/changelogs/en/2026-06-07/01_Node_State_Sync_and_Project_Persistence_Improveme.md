@@ -63,7 +63,7 @@ ode_monitor dependency, switched to signal-based data reception
 **Signal Forwarding Mechanism**
 `python
 # resource_monitor.py - Resource monitor sends signal
-node_state_updated = pyqtSignal(str, float, float)  # node_name, cpu_percent, memory_mb
+node_state_updated = Signal(str, float, float)  # node_name, cpu_percent, memory_mb
 
 def _update_single_node_stats(self, node_name, node_info):
     # Calculate CPU, memory

@@ -2,15 +2,15 @@
 节点创建异步工作线程 — 后台创建节点 + 浮动进度窗口
 """
 import os
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
-from PyQt6.QtCore import Qt, pyqtSignal, QThread
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PySide6.QtCore import Qt, Signal, QThread
 from ui.core.logger import logger
 
 
 class NodeCreationWorker(QThread):
     """后台工作线程：负责创建节点"""
-    progress_signal = pyqtSignal(str)
-    finished_signal = pyqtSignal(bool, str)
+    progress_signal = Signal(str)
+    finished_signal = Signal(bool, str)
 
     def __init__(self, project_path, node_name, lang_key, display_language):
         super().__init__()

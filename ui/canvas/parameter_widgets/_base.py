@@ -1,8 +1,8 @@
 """
 参数控件基类 + 辅助函数 + 视觉常量 — 共享基础层
 """
-from PyQt6.QtWidgets import QWidget, QLabel
-from PyQt6.QtCore import Qt, pyqtSignal
+from PySide6.QtWidgets import QWidget, QLabel
+from PySide6.QtCore import Qt, Signal
 
 from ui.core.node_config_parser import ParameterDef
 
@@ -80,7 +80,7 @@ class ParameterWidget(QWidget):
     关键：控件宽度由父级（NodeItem）决定，这里只约束高度，
     这样节点宽度可以跟随内容（最长标签 + 最长控件）自动扩张。
     """
-    value_changed = pyqtSignal(str, object)
+    value_changed = Signal(str, object)
 
     def row_height(self):
         return self.height() or ROW_HEIGHT

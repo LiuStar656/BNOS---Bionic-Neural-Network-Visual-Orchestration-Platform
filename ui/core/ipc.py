@@ -6,8 +6,8 @@
 """
 import json
 import uuid
-from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+from PySide6.QtCore import QObject, Signal
+from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from ui.core.logger import logger
 
 SERVER_NAME = "BNOS_IPC_Server"
@@ -45,9 +45,9 @@ def parse_message(raw: str):
 
 class IPCServer(QObject):
     """主进程 IPC 服务端，接受子进程连接"""
-    message_received = pyqtSignal(str, object)   # (client_id, msg_dict)
-    client_connected = pyqtSignal(str)            # client_id
-    client_disconnected = pyqtSignal(str)
+    message_received = Signal(str, object)   # (client_id, msg_dict)
+    client_connected = Signal(str)            # client_id
+    client_disconnected = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -110,9 +110,9 @@ class IPCServer(QObject):
 
 class IPCClient(QObject):
     """子进程 IPC 客户端，连接主进程"""
-    message_received = pyqtSignal(object)   # msg_dict
-    connected = pyqtSignal()
-    disconnected = pyqtSignal()
+    message_received = Signal(object)   # msg_dict
+    connected = Signal()
+    disconnected = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)

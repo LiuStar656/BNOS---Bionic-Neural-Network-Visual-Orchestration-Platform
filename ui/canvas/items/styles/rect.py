@@ -1,8 +1,8 @@
 """
 方框节点样式 — 框图模式（默认）
 """
-from PyQt6.QtGui import QPen, QBrush, QFont, QColor
-from PyQt6.QtCore import Qt
+from PySide6.QtGui import QPen, QBrush, QFont, QColor
+from PySide6.QtCore import Qt
 from ._base import NodeStyle
 
 

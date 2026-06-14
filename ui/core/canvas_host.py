@@ -19,10 +19,10 @@ CanvasHost - 画布宿主窗口（QMainWindow）
 """
 import os
 import json
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QMainWindow, QDockWidget, QTabWidget, QWidget, QVBoxLayout, QLabel
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PySide6.QtCore import Qt, Signal
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.canvas import NodeCanvas
@@ -104,9 +104,9 @@ class BlankPlaceholder(QWidget):
 class CanvasHost(QMainWindow):
     """画布宿主窗口 - 作为Canvas专属的Dock停靠容器（固定不动）"""
     
-    canvas_changed = pyqtSignal(object)  # 当前激活的画布变化
-    canvas_focused = pyqtSignal(object)  # 画布获得焦点
-    all_canvases_closed = pyqtSignal()   # 所有画布已关闭
+    canvas_changed = Signal(object)  # 当前激活的画布变化
+    canvas_focused = Signal(object)  # 画布获得焦点
+    all_canvases_closed = Signal()   # 所有画布已关闭
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -141,7 +141,7 @@ class CanvasHost(QMainWindow):
         # 初始时保持默认设置，因为空白缓冲层作为中央控件
         
         # 监听焦点变化，以便检测用户切换画布
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
         app = QApplication.instance()
         if app:
             app.focusChanged.connect(self._on_focus_changed)
@@ -526,7 +526,7 @@ class CanvasHost(QMainWindow):
         self._terminal_dock.hide()
         
         # 延迟连接可见性信号，避免初始化阶段的 hide() 覆盖持久化状态
-        from PyQt6.QtCore import QTimer
+        from PySide6.QtCore import QTimer
         QTimer.singleShot(650, self._connect_terminal_signals)
         
         self._terminal_initialized = True

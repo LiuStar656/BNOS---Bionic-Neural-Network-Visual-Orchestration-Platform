@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QListWidgetItem, QPushButton, QLabel
 )
@@ -179,7 +179,7 @@ class HistoryPanelWidget(QWidget):
 class HistoryPanelDock(QDockWidget):
     """历史面板 Dock 包装"""
 
-    closed = pyqtSignal(object)
+    closed = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(t("k_view_history_panel"), parent)

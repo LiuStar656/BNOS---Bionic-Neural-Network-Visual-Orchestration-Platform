@@ -1,20 +1,20 @@
 """
 BNOS自定义Dock基类 - 实现PS式停靠、悬浮、堆叠、自动隐藏
 """
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QToolButton, QSizeGrip
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QCursor
+from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtGui import QCursor
 from ui.icons.codicon import get_icon, get_icon_font
 
 
 class BnosDock(QDockWidget):
     """自定义Dock基类"""
     
-    closed = pyqtSignal(object)
-    visibility_changed = pyqtSignal(bool)
+    closed = Signal(object)
+    visibility_changed = Signal(bool)
     
     def __init__(self, title, parent=None):
         super().__init__(title, parent)

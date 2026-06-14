@@ -4,7 +4,7 @@
 
 ### 独立 tkinter 启动器
 
-**替换**内嵌 PyQt6 闪屏为独立 `launcher.py`（251 行）：
+**替换**内嵌 PySide6 闪屏为独立 `launcher.py`（251 行）：
 - 纯 tkinter 实现，系统 Python 零依赖，可独立打包 EXE
 - 闪屏立即弹出 → 后台启动 venv pythonw bnos_console.py → 实时读取进度文件
 - 进度条平滑动画，与主程序加载精准同步，100% 后 0.2 秒关闭

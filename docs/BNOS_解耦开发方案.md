@@ -71,10 +71,10 @@
 ```python
 """
 事件总线系统，用于解耦模块间的直接依赖关系
-设计原则：基于 PyQt6 信号机制，线程安全，零侵入现有代码
+设计原则：基于 PySide6 信号机制，线程安全，零侵入现有代码
 """
 from typing import Dict, List, Callable, Any
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 import threading
 
 
@@ -82,7 +82,7 @@ class EventBus(QObject):
     """事件总线 — 发布-订阅模式的核心实现"""
 
     # 单一通用信号：(事件类型, 数据载荷)
-    event_signal = pyqtSignal(str, object)
+    event_signal = Signal(str, object)
 
     def __init__(self):
         super().__init__()
@@ -315,8 +315,8 @@ print(f"[DI TEST] {cfg.get('di_test')}")
 面板管理器，负责管理各种面板的创建、显示和持久化
 """
 from typing import Dict, Type, Callable, Any, Optional
-from PyQt6.QtWidgets import QWidget, QDockWidget
-from PyQt6.QtCore import Qt
+from PySide6.QtWidgets import QWidget, QDockWidget
+from PySide6.QtCore import Qt
 from pathlib import Path
 import json
 
@@ -535,7 +535,7 @@ cat <project>/.bnos/app_config.json  # 查看 panel_visibility 字段
 节点控制服务，负责管理节点的启动、停止和其他操作
 """
 from typing import Dict, List, Optional, Callable
-from PyQt6.QtCore import QObject, QThread
+from PySide6.QtCore import QObject, QThread
 from pathlib import Path
 import subprocess
 import os
@@ -896,17 +896,17 @@ python bnos_console.py
 共享的节点树组件 — 供 NodeListDockPanel 和 NodeListPanel 共用
 消除 ~400 行重复代码
 """
-from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor
+from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 
 
 class NodeTreeWidget(QTreeWidget):
     """节点树形组件 — 统一树渲染、状态显示、拖拽支持"""
 
-    node_selected = pyqtSignal(str)
-    node_context_menu = pyqtSignal(str)
-    node_double_clicked = pyqtSignal(str)
+    node_selected = Signal(str)
+    node_context_menu = Signal(str)
+    node_double_clicked = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -987,8 +987,8 @@ python bnos_console.py
 Canvas控制器集合，将原来的mixin模式改为组合模式
 """
 from typing import Optional
-from PyQt6.QtCore import Qt, QPointF, QRectF
-from PyQt6.QtWidgets import QRubberBand, QMenu
+from PySide6.QtCore import Qt, QPointF, QRectF
+from PySide6.QtWidgets import QRubberBand, QMenu
 from pathlib import Path
 import json
 

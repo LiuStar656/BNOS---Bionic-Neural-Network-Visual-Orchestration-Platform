@@ -1,8 +1,8 @@
 """
 Action 创建工厂模块 — 从统一注册表创建 QAction
 """
-from PyQt6.QtWidgets import QMenu, QMenuBar
-from PyQt6.QtGui import QAction
+from PySide6.QtWidgets import QMenu, QMenuBar
+from PySide6.QtGui import QAction
 from typing import Optional
 from .action_registry import ActionRegistry
 from .action_definition import ActionDefinition, ActionContext

@@ -4,7 +4,7 @@
 import os
 import shutil
 import threading
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
+from PySide6.QtCore import QObject, Signal, Slot
 from ui.core.logger import logger
 
 
@@ -12,17 +12,17 @@ class FileOperationManager(QObject):
     """文件操作管理器"""
     
     # 信号定义
-    operation_started = pyqtSignal(str)  # 操作开始
-    operation_progress = pyqtSignal(int)  # 进度更新 (0-100)
-    operation_completed = pyqtSignal(str, bool)  # 操作完成 (操作类型, 是否成功)
-    operation_error = pyqtSignal(str, str)  # 操作错误 (操作类型, 错误信息)
+    operation_started = Signal(str)  # 操作开始
+    operation_progress = Signal(int)  # 进度更新 (0-100)
+    operation_completed = Signal(str, bool)  # 操作完成 (操作类型, 是否成功)
+    operation_error = Signal(str, str)  # 操作错误 (操作类型, 错误信息)
     
     def __init__(self):
         super().__init__()
         self._is_running = False
         self._cancel_event = threading.Event()
     
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def copy_file(self, source_path, dest_path):
         """复制文件或目录"""
         if self._is_running:
@@ -66,7 +66,7 @@ class FileOperationManager(QObject):
         thread = threading.Thread(target=_copy)
         thread.start()
     
-    @pyqtSlot(str)
+    @Slot(str)
     def delete_file(self, path):
         """删除文件或目录"""
         if self._is_running:
@@ -97,7 +97,7 @@ class FileOperationManager(QObject):
         thread = threading.Thread(target=_delete)
         thread.start()
     
-    @pyqtSlot(str, str)
+    @Slot(str, str)
     def rename_file(self, old_path, new_name):
         """重命名文件或目录"""
         if self._is_running:
@@ -131,7 +131,7 @@ class FileOperationManager(QObject):
         thread = threading.Thread(target=_rename)
         thread.start()
     
-    @pyqtSlot(str)
+    @Slot(str)
     def create_folder(self, parent_path, name=None):
         """创建新文件夹"""
         if self._is_running:

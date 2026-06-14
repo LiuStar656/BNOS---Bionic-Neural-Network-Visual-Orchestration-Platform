@@ -2,17 +2,17 @@
 共享的节点树组件 — 供 NodeListDockPanel 和 NodeListPanel 共用
 消除 ~400 行重复代码
 """
-from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor
+from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 
 
 class NodeTreeWidget(QTreeWidget):
     """节点树形组件 — 统一树渲染、状态显示、拖拽支持"""
 
-    node_selected = pyqtSignal(str)
-    node_context_menu = pyqtSignal(str)
-    node_double_clicked = pyqtSignal(str)
+    node_selected = Signal(str)
+    node_context_menu = Signal(str)
+    node_double_clicked = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)

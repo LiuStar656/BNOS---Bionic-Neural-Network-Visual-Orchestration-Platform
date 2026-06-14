@@ -1,8 +1,8 @@
 """画布和节点颜色设置对话框 - 浮动窗口版本"""
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout,
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout,
     QPushButton, QGroupBox, QScrollArea, QColorDialog, QSlider, QSpinBox)
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont, QColor
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFont, QColor
 from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message

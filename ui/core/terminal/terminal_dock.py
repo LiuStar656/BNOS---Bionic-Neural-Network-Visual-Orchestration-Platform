@@ -1,10 +1,10 @@
 """
 终端 Dock 组件
 """
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QComboBox, QWidget, QVBoxLayout, QToolButton, QHBoxLayout, QTabWidget, QTabBar
 )
-from PyQt6.QtCore import Qt
+from PySide6.QtCore import Qt
 from ui.core.bnos_dock import BnosDock
 from ui.core.i18n import t
 from .terminal_widget import TerminalWidget

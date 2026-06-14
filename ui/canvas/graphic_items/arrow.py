@@ -1,6 +1,6 @@
 """直线/箭头图形"""
-from PyQt6.QtCore import QRectF, QPointF
-from PyQt6.QtGui import QPolygonF
+from PySide6.QtCore import QRectF, QPointF
+from PySide6.QtGui import QPolygonF
 from math import atan2, cos, sin, pi
 from ._base import GraphicBase
 

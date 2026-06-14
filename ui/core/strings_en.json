@@ -400,7 +400,7 @@
   "_k_canvas_crashed": "Canvas process crashed, restarting...",
   "_k_start_node_tip": "Start selected node",
   "_k_stop_node_tip": "Stop selected node",
-  "_k_about_text": "BNOS - Bionic Neural Network Program Operating System\nVersion: 1.0.0\n\nA PyQt6-based desktop visual node orchestration platform.\n\nCore Features:\n• Project Management: VSCode-style open/create\n• Visual Orchestration: Drag & drop + connection lines\n• Multi-language: Python, Rust, etc.\n• Environment Isolation: Per-node venv\n• Config Editor: Direct JSON editing\n• Real-time Monitor: Log viewing\n• State Persistence: Auto-save/restore",
+  "_k_about_text": "BNOS - Bionic Neural Network Program Operating System\nVersion: 1.0.0\n\nA PySide6-based desktop visual node orchestration platform.\n\nCore Features:\n• Project Management: VSCode-style open/create\n• Visual Orchestration: Drag & drop + connection lines\n• Multi-language: Python, Rust, etc.\n• Environment Isolation: Per-node venv\n• Config Editor: Direct JSON editing\n• Real-time Monitor: Log viewing\n• State Persistence: Auto-save/restore",
 
   "_k_panel": "Panel",
   "_k_folder_picker_header": "📁 Folders",

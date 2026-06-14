@@ -1,11 +1,11 @@
 """
 设置对话框 — 语言/进程隔离 + 快捷键管理（浮动窗口版本）
 """
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                               QComboBox, QCheckBox, QPushButton, QGroupBox,
                               QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QKeySequence
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QKeySequence
 from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t, set_lang, get_lang
 from ui.core.utils.dialog_utils import themed_message

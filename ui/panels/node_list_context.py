@@ -2,9 +2,9 @@
 节点列表右键菜单系统 Mixin — 统一使用 ActionRegistry + ActionFactory
 所有操作通过 Action 系统分发，菜单与菜单栏共用同一套功能注册表
 """
-from PyQt6.QtWidgets import QMenu
+from PySide6.QtWidgets import QMenu
 from ui.core.utils.dialog_utils import themed_message
-from PyQt6.QtCore import Qt
+from PySide6.QtCore import Qt
 from ui.core.i18n import t
 from ui.core.actions import ActionFactory, ActionContext, ActionRegistry
 from ui.core.actions.builtin_node_actions import register_node_actions

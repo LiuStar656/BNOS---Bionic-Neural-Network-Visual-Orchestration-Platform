@@ -1,9 +1,9 @@
 """
 圆形节点样式 — 节点模式
 """
-from PyQt6.QtWidgets import QGraphicsEllipseItem
-from PyQt6.QtGui import QPen, QBrush, QFont, QColor
-from PyQt6.QtCore import Qt
+from PySide6.QtWidgets import QGraphicsEllipseItem
+from PySide6.QtGui import QPen, QBrush, QFont, QColor
+from PySide6.QtCore import Qt
 from ._base import NodeStyle
 
 

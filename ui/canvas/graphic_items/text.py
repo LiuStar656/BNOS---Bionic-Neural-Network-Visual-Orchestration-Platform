@@ -1,7 +1,7 @@
 """文本图形"""
-from PyQt6.QtWidgets import QGraphicsItem, QGraphicsTextItem
-from PyQt6.QtCore import QRectF
-from PyQt6.QtGui import QPen, QColor, QBrush, QFont
+from PySide6.QtWidgets import QGraphicsItem, QGraphicsTextItem
+from PySide6.QtCore import QRectF
+from PySide6.QtGui import QPen, QColor, QBrush, QFont
 
 from ._base import C_STROKE, C_FILL, C_TEXT, STROKE_W, FONT_SIZE
 

@@ -7,7 +7,7 @@ BNOS 主窗口面板管理模块
 - 资源监测面板（浮动版/Dock版）
 - 面板位置和可见性状态管理
 """
-from PyQt6.QtCore import Qt
+from PySide6.QtCore import Qt
 from ui.core.i18n import t
 from ui.core.logger import logger
 

@@ -1,5 +1,5 @@
 """QGraphicsProxyWidget 兼容的 ComboBox — 修复下拉弹窗坐标映射"""
-from PyQt6.QtWidgets import QComboBox, QGraphicsProxyWidget, QFrame
+from PySide6.QtWidgets import QComboBox, QGraphicsProxyWidget, QFrame
 
 
 class _ProxyAwareComboBox(QComboBox):

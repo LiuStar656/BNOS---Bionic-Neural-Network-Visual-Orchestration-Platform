@@ -1,6 +1,6 @@
 """折线多边形图形 — 单击加点，双击闭合"""
-from PyQt6.QtCore import Qt, QRectF, QPointF
-from PyQt6.QtGui import QPainterPath, QPolygonF
+from PySide6.QtCore import Qt, QRectF, QPointF
+from PySide6.QtGui import QPainterPath, QPolygonF
 from ._base import GraphicBase
 
 

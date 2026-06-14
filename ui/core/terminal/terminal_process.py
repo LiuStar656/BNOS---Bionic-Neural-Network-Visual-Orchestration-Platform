@@ -3,17 +3,17 @@
 """
 import platform
 import re
-from PyQt6.QtCore import QProcess, QObject, pyqtSignal
+from PySide6.QtCore import QProcess, QObject, Signal
 from ui.core.logger import logger
 
 
 class TerminalProcess(QObject):
     """终端进程 - 封装 QProcess"""
 
-    output_received = pyqtSignal(str)
-    error_received = pyqtSignal(str)
-    process_started = pyqtSignal()
-    process_finished = pyqtSignal(int)
+    output_received = Signal(str)
+    error_received = Signal(str)
+    process_started = Signal()
+    process_finished = Signal(int)
 
     def __init__(self, working_dir: str = None):
         super().__init__()

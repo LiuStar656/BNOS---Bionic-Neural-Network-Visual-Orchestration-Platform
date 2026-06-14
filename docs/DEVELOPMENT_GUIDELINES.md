@@ -101,9 +101,9 @@ NodeName = "test"                     # ❌ 错误
 - 使用 `changed`、`clicked`、`closed` 等后缀
 
 ```python
-node_status_changed = pyqtSignal(str, str)  # ✅ 正确
-canvas_closed = pyqtSignal()                # ✅ 正确
-onNodeChange = pyqtSignal()                 # ❌ 错误
+node_status_changed = Signal(str, str)  # ✅ 正确
+canvas_closed = Signal()                # ✅ 正确
+onNodeChange = Signal()                 # ❌ 错误
 ```
 
 ---

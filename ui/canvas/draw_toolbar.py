@@ -1,10 +1,10 @@
 """
 绘图工具栏 — PS 风格左侧竖式，匹配菜单栏深色主题
 """
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QScrollArea,
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QScrollArea,
                               QColorDialog, QLabel)
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
 from ui.core.i18n import t
 from ui.icons import codicon, get_icon, get_icon_font
 
@@ -55,14 +55,14 @@ QPushButton {{
 class DrawToolbar(QWidget):
     """绘图工具条"""
 
-    tool_changed   = pyqtSignal(str)
-    style_changed  = pyqtSignal(str, object)
-    layer_locked   = pyqtSignal(bool)
-    layer_visible  = pyqtSignal(bool)
-    undo_requested = pyqtSignal()
-    redo_requested = pyqtSignal()
-    delete_requested = pyqtSignal()
-    clear_requested  = pyqtSignal()
+    tool_changed   = Signal(str)
+    style_changed  = Signal(str, object)
+    layer_locked   = Signal(bool)
+    layer_visible  = Signal(bool)
+    undo_requested = Signal()
+    redo_requested = Signal()
+    delete_requested = Signal()
+    clear_requested  = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)

@@ -186,15 +186,15 @@ ui/core/canvas_host.py         #（集成到 CanvasHost 内部）
 # ui/core/terminal/terminal_process.py
 import subprocess
 import platform
-from PyQt6.QtCore import QProcess, QObject, pyqtSignal
+from PySide6.QtCore import QProcess, QObject, Signal
 
 class TerminalProcess(QObject):
     """终端进程 - 封装 QProcess
     
-    output_received = pyqtSignal(str)
-    error_received = pyqtSignal(str)
-    process_started = pyqtSignal()
-    process_finished = pyqtSignal(int)
+    output_received = Signal(str)
+    error_received = Signal(str)
+    process_started = Signal()
+    process_finished = Signal(int)
     
     def __init__(self, working_dir: str = None):
         super().__init__()
@@ -243,10 +243,10 @@ class TerminalProcess(QObject):
 
 ```python
 # ui/core/terminal/terminal_widget.py
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QTextEdit, QLineEdit, QSplitter
 )
-from PyQt6.QtCore import Qt
+from PySide6.QtCore import Qt
 from ui.core.i18n import t
 from .terminal_process import TerminalProcess
 
@@ -321,7 +321,7 @@ class TerminalWidget(QWidget):
 
 ```python
 # ui/core/terminal/terminal_dock.py
-from PyQt6.QtWidgets import QToolBar, QComboBox
+from PySide6.QtWidgets import QToolBar, QComboBox
 from ui.core.bnos_dock import BnosDock
 from ui.core.i18n import t
 from .terminal_widget import TerminalWidget
@@ -665,7 +665,7 @@ class CanvasHost(QMainWindow):
 | 工具 | 用途 |
 |-----|------|
 | Git | 版本控制 |
-| Python/PyQt6 | 开发环境 |
+| Python/PySide6 | 开发环境 |
 | VS Code/Trae AI | 代码编辑器 |
 
 ---

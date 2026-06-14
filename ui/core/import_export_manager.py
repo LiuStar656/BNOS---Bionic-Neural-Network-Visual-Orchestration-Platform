@@ -4,7 +4,7 @@ BNOS 导入导出管理器 - 负责节点和项目的导出/导入操作
 import os
 import shutil
 import tempfile
-from PyQt6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QMessageBox
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.packager import Packager

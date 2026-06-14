@@ -10,7 +10,7 @@ import os
 import subprocess
 import sys
 from typing import Optional
-from PyQt6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QMessageBox
 from ui.core.logger import logger
 from ui.core.i18n import t
 

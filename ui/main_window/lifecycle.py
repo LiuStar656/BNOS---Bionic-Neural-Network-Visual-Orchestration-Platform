@@ -6,8 +6,8 @@ BNOS 主窗口生命周期管理模块
 - 关闭流程
 - 事件处理（显示、关闭、调整大小等）
 """
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QMainWindow
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QMainWindow
 from ui.core.logger import logger
 
 

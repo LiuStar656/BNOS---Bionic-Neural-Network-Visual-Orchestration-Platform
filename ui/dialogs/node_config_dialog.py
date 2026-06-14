@@ -4,15 +4,15 @@ import sys
 import json
 import subprocess
 import platform
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout, QLineEdit, 
     QPushButton, QTextEdit, QGroupBox, QScrollArea, QMessageBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QDialog,
     QColorDialog, QSlider, QSpinBox, QComboBox,
     QDialogButtonBox
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont, QColor
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFont, QColor
 from ui.core.logger import logger
 from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t

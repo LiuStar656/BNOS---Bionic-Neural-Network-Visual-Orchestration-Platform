@@ -1,9 +1,9 @@
 """
 节点状态显示组件 — 实时显示CPU、内存、运行时长等状态信息
 """
-from PyQt6.QtWidgets import QGraphicsTextItem, QGraphicsRectItem, QGraphicsItem
-from PyQt6.QtCore import Qt, QRectF
-from PyQt6.QtGui import QColor, QBrush, QPen, QFont
+from PySide6.QtWidgets import QGraphicsTextItem, QGraphicsRectItem, QGraphicsItem
+from PySide6.QtCore import Qt, QRectF
+from PySide6.QtGui import QColor, QBrush, QPen, QFont
 from ui.core.logger import logger
 
 

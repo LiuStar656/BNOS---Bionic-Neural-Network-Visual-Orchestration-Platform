@@ -7,7 +7,7 @@ BNOS 主窗口节点控制模块
 - 节点导入/导出
 - 节点状态同步
 """
-from PyQt6.QtCore import QTimer, QThread, pyqtSignal
+from PySide6.QtCore import QTimer, QThread, Signal
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node
@@ -81,7 +81,7 @@ class MainWindowNodeControlMixin:
             return
 
         class StartNodeWorker(QThread):
-            finished = pyqtSignal(bool, str)
+            finished = Signal(bool, str)
 
             def __init__(self, node_info, parent=None):
                 super().__init__(parent)

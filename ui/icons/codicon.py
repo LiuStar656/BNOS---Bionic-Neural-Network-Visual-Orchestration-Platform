@@ -666,7 +666,7 @@ class CodiconManager:
     
     def _load_font(self):
         try:
-            from PyQt6.QtGui import QFontDatabase
+            from PySide6.QtGui import QFontDatabase
             font_id = QFontDatabase.addApplicationFont(self.font_path)
             if font_id != -1:
                 families = QFontDatabase.applicationFontFamilies(font_id)
@@ -684,7 +684,7 @@ class CodiconManager:
     
     def get_font(self, size=14):
         try:
-            from PyQt6.QtGui import QFont
+            from PySide6.QtGui import QFont
             font = QFont(self.font_family, size)
             return font
         except ImportError:

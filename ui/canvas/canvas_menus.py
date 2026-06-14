@@ -5,10 +5,10 @@
 import os
 import platform
 from functools import partial
-from PyQt6.QtWidgets import QMenu
-from PyQt6.QtGui import QAction
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QGraphicsItem
+from PySide6.QtWidgets import QMenu
+from PySide6.QtGui import QAction
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QGraphicsItem
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.styles import StyleRegistry

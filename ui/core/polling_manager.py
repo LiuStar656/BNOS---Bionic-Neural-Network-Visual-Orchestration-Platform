@@ -12,7 +12,7 @@
 import os
 import json
 from datetime import datetime
-from PyQt6.QtCore import QObject, QTimer, Qt, pyqtSignal
+from PySide6.QtCore import QObject, QTimer, Qt, Signal
 from ui.core.logger import logger
 
 
@@ -39,19 +39,19 @@ class PollingManager(QObject):
     
     # ---- 信号定义 ----
     # 节点状态相关
-    node_status_changed = pyqtSignal(str, str)    # (node_name, new_status)
+    node_status_changed = Signal(str, str)    # (node_name, new_status)
     
     # 日志文件相关
-    log_file_changed = pyqtSignal(str, str)       # (node_path, log_filename)
-    global_log_changed = pyqtSignal(str, str)     # (log_file, content)
+    log_file_changed = Signal(str, str)       # (node_path, log_filename)
+    global_log_changed = Signal(str, str)     # (log_file, content)
     
     # 配置文件相关
-    config_file_changed = pyqtSignal(str)         # (node_path) — config.json 变更
-    global_config_changed = pyqtSignal(str)       # (config_file)
-    output_json_changed = pyqtSignal(str, str)    # (node_path, content)
+    config_file_changed = Signal(str)         # (node_path) — config.json 变更
+    global_config_changed = Signal(str)       # (config_file)
+    output_json_changed = Signal(str, str)    # (node_path, content)
     
     # 应用状态相关
-    app_state_changed = pyqtSignal(str)           # (state)
+    app_state_changed = Signal(str)           # (state)
     
     _instance = None
     _initialized = False

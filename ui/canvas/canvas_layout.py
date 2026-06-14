@@ -4,9 +4,9 @@ save_layout / load_layout
 """
 import os
 import json
-from PyQt6.QtCore import QPointF
-from PyQt6.QtGui import QPen, QBrush, QColor
-from PyQt6.QtWidgets import QGraphicsScene
+from PySide6.QtCore import QPointF
+from PySide6.QtGui import QPen, QBrush, QColor
+from PySide6.QtWidgets import QGraphicsScene
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.core.logger import logger

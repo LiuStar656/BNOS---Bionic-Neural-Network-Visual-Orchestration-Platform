@@ -2,7 +2,7 @@
 节点控制服务，负责管理节点的启动、停止和其他操作
 """
 from typing import Dict, List, Optional, Callable
-from PyQt6.QtCore import QObject, QThread
+from PySide6.QtCore import QObject, QThread
 from pathlib import Path
 from ui.core.logger import logger
 import subprocess

@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 if __name__ == "__main__":
-    from PyQt6.QtCore import QCoreApplication
+    from PySide6.QtCore import QCoreApplication
     from ui.core.process_manager import ProcessManager
 
     app = QCoreApplication.instance() or QCoreApplication(sys.argv)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from PyQt6.QtCore import QPointF
+from PySide6.QtCore import QPointF
 
 from ui.core.commands.base import Command, CommandResult, CommandType
 from ui.core.logger import logger

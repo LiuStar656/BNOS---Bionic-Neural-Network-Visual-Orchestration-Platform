@@ -8,11 +8,11 @@
 """
 import os
 import psutil
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTextEdit, QGroupBox, QWidget, QScrollArea, QProgressBar
 )
-from PyQt6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer
 from ui.core.i18n import t
 from ui.core.polling_manager import polling_manager
 from ui.panels._shared.system_resource_collector import SystemResourceCollector

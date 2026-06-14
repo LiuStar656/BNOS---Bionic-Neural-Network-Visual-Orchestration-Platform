@@ -3,8 +3,8 @@
 
 注入到 NodeCanvas，作为绘图层 (z=0) 在节点层下方。
 """
-from PyQt6.QtCore import Qt, QPointF
-from PyQt6.QtWidgets import QGraphicsItem
+from PySide6.QtCore import Qt, QPointF
+from PySide6.QtWidgets import QGraphicsItem
 from ui.core.i18n import t
 from ui.canvas.graphic_items import (
     RectGraphic, RoundRectGraphic, PolygonGraphic, ArrowGraphic, TextGraphic,

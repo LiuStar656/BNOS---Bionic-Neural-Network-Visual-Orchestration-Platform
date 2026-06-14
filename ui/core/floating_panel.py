@@ -4,18 +4,18 @@
 子类通过 self.content_layout 和 self.hint_bar 添加内容。
 自带：无边框、半透明深色背景、标题栏（可拖动）、最小化/关闭按钮。
 """
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QWidget
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
 from ui.core.i18n import t
 
 
 class FloatingPanel(QDialog):
     """浮动面板基类"""
     
-    closed = pyqtSignal()  # 关闭信号
+    closed = Signal()  # 关闭信号
 
     def __init__(self, parent=None, title=None):
         if title is None:

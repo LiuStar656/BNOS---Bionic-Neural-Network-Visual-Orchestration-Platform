@@ -6,7 +6,7 @@
 import os
 import sys
 import subprocess
-from PyQt6.QtCore import QObject, QTimer, pyqtSignal
+from PySide6.QtCore import QObject, QTimer, Signal
 from ui.core.logger import logger
 
 # 项目根目录（从 process_manager.py: ui/core/ → 项目根）
@@ -16,9 +16,9 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(_THIS_DIR))
 
 class ManagedProcess(QObject):
     """受管理的子进程"""
-    crashed = pyqtSignal(str)       # process_id
-    started = pyqtSignal(str)
-    stopped = pyqtSignal(str)
+    crashed = Signal(str)       # process_id
+    started = Signal(str)
+    stopped = Signal(str)
 
     def __init__(self, process_id: str, script_path: str, parent=None):
         super().__init__(parent)

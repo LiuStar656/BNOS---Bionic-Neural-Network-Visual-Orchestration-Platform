@@ -337,7 +337,7 @@ class NodeConfigParser:
 ```python
 class ParameterWidget(QWidget):
     """参数控件基类"""
-    value_changed = pyqtSignal(str, object)  # param_name, value
+    value_changed = Signal(str, object)  # param_name, value
 
     def __init__(self, param: ParameterDef, current_value=None): ...
 

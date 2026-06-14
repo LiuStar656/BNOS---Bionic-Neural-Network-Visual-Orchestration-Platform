@@ -3,7 +3,7 @@
 """
 import os
 import json
-from PyQt6.QtCore import QTimer
+from PySide6.QtCore import QTimer
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.node_registry import NodeRegistry

@@ -4,9 +4,9 @@ Canvas控制器集合，将原来的mixin继承改为组合模式
 后续阶段：将mixin逻辑迁移到控制器中，逐步移除mixin继承
 """
 from typing import Optional
-from PyQt6.QtCore import Qt, QPointF, QRectF
-from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import QRubberBand
+from PySide6.QtCore import Qt, QPointF, QRectF
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QRubberBand
 
 
 class CanvasConnectionController:

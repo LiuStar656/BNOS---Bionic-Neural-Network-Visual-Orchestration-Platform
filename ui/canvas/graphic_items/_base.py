@@ -1,9 +1,9 @@
 """
 绘图工具基类 — 所有图形的公共接口 + 全局默认样式
 """
-from PyQt6.QtWidgets import QGraphicsItem
-from PyQt6.QtCore import Qt, QRectF, QPointF
-from PyQt6.QtGui import QPen, QColor, QBrush
+from PySide6.QtWidgets import QGraphicsItem
+from PySide6.QtCore import Qt, QRectF, QPointF
+from PySide6.QtGui import QPen, QColor, QBrush
 
 
 # ── 全局默认样式 ──

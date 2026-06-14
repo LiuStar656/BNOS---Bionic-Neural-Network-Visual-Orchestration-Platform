@@ -1,7 +1,7 @@
 # BNOS Console Dependencies
 
 # Core GUI framework
-pyqt6>=6.4.0
+pyside6>=6.4.0
 
 # Process management (required for node health detection)
 psutil>=5.9.0

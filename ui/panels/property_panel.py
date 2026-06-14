@@ -3,10 +3,10 @@
 """
 import os
 import json
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout, QLineEdit, QPushButton, QTextEdit, QGroupBox, QScrollArea, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView, QComboBox)
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormLayout, QLineEdit, QPushButton, QTextEdit, QGroupBox, QScrollArea, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView, QComboBox)
 from ui.core.utils.dialog_utils import themed_message
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.dialogs.node_config_dialog import NodeConfigDialog

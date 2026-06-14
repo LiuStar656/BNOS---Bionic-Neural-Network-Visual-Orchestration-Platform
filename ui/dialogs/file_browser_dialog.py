@@ -2,13 +2,13 @@
 独立文件浏览器对话框 - 用于导入导出操作（浮动窗口版本）
 """
 import os
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget,
     QTreeWidgetItem, QLineEdit, QPushButton, QLabel, QSplitter,
     QMenu, QHeaderView
 )
-from PyQt6.QtCore import Qt, QDir, QModelIndex
-from PyQt6.QtGui import QIcon, QFileSystemModel, QAction
+from PySide6.QtCore import Qt, QDir, QModelIndex
+from PySide6.QtGui import QIcon, QFileSystemModel, QAction
 from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.logger import logger

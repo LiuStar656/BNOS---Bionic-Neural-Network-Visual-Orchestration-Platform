@@ -25,9 +25,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QPointF, QRectF
-from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import QGraphicsTextItem
+from PySide6.QtCore import Qt, QPointF, QRectF
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QGraphicsTextItem
 
 from ui.canvas.items.anchor_item import (
     AnchorItem, ANCHOR_SIZE, ANCHOR_HALF,
@@ -627,7 +627,7 @@ class AnchorManager:
     @staticmethod
     def _get_label_font():
         """端口标签字体（与 NodeItem 现有字体保持一致）。"""
-        from PyQt6.QtGui import QFont
+        from PySide6.QtGui import QFont
         f = QFont()
         f.setPointSize(8)
         f.setWeight(QFont.Weight.Light)

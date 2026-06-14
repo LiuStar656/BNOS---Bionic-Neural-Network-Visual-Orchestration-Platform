@@ -13,7 +13,7 @@
 ```
 BNOS 根目录
 ├── launcher.py                 # 启动动画（tkinter 闪屏）
-├── bnos_console.py             # PyQt6 主程序入口
+├── bnos_console.py             # PySide6 主程序入口
 ├── restart_helper.py           # 重启辅助脚本
 ├── build_bnos.spec             # PyInstaller 打包配置
 ├── requirements.txt            # 依赖清单
@@ -122,7 +122,7 @@ BNOS 根目录
 ```
 
 ### 1.2 架构特点
-- **GUI 框架**: PyQt6（主程序 + launcher）
+- **GUI 框架**: PySide6（主程序 + launcher）
 - **进程模型**: 多子进程架构，通过 `ProcessManager` 管理，IPC 通过 QLocalServer
 - **状态管理**: 全局 `AppConfig` 单例 + `PollingManager` 轮询管理器 + `EventBus` 事件总线
 - **依赖注入**: 轻量级自定义 DI 容器（`ui/core/di.py`）
@@ -491,23 +491,23 @@ SERVER_NAME = "BNOS_IPC_Server"
 **文件**: `requirements.txt`
 
 ```
-pyqt6>=6.4.0
+pyside6>=6.4.0
 psutil>=5.9.0
 pyinstaller>=5.0.0
 virtualenv>=20.0.0
 ```
 
 **问题**:
-1. **没有版本上限**：`pyqt6>=6.4.0` 允许安装 Qt7（如果发布），可能破坏性变更
+1. **没有版本上限**：`pyside6>=6.4.0` 允许安装 Qt7（如果发布），可能破坏性变更
 2. **没有锁文件**：无 `requirements-lock.txt` / `poetry.lock`，CI 和开发者安装的版本可能不一致
-3. **缺失 `pyqt6-qt6` 平台相关依赖说明**：Linux/macOS 上需要额外安装 Qt 平台插件
+3. **缺失 `pyside6-qt6` 平台相关依赖说明**：Linux/macOS 上需要额外安装 Qt 平台插件
 4. **`tkinter` 隐式依赖**（来自 launcher.py），未在 requirements 中声明（虽然通常随 Python，但在最小化发行版中可能缺失）
 
 **优化建议**:
 
 ```
-pyqt6>=6.4,<7
-PyQt6-Qt6>=6.4,<7     ; 平台专用二进制（Windows/macOS）
+pyside6>=6.4,<7
+PySide6-Qt6>=6.4,<7     ; 平台专用二进制（Windows/macOS）
 psutil>=5.9,<6
 pyinstaller>=5.0,<7
 virtualenv>=20.0,<21
@@ -519,7 +519,7 @@ virtualenv>=20.0,<21
 
 ### 7.2 Python 版本未声明
 
-**问题**: 项目依赖 PyQt6，需要 Python ≥ 3.8。但 `build_bnos.spec` 和 `requirements.txt` 都无 Python 版本声明。
+**问题**: 项目依赖 PySide6，需要 Python ≥ 3.8。但 `build_bnos.spec` 和 `requirements.txt` 都无 Python 版本声明。
 
 **优化建议**:
 - `requirements.txt` 顶部添加 Python 版本注释
@@ -537,7 +537,7 @@ if sys.version_info < (3, 9):
 
 **文件**: `build_bnos.spec`
 
-**问题**: `--onefile` 每次启动都需解压到临时目录，冷启动慢（PyQt6 项目通常需要 3~5 秒）。且 `console=False` 会丢失未捕获异常的堆栈。
+**问题**: `--onefile` 每次启动都需解压到临时目录，冷启动慢（PySide6 项目通常需要 3~5 秒）。且 `console=False` 会丢失未捕获异常的堆栈。
 
 **优化建议**:
 

@@ -5,12 +5,12 @@
 import os
 import json
 import subprocess
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, 
     QLabel, QMenu, QMessageBox, QFileDialog, QInputDialog
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QColor, QFont
+from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtGui import QColor, QFont
 
 from ui.core.logger import logger
 from ui.core.i18n import t
@@ -24,8 +24,8 @@ from ui.panels.node_list_ops import NodeListOperationsMixin
 class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, NodeListContextMixin):
     """节点列表面板（Dock版本）- 无标题栏，用于停靠"""
     
-    node_double_clicked = pyqtSignal(str)
-    node_right_clicked = pyqtSignal(str, object)
+    node_double_clicked = Signal(str)
+    node_right_clicked = Signal(str, object)
     
     def __init__(self, parent=None):
         super().__init__(parent)
