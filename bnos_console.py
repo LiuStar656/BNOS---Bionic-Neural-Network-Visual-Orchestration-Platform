@@ -1,12 +1,12 @@
 """
 BNOS 桌面可视化节点编排平台 - 主入口
-基于PyQt6的纯桌面端应用
+基于PySide6的纯桌面端应用
 """
 import sys
 import os
 import time
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
 from ui.main_window import BNOSMainWindow
 from ui.core.logger import logger
 from ui.core.i18n import init_i18n, t
@@ -55,7 +55,7 @@ def main():
         app.setOrganizationName("BNOS")
         
         # 设置应用程序默认字体（避免系统缺少特定字体导致警告）
-        from PyQt6.QtGui import QFont
+        from PySide6.QtGui import QFont
         default_font = QFont()
         default_font.setFamilies(["Segoe UI", "Microsoft YaHei", "Arial", "Helvetica", "sans-serif"])
         app.setFont(default_font)

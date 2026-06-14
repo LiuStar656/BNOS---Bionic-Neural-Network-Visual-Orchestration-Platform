@@ -1,9 +1,9 @@
 """
 事件总线系统，用于解耦模块间的直接依赖关系
-设计原则：基于 PyQt6 信号机制，线程安全，零侵入现有代码
+设计原则：基于 PySide6 信号机制，线程安全，零侵入现有代码
 """
 from typing import Dict, List, Callable, Any
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 from ui.core.logger import logger
 import threading
 
@@ -12,7 +12,7 @@ class EventBus(QObject):
     """事件总线 — 发布-订阅模式的核心实现"""
 
     # 单一通用信号：(事件类型, 数据载荷)
-    event_signal = pyqtSignal(str, object)
+    event_signal = Signal(str, object)
 
     def __init__(self):
         super().__init__()
