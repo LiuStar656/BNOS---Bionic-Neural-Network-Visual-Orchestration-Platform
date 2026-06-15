@@ -116,17 +116,19 @@ class AnchorManager:
     def build_from_config(self, config: Optional[dict],
                           row_positions: Optional[dict[str, tuple[float, float, int]]] = None,
                           node_w: float = 0, node_h: float = 0) -> None:
-        """ComfyUI 风格：从 node._param_row_positions 读取锚点位置。
+        """ComfyUI 风格：从 config.json 动态生成锚点布局。
+
+        锚点生成规则（由 config.json 字段驱动，不再硬编码）：
+          - 主输入锚点：仅当 config 中存在 listen_upper_file 字段时才生成，16px，
+            位置优先取 row_positions["__listen_upper_file__"]，否则节点内部左上角（与状态灯对称）
+          - 附加输入锚点：每个 input_ports 中 source=node 的端口，10px，贴在标签右边
+          - 主输出锚点：仅当 config 中存在 output_file 字段时才生成，16px，
+            位置优先取 row_positions["__output__"]，否则节点右下角
 
         row_positions 格式：{port_name: (anchor_center_x, anchor_center_y, size)}
           - anchor_center_x: 锚点中心 x（节点坐标系）
           - anchor_center_y: 锚点中心 y（节点坐标系）
           - size: 锚点尺寸（16=大锚点，10=小锚点）
-
-        锚点类型：
-          - "__listen_upper_file__" / "__default__": 主输入锚点，16px，位置在节点左边界垂直居中
-          - 其他 input_port: 附加输入锚点，10px，贴在标签右边
-          - "__output__": 输出锚点，16px，节点右边界
         """
         # ================================================================
         # —— 1. 在销毁之前收集旧锚点上的 edges（关键：必须在 clear_edges 之前）——
@@ -193,21 +195,40 @@ class AnchorManager:
         except Exception:
             pass
 
-        # —— 5. 生成主输入锚点（listen_upper_file / default）——
-        # 永远存在：尺寸 16px，节点左边界垂直居中
-        main_center_x = 0.0  # 锚点中心在节点左边界
-        main_center_y = nh / 2 if nh > 0 else ANCHOR_HALF
-        main_anchor = self._make_anchor(
-            anchor_type="input",
-            port_name="default",
-            port_type="default",
-            port_label="listen_upper_file",
-            size=ANCHOR_SIZE,
-        )
-        main_anchor.setPos(main_center_x - ANCHOR_HALF, main_center_y - ANCHOR_HALF)
-        main_anchor.setZValue(10)
-        main_anchor.setVisible(True)
-        self.input_anchors["default"] = main_anchor
+        # —— 5. 生成主输入锚点（根据 config.json 中 listen_upper_file 字段动态决定）——
+        # 仅当 config 中存在 listen_upper_file 字段时才生成，标签使用 config 中的实际值
+        # 位置：节点左侧边线中点上（x=0, y=h/2）
+        has_listen_upper = config and "listen_upper_file" in config
+        if has_listen_upper:
+            # 优先使用 __listen_upper_file__ 行位置，否则回退到左侧边线中点
+            if "__listen_upper_file__" in positions:
+                pos_tuple = positions["__listen_upper_file__"]
+                if len(pos_tuple) >= 3:
+                    main_center_x, main_center_y, main_size = pos_tuple
+                elif len(pos_tuple) == 2:
+                    main_center_y, _ = pos_tuple
+                    main_center_x = 0.0
+                    main_size = ANCHOR_SIZE
+                else:
+                    main_center_x = 0.0
+                    main_center_y = nh / 2.0 if nh > 0 else ANCHOR_HALF
+                    main_size = ANCHOR_SIZE
+            else:
+                main_center_x = 0.0
+                main_center_y = nh / 2.0 if nh > 0 else ANCHOR_HALF
+                main_size = ANCHOR_SIZE
+            listen_label = config.get("listen_upper_file", "") or "listen_upper_file"
+            main_anchor = self._make_anchor(
+                anchor_type="input",
+                port_name="default",
+                port_type="default",
+                port_label=listen_label,
+                size=main_size,
+            )
+            main_anchor.setPos(main_center_x, main_center_y)
+            main_anchor.setZValue(10)
+            main_anchor.setVisible(True)
+            self.input_anchors["default"] = main_anchor
 
         # —— 6. 生成其他输入锚点（input_ports 中的端口）——
         # 小锚点（10px），贴在各自行的标签右边
@@ -230,40 +251,44 @@ class AnchorManager:
                 port_label=name,
                 size=size,
             )
-            anchor.setPos(center_x - size / 2, center_y - size / 2)
+            anchor.setPos(center_x, center_y)
             anchor.setZValue(10)
             anchor.setVisible(True)
             self.input_anchors[name] = anchor
 
-        # —— 7. 输出锚点：从 __output__ 项取位置，兜底在节点右边界垂直居中 ——
-        if "__output__" in positions:
-            pos_tuple = positions["__output__"]
-            if len(pos_tuple) >= 3:
-                out_center_x, out_center_y, out_size = pos_tuple
-            elif len(pos_tuple) == 2:
-                out_center_y, _ = pos_tuple
-                out_center_x = nw
-                out_size = ANCHOR_SIZE
+        # —— 7. 生成主输出锚点（根据 config.json 中 output_file 字段动态决定）——
+        # 仅当 config 中存在 output_file 字段时才生成，标签使用 config 中的实际值
+        # 位置：节点右侧边线中点上（x=nw, y=nh/2）
+        has_output_file = config and "output_file" in config
+        if has_output_file:
+            if "__output__" in positions:
+                pos_tuple = positions["__output__"]
+                if len(pos_tuple) >= 3:
+                    out_center_x, out_center_y, out_size = pos_tuple
+                elif len(pos_tuple) == 2:
+                    out_center_y, _ = pos_tuple
+                    out_center_x = nw
+                    out_size = ANCHOR_SIZE
+                else:
+                    out_center_x = nw
+                    out_center_y = nh / 2.0 if nh > 0 else ANCHOR_HALF
+                    out_size = ANCHOR_SIZE
             else:
                 out_center_x = nw
-                out_center_y = nh / 2 if nh > 0 else ANCHOR_HALF
+                out_center_y = nh / 2.0 if nh > 0 else ANCHOR_HALF
                 out_size = ANCHOR_SIZE
-        else:
-            out_center_x = nw
-            out_center_y = nh / 2 if nh > 0 else ANCHOR_HALF
-            out_size = ANCHOR_SIZE
-
-        out_anchor = self._make_anchor(
-            anchor_type="output",
-            port_name="default",
-            port_type="output",
-            port_label="output",
-            size=out_size,
-        )
-        out_anchor.setPos(out_center_x - out_size / 2, out_center_y - out_size / 2)
-        out_anchor.setZValue(10)
-        out_anchor.setVisible(True)
-        self.output_anchors["default"] = out_anchor
+            output_label = config.get("output_file", "") or "output_file"
+            out_anchor = self._make_anchor(
+                anchor_type="output",
+                port_name="default",
+                port_type="output",
+                port_label=output_label,
+                size=out_size,
+            )
+            out_anchor.setPos(out_center_x, out_center_y)
+            out_anchor.setZValue(10)
+            out_anchor.setVisible(True)
+            self.output_anchors["default"] = out_anchor
 
         # —— 8. 迁移 edges（把旧锚点的 edge 绑定到新锚点，保持连线路径）——
         # 规则：优先使用 EdgeItem 自带的 _desired_target_port_name（连接时记录的原始端口名），
@@ -292,11 +317,16 @@ class AnchorManager:
 
         # 输出端
         for _, edges in old_output_edges:
-            new_anchor = self.output_anchors.get("default")
-            if new_anchor is None:
-                continue
             for edge in edges:
                 try:
+                    desired_port = getattr(edge, '_desired_source_port_name', None)
+                    new_anchor = self.output_anchors.get(desired_port) if desired_port else None
+                    if new_anchor is None:
+                        new_anchor = self.output_anchors.get("default")
+                    if new_anchor is None:
+                        new_anchor = next(iter(self.output_anchors.values()), None)
+                    if new_anchor is None:
+                        continue
                     edge.start_anchor = new_anchor
                     new_anchor.add_edge(edge)
                     edge.update_path()
@@ -609,11 +639,9 @@ class AnchorManager:
         best = None
         best_dist = float("inf")
         for anchor in container.values():
-            # 使用锚点自身实际尺寸计算中心（支持 10px 小锚点与 16px 大锚点）
-            size = getattr(anchor, "_size", ANCHOR_SIZE)
-            half = size / 2
-            center_x = anchor.pos().x() + half
-            center_y = anchor.pos().y() + half
+            # pos() 直接返回锚点中心（_make_anchor 创建的 rect 本地中心在 (0,0)）
+            center_x = anchor.pos().x()
+            center_y = anchor.pos().y()
             dx = pos.x() - center_x
             dy = pos.y() - center_y
             dist = (dx * dx + dy * dy) ** 0.5

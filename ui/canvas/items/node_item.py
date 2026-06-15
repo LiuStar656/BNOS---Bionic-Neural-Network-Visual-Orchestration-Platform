@@ -12,7 +12,7 @@ from ui.core.logger import logger
 
 from ui.canvas.items.anchor_item import AnchorItem, ANCHOR_SIZE, ANCHOR_HALF
 from ui.canvas.items.anchor_manager import AnchorManager
-from ui.canvas.items.styles import DarkRectNodeStyle
+from ui.canvas.items.styles import DetailedNodeStyle
 from ui.canvas.items.node_status_widget import NodeStatusWidget
 
 
@@ -28,15 +28,12 @@ class NodeItem(QGraphicsRectItem):
         self.status = status
         self.canvas = canvas
         
-        # 节点样式（默认深色）
-        self._style = style or DarkRectNodeStyle()
+        # 节点样式（默认面板模式）
+        self._style = style or DetailedNodeStyle()
         self._style.node_width = w
         self._style.node_height = h
-        # 保存节点原始尺寸，以便切换样式后能还原到正常大小
-        self._rect_default_width = w
-        self._rect_default_height = h
         
-        self.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
+        self.setCacheMode(QGraphicsItem.CacheMode.NoCache)
         self.setFlags(
             QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
             QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable |
@@ -81,12 +78,6 @@ class NodeItem(QGraphicsRectItem):
         self._expand_label = QGraphicsTextItem(">>", self)
         self._expand_label.setZValue(5)
 
-        # 如果是圆点样式，不支持展开按钮
-        if self._style.is_dot:
-            self._expand_btn.setAcceptHoverEvents(False)
-            self._expand_btn.setCursor(Qt.CursorShape.ArrowCursor)
-            self._expand_label.setVisible(False)
-
         # 详细版参数控件（空初始化，由 DetailedNodeStyle.apply() 触发构建）
         self._proxy_widgets: list = []
         self._param_widgets: dict = {}
@@ -103,19 +94,15 @@ class NodeItem(QGraphicsRectItem):
         # 加载自定义颜色
         self._load_node_custom_colors()
 
-        # 初始化状态显示组件
-        self._status_widget = None
-        self._start_time = None
-        if self._style.status_show and not self._style.is_dot:
-            self._status_widget = NodeStatusWidget(self)
-            self._status_widget.set_visible(True)
+        # 初始化状态显示组件（所有节点都用，无进度条，仅文本）
+        self._status_widget = NodeStatusWidget(self)
+        self._status_widget.set_compact(True)
+        self._status_widget.set_visible(True)
+        self._connect_resource_monitor_signals()
 
-            # 连接资源监测面板的信号（如果已创建）
-            self._connect_resource_monitor_signals()
-
-            # 如果节点正在运行，记录开始时间
-            if self.status in ["running", "idle"]:
-                self._try_initialize_start_time()
+        # 如果节点正在运行，记录开始时间
+        if self.status in ["running", "idle"]:
+            self._try_initialize_start_time()
 
     # ========== 兼容层（让旧代码无需修改） ==========
 
@@ -160,23 +147,8 @@ class NodeItem(QGraphicsRectItem):
         return self.anchor_manager.all_output()
 
     def _update_selection_ring(self, selected):
-        """更新选中环 — 仅圆点节点使用，方框节点走 paint()"""
-        is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
-        if not is_dot:
-            self._selection_ring.setVisible(False)
-            return
-        
-        if not selected or not self._body:
-            self._selection_ring.setVisible(False)
-            return
-        
-        r = self._body.rect().adjusted(-3, -3, 3, 3)
-        self._selection_ring.setRect(r)
-        self._selection_ring.setVisible(True)
-        self._selection_ring.setPen(QPen(QColor(self._style.selected_color), 
-                                         self._style.selected_border_width,
-                                         Qt.PenStyle.DashLine))
-        self._selection_ring.setBrush(QBrush())
+        """更新选中环 — 面板模式下由 paint 方法直接绘制选中高亮"""
+        self._selection_ring.setVisible(False)
 
     def _connect_resource_monitor_signals(self):
         """连接资源监测面板的信号"""
@@ -281,73 +253,38 @@ class NodeItem(QGraphicsRectItem):
             self._start_time = None
                     
     def set_style(self, style):
-        """设置节点样式。
-
-        关键：
-          1. 切换前先销毁详细版控件
-          2. 根据样式类型 EXPLICITLY 设置 node_width/node_height
-             （不依赖类默认值，不依赖当前 rect 尺寸）
-          3. 详细版由内容驱动尺寸，方形用原始尺寸，圆形用 DotNodeStyle 默认
-          4. 缓存刷新：DeviceCoordinateCache 在 setRect 后可能不自动失效（PyQt 缓存时序问题），
-             需显式禁用→设置 rect→重新启用→触发 update()
-        """
-        # 1) 清理：销毁所有 Proxy 控件（内部会先设 NoCache 再重置 rect）
+        """设置节点样式（统一使用面板模式）"""
+        # 销毁所有 Proxy 控件
         if hasattr(self, '_proxy_widgets') and self._proxy_widgets:
             self._destroy_detailed()
 
-        self._style = style
+        # 只有 DetailedNodeStyle 被支持
+        self._style = style or DetailedNodeStyle()
+        self._style.node_width = self.rect().width() or 340
+        self._style.node_height = self.rect().height() or 80
 
-        # 2) 根据样式类型设置正确的尺寸（避免类默认值与实际不匹配）
-        sk = self._style.style_key
-        if sk == "dot":
-            self._style.node_width = 80
-            self._style.node_height = 80
-        elif sk == "detailed":
-            # 详细版不硬编码，等 _build_detailed_view() 中 set_sizes() 计算
-            pass
-        elif sk == "rect":
-            # 方形节点用原始尺寸（节点创建时传入的 w/h）
-            self._style.node_width = self._rect_default_width
-            self._style.node_height = self._rect_default_height
-
-        # 3) 应用新样式
-        # 关键：先确保缓存为 NoCache（若从 _destroy_detailed 出来可能仍是 NoCache）
+        # 应用新样式
         self.setCacheMode(self.CacheMode.NoCache)
         self.prepareGeometryChange()
         self.setRect(0, 0, self._style.node_width, self._style.node_height)
         self._style.apply(self)
         self._style.apply_status(self, self.status)
 
-        # 4) 同步显示状态控件 + 重新布局（新尺寸）
-        if self._style.status_show and not self._style.is_dot:
-            if not self._status_widget:
-                self._status_widget = NodeStatusWidget(self)
-            self._status_widget.set_visible(True)
-            self._status_widget.update_layout()
-            self._start_time = None
-            self._connect_resource_monitor_signals()
-        else:
-            if self._status_widget:
-                self._status_widget.set_visible(False)
-                self._status_widget = None
+        # 同步显示状态控件
+        if not self._status_widget:
+            self._status_widget = NodeStatusWidget(self)
+        self._status_widget.set_compact(True)
+        self._status_widget.set_visible(True)
+        self._status_widget.update_layout()
+        self._start_time = None
+        self._connect_resource_monitor_signals()
 
         self._update_selection_ring(self.isSelected())
 
-        # 5) 非 detailed 模式重新启用 DeviceCoordinateCache，并强制刷新
-        #    延迟重置：解决 deleteLater() 的 widget 在事件循环中清理后可能触发
-        #    意外几何更新的问题
-        target_w = self._style.node_width
-        target_h = self._style.node_height
-        if sk != "detailed":
-            self.setCacheMode(self.CacheMode.DeviceCoordinateCache)
-
         if self.scene():
             self.scene().update()
-
-        # 6) 兜底：在事件循环处理完所有 pending 事件后，再次强制修正 rect
-        #    避免 proxy widget 的 deferred deletion / 布局事件等覆盖 setRect 结果
         from PySide6.QtCore import QTimer
-        QTimer.singleShot(0, lambda: self._ensure_rect(target_w, target_h))
+        QTimer.singleShot(0, lambda: self._ensure_rect(self._style.node_width, self._style.node_height))
 
     def _ensure_rect(self, w, h):
         """兜底：事件循环后强制校正节点尺寸"""
@@ -504,184 +441,87 @@ class NodeItem(QGraphicsRectItem):
         return new_pos
         
     def shape(self):
-        """返回精确的形状区域用于命中检测
-
-        圆点节点：仅圆点本体可选中，名称文字不计入可选范围
-        方框节点：使用默认矩形
-        """
-        is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
-        if is_dot and self._body:
-            path = QPainterPath()
-            path.addEllipse(self._body.rect())
-            return path
+        """返回形状区域用于命中检测 — 面板模式下使用节点矩形"""
         return super().shape()
 
     def paint(self, painter, option, widget=None):
-        """绘制节点 — ComfyUI 风格：圆角矩形 + 彩色标题栏。
-
-        样式判断：
-          - DetailedNodeStyle（面板模式，is_detailed=True）：圆角 + 标题栏
-          - 其他（方框/圆点）：沿用老逻辑（super().paint 绘制矩形）
-          - 选中时：绘制高亮边框
-        """
-        # —— 圆点样式：不绘制本体（由 _body 负责） ——
-        is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
-        if is_dot:
-            return
-
-        # —— 判断是否是面板模式 ——
-        is_detailed = self._style.style_key == "detailed"
+        """绘制节点 — 圆角矩形 + 选中高亮（面板模式）"""
+        from PySide6.QtGui import QPainterPath, QPainter
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         rect = self.rect()
         w = rect.width()
         h = rect.height()
 
-        if is_detailed:
-            # === ComfyUI 风格：圆角矩形 + 彩色标题栏 ===
-            from PySide6.QtGui import QPainterPath, QPainter
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        corner_radius = self._style.CORNER_RADIUS
+        body_bg = self._style.body_bg
+        body_border = self._style.body_border
+        node_rect = QRectF(0, 0, w, h)
 
-            corner_radius = self._style.CORNER_RADIUS
-            header_h = self._style.HEADER_HEIGHT
-            body_bg = self._style.body_bg
-            body_border = self._style.body_border
-            header_color = self._style.header_color_for(self.language)
-            node_rect = QRectF(0, 0, w, h)
+        # 1. 主体圆角矩形背景
+        body_path = QPainterPath()
+        body_path.addRoundedRect(node_rect, corner_radius, corner_radius)
+        painter.setBrush(QBrush(QColor(body_bg)))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawPath(body_path)
 
-            # —— 1. 主体圆角矩形背景 ——
-            body_path = QPainterPath()
-            body_path.addRoundedRect(node_rect, corner_radius, corner_radius)
-            painter.setBrush(QBrush(QColor(body_bg)))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawPath(body_path)
-
-            # —— 2. 顶部标题栏（圆角裁剪后的顶部矩形） ——
-            header_rect = QRectF(0, 0, w, header_h)
-            painter.save()
-            painter.setClipPath(body_path)
-            painter.setBrush(QBrush(QColor(header_color)))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRect(header_rect)
-            painter.restore()
-
-            # —— 3. 边框（圆角矩形描边） ——
-            border_pen = QPen(QColor(body_border), 2)
-            if self.isSelected():
-                border_pen = QPen(QColor("#f0f0f0"), 2)
-            painter.setPen(border_pen)
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawRoundedRect(node_rect, corner_radius, corner_radius)
-
-            # —— 4. 选中高亮环 ——
-            if self.isSelected():
-                highlight_pen = QPen(QColor("#66b0ff"), 3)
-                painter.setPen(highlight_pen)
-                painter.setBrush(Qt.BrushStyle.NoBrush)
-                highlight_rect = QRectF(-2, -2, w + 4, h + 4)
-                painter.drawRoundedRect(highlight_rect, corner_radius + 2, corner_radius + 2)
-        else:
-            # === 方框模式：沿用老逻辑 ===
-            # 先画主体
-            painter.setBrush(QBrush(QColor(self._style.bg_color)))
-            painter.setPen(QPen(QColor(self._style.border_color), 2))
-            painter.drawRect(rect)
-
-            # 选中高亮
-            if self.isSelected():
-                pen = QPen(QColor(self._style.selected_color), self._style.selected_border_width)
-                pen.setStyle(Qt.PenStyle.DashLine)
-                painter.setPen(pen)
-                painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.drawRect(rect)
+        # 2. 边框（选中状态高亮）
+        border_color = QColor("#66b0ff") if self.isSelected() else QColor(body_border)
+        border_width = 2 if self.isSelected() else 1
+        painter.setPen(QPen(border_color, border_width))
+        painter.setBrush(QBrush())
+        painter.drawPath(body_path)
     
     def mousePressEvent(self, event):
         """鼠标按下事件"""
         if event.button() == Qt.MouseButton.LeftButton:
             pos_in_item = self.mapFromScene(event.scenePos())
-            is_dot = hasattr(self, '_body') and self._body and self._body.isVisible()
             w = self.rect().width()
             h = self.rect().height()
 
-            # 调试：连线模式下的点击信息
-            if self.canvas and self.canvas.is_connecting:
-                logger.debug("NodeItem[%s].mousePress: pos=(%.1f,%.1f) rect=(%.0f,%.0f) is_dot=%s eventAccepted=%s",
-                             self.node_name, pos_in_item.x(), pos_in_item.y(), w, h, is_dot, event.isAccepted())
-
-            # 圆点节点：点击圆点本体 = 输入锚点（连线完成）/ 选中
-            if is_dot:
-                body_rect = self._body.rect()
-                body_scene_rect = body_rect.translated(self._body.pos())
-                if body_scene_rect.contains(pos_in_item):
-                    if self.canvas and self.canvas.is_connecting:
-                        self.canvas.complete_connection_to_input(self)
-                        event.accept()
-                        return
-                    if self.canvas:
-                        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-                            self.canvas._toggle_node_selection(self.node_name)
-                        else:
-                            self.canvas.on_node_selected(self)
-                    return
-
-            # 方块节点：展开按钮
-            if not is_dot and self._expand_btn_rect.contains(pos_in_item):
+            # 展开按钮（保留扩展点）
+            if self._expand_btn_rect.contains(pos_in_item):
                 if self.on_expand_requested:
                     self.on_expand_requested(self.node_name)
                 event.accept()
                 return
 
-            w = self.rect().width()
-            h = self.rect().height()
+            # 输出锚点（开始连线）
+            clicked_output = self.find_nearest_output_anchor(pos_in_item, max_dist=20)
+            if clicked_output is None:
+                default_output_rect = QRectF(w - ANCHOR_HALF, h / 2 - ANCHOR_HALF, ANCHOR_SIZE, ANCHOR_SIZE)
+                if default_output_rect.contains(pos_in_item):
+                    clicked_output = self.anchor_manager.get_output("default")
+            if clicked_output:
+                port_label = (
+                    clicked_output.port_name
+                    if getattr(clicked_output, "port_name", None)
+                    else "default"
+                )
+                logger.debug("NodeItem[%s]: 输出锚点命中 %s", self.node_name, port_label)
+                if self.canvas:
+                    self.canvas.start_connection_from_output(self, clicked_output)
+                event.accept()
+                return
 
-            # 方块节点：输出锚点（开始连线）
-            if not is_dot:
-                clicked_output = self.find_nearest_output_anchor(pos_in_item, max_dist=20)
-                if clicked_output is None:
-                    # 兜底：节点右侧单个 default 锚点范围内
-                    default_output_rect = QRectF(w - ANCHOR_HALF, h / 2 - ANCHOR_HALF, ANCHOR_SIZE, ANCHOR_SIZE)
-                    if default_output_rect.contains(pos_in_item):
-                        clicked_output = self.anchor_manager.get_output("default")
-                if clicked_output:
-                    port_label = (
-                        clicked_output.port_name
-                        if getattr(clicked_output, "port_name", None)
-                        else "default"
-                    )
-                    logger.debug(
-                        "NodeItem[%s]: 输出锚点命中 %s",
-                        self.node_name, port_label,
-                    )
-                    if self.canvas:
-                        # 传入具体输出锚点，连线系统会绑定到正确端口
-                        self.canvas.start_connection_from_output(self, clicked_output)
-                    event.accept()
-                    return
-
-                # 方块节点：输入锚点（完成连线）- 统一使用 find_nearest_input_anchor
-                clicked_anchor = self.find_nearest_input_anchor(pos_in_item, max_dist=20)
-
-                # 兜底：节点左侧无锚点命中但处于"单端口默认锚点"范围时，仍然用 default
-                if clicked_anchor is None:
-                    if len(self.anchor_manager.input_anchors) == 1 and "default" in self.anchor_manager.input_anchors:
-                        default_rect = QRectF(-ANCHOR_HALF, h / 2 - ANCHOR_HALF, ANCHOR_SIZE, ANCHOR_SIZE)
-                        if default_rect.contains(pos_in_item):
-                            clicked_anchor = self.anchor_manager.input_anchors["default"]
-
-                if clicked_anchor:
-                    port_label = (
-                        clicked_anchor.port_name
-                        if getattr(clicked_anchor, "port_name", None)
-                        else "default"
-                    )
-                    logger.debug(
-                        "NodeItem[%s]: 输入锚点命中 %s, is_connecting=%s",
-                        self.node_name, port_label,
-                        self.canvas.is_connecting if self.canvas else None,
-                    )
-                    if self.canvas and self.canvas.is_connecting:
-                        self.canvas.complete_connection_to_input(self, clicked_anchor)
-                    event.accept()
-                    return
+            # 输入锚点（完成连线）
+            clicked_anchor = self.find_nearest_input_anchor(pos_in_item, max_dist=20)
+            if clicked_anchor is None:
+                if len(self.anchor_manager.input_anchors) == 1 and "default" in self.anchor_manager.input_anchors:
+                    default_rect = QRectF(-ANCHOR_HALF, h / 2 - ANCHOR_HALF, ANCHOR_SIZE, ANCHOR_SIZE)
+                    if default_rect.contains(pos_in_item):
+                        clicked_anchor = self.anchor_manager.input_anchors["default"]
+            if clicked_anchor:
+                port_label = (
+                    clicked_anchor.port_name
+                    if getattr(clicked_anchor, "port_name", None)
+                    else "default"
+                )
+                logger.debug("NodeItem[%s]: 输入锚点命中 %s", self.node_name, port_label)
+                if self.canvas and self.canvas.is_connecting:
+                    self.canvas.complete_connection_to_input(self, clicked_anchor)
+                event.accept()
+                return
 
             # Ctrl+单击
             if (event.modifiers() & Qt.KeyboardModifier.ControlModifier) and self.canvas:
@@ -700,184 +540,159 @@ class NodeItem(QGraphicsRectItem):
     # ========================================================================
     
     def _build_detailed_view(self):
-        """ComfyUI 风格面板模式构建：
-
-        布局结构（节点坐标系）：
-          [0, HEADER_HEIGHT]：标题栏（paint 绘制背景，name_text 显示节点名）
-          [0, HEADER_HEIGHT + content_h]：主体（多行 ParameterWidget）
-          每行由 ParameterWidget 管理 [标签 + 控件]，锚点由 AnchorManager 放在节点左右边界上
+        """面板模式构建：主体显示参数控件，节点外显示名称/状态灯/语言标签
 
         关键点：
-          - ParameterWidget 内部已包含标签（_make_label），**不要额外添加 QLabel**
-          - 容器左边距 = ANCHOR_ZONE_WIDTH + LEFT_INNER_PADDING，为锚点留出空间
-          - _param_row_positions 记录锚点的 y 坐标（节点坐标系）
+          - 使用 self._style（实例），而非 DetailedNodeStyle 类
+          - 即使 config 为空或无参数，也必须设置节点尺寸 + 文本/状态灯/语言标签
+          - 参数控件容器仅在有参数时构建
         """
         self._destroy_detailed()
         self._param_row_positions.clear()
 
-        config = self._get_node_config()
-        if not config:
-            return
-
-        from ui.core.node_config_parser import NodeConfigParser, ParameterDef
-        from ui.canvas.items.styles import DetailedNodeStyle
-        style = DetailedNodeStyle
-
-        # --- 解析：输入端口（需锚点） + 参数 ---
-        input_port_defs = NodeConfigParser.parse_input_ports(config) if config else []
-        input_port_defs = [p for p in input_port_defs if getattr(p, "source", "") == "node"]
-        param_defs = NodeConfigParser.parse(config) if config else []
-
-        if not input_port_defs and not param_defs:
-            return
-
-        # --- 构建容器 ---
-        from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                                      QGraphicsProxyWidget, QSizePolicy)
-        from PySide6.QtCore import Qt
         from PySide6.QtGui import QFont, QColor
-        from ui.canvas.parameter_widgets import ParameterWidget
+        style = self._style  # 用实例，不用类
 
-        container = QWidget()
-        container.setStyleSheet("background: transparent;")
+        # --- 读取 config（允许为空，空 config 也应正确渲染节点本体） ---
+        config = self._get_node_config()
+        input_port_defs = []
+        param_defs = []
+        has_content = False
+        if config:
+            from ui.core.node_config_parser import NodeConfigParser, ParameterDef
+            input_port_defs = NodeConfigParser.parse_input_ports(config) or []
+            input_port_defs = [p for p in input_port_defs if getattr(p, "source", "") == "node"]
+            param_defs = NodeConfigParser.parse(config) or []
+            has_content = bool(input_port_defs or param_defs)
 
-        v_layout = QVBoxLayout(container)
-        v_layout.setContentsMargins(
-            style.ANCHOR_ZONE_WIDTH + style.LEFT_INNER_PADDING,
-            6,
-            style.RIGHT_INNER_PADDING,
-            6,
-        )
-        v_layout.setSpacing(style.ROW_SPACING)
-
-        # 行类型标记："input_port" | "param" | "output" — 用于后续计算锚点 y
-        row_types = []
-
-        # --- 1) 输入端口行（有锚点，左侧） ---
-        # ParameterWidget 内部已有 [标签 + 控件]，直接放入 v_layout
-        # 注意：不强制 setMinimumHeight，让 ParameterWidget 自己决定高度
-        for port in input_port_defs:
-            p_name = port.name
-            label_text = getattr(port, "label", "") or port.name
-            p_default = config.get(p_name, "") if p_name in config else ""
-
-            param_obj = ParameterDef(name=p_name, type="string", label=label_text, default=p_default)
-            w = ParameterWidget.create(param_obj, p_default)
-            if hasattr(w, "value_changed"):
-                w.value_changed.connect(self._on_param_changed)
-            w.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-            v_layout.addWidget(w)
-
-            self._param_widgets[p_name] = w
-            row_types.append("input_port")
-
-        # --- 2) 参数行（无锚点，纯参数） ---
-        for p in param_defs:
-            current = config.get(p.name, p.default)
-            w = ParameterWidget.create(p, current)
-            if hasattr(w, "value_changed"):
-                w.value_changed.connect(self._on_param_changed)
-            w.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-            v_layout.addWidget(w)
-
-            self._param_widgets[p.name] = w
-            row_types.append("param")
-
-        # --- 3) 输出行（右侧显示 "output" 标签，锚点在右边界） ---
-        output_wrap = QWidget()
-        output_wrap.setStyleSheet("background: transparent;")
-        output_wrap.setMinimumHeight(style.ROW_HEIGHT)
-        output_h_layout = QHBoxLayout(output_wrap)
-        output_h_layout.setContentsMargins(0, 0, 0, 0)
-        output_h_layout.addStretch(1)
-        output_label = QLabel("output")
-        out_font = QFont()
-        out_font.setPointSize(9)
-        output_label.setFont(out_font)
-        output_label.setStyleSheet("color: #88ccff;")
-        output_h_layout.addWidget(output_label)
-        v_layout.addWidget(output_wrap)
-
-        row_types.append("output")
-
-        # --- 给容器一个合理的最小宽度，避免节点太窄 ---
-        # 锚点区(16) + 左边距(12) + 标签(约 80) + 控件(约 200) + 右边距(12) = 约 320px
+        # --- 默认尺寸（无内容时也能显示节点本体） ---
         min_container_w = 340
-        container.setMinimumWidth(min_container_w)
+        default_height = 80  # 无参数时的默认高度
+        final_w = max(style.node_width if style and hasattr(style, "node_width") and style.node_width else min_container_w,
+                      min_container_w)
+        final_h = default_height
 
-        # --- 关键：让 Qt 布局计算实际尺寸，确保节点比内部窗口大 ---
-        # 先让布局计算各子控件的最小尺寸
-        container.layout().activate()
-        # 用 sizeHint 获取内容的理想尺寸（比 adjustSize 更可靠）
-        sh = container.sizeHint()
-        content_w = sh.width() if sh.isValid() else min_container_w
-        content_h = sh.height() if sh.isValid() else (len(row_types) * 36 + 20)
+        if has_content:
+            # --- 有内容：构建参数控件容器 ---
+            from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+                                          QGraphicsProxyWidget, QSizePolicy)
+            from PySide6.QtCore import Qt
+            from ui.canvas.parameter_widgets import ParameterWidget
 
-        # 设置节点尺寸（确保比内容大，不会截断内部控件）
-        self._style.set_sizes(content_w, content_h)
-        final_w = max(self._style.node_width, content_w)
-        final_h = self._style.node_height
-        self.setRect(0, 0, final_w, final_h)
+            container = QWidget()
+            container.setStyleSheet("background: transparent;")
 
-        # 让容器宽度等于节点宽度（去掉 left/right margins 已经包含在内）
-        # 实际上 container 宽度 = content_w（已包含 margins），节点宽度 = content_w
-        # 所以容器宽度应该 = 节点宽度，这样内部控件会填满节点宽度
-        container.setFixedWidth(final_w)
+            v_layout = QVBoxLayout(container)
+            v_layout.setContentsMargins(
+                style.ANCHOR_ZONE_WIDTH + style.LEFT_INNER_PADDING,
+                6,
+                style.RIGHT_INNER_PADDING,
+                6,
+            )
+            v_layout.setSpacing(style.ROW_SPACING)
 
-        # --- 把 proxy widget 放到节点坐标系中（标题栏下方） ---
-        proxy = QGraphicsProxyWidget(self)
-        proxy.setWidget(container)
-        proxy.setPos(0, style.HEADER_HEIGHT)
-        proxy.setZValue(5)
-        proxy.setFlag(proxy.GraphicsItemFlag.ItemClipsChildrenToShape, False)
-        proxy.setFlag(proxy.GraphicsItemFlag.ItemClipsToShape, False)
-        proxy.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self._proxy_widgets.append(proxy)
+            row_types = []
 
-        # --- 精确计算锚点位置（基于容器的实际布局几何） ---
-        # 关键：即使 Qt 布局还没计算好几何，也必须写入 _param_row_positions。
-        # 否则 build_from_config 不会创建这些 port 的锚点，导致 edge 被回退绑定到 default 锚点。
-        from ui.canvas.items.anchor_item import ANCHOR_SIZE, ANCHOR_SIZE_SMALL
-        small_center_x = style.ANCHOR_ZONE_WIDTH + style.LEFT_INNER_PADDING - ANCHOR_SIZE_SMALL / 2 - 2  # = 21
-        margins_top = v_layout.contentsMargins().top() if v_layout.contentsMargins() else 0
+            # 1) 输入端口行
+            for port in input_port_defs:
+                p_name = port.name
+                label_text = getattr(port, "label", "") or port.name
+                p_default = config.get(p_name, "") if p_name in config else ""
+                param_obj = ParameterDef(name=p_name, type="string", label=label_text, default=p_default)
+                w = ParameterWidget.create(param_obj, p_default)
+                if hasattr(w, "value_changed"):
+                    w.value_changed.connect(self._on_param_changed)
+                w.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+                v_layout.addWidget(w)
+                self._param_widgets[p_name] = w
+                row_types.append("input_port")
 
-        # 预先计算每行估算 y（兜底：layout 几何未就绪时使用）
-        # 关键：不依赖 itemAt(j) 的几何（此时 Qt 布局可能完全未算），
-        # 一律用 style.ROW_HEIGHT + style.ROW_SPACING。
-        running_y = 0
-        est_ys = []
-        for _j in range(len(row_types)):
-            est_ys.append(running_y + style.ROW_HEIGHT / 2)
-            running_y += style.ROW_HEIGHT + style.ROW_SPACING
+            # 2) 参数行
+            for p in param_defs:
+                current = config.get(p.name, p.default)
+                w = ParameterWidget.create(p, current)
+                if hasattr(w, "value_changed"):
+                    w.value_changed.connect(self._on_param_changed)
+                w.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+                v_layout.addWidget(w)
+                self._param_widgets[p.name] = w
+                row_types.append("param")
 
-        # 记录已分配的 input_port 索引，确保每个 input_port 都有位置
-        input_port_count = sum(1 for r in row_types if r == "input_port")
-        for i, rtype in enumerate(row_types):
-            item = v_layout.itemAt(i) if v_layout else None
-            geom = item.geometry() if item and item.widget() else None
+            # 3) 输出行
+            output_wrap = QWidget()
+            output_wrap.setStyleSheet("background: transparent;")
+            output_wrap.setMinimumHeight(style.ROW_HEIGHT)
+            output_h_layout = QHBoxLayout(output_wrap)
+            output_h_layout.setContentsMargins(0, 0, 0, 0)
+            output_h_layout.addStretch(1)
+            output_label = QLabel("output")
+            out_font = QFont()
+            out_font.setPointSize(9)
+            output_label.setFont(out_font)
+            output_label.setStyleSheet("color: #88ccff;")
+            output_h_layout.addWidget(output_label)
+            v_layout.addWidget(output_wrap)
+            row_types.append("output")
 
-            # 优先使用实际几何；几何无效时使用估算值（关键：不会跳过写入）
-            if geom is None or geom.width() <= 0 or geom.height() <= 0:
-                center_y = style.HEADER_HEIGHT + margins_top + est_ys[i] if i < len(est_ys) else (
-                    style.HEADER_HEIGHT + margins_top + i * (style.ROW_HEIGHT + style.ROW_SPACING) + style.ROW_HEIGHT / 2
-                )
-            else:
-                row_top = style.HEADER_HEIGHT + geom.y()
-                center_y = row_top + geom.height() / 2.0
+            container.setMinimumWidth(min_container_w)
+            container.layout().activate()
+            sh = container.sizeHint()
+            content_w = sh.width() if sh.isValid() else min_container_w
+            content_h = sh.height() if sh.isValid() else (len(row_types) * 36 + 20)
 
-            if rtype == "input_port":
-                port_idx = row_types[:i].count("input_port")
-                if port_idx < len(input_port_defs):
-                    port = input_port_defs[port_idx]
-                    self._param_row_positions[port.name] = (
-                        small_center_x, center_y, ANCHOR_SIZE_SMALL,
+            style.set_sizes(content_w, content_h)
+            final_w = max(style.node_width, content_w)
+            final_h = style.node_height
+            self.setRect(0, 0, final_w, final_h)
+            container.setFixedWidth(final_w)
+
+            proxy = QGraphicsProxyWidget(self)
+            proxy.setWidget(container)
+            proxy.setPos(0, 0)  # 无标题栏，从 y=0 开始
+            proxy.setZValue(5)
+            proxy.setFlag(proxy.GraphicsItemFlag.ItemClipsChildrenToShape, False)
+            proxy.setFlag(proxy.GraphicsItemFlag.ItemClipsToShape, False)
+            proxy.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            self._proxy_widgets.append(proxy)
+
+            # 计算锚点位置
+            from ui.canvas.items.anchor_item import ANCHOR_SIZE, ANCHOR_SIZE_SMALL
+            small_center_x = style.ANCHOR_ZONE_WIDTH + style.LEFT_INNER_PADDING - ANCHOR_SIZE_SMALL / 2 - 2
+            margins_top = v_layout.contentsMargins().top() if v_layout.contentsMargins() else 0
+            running_y = 0
+            est_ys = []
+            for _j in range(len(row_types)):
+                est_ys.append(running_y + style.ROW_HEIGHT / 2)
+                running_y += style.ROW_HEIGHT + style.ROW_SPACING
+
+            for i, rtype in enumerate(row_types):
+                item = v_layout.itemAt(i) if v_layout else None
+                geom = item.geometry() if item and item.widget() else None
+                if geom is None or geom.width() <= 0 or geom.height() <= 0:
+                    center_y = margins_top + est_ys[i] if i < len(est_ys) else (
+                        margins_top + i * (style.ROW_HEIGHT + style.ROW_SPACING) + style.ROW_HEIGHT / 2
                     )
-            elif rtype == "output":
-                # (center_x, center_y, size) — 大锚点在节点右边界
-                out_cx = final_w - ANCHOR_SIZE / 2
-                self._param_row_positions["__output__"] = (out_cx, center_y, ANCHOR_SIZE)
+                else:
+                    row_top = geom.y()
+                    center_y = row_top + geom.height() / 2.0
 
-        # --- 标题栏：节点名居中 ---
+                if rtype == "input_port":
+                    port_idx = row_types[:i].count("input_port")
+                    if port_idx < len(input_port_defs):
+                        port = input_port_defs[port_idx]
+                        self._param_row_positions[port.name] = (
+                            small_center_x, center_y, ANCHOR_SIZE_SMALL,
+                        )
+                elif rtype == "output":
+                    out_cx = final_w
+                    out_cy = final_h / 2.0
+                    self._param_row_positions["__output__"] = (out_cx, out_cy, ANCHOR_SIZE)
+        else:
+            # 无参数：直接用默认尺寸，确保节点本体有大小
+            self.setRect(0, 0, final_w, final_h)
+
+        # --- 以下所有节点都必须执行：名称/状态灯/语言标签 ---
+        # 节点名称：UI外上方
         title_font = QFont()
         title_font.setPointSize(10)
         title_font.setBold(True)
@@ -886,14 +701,36 @@ class NodeItem(QGraphicsRectItem):
         self.name_text.setZValue(6)
         self.name_text.setPlainText(self.node_name)
         text_rect = self.name_text.boundingRect()
-        title_x = max(8.0, (final_w - text_rect.width()) / 2)
-        title_y = (style.HEADER_HEIGHT - text_rect.height()) / 2 - 2
+        title_x = max(4.0, (final_w - text_rect.width()) / 2)
+        title_y = -text_rect.height()  # 节点矩形上方
         self.name_text.setPos(title_x, title_y)
         self.name_text.setVisible(True)
 
-        # 确保其他标签不可见
-        if hasattr(self, "lang_text") and self.lang_text:
-            self.lang_text.setVisible(False)
+        # 状态指示灯（右上角，UI内）
+        indicator_size = 10
+        indicator_x = final_w - indicator_size - 8
+        indicator_y = 4
+        self.status_indicator.setRect(indicator_x, indicator_y, indicator_size, indicator_size)
+        self.status_indicator.setZValue(7)
+        self.status_indicator.setVisible(True)
+        style.apply_status(self, self.status)
+
+        # 语言标签：UI外底部居中
+        lang_font = QFont()
+        lang_font.setPointSize(8)
+        self.lang_text.setFont(lang_font)
+        self.lang_text.setDefaultTextColor(QColor("#888888"))
+        self.lang_text.setZValue(6)
+        self.lang_text.setPlainText(self.language)
+        lr = self.lang_text.boundingRect()
+        lang_x = (final_w - lr.width()) / 2
+        lang_y = final_h + 2
+        self.lang_text.setPos(lang_x, lang_y)
+        self.lang_text.setVisible(True)
+
+        # CPU/MEM 文本：与语言标签在同一水平线，靠左对齐
+        if self._status_widget:
+            self._status_widget.set_bottom_y(lang_y)
 
         self._subscribe_config_changes()
 
@@ -910,7 +747,7 @@ class NodeItem(QGraphicsRectItem):
         self._param_widgets.clear()
         # 先禁用缓存再重置 rect，确保旧缓存在尺寸变更后被彻底丢弃
         self.setCacheMode(self.CacheMode.NoCache)
-        self.setRect(0, 0, self._rect_default_width, self._rect_default_height)
+        self.setRect(0, 0, self._style.node_width, self._style.node_height)
 
     def _get_label_font(self):
         """获取端口标签字体"""

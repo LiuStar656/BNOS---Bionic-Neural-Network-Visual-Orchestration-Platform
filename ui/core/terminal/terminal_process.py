@@ -94,7 +94,12 @@ class TerminalProcess(QObject):
             return
         self._stopped = True
 
-        state = self.process.state()
+        try:
+            state = self.process.state()
+        except RuntimeError:
+            # C++ 对象已被 Qt 销毁（如父控件先于本对象被 GC）
+            return
+
         if state == QProcess.ProcessState.NotRunning:
             logger.debug("TerminalProcess: 进程已结束，无需终止")
             return
@@ -111,4 +116,7 @@ class TerminalProcess(QObject):
 
     def __del__(self):
         """析构时确保子进程被终止"""
-        self.stop()
+        try:
+            self.stop()
+        except RuntimeError:
+            pass

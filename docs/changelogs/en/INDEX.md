@@ -8,6 +8,11 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-06-15](./2026-06-15/)
+- **Node Style Unification**: Deleted rectangular/dot styles, unified system to panel mode, DetailedNodeStyle now inherits NodeStyle base class directly
+- **Anchor Coordinate Fixes**: Input/output anchor fallback positions changed to left/right edge midpoints, fixed setPos/_find_nearest double-offset bug
+- **Process Lifecycle Protection**: RuntimeError guard for already-destroyed QProcess during TerminalProcess destruction
+
 ### [2026-06-14](./2026-06-14/)
 - **PyQt6 → PySide6 Full-Stack Migration**: License upgrade GPLv3 → LGPLv3, 100 source files with 233 import replacements, signal/slot syntax adaptation (pyqtSignal→Signal, pyqtSlot→Slot), zero business logic changes
 
@@ -99,4 +104,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-06-14
+**Last Updated**: 2026-06-15

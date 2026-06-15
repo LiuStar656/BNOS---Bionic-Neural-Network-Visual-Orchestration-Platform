@@ -53,7 +53,7 @@ class CanvasLayoutMixin:
                 if "custom_text_color" in config:
                     custom_colors["text"] = config["custom_text_color"]
 
-            style_key = "rect"
+            style_key = "detailed"
             if hasattr(node, '_style') and hasattr(node._style, 'style_key'):
                 style_key = node._style.style_key
             layout_data["nodes"][node_name] = {
@@ -163,7 +163,7 @@ class CanvasLayoutMixin:
                     h = pos_data.get("height", node.rect().height())
                     node.setRect(0, 0, w, h)
                     # 恢复节点样式
-                    sk = pos_data.get("style", "rect")
+                    sk = pos_data.get("style", "detailed")
                     from ui.canvas.items.styles import StyleRegistry
                     st_cls = StyleRegistry.get(sk)
                     if type(node._style).__name__ != st_cls.__name__:
@@ -201,7 +201,7 @@ class CanvasLayoutMixin:
                     h = pos_data.get("height", 80)
                     
                     # 创建样式对象并设置尺寸
-                    sk = pos_data.get("style", "rect")
+                    sk = pos_data.get("style", "detailed")
                     from ui.canvas.items.styles import StyleRegistry
                     st_cls = StyleRegistry.get(sk)
                     node_style = st_cls()
@@ -249,7 +249,7 @@ class CanvasLayoutMixin:
                     status = info.get("status", "stopped")
                     x, y = pos_data.get("x", 200), pos_data.get("y", 150)
                     w, h = pos_data.get("width", 140), pos_data.get("height", 80)
-                    sk = pos_data.get("style", "rect")
+                    sk = pos_data.get("style", "detailed")
                     from ui.canvas.items.styles import StyleRegistry
                     st_cls = StyleRegistry.get(sk)
                     node_style = st_cls()
