@@ -168,17 +168,7 @@ class NodeItem(QGraphicsRectItem):
     def _on_status_updated(self, node_name, cpu_percent, mem_mb):
         """状态更新回调（从资源监测面板接收）"""
         if node_name == self.node_name and self._status_widget:
-            # 计算运行时长（如果还没记录开始时间，现在记录）
-            duration_seconds = 0
-            if self._start_time:
-                duration_seconds = (datetime.now() - self._start_time).total_seconds()
-            else:
-                # 如果没有开始时间，尝试从进程信息获取
-                self._try_initialize_start_time()
-                if self._start_time:
-                    duration_seconds = (datetime.now() - self._start_time).total_seconds()
-            
-            self._status_widget.update_status(cpu_percent, mem_mb, duration_seconds)
+            self._status_widget.update_status(cpu_percent, mem_mb)
     
     def _try_initialize_start_time(self):
         """尝试从节点数据中初始化开始时间"""

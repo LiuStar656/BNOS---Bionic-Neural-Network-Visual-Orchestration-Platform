@@ -35,7 +35,6 @@ class NodeStatusWidget:
         # 状态数据
         self.cpu_percent = 0
         self.mem_mb = 0
-        self.duration_seconds = 0
         
         # 字体与布局
         self._setup_fonts()
@@ -83,11 +82,10 @@ class NodeStatusWidget:
             self.mem_text.setPos(start_x + cpu_w + 12, bottom_y)
             self.mem_text.setVisible(True)
         
-    def update_status(self, cpu_percent, mem_mb, duration_seconds):
+    def update_status(self, cpu_percent, mem_mb):
         """更新状态信息"""
         self.cpu_percent = max(0, min(100, cpu_percent))
         self.mem_mb = max(0, mem_mb)
-        self.duration_seconds = max(0, duration_seconds)
         
         self.cpu_text.setPlainText(f"CPU: {int(self.cpu_percent)}%")
         self.mem_text.setPlainText(f"MEM: {int(self.mem_mb)}MB")
@@ -101,4 +99,4 @@ class NodeStatusWidget:
     def update_layout(self):
         """更新布局（节点大小变化时调用）"""
         self._layout_widgets()
-        self.update_status(self.cpu_percent, self.mem_mb, self.duration_seconds)
+        self.update_status(self.cpu_percent, self.mem_mb)
