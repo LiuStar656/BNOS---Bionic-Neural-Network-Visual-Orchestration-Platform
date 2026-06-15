@@ -376,14 +376,15 @@ class CanvasHost(QMainWindow):
         """添加新的独立画布Dock"""
         canvas_dock, canvas = self._create_canvas_dock(name, project_path)
         
+        # 【关键】先同步主窗口数据到画布存储，再发 canvas_changed 信号
+        # 否则 _on_canvas_changed → sync_canvas_data_to_main_window 会拿到空的初始化数据
+        if self._parent_window:
+            self.update_canvas_data_from_main_window(canvas)
+        
         # 更新活动画布
         self._active_canvas = canvas
         # 发出画布更改信号，这会触发主窗口同步数据
         self.canvas_changed.emit(canvas)
-        
-        # 将主窗口的数据同步到新创建的画布
-        if self._parent_window:
-            self.update_canvas_data_from_main_window(canvas)
         
         return canvas
     

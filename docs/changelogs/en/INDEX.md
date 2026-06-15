@@ -12,6 +12,9 @@ Click on dates below to view detailed updates for that date:
 - **Node Style Unification**: Deleted rectangular/dot styles, unified system to panel mode, DetailedNodeStyle now inherits NodeStyle base class directly
 - **Anchor Coordinate Fixes**: Input/output anchor fallback positions changed to left/right edge midpoints, fixed setPos/_find_nearest double-offset bug
 - **Process Lifecycle Protection**: RuntimeError guard for already-destroyed QProcess during TerminalProcess destruction
+- **dialog_utils pick Functions UnboundLocalError Fix**: `go_up` / `sel_path` closure definitions moved forward, fixing crashes when opening/importing/exporting projects and nodes
+- **Async Project Open & Canvas Layout Fix**: `project_open` changed to QTimer.singleShot two-phase async loading; fixed second project canvas empty node issue (canvas_host.py signal firing order)
+- **Portable Virtual Environment for Python Nodes**: `--copies` venv creation, start.json de-absolute-pathed, `_repair_portable_venv` auto-repairs pyvenv.cfg on import, bytecode cache skipped during packaging; no `pip install` needed after cross-machine migration
 
 ### [2026-06-14](./2026-06-14/)
 - **PyQt6 → PySide6 Full-Stack Migration**: License upgrade GPLv3 → LGPLv3, 100 source files with 233 import replacements, signal/slot syntax adaptation (pyqtSignal→Signal, pyqtSlot→Slot), zero business logic changes

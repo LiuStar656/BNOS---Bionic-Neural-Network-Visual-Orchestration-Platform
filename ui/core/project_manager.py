@@ -69,7 +69,7 @@ def project_new(main_window):
 
 
 def project_open(main_window):
-    """打开项目：选文件夹 → 创建新标签页 → 识别项目结构 → 加载"""
+    """打开项目：选文件夹 → 异步加载项目结构 + 创建画布"""
     project_dir = pick_folder(main_window, t("k_project_open_dir"))
     if not project_dir:
         return
@@ -95,35 +95,34 @@ def project_open(main_window):
     if not has_nodes:
         os.makedirs(nodes_dir, exist_ok=True)
 
-    # 创建新画布Dock，使用项目名作为标签名，并传递项目路径（通过CanvasHost）
     project_name = os.path.basename(project_dir)
-    canvas = None
-    # 先加载项目数据，避免画布切换时显示空数据
-    main_window.current_project_path = project_dir
-    main_window.nodes_data.clear()
-    main_window.connections.clear()
-    
-    # 同步加载项目（这会填充nodes_data）
-    project_refresh(main_window, async_mode=False)
-    
-    if hasattr(main_window, '_canvas_host'):
-        canvas = main_window._canvas_host.add_canvas_dock(project_name, project_dir)
-    else:
-        # 如果没有CanvasHost，按原来的方式处理
-        canvas = main_window._canvas_host.add_canvas_dock(project_name, project_dir)
-    
-    # 注意：_create_canvas_dock 内部已调用一次 load_layout，此处无需再调
-    
-    # ===== 关键：恢复 CanvasHost 的状态（包括分割条位置） =====
-    from ui.core.window_state_manager import restore_canvas_host_state
-    # 给一点时间让画布 Dock 完全创建
-    QTimer.singleShot(200, lambda: restore_canvas_host_state(main_window))
-    
-    main_window.show_toast(f"已打开项目: {project_name}", "success")
-    
-    # 保存项目到配置文件
-    main_window.app_config.set("last_project", main_window.current_project_path)
-    main_window.app_config.save()
+
+    # 立即显示提示，后续异步加载
+    main_window.show_toast(f"正在打开项目: {project_name}...", "info")
+
+    def _open_project_async():
+        """异步加载项目 — 延迟到事件循环避免阻塞 Toast 响应"""
+        main_window.current_project_path = project_dir
+        main_window.nodes_data.clear()
+        main_window.connections.clear()
+
+        # 同步加载节点数据（_open_project_async 本身已是延迟回调，不会阻塞 UI 响应）
+        # 必须同步完成 — add_canvas_dock 会立即调用 load_layout，依赖 nodes_data
+        project_refresh(main_window, async_mode=False)
+
+        # 创建新画布Dock（必须在主线程，依赖 nodes_data 已填充）
+        if hasattr(main_window, '_canvas_host'):
+            main_window._canvas_host.add_canvas_dock(project_name, project_dir)
+
+        # 恢复 CanvasHost 状态（包括分割条位置）
+        from ui.core.window_state_manager import restore_canvas_host_state
+        QTimer.singleShot(300, lambda: restore_canvas_host_state(main_window))
+
+        # 保存项目到配置文件
+        main_window.app_config.set("last_project", main_window.current_project_path)
+        main_window.app_config.save()
+
+    QTimer.singleShot(10, _open_project_async)
 
 
 def project_refresh(main_window, async_mode=True):

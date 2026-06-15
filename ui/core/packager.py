@@ -34,26 +34,36 @@ class Packager:
                 logger.error(f"源目录不存在: {source_dir}")
                 return None
             
+            # 顶层包装目录名 = 源目录名（确保 zip 内部有独立的根目录）
+            wrapper_name = os.path.basename(os.path.normpath(source_dir))
+            
             # 生成临时ZIP文件
             temp_zip = tempfile.NamedTemporaryFile(suffix=Packager.ZIP_EXTENSION, delete=False)
             temp_zip_path = temp_zip.name
             temp_zip.close()
             
-            # 压缩目录（包含空目录）
+            # 压缩目录（包含空目录，跳过 __pycache__ / .pyc 字节码）
             with zipfile.ZipFile(temp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 # 获取源目录下的所有文件和目录
                 for root, dirs, files in os.walk(source_dir):
-                    # 添加空目录
+                    # 跳过字节码缓存目录
+                    dirs[:] = [d for d in dirs if d != "__pycache__"]
+                    
+                    # 添加空目录（包装在 wrapper_name/ 下）
                     for dir_name in dirs:
                         dir_path = os.path.join(root, dir_name)
-                        arcname = os.path.relpath(dir_path, source_dir) + os.sep
+                        rel = os.path.relpath(dir_path, source_dir)
+                        arcname = os.path.join(wrapper_name, rel) + os.sep
                         if arcname not in zipf.namelist():
                             zipf.writestr(arcname, '')
                     
-                    # 添加文件
+                    # 添加文件（跳过 .pyc 字节码）
                     for file in files:
+                        if file.endswith('.pyc'):
+                            continue
                         file_path = os.path.join(root, file)
-                        arcname = os.path.relpath(file_path, source_dir)
+                        rel = os.path.relpath(file_path, source_dir)
+                        arcname = os.path.join(wrapper_name, rel)
                         zipf.write(file_path, arcname)
             
             # 添加自定义扩展名
@@ -119,8 +129,21 @@ class Packager:
                     logger.info(f"成功解压: {package_path} -> {root_dir}")
                     return root_dir
             
-            logger.info(f"成功解压: {package_path} -> {target_dir}")
-            return target_dir
+            # 兼容旧版包（无 wrapper 目录）：用压缩包文件名重建节点目录
+            package_base = os.path.splitext(os.path.basename(package_path))[0]
+            if not package_base:
+                package_base = "imported_package"
+            
+            # 创建以包名命名的目录，将散落的文件移动进去
+            wrapped_dir = os.path.join(target_dir, package_base)
+            os.makedirs(wrapped_dir, exist_ok=True)
+            for item in extracted_items:
+                src = os.path.join(target_dir, item)
+                dst = os.path.join(wrapped_dir, item)
+                shutil.move(src, dst)
+            
+            logger.info(f"成功解压（已重包装）: {package_path} -> {wrapped_dir}")
+            return wrapped_dir
             
         except zipfile.BadZipFile:
             logger.error(f"无效的压缩包: {package_path}")

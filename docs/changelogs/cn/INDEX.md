@@ -12,6 +12,9 @@
 - **节点样式统一化**：删除矩形/圆点样式，全系统统一为面板模式，DetailedNodeStyle 直接继承 NodeStyle 基类
 - **锚点坐标修复**：输入/输出锚点回落位置改为两侧边线中点，修正 setPos/_find_nearest 双倍偏移 bug
 - **进程生命周期保护**：TerminalProcess 析构时 QProcess 已销毁的 RuntimeError 保护
+- **dialog_utils pick 函数 UnboundLocalError 修复**：`go_up` / `sel_path` 闭包定义前移，解决打开项目/导入导出节点时的崩溃
+- **项目打开异步化与画布布局修复**：`project_open` 改为 QTimer.singleShot 两阶段异步加载；修复第二个项目画布节点为空的问题（canvas_host.py 信号触发顺序）
+- **Python 节点虚拟环境可迁移化**：`--copies` 创建 venv，start.json 去绝对路径，导入时 `_repair_portable_venv` 自动修复 `pyvenv.cfg`，打包跳过字节码缓存；跨机器迁移后无需重新 pip install
 
 ### [2026-06-14](./2026-06-14/)
 - **PyQt6 → PySide6 全栈迁移**：许可证升级 GPLv3 → LGPLv3，100 个源文件 233 处 import 替换，信号/槽语法适配（pyqtSignal→Signal、pyqtSlot→Slot），零业务逻辑变更

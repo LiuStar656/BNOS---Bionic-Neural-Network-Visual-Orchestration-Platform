@@ -4,11 +4,75 @@ BNOS 导入导出管理器 - 负责节点和项目的导出/导入操作
 import os
 import shutil
 import tempfile
+import json
+import sys
 from PySide6.QtWidgets import QMessageBox
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.packager import Packager
 from ui.core.utils.dialog_utils import themed_message, pick_file, pick_save_file
+
+
+def _repair_portable_venv(node_dir):
+    """节点导入后修复 venv，使其在新机器上可运行（Python 3.11+ Windows 相对路径支持）
+
+    修复内容：
+    1. pyvenv.cfg 的 home 指向当前机器的 Python 安装目录
+    2. start.json 去除绝对 path / python_exe 字段，由运行时动态推断
+    """
+    venv_dir = os.path.join(node_dir, "venv")
+    if not os.path.isdir(venv_dir):
+        return
+
+    # 1. 定位当前机器上的 Python（即运行 BNOS 的 Python）
+    host_python_exe = sys.executable
+    host_python_dir = os.path.dirname(host_python_exe)
+
+    # 2. 重写 pyvenv.cfg：home → 当前 Python 目录，保留 version 信息
+    cfg_path = os.path.join(venv_dir, "pyvenv.cfg")
+    if os.path.isfile(cfg_path):
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            new_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith("home ="):
+                    new_lines.append(f"home = {host_python_dir}\n")
+                else:
+                    new_lines.append(line)
+
+            with open(cfg_path, "w", encoding="utf-8", newline="") as f:
+                f.writelines(new_lines)
+            logger.info(f"[portable-venv] 已修复 pyvenv.cfg: home → {host_python_dir}")
+        except Exception as e:
+            logger.warning(f"[portable-venv] 修复 pyvenv.cfg 失败: {e}")
+
+    # 3. 清理 start.json：删除写入时带入的绝对路径（老版本节点兼容处理）
+    start_json_path = os.path.join(node_dir, "start.json")
+    if os.path.isfile(start_json_path):
+        try:
+            with open(start_json_path, "r", encoding="utf-8") as f:
+                start_cfg = json.load(f)
+
+            modified = False
+            if "nodes" in start_cfg and isinstance(start_cfg["nodes"], list):
+                for node in start_cfg["nodes"]:
+                    if isinstance(node, dict):
+                        if "python_exe" in node:
+                            del node["python_exe"]
+                            modified = True
+                        if "path" in node and os.path.isabs(str(node["path"])):
+                            del node["path"]
+                            modified = True
+
+            if modified:
+                with open(start_json_path, "w", encoding="utf-8") as f:
+                    json.dump(start_cfg, f, indent=2, ensure_ascii=False)
+                logger.info("[portable-venv] 已清理 start.json 中的绝对路径")
+        except Exception as e:
+            logger.warning(f"[portable-venv] 清理 start.json 失败: {e}")
 
 
 class ImportExportManager:
@@ -183,6 +247,9 @@ class ImportExportManager:
             # 只有当临时目录与解压目录不同时才删除临时目录
             if temp_dir != extracted_dir and os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
+            
+            # 修复 venv 的路径硬编码，使其在新机器上可运行
+            _repair_portable_venv(target_path)
             
             # 刷新节点列表
             self.main_window.refresh_nodes()

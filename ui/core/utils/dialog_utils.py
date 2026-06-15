@@ -210,6 +210,20 @@ def pick_folder(parent, title, start=""):
     lay = dlg.get_main_layout()
     
     drives = _get_drives()
+    sel_path = [os.path.expanduser("~")]
+
+    def go_up():
+        parent_path = os.path.dirname(sel_path[0])
+        if parent_path and parent_path != sel_path[0]:
+            for i in range(drive_combo.count()):
+                d = drive_combo.itemData(i)
+                if parent_path.lower().startswith(d.lower()):
+                    drive_combo.blockSignals(True)
+                    drive_combo.setCurrentIndex(i)
+                    drive_combo.blockSignals(False)
+                    break
+            load_tree(parent_path)
+
     nav_bar, drive_combo, up_btn, _ = _create_nav_bar(parent, drives, lambda idx: load_tree(drive_combo.itemData(idx)), go_up)
     lay.addLayout(nav_bar)
     
@@ -226,8 +240,6 @@ def pick_folder(parent, title, start=""):
     tree.setStyleSheet(_STYLE_TREE)
     tree.setIndentation(16)
     lay.addWidget(tree, 1)
-    
-    sel_path = [os.path.expanduser("~")]
     
     def load_tree(root_path):
         root_path = os.path.normpath(root_path)
@@ -263,18 +275,6 @@ def pick_folder(parent, title, start=""):
             load_tree(path)
     
     tree.itemDoubleClicked.connect(on_dblclick)
-    
-    def go_up():
-        parent_path = os.path.dirname(sel_path[0])
-        if parent_path and parent_path != sel_path[0]:
-            for i in range(drive_combo.count()):
-                d = drive_combo.itemData(i)
-                if parent_path.lower().startswith(d.lower()):
-                    drive_combo.blockSignals(True)
-                    drive_combo.setCurrentIndex(i)
-                    drive_combo.blockSignals(False)
-                    break
-            load_tree(parent_path)
     
     dlg.add_button_row([
         (t("k_cancel"), _STYLE_BTN_GREY, dlg.reject),
@@ -404,6 +404,47 @@ def pick_file(parent, title, filter_ext=None, start=""):
     lay = dlg.get_main_layout()
     
     drives = _get_drives()
+    sel_path = [os.path.expanduser("~")]
+    selected_file = [None]
+
+    def go_up():
+        parent_path = os.path.dirname(sel_path[0])
+        if parent_path and parent_path != sel_path[0]:
+            for i in range(drive_combo.count()):
+                d = drive_combo.itemData(i)
+                if parent_path.lower().startswith(d.lower()):
+                    drive_combo.blockSignals(True)
+                    drive_combo.setCurrentIndex(i)
+                    drive_combo.blockSignals(False)
+                    break
+            load_tree(parent_path)
+
+    def load_tree(root_path):
+        root_path = os.path.normpath(root_path)
+        sel_path[0] = root_path
+        
+        if path_combo:
+            path_combo.blockSignals(True)
+            path_combo.clear()
+            parts = []
+            current = root_path
+            prev_path = ""
+            while current and current != prev_path and current != os.sep:
+                parts.insert(0, current)
+                prev_path = current
+                current = os.path.dirname(current)
+            if root_path and root_path not in parts:
+                parts.insert(0, root_path)
+            for p in parts:
+                path_combo.addItem(p)
+            path_combo.setCurrentText(root_path)
+            path_combo.blockSignals(False)
+        
+        preview_info.setText(t("_k_folder_current").replace("{path}", root_path))
+        tree.clear()
+        if os.path.isdir(root_path):
+            _load_lazy_dir_items(tree.invisibleRootItem(), root_path, filter_ext)
+    
     nav_bar, drive_combo, up_btn, path_combo = _create_nav_bar(parent, drives, lambda idx: load_tree(drive_combo.itemData(idx)), go_up, show_path_combo=True)
     lay.addLayout(nav_bar)
     
@@ -455,9 +496,6 @@ def pick_file(parent, title, filter_ext=None, start=""):
     file_name_edit.setPlaceholderText(t("_k_file_name_hint"))
     lay.addWidget(file_name_edit)
     
-    sel_path = [os.path.expanduser("~")]
-    selected_file = [None]
-    
     def _preview_file(file_path):
         if not file_path or not os.path.isfile(file_path):
             preview_text.setPlainText("")
@@ -479,32 +517,6 @@ def pick_file(parent, title, filter_ext=None, start=""):
         except Exception as e:
             preview_text.setPlainText(t("_k_preview_error").format(error=str(e)))
             preview_info.setText(os.path.basename(file_path))
-    
-    def load_tree(root_path):
-        root_path = os.path.normpath(root_path)
-        sel_path[0] = root_path
-        
-        if path_combo:
-            path_combo.blockSignals(True)
-            path_combo.clear()
-            parts = []
-            current = root_path
-            prev_path = ""
-            while current and current != prev_path and current != os.sep:
-                parts.insert(0, current)
-                prev_path = current
-                current = os.path.dirname(current)
-            if root_path and root_path not in parts:
-                parts.insert(0, root_path)
-            for p in parts:
-                path_combo.addItem(p)
-            path_combo.setCurrentText(root_path)
-            path_combo.blockSignals(False)
-        
-        preview_info.setText(t("_k_folder_current").replace("{path}", root_path))
-        tree.clear()
-        if os.path.isdir(root_path):
-            _load_lazy_dir_items(tree.invisibleRootItem(), root_path, filter_ext)
     
     def on_item_expanded(item):
         child_count = item.childCount()
@@ -563,18 +575,6 @@ def pick_file(parent, title, filter_ext=None, start=""):
             selected_file[0] = os.path.normpath(os.path.join(sel_path[0], file_name_edit.text().strip()))
             dlg.accept()
     
-    def go_up():
-        parent_path = os.path.dirname(sel_path[0])
-        if parent_path and parent_path != sel_path[0]:
-            for i in range(drive_combo.count()):
-                d = drive_combo.itemData(i)
-                if parent_path.lower().startswith(d.lower()):
-                    drive_combo.blockSignals(True)
-                    drive_combo.setCurrentIndex(i)
-                    drive_combo.blockSignals(False)
-                    break
-            load_tree(parent_path)
-    
     if path_combo:
         path_combo.lineEdit().returnPressed.connect(lambda: load_tree(path_combo.currentText().strip()))
         path_combo.currentIndexChanged.connect(lambda idx: load_tree(path_combo.itemText(idx)))
@@ -606,6 +606,28 @@ def pick_save_file(parent, title, default_name="", filter_ext=None, start=""):
     lay = dlg.get_main_layout()
     
     drives = _get_drives()
+    sel_path = [os.path.expanduser("~")]
+
+    def go_up():
+        parent_path = os.path.dirname(sel_path[0])
+        if parent_path and parent_path != sel_path[0]:
+            for i in range(drive_combo.count()):
+                d = drive_combo.itemData(i)
+                if parent_path.lower().startswith(d.lower()):
+                    drive_combo.blockSignals(True)
+                    drive_combo.setCurrentIndex(i)
+                    drive_combo.blockSignals(False)
+                    break
+            load_tree(parent_path)
+
+    def load_tree(root_path):
+        root_path = os.path.normpath(root_path)
+        sel_path[0] = root_path
+        current.setText(t("_k_folder_current").replace("{path}", root_path))
+        tree.clear()
+        if os.path.isdir(root_path):
+            _load_lazy_dir_items(tree.invisibleRootItem(), root_path, filter_ext)
+
     nav_bar, drive_combo, up_btn, _ = _create_nav_bar(parent, drives, lambda idx: load_tree(drive_combo.itemData(idx)), go_up)
     lay.addLayout(nav_bar)
     
@@ -631,16 +653,6 @@ def pick_save_file(parent, title, default_name="", filter_ext=None, start=""):
     file_name_edit.setStyleSheet(_STYLE_INPUT)
     file_name_edit.setPlaceholderText(t("_k_file_name_hint"))
     lay.addWidget(file_name_edit)
-    
-    sel_path = [os.path.expanduser("~")]
-    
-    def load_tree(root_path):
-        root_path = os.path.normpath(root_path)
-        sel_path[0] = root_path
-        current.setText(t("_k_folder_current").replace("{path}", root_path))
-        tree.clear()
-        if os.path.isdir(root_path):
-            _load_lazy_dir_items(tree.invisibleRootItem(), root_path, filter_ext)
     
     def on_item_expanded(item):
         child_count = item.childCount()
@@ -679,18 +691,6 @@ def pick_save_file(parent, title, default_name="", filter_ext=None, start=""):
                 file_name += filter_ext
             dlg.selected_path = os.path.normpath(os.path.join(sel_path[0], file_name))
             dlg.accept()
-    
-    def go_up():
-        parent_path = os.path.dirname(sel_path[0])
-        if parent_path and parent_path != sel_path[0]:
-            for i in range(drive_combo.count()):
-                d = drive_combo.itemData(i)
-                if parent_path.lower().startswith(d.lower()):
-                    drive_combo.blockSignals(True)
-                    drive_combo.setCurrentIndex(i)
-                    drive_combo.blockSignals(False)
-                    break
-            load_tree(parent_path)
     
     dlg.add_button_row([
         (t("k_cancel"), _STYLE_BTN_GREY, dlg.reject),

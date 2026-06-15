@@ -81,14 +81,13 @@ def create_node():
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
     
-    print("🔧 创建虚拟环境...")
+    print("🔧 创建虚拟环境（--copies 模式，便于跨机器迁移）...")
     venv_path = os.path.join(full_node_dir, "venv")
-    python_exe_path = None
     
     try:
         creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
         result = subprocess.run(
-            [sys.executable, "-m", "venv", venv_path],
+            [sys.executable, "-m", "venv", "--copies", venv_path],
             capture_output=True,
             text=True,
             timeout=120,
@@ -97,16 +96,11 @@ def create_node():
         if result.returncode == 0:
             print("✅ 虚拟环境创建成功")
             
-            # 确定 Python 解释器路径
+            # 确定 pip 路径（用于后续依赖安装，不写入配置 — 运行时动态推断 python_exe）
             if os.name == "nt":
-                python_exe_path = os.path.join(venv_path, "Scripts", "python.exe")
                 pip_path = os.path.join(venv_path, "Scripts", "pip.exe")
             else:
-                python_exe_path = os.path.join(venv_path, "bin", "python")
                 pip_path = os.path.join(venv_path, "bin", "pip")
-            
-            # 确保路径是绝对路径
-            python_exe_path = os.path.abspath(python_exe_path)
             
             requirements_path = os.path.join(full_node_dir, "requirements.txt")
             if os.path.exists(requirements_path):
@@ -132,8 +126,6 @@ def create_node():
         "nodes": [
             {
                 "name": f"node_python_{node_name}",
-                "path": full_node_dir,
-                "python_exe": python_exe_path,
                 "config": {
                     "listen_upper_file": "../data/upper_data.json",
                     "output_file": "./output.json"
@@ -144,6 +136,8 @@ def create_node():
     start_path = os.path.join(full_node_dir, "start.json")
     with open(start_path, "w", encoding="utf-8") as f:
         json.dump(start_content, f, indent=2, ensure_ascii=False)
+    
+    print("💡 start.json 不写入绝对 path / python_exe，由 BNOS 运行时动态推断")
     
     extract_node_pack(full_node_dir)
     
