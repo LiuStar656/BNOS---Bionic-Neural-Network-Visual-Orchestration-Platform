@@ -96,13 +96,27 @@ class CanvasLayoutMixin:
         self._save_color_settings()
 
     def load_layout(self, project_path):
+        """从项目目录加载画布布局。
+
+        工作原理：
+        1. 读取 canvas_layout.json（保存的节点位置、连线、视图状态、样式）
+        2. 只恢复 canvas_layout.json 中有位置信息的节点到画布上
+           —— 项目中其他节点只在节点列表面板中显示，不会自动出现在画布上
+        3. 恢复画布视图状态（缩放、滚动位置）
+        """
         if not project_path:
             return
 
+        # ===== 诊断前置信息 =====
+        parent_ok = hasattr(self, 'parent_window') and self.parent_window is not None
+        nodes_data_count = 0
+        if parent_ok and hasattr(self.parent_window, 'nodes_data'):
+            nodes_data_count = len(self.parent_window.nodes_data)
+        logger.info("[load_layout] 开始加载布局: project_path=%s, parent_window=%s, nodes_data=%d个节点",
+                    project_path, "OK" if parent_ok else "NONE", nodes_data_count)
+
         layout_file = os.path.join(project_path, "canvas_layout.json")
-        if not os.path.exists(layout_file):
-            self._load_color_settings(project_path)
-            return
+        has_layout_file = os.path.isfile(layout_file)
 
         # 【关键】加载期间停止自动保存定时器，避免把重建锚点过程中把错误的绑定状态写回文件
         if hasattr(self, '_save_timer') and self._save_timer:
@@ -111,13 +125,24 @@ class CanvasLayoutMixin:
             except Exception:
                 pass
 
+        layout_data = {"nodes": {}, "edges": []}  # 默认空数据
+
         try:
+            # 批量加载期间抑制 view 更新，避免每次 addItem 触发级联 repaint
+            self.setUpdatesEnabled(False)
+
             self._load_color_settings(project_path)
 
-            with open(layout_file, "r", encoding="utf-8") as f:
-                layout_data = json.load(f)
-
-            # ---- 画布尺寸 ----
+            if has_layout_file:
+                try:
+                    with open(layout_file, "r", encoding="utf-8") as f:
+                        layout_data = json.load(f)
+                    logger.info("[load_layout] 已读取 canvas_layout.json: %d个节点位置, %d条连线",
+                                len(layout_data.get("nodes", {})), len(layout_data.get("edges", [])))
+                except (json.JSONDecodeError, IOError) as e:
+                    logger.warning("[load_layout] canvas_layout.json 读取失败，使用空布局: %s", e)
+            else:
+                logger.info("[load_layout] canvas_layout.json 不存在，画布初始为空（请从节点列表面板拖入节点）")
             canvas_size = layout_data.get("canvas_size")
             if canvas_size:
                 new_w = canvas_size.get("width", self.canvas_width)
@@ -188,10 +213,13 @@ class CanvasLayoutMixin:
                                         config[cfg_key] = cc[key]
                                 except Exception:
                                     pass
-                elif self.parent_window and node_name in self.parent_window.nodes_data:
+                elif self.parent_window and hasattr(self.parent_window, 'nodes_data') and node_name in self.parent_window.nodes_data:
                     missing_nodes.append((node_name, pos_data))
 
-            # —— 批量补建缺失节点 ——
+            # =================================================================
+            # —— 阶段1: 从 canvas_layout.json 中恢复有位置信息的节点 ——
+            # =================================================================
+            created_from_layout = 0
             for node_name, pos_data in missing_nodes:
                 info = self.parent_window.nodes_data[node_name]
                 config = info.get("config", {})
@@ -210,7 +238,7 @@ class CanvasLayoutMixin:
                 node.setPos(x, y)
                 cc = pos_data.get("custom_colors")
                 if cc:
-                    for key, cfg_key, action in [
+                    for key, _, action in [
                         ("bg", "custom_bg_color", lambda c, n=node: n.setBrush(QBrush(c))),
                         ("border", "custom_border_color", lambda c, n=node: n.setPen(QPen(c, 2))),
                         ("text", "custom_text_color", lambda c, n=node: n.name_text.setDefaultTextColor(c)),
@@ -230,7 +258,13 @@ class CanvasLayoutMixin:
                     child.setParentItem(node)
                     child.setEnabled(True)
                     child.setVisible(True)
-                logger.info("自动恢复节点: %s (位置: %d, %d)", node_name, x, y)
+                node.setVisible(True)
+                node.setZValue(2)
+                created_from_layout += 1
+                logger.info("[load_layout] 从布局恢复: %s (位置: %d, %d)", node_name, x, y)
+
+            logger.info("[load_layout] 节点创建完成: 从布局恢复=%d, 画布现有=%d个节点",
+                        created_from_layout, len(self.nodes))
 
             # ---- 连线 ----
             # 建立 node_ref → name 的映射，避免每条 edge 内层遍历所有节点
@@ -381,6 +415,7 @@ class CanvasLayoutMixin:
                     logger.warning("[Config兜底] 校验失败: %s", e)
 
             logger.info("加载完成: %d个节点, %d条连线", len(self.nodes), len(self.edges))
+            self.setUpdatesEnabled(True)
 
             # ---- 视图状态 ----
             vs = layout_data.get("view_state", {})
@@ -403,6 +438,36 @@ class CanvasLayoutMixin:
 
         except (json.JSONDecodeError, IOError) as e:
             logger.info("布局文件损坏: %s", e)
+        finally:
+            # 无论成功或失败，必须恢复 view 更新；否则 widget 可能永远不刷新
+            self.setUpdatesEnabled(True)
+
+            # ✅ 诊断信息：输出画布上所有节点的坐标和可见性
+            if len(self.nodes) > 0:
+                node_diag = []
+                for nn, ni in self.nodes.items():
+                    try:
+                        pos = ni.pos()
+                        rect = ni.rect()
+                        node_diag.append(
+                            f"  {nn}: pos=({int(pos.x())},{int(pos.y())}) "
+                            f"size={int(rect.width())}x{int(rect.height())} "
+                            f"visible={ni.isVisible()} z={int(ni.zValue())}"
+                        )
+                    except Exception as _e:
+                        node_diag.append(f"  {nn}: ERROR={_e}")
+                logger.info("[load_layout] 画布节点诊断:\n%s", "\n".join(node_diag))
+            else:
+                logger.warning("[load_layout] ⚠️  画布上没有任何节点！")
+
+            # ✅ 强制 scene 刷新：确保新添加的节点/连线立即显示
+            if hasattr(self, 'scene') and self.scene is not None:
+                self.scene.update(self.scene.sceneRect())
+                logger.info("[load_layout] scene已刷新, sceneRect=%s", str(self.scene.sceneRect()))
+            # 强制 viewport 重绘
+            if hasattr(self, 'viewport') and callable(self.viewport):
+                self.viewport().update()
+                logger.info("[load_layout] viewport已刷新")
     
     def _validate_edge_anchor_binding(self):
         """校验并修复连线与锚点的双向绑定关系。

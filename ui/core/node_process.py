@@ -425,13 +425,12 @@ def stop_node_process(node_info, force=False):
             killed = _kill_process_tree(pid)
             if killed:
                 logger.info("已终止进程树 PID=%d (%s)", pid, node_name)
-                # 二次确认：等 0.5 秒后检查进程是否真的死了
-                import time
-                time.sleep(0.3)
+                # taskkill /F /T 在 Windows 上是同步返回（内核完成终止后才返回）
+                # 不再 time.sleep 阻塞主线程；如有残留进程由 node_health 轮询（每 2 秒）自然检测
                 if not _is_pid_alive(pid):
                     logger.debug("PID=%d 确认已死亡", pid)
                 else:
-                    logger.warning("PID=%d 仍在运行，尝试进程扫描兜底", pid)
+                    logger.warning("PID=%d 仍在运行，标记为未成功，由轮询兜底", pid)
                     killed = False
             else:
                 logger.warning("进程树终止失败 PID=%d (%s)", pid, node_name)
@@ -445,8 +444,7 @@ def stop_node_process(node_info, force=False):
             logger.warning("PID 方式未能终止 %s，使用进程扫描兜底清理 (发现 %d 个进程)",
                            node_name, len(remaining))
             _kill_all_node_processes(node_path)
-            import time
-            time.sleep(0.3)
+            # 同样不阻塞主线程等待：_kill_all_node_processes 使用 taskkill，也是同步返回
             remaining = _find_node_processes(node_path)
             if remaining:
                 logger.error("兜底清理仍失败，%s 仍有 %d 个进程存活", node_name, len(remaining))

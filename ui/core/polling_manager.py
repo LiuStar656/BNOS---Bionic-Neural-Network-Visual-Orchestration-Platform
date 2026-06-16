@@ -2,6 +2,11 @@
 统一轮询管理器 - 单例模式
 将所有需要定时轮询的任务统一管理，避免多个定时器并行运行
 
+【架构】PollingManager 运行在**后台线程**：
+  - 主定时器 + 所有文件 IO（os.path.exists/getmtime/open）在后台线程执行
+  - 检测到变更后通过 Qt Signal 发回主线程（Qt 自动跨线程排队）
+  - 外部接口（watch_* / register_task / start / stop）线程安全，由主线程调用
+
 管理职责：
   1. 节点进程健康状态检测
   2. 全局日志文件监控
@@ -11,29 +16,31 @@
 """
 import os
 import json
+import threading
 from datetime import datetime
-from PySide6.QtCore import QObject, QTimer, Qt, Signal
+from PySide6.QtCore import QObject, QTimer, Qt, Signal, QThread
 from ui.core.logger import logger
 
 
 class PollingManager(QObject):
-    """统一轮询管理器（单例模式）
+    """统一轮询管理器（单例模式）- 文件 IO 在后台线程执行
     
     设计理念：
     - 所有轮询任务共享一个主定时器，避免定时器泛滥
     - 支持任务注册/注销机制
     - 支持不同轮询间隔的任务（通过计数实现）
     - 提供统一的信号接口供其他组件订阅
+    - ✅ 文件 IO 在后台线程执行，不阻塞 UI
     
     用法：
         manager = PollingManager.instance()
         
-        # 订阅信号
+        # 订阅信号（由主线程连接，自动跨线程排队）
         manager.node_status_changed.connect(handle_node_status)
         manager.log_file_changed.connect(handle_log_change)
         manager.config_file_changed.connect(handle_config_change)
         
-        # 启动轮询
+        # 启动轮询（线程安全，可由主线程调用）
         manager.start(nodes_data)
     """
     
@@ -74,16 +81,28 @@ class PollingManager(QObject):
         
         PollingManager._initialized = True
         
+        # ---- 线程安全锁：保护所有被主线程/后台线程共享的数据结构 ----
+        self._lock = threading.RLock()
+        
+        # ---- 后台线程：承载主定时器与所有文件 IO 任务 ----
+        self._worker_thread = QThread(self)
+        self._worker_thread.setObjectName("PollingWorker")
+        
         # ---- 基础路径 ----
         self._base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self._logs_dir = os.path.join(self._base_dir, "logs")
         
-        # ---- 主定时器（2秒轮询一次，内部按任务间隔分发；降低空闲 CPU 噪声）----
+        # ---- 主定时器（2秒轮询一次，降低空闲 CPU 噪声）----
         # 注意：下方任务注册中的 interval 单位是"主 tick 数"，每个 tick = 2 秒。
         #   interval=1  → 2 秒（高频，用于健康检测）
         #   interval=2  → 4 秒（默认，大多数任务）
         #   interval=3  → 6 秒（低频，用于配置/输出检测）
         #   interval=5  → 10 秒（极低频，用于应用状态检测）
+        #
+        # 【关键】QTimer 必须在其所属 thread 的 event loop 中运行
+        # PollingManager 自身 moveToThread 到 _worker_thread 后，
+        # self._timer 的父对象 self 也在 worker thread，timer 的 timeout 信号
+        # 会在 worker thread 的 event loop 中触发 → _poll() 在后台执行
         self.tick_duration = 2
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)
@@ -123,66 +142,97 @@ class PollingManager(QObject):
         # ---- 初始化默认任务 ----
         self._init_default_tasks()
         self._init_global_watchers()
+        
+        # ---- 将 PollingManager 移至后台线程 ----
+        # 【关键】self._timer 的父对象 self 移到 worker thread 后，
+        # timer 也会属于 worker thread，其 timeout 会在 worker thread 触发
+        self.moveToThread(self._worker_thread)
+        logger.info("PollingManager initialized (background thread mode)")
     
     # ==================== 任务注册接口 ====================
     
     def register_task(self, task_name, interval, callback):
-        """注册自定义轮询任务
+        """注册自定义轮询任务（线程安全，可由主线程调用）
         
         Args:
             task_name: 任务名称（唯一标识）
             interval: 轮询间隔（秒）
-            callback: 回调函数（无参数）
+            callback: 回调函数（无参数）——在后台线程执行！
         """
-        if task_name not in self._tasks:
-            self._tasks[task_name] = {
-                'interval': interval,
-                'callback': callback,
-                'enabled': True
-            }
-            logger.debug(f"Registered polling task: {task_name} (interval: {interval}s)")
+        with self._lock:
+            if task_name not in self._tasks:
+                self._tasks[task_name] = {
+                    'interval': interval,
+                    'callback': callback,
+                    'enabled': True
+                }
+                logger.debug(f"Registered polling task: {task_name} (interval: {interval}s)")
     
     def unregister_task(self, task_name):
-        """注销轮询任务"""
-        if task_name in self._tasks:
-            del self._tasks[task_name]
-            logger.debug(f"Unregistered polling task: {task_name}")
+        """注销轮询任务（线程安全）"""
+        with self._lock:
+            if task_name in self._tasks:
+                del self._tasks[task_name]
+                logger.debug(f"Unregistered polling task: {task_name}")
     
     def enable_task(self, task_name, enabled=True):
-        """启用/禁用任务"""
-        if task_name in self._tasks:
-            self._tasks[task_name]['enabled'] = enabled
-            logger.debug(f"Task {task_name} {'enabled' if enabled else 'disabled'}")
+        """启用/禁用任务（线程安全）"""
+        with self._lock:
+            if task_name in self._tasks:
+                self._tasks[task_name]['enabled'] = enabled
+                logger.debug(f"Task {task_name} {'enabled' if enabled else 'disabled'}")
 
     # ==================== 清理接口 ====================
 
     def cleanup_node_watchers(self, node_path: str):
-        """移除指定节点的所有监控器"""
-        self._log_watchers = {
-            k: v for k, v in self._log_watchers.items()
-            if k[0] != node_path
-        }
-        self._config_watchers.pop(node_path, None)
-        self._output_watchers.pop(node_path, None)
+        """移除指定节点的所有监控器（线程安全）"""
+        with self._lock:
+            self._log_watchers = {
+                k: v for k, v in self._log_watchers.items()
+                if k[0] != node_path
+            }
+            self._config_watchers.pop(node_path, None)
+            self._output_watchers.pop(node_path, None)
 
     def cleanup_all_watchers(self):
-        """清空所有节点级监控器"""
-        self._log_watchers.clear()
-        self._config_watchers.clear()
-        self._output_watchers.clear()
+        """清空所有节点级监控器（线程安全）"""
+        with self._lock:
+            self._log_watchers.clear()
+            self._config_watchers.clear()
+            self._output_watchers.clear()
         logger.info("所有节点级监控器已清理")
 
     # ==================== 启动/停止 ====================
     
     def start(self, nodes_data=None):
-        """启动轮询管理器"""
-        self._nodes_data = nodes_data
-        self._timer.start()
+        """启动轮询管理器（线程安全，可由主线程调用）
+        
+        启动后台线程 event loop，并在 worker thread 激活定时器。
+        所有文件 IO 都在后台线程执行，不阻塞 UI。
+        """
+        with self._lock:
+            self._nodes_data = nodes_data
+        
+        if not self._worker_thread.isRunning():
+            self._worker_thread.start()
+            logger.info("PollingManager worker thread started")
+        
+        # 【关键】通过信号跨线程调用 _start_timer
+        # 因为 self 现在属于 _worker_thread，必须用 Qt.QueuedConnection
+        # 让 _start_timer 在 worker thread 的 event loop 中执行
+        QTimer.singleShot(0, self._start_timer)
         logger.info("PollingManager started")
     
+    def _start_timer(self):
+        """在 worker thread 内激活定时器（私有，仅供 start() 通过信号调用）"""
+        if not self._timer.isActive():
+            self._timer.start()
+            logger.debug("Polling timer activated in worker thread")
+    
     def stop(self):
-        """停止轮询管理器"""
-        self._timer.stop()
+        """停止轮询管理器（线程安全）"""
+        # 跨线程停止定时器：通过 QTimer.singleShot 让 stop 在 worker thread 内执行
+        QTimer.singleShot(0, self._timer.stop)
         logger.info("PollingManager stopped")
     
     # ==================== 初始化 ====================
@@ -244,13 +294,19 @@ class PollingManager(QObject):
     # ==================== 主轮询逻辑 ====================
     
     def _poll(self):
-        """主轮询回调 - 按 tick 间隔分发任务（interval 单位：tick 数）"""
+        """主轮询回调 - 在 worker thread 执行，通过 _lock 保护共享数据"""
         try:
             self._tick_count += 1
 
-            # 执行所有到期的任务
-            for task_name, task_info in list(self._tasks.items()):
-                if task_info['enabled'] and self._tick_count % task_info['interval'] == 0:
+            # 【关键】在 worker thread 内执行所有任务
+            # 只读快照 _tasks，避免长时间持有锁
+            with self._lock:
+                tasks_snapshot = list(self._tasks.items())
+                tick_count = self._tick_count
+
+            # 执行所有到期的任务（任务回调内部会再次加锁读共享数据）
+            for task_name, task_info in tasks_snapshot:
+                if task_info['enabled'] and tick_count % task_info['interval'] == 0:
                     try:
                         task_info['callback']()
                     except Exception as e:
@@ -262,18 +318,27 @@ class PollingManager(QObject):
     # ==================== 节点级检测任务 ====================
     
     def _poll_node_health(self):
-        """节点进程健康检查"""
-        if self._nodes_data is None:
-            return
+        """节点进程健康检查（worker thread 执行）"""
+        with self._lock:
+            if self._nodes_data is None:
+                return
+            # 快照：避免在 check_running_processes 调用期间被修改
+            nodes_data = self._nodes_data
         
         from ui.core.node_process import check_running_processes
-        changes = check_running_processes(self._nodes_data)
+        changes = check_running_processes(nodes_data)
         for name, code, new_status in changes:
+            # ✅ 通过 Signal 发回主线程，Qt 自动跨线程排队
             self.node_status_changed.emit(name, new_status)
     
     def _poll_node_logs(self):
-        """检查已订阅的节点日志文件"""
-        for (node_path, log_filename), last_mtime in list(self._log_watchers.items()):
+        """检查已订阅的节点日志文件（worker thread 执行）"""
+        with self._lock:
+            # 拷贝一份快照，避免在迭代过程中被主线程修改
+            watchers_snapshot = list(self._log_watchers.items())
+        
+        changed = []
+        for (node_path, log_filename), last_mtime in watchers_snapshot:
             full = os.path.join(node_path, "logs", log_filename)
             try:
                 if not os.path.exists(full):
@@ -282,12 +347,23 @@ class PollingManager(QObject):
             except OSError:
                 continue
             if mtime > last_mtime:
-                self._log_watchers[(node_path, log_filename)] = mtime
+                changed.append(((node_path, log_filename), mtime))
+        
+        # 更新 state + emit signals
+        if changed:
+            with self._lock:
+                for key, new_mtime in changed:
+                    self._log_watchers[key] = new_mtime
+            for (node_path, log_filename), _ in changed:
                 self.log_file_changed.emit(node_path, log_filename)
     
     def _poll_node_config(self):
-        """检查已订阅的节点 config.json"""
-        for node_path, (last_mtime, last_content) in list(self._config_watchers.items()):
+        """检查已订阅的节点 config.json（worker thread 执行）"""
+        with self._lock:
+            watchers_snapshot = list(self._config_watchers.items())
+        
+        changed = []  # [(node_path, new_mtime, new_content, should_notify)]
+        for node_path, (last_mtime, last_content) in watchers_snapshot:
             config_path = os.path.join(node_path, "config.json")
             try:
                 if not os.path.exists(config_path):
@@ -297,17 +373,29 @@ class PollingManager(QObject):
                     continue
                 with open(config_path, 'r', encoding='utf-8') as f:
                     content = f.read()
+                # mtime 变但内容不变（例如 atomic write / git restore）
                 if content == last_content:
-                    self._config_watchers[node_path] = (mtime, content)
+                    changed.append((node_path, mtime, content, False))
                     continue
-                self._config_watchers[node_path] = (mtime, content)
-                self.config_file_changed.emit(node_path)
+                changed.append((node_path, mtime, content, True))
             except OSError:
                 pass
+        
+        if changed:
+            with self._lock:
+                for node_path, mtime, content, _ in changed:
+                    self._config_watchers[node_path] = (mtime, content)
+            for node_path, _, _, should_notify in changed:
+                if should_notify:
+                    self.config_file_changed.emit(node_path)
     
     def _poll_node_output(self):
-        """检查已订阅的节点 output.json"""
-        for node_path, (last_mtime, last_content) in list(self._output_watchers.items()):
+        """检查已订阅的节点 output.json（worker thread 执行）"""
+        with self._lock:
+            watchers_snapshot = list(self._output_watchers.items())
+        
+        changed = []
+        for node_path, (last_mtime, last_content) in watchers_snapshot:
             path = os.path.join(node_path, "output.json")
             try:
                 if not os.path.exists(path):
@@ -318,85 +406,101 @@ class PollingManager(QObject):
                 with open(path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 if content == last_content:
-                    self._output_watchers[node_path] = (mtime, content)
+                    changed.append((node_path, mtime, content, False))
                     continue
-                self._output_watchers[node_path] = (mtime, content)
-                self.output_json_changed.emit(node_path, content)
+                changed.append((node_path, mtime, content, True))
             except OSError:
                 pass
+        
+        if changed:
+            with self._lock:
+                for node_path, mtime, content, _ in changed:
+                    self._output_watchers[node_path] = (mtime, content)
+            for node_path, _, content, should_notify in changed:
+                if should_notify:
+                    self.output_json_changed.emit(node_path, content)
     
     # ==================== 全局级检测任务 ====================
     
     def _poll_global_logs(self):
-        """检查全局日志文件变化"""
+        """检查全局日志文件变化（worker thread 执行）"""
+        with self._lock:
+            watched_snapshot = dict(self._global_watched_files)
+        
+        changed = []
         for log_file in ["bnos.log", "bnos_error.log"]:
             path = os.path.join(self._logs_dir, log_file)
-            if path not in self._global_watched_files:
+            if path not in watched_snapshot:
                 continue
-            
-            last_mtime, last_content = self._global_watched_files[path]
-            
+            last_mtime, last_content = watched_snapshot[path]
             try:
                 if not os.path.exists(path):
                     continue
-                
                 mtime = os.path.getmtime(path)
                 if mtime <= last_mtime:
                     continue
-                
                 with open(path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                
                 if content == last_content:
-                    self._global_watched_files[path] = (mtime, content)
+                    changed.append((path, mtime, content, False))
                     continue
-                
-                self._update_log_cache(log_file, content)
-                self._global_watched_files[path] = (mtime, content)
-                self.global_log_changed.emit(log_file, content)
-                
+                changed.append((path, mtime, content, True))
             except OSError as e:
                 logger.warning(f"Error reading global log {log_file}: {e}")
+        
+        if changed:
+            with self._lock:
+                for path, mtime, content, _ in changed:
+                    self._global_watched_files[path] = (mtime, content)
+            for path, _, content, should_notify in changed:
+                if should_notify:
+                    log_file = os.path.basename(path)
+                    self._update_log_cache(log_file, content)
+                    self.global_log_changed.emit(log_file, content)
     
     def _poll_global_config(self):
-        """检查全局配置文件变化"""
+        """检查全局配置文件变化（worker thread 执行）"""
+        with self._lock:
+            watched_snapshot = dict(self._global_watched_files)
+        
         config_files = [
             os.path.join(self._base_dir, "app_config.json"),
             os.path.join(self._base_dir, "color_settings.json")
         ]
-        
+        changed = []
         for config_file in config_files:
-            if config_file not in self._global_watched_files:
+            if config_file not in watched_snapshot:
                 continue
-            
-            last_mtime, last_content = self._global_watched_files[config_file]
-            
+            last_mtime, last_content = watched_snapshot[config_file]
             try:
                 if not os.path.exists(config_file):
                     continue
-                
                 mtime = os.path.getmtime(config_file)
                 if mtime <= last_mtime:
                     continue
-                
                 with open(config_file, 'r', encoding='utf-8') as f:
                     content = f.read()
-                
                 if content == last_content:
-                    self._global_watched_files[config_file] = (mtime, content)
+                    changed.append((config_file, mtime, content, False))
                     continue
-                
-                self._global_watched_files[config_file] = (mtime, content)
-                self.global_config_changed.emit(os.path.basename(config_file))
-                
+                changed.append((config_file, mtime, content, True))
             except OSError as e:
                 logger.warning(f"Error reading config {config_file}: {e}")
+        
+        if changed:
+            with self._lock:
+                for path, mtime, content, _ in changed:
+                    self._global_watched_files[path] = (mtime, content)
+            for path, _, _, should_notify in changed:
+                if should_notify:
+                    self.global_config_changed.emit(os.path.basename(path))
     
     def _poll_app_state(self):
-        """检查应用状态"""
+        """检查应用状态（worker thread 执行）"""
         new_state = self._detect_app_state()
         if new_state != self._app_state:
-            self._app_state = new_state
+            with self._lock:
+                self._app_state = new_state
             self.app_state_changed.emit(new_state)
     
     def _detect_app_state(self):
@@ -406,90 +510,98 @@ class PollingManager(QObject):
     # ==================== 日志缓存管理 ====================
     
     def _update_log_cache(self, log_file, content):
-        """更新日志缓存"""
+        """更新日志缓存（worker thread 或主线程均可调用）"""
         lines = content.strip().split('\n')
         max_lines = 1000
         
         if len(lines) > max_lines:
             lines = lines[-max_lines:]
         
-        self._log_cache[log_file] = lines
+        with self._lock:
+            self._log_cache[log_file] = lines
     
-    # ==================== 节点级订阅接口 ====================
+    # ==================== 节点级订阅接口（主线程调用，线程安全）====================
     
     def watch_log(self, node_path: str, log_filename: str):
         """订阅节点日志文件变化"""
         key = (node_path, log_filename)
-        if key not in self._log_watchers:
+        try:
             full = os.path.join(node_path, "logs", log_filename)
-            try:
-                mtime = os.path.getmtime(full) if os.path.exists(full) else 0
-            except OSError:
-                mtime = 0
-            self._log_watchers[key] = mtime
+            mtime = os.path.getmtime(full) if os.path.exists(full) else 0
+        except OSError:
+            mtime = 0
+        with self._lock:
+            if key not in self._log_watchers:
+                self._log_watchers[key] = mtime
     
     def unwatch_log(self, node_path: str, log_filename: str):
         """取消订阅节点日志文件"""
         key = (node_path, log_filename)
-        self._log_watchers.pop(key, None)
+        with self._lock:
+            self._log_watchers.pop(key, None)
     
     def watch_config(self, node_path: str):
         """订阅节点 config.json"""
-        if node_path not in self._config_watchers:
-            config_path = os.path.join(node_path, "config.json")
-            try:
-                if os.path.exists(config_path):
-                    mtime = os.path.getmtime(config_path)
-                    with open(config_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                else:
-                    mtime = 0
-                    content = ""
-            except OSError:
+        config_path = os.path.join(node_path, "config.json")
+        try:
+            if os.path.exists(config_path):
+                mtime = os.path.getmtime(config_path)
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            else:
                 mtime = 0
                 content = ""
-            self._config_watchers[node_path] = (mtime, content)
+        except OSError:
+            mtime = 0
+            content = ""
+        with self._lock:
+            if node_path not in self._config_watchers:
+                self._config_watchers[node_path] = (mtime, content)
     
     def unwatch_config(self, node_path: str):
         """取消订阅节点 config.json"""
-        self._config_watchers.pop(node_path, None)
+        with self._lock:
+            self._config_watchers.pop(node_path, None)
     
     def watch_output_json(self, node_path: str):
         """订阅节点 output.json"""
-        if node_path not in self._output_watchers:
-            path = os.path.join(node_path, "output.json")
-            try:
-                if os.path.exists(path):
-                    mtime = os.path.getmtime(path)
-                    with open(path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                else:
-                    mtime = 0
-                    content = ""
-            except OSError:
+        path = os.path.join(node_path, "output.json")
+        try:
+            if os.path.exists(path):
+                mtime = os.path.getmtime(path)
+                with open(path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            else:
                 mtime = 0
                 content = ""
-            self._output_watchers[node_path] = (mtime, content)
+        except OSError:
+            mtime = 0
+            content = ""
+        with self._lock:
+            if node_path not in self._output_watchers:
+                self._output_watchers[node_path] = (mtime, content)
     
     def unwatch_output_json(self, node_path: str):
         """取消订阅节点 output.json"""
-        self._output_watchers.pop(node_path, None)
+        with self._lock:
+            self._output_watchers.pop(node_path, None)
     
-    # ==================== 公开查询接口 ====================
+    # ==================== 公开查询接口（主线程调用，线程安全）====================
     
     def get_recent_logs(self, log_file=None, count=50):
         """获取最近的日志记录"""
-        if log_file:
-            if log_file in self._log_cache:
-                lines = self._log_cache[log_file][-count:]
-                return lines[::-1]
-            return []
-        
-        all_lines = []
-        for file_name, lines in self._log_cache.items():
-            for line in lines[-count // 2:]:
-                all_lines.append((file_name, line))
-        
+        with self._lock:
+            if log_file:
+                if log_file in self._log_cache:
+                    lines = self._log_cache[log_file][-count:]
+                    return lines[::-1]
+                return []
+            
+            all_lines = []
+            for file_name, lines in self._log_cache.items():
+                for line in lines[-count // 2:]:
+                    all_lines.append((file_name, line))
+            
         all_lines.sort(key=lambda x: x[1], reverse=True)
         return [f"[{name}] {line}" for name, line in all_lines[:count]]
     
@@ -528,21 +640,24 @@ class PollingManager(QObject):
     
     def get_app_state(self):
         """获取当前应用状态"""
-        return {
-            "state": self._app_state,
-            "timestamp": datetime.now().isoformat(),
-            "watched_files_count": len(self._global_watched_files) + len(self._log_watchers),
-            "log_cache_size": sum(len(lines) for lines in self._log_cache.values()),
-            "registered_tasks": list(self._tasks.keys())
-        }
+        with self._lock:
+            return {
+                "state": self._app_state,
+                "timestamp": datetime.now().isoformat(),
+                "watched_files_count": len(self._global_watched_files) + len(self._log_watchers),
+                "log_cache_size": sum(len(lines) for lines in self._log_cache.values()),
+                "registered_tasks": list(self._tasks.keys())
+            }
     
     def get_watched_files(self):
         """获取所有被监控的文件列表"""
-        return list(self._global_watched_files.keys())
+        with self._lock:
+            return list(self._global_watched_files.keys())
     
     def get_registered_tasks(self):
         """获取所有已注册的轮询任务"""
-        return {name: info['interval'] for name, info in self._tasks.items()}
+        with self._lock:
+            return {name: info['interval'] for name, info in self._tasks.items()}
 
 
 # 全局便捷实例

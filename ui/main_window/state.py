@@ -220,50 +220,104 @@ class MainWindowStateMixin:
     
     def _auto_open_project(self, project_dir):
         """内部方法：自动打开指定项目
-        
-        这个方法类似于 project_open，但不需要用户交互
+
+        使用与 project_open 相同的异步模式：先在后台扫描节点，
+        扫描完成后再创建画布并恢复布局。确保 nodes_data 填充后
+        才调用 add_canvas_dock。
         """
         # 检查项目是否已经打开
         if hasattr(self, '_canvas_host') and self._canvas_host:
             if self._canvas_host.is_project_open(project_dir):
                 logger.info("项目已经打开，无需重复打开: %s", project_dir)
                 return
-        
+
         # 验证是否为有效项目
         nodes_dir = os.path.join(project_dir, "nodes")
         has_nodes = os.path.isdir(nodes_dir)
         has_layout = os.path.isfile(os.path.join(project_dir, "canvas_layout.json"))
-        
+
         if not has_nodes and not has_layout:
             logger.warning("不是有效项目目录: %s", project_dir)
             return
-        
+
         # 确保 nodes/ 存在
         if not has_nodes:
             os.makedirs(nodes_dir, exist_ok=True)
-        
+
         # 加载项目数据
         project_name = os.path.basename(project_dir)
         self.current_project_path = project_dir
         self.nodes_data.clear()
         self.connections.clear()
-        
-        # 同步加载项目
-        from ui.core.project_manager import project_refresh
-        project_refresh(self, async_mode=False)
-        
-        # 创建画布（_create_canvas_dock 内部已调用一次 load_layout，无需再调）
-        if hasattr(self, '_canvas_host'):
-            self._canvas_host.add_canvas_dock(project_name, project_dir)
-        
-        # ===== 关键：恢复 CanvasHost 的状态（包括分割条位置） =====
-        from ui.core.window_state_manager import restore_canvas_host_state
-        from PySide6.QtCore import QTimer
-        # 给一点时间让画布 Dock 完全创建
-        QTimer.singleShot(200, lambda: restore_canvas_host_state(self))
-        
-        # 保存项目到配置
-        self.app_config.set("last_project", self.current_project_path)
-        self.app_config.save()
-        
-        self.show_toast(f"已自动打开项目: {project_name}", "success")
+
+        logger.info("[auto_open] 启动项目扫描: %s", project_dir)
+
+        # —— 在主线程先重置状态 ——
+        # 清理之前的画布 dock（如果有）
+        if hasattr(self, '_canvas_host') and self._canvas_host:
+            self._canvas_host.remove_canvas_dock_by_path(project_dir)
+
+        # —— Worker：在后台线程做磁盘扫描 + JSON 解析 ——
+        from ui.core.project_load_worker import ProjectLoadWorker
+        worker = ProjectLoadWorker(project_dir, parent=self)
+
+        def _on_progress(pct, msg):
+            if pct in (30, 60, 100):
+                logger.info("[auto_open] 扫描进度: %d%% - %s", pct, msg)
+
+        def _on_finished(nodes_data, mounted_nodes, running_nodes):
+            """Worker 完成后回到主线程：先填充 nodes_data，再创建画布"""
+            logger.info("[auto_open] Worker 完成, 发现 %d 个节点", len(nodes_data))
+
+            # 1) 先填充 nodes_data（纯字典赋值，必须在创建画布之前）
+            self.nodes_data.clear()
+            for name, info in nodes_data.items():
+                self.nodes_data[name] = info
+
+            # 挂载节点锁定组 UI
+            for m in mounted_nodes:
+                m_mount_root = m['mount_root']
+                if self.node_list_panel:
+                    gm = self.node_list_panel.group_manager
+                    if not gm.groups.get(m_mount_root):
+                        gm.create_group(m_mount_root, "#E67E22")
+                    gm.add_nodes_to_group(m_mount_root, [m['name']])
+                    gm.lock_group(m_mount_root)
+
+            # 2) ✅ 关键：确保 nodes_data 填充后再创建画布
+            #    add_canvas_dock → _create_canvas_dock → canvas.load_layout
+            #    load_layout 内部会读取 self.parent_window.nodes_data
+            if hasattr(self, '_canvas_host'):
+                logger.info("[auto_open] nodes_data 已填充 (%d 个节点)，开始创建画布",
+                            len(self.nodes_data))
+                self._canvas_host.add_canvas_dock(project_name, project_dir)
+
+                # 3) 恢复 CanvasHost 状态（分割条位置等）
+                from ui.core.window_state_manager import restore_canvas_host_state
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(200, lambda: restore_canvas_host_state(self))
+
+                # 4) 统一 UI 更新（面板、运行状态同步等）
+                from ui.core.project_manager import _apply_after_refresh
+                _apply_after_refresh(self, running_nodes)
+
+            # 5) 保存项目到配置
+            self.app_config.set("last_project", self.current_project_path)
+            self.app_config.save()
+
+            # 6) 同步节点列表面板显示
+            if hasattr(self, 'node_list_panel') and self.node_list_panel:
+                # NodeListDockPanel 使用 update_node_list(nodes_data) 刷新显示
+                if hasattr(self.node_list_panel, 'update_node_list'):
+                    self.node_list_panel.update_node_list(self.nodes_data)
+
+            self.show_toast(f"已自动打开项目: {project_name}", "success")
+
+        def _on_failed(err_msg):
+            logger.error("[auto_open] 项目扫描失败: %s", err_msg)
+            self.show_toast(f"打开项目失败: {err_msg}", "error")
+
+        worker.progress.connect(_on_progress)
+        worker.finished.connect(_on_finished)
+        worker.failed.connect(_on_failed)
+        worker.start()

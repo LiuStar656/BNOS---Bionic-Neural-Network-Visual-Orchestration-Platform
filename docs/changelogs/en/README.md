@@ -6,6 +6,45 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-17】V2.0.16 - Canvas Layout Loading Fix, Auto-Open Project Async Refactoring & Node Add/Remove Persistence</strong></summary>
+
+[View Full Update](./2026-06-17/README.md)
+
+**Main Updates:**
+- Canvas layout loading fix: `load_layout` wrapped in `try/finally` to guarantee `setUpdatesEnabled(True)`; added `scene.update()` + `viewport.update()` force refresh; canvas nodes only sourced from `canvas_layout.json`
+- Auto-open project async refactoring: `_auto_open_project` switched to `ProjectLoadWorker` Signal pattern, ensuring `nodes_data` populated before canvas creation; added `CanvasHost.remove_canvas_dock_by_path()` to prevent dock residue
+- Node add/remove auto-save trigger: `add_node_to_canvas` / `remove_node_from_canvas` now trigger `_save_timer.start(500)` debounced save; fixed subprocess mode parameter mismatch
+- Null reference fixes: `_terminal_dock` protected with `hasattr` before initialization; `NodeListDockPanel` now has convenient `refresh()` method
+
+</details>
+
+<details>
+<summary><strong>【2026-06-16】V2.0.15 - Performance Optimization Plan</strong></summary>
+
+[View Full Update](./2026-06-16/README.md)
+
+**Main Updates:**
+- Rendering layer optimization: SmartViewportUpdate, DeviceCoordinateCache, replaced full scene refresh
+- IO async: New `ProjectLoadWorker` background thread for disk scanning and JSON parsing
+- Algorithm layer optimization: `load_layout` traversal merge, skip re-scanning disk on project switch
+- Background noise reduction: PollingManager frequency lowering, reduce idle CPU usage
+
+</details>
+
+<details>
+<summary><strong>【2026-06-15】V2.0.14 - Node Style Unification, Bug Fixes & Portable Virtual Env for Python Nodes</strong></summary>
+
+[View Full Update](./2026-06-15/README.md)
+
+**Main Updates:**
+- Node style unification: deleted rectangular/dot styles, unified system to panel mode; anchor coordinate fixed to left/right edge midpoints
+- dialog_utils pick Functions UnboundLocalError fix: closure definitions moved forward
+- Async project open & canvas layout fix: `project_open` changed to QTimer.singleShot two-phase async loading
+- Portable virtual environment for Python nodes: `--copies` venv creation, start.json de-absolute-pathed, `_repair_portable_venv` auto-repairs on import
+
+</details>
+
+<details>
 <summary><strong>【2026-06-13】V2.0.13 - Logging System Redesign & History Rollback</strong></summary>
 
 [View Full Update](./2026-06-13/README.md)

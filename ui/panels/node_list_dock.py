@@ -170,6 +170,11 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
         else:
             self.path_label.setText(t("k_node_no_project"))
     
+    def refresh(self):
+        """便捷刷新方法：从 parent_window.nodes_data 重新加载节点列表"""
+        if self.parent_window and hasattr(self.parent_window, 'nodes_data'):
+            self.update_node_list(self.parent_window.nodes_data)
+
     # ===== 以下方法继承自 NodeListOperationsMixin =====
     # _setup_node_item, update_node_status, _on_node_status_changed,
     # get_selected_nodes, get_selected_groups, on_node_double_clicked,

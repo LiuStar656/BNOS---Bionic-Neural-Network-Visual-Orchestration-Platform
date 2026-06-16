@@ -8,6 +8,14 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-06-17](./2026-06-17/)
+- **Canvas Layout Loading Fix**: `load_layout` now wrapped in `try/finally` to guarantee `setUpdatesEnabled(True)`; added `scene.update()` + `viewport.update()` force refresh; canvas nodes only sourced from `canvas_layout.json`
+- **Auto-Open Project Async Refactoring**: `_auto_open_project` switched to `ProjectLoadWorker` Signal pattern ensuring `nodes_data` populated before canvas creation; added `CanvasHost.remove_canvas_dock_by_path()` to prevent dock residue
+- **Node Add/Remove Auto-Save**: `add_node_to_canvas` / `remove_node_from_canvas` now trigger `_save_timer.start(500)` debounced save; fixed subprocess mode parameter mismatch
+
+### [2026-06-16](./2026-06-16/)
+- **Performance Optimization Plan**: Rendering layer (SmartViewportUpdate, DeviceCoordinateCache), IO async (ProjectLoadWorker), algorithm layer (load_layout merge traversal), background noise reduction (PollingManager frequency lowering) four-phase optimization plan
+
 ### [2026-06-15](./2026-06-15/)
 - **Node Style Unification**: Deleted rectangular/dot styles, unified system to panel mode, DetailedNodeStyle now inherits NodeStyle base class directly
 - **Anchor Coordinate Fixes**: Input/output anchor fallback positions changed to left/right edge midpoints, fixed setPos/_find_nearest double-offset bug
@@ -107,4 +115,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-06-15
+**Last Updated**: 2026-06-17

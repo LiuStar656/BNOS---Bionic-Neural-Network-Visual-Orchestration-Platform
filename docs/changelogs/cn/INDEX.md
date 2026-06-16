@@ -8,6 +8,15 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-06-17](./2026-06-17/)
+- **画布布局加载修复**：`load_layout` 增加 `try/finally` 确保 `setUpdatesEnabled(True)` 被调用；新增 `scene.update()` + `viewport.update()` 强制刷新；画布节点只来源于 `canvas_layout.json`
+- **自动打开项目异步化重构**：`_auto_open_project` 改为 `ProjectLoadWorker` Signal 模式，确保 `nodes_data` 先填充再创建画布；新增 `CanvasHost.remove_canvas_dock_by_path()` 防止 dock 残留
+- **节点增删自动保存**：`add_node_to_canvas` / `remove_node_from_canvas` 后触发 `_save_timer.start(500)` 防抖保存；修复子进程模式参数不匹配
+- **空引用修复**：`_terminal_dock` 未初始化 `hasattr` 保护；`NodeListDockPanel` 新增 `refresh()` 便捷方法
+
+### [2026-06-16](./2026-06-16/)
+- **卡顿问题迭代优化方案**：渲染层（SmartViewportUpdate、DeviceCoordinateCache）、IO 异步化（ProjectLoadWorker）、算法层（load_layout 合并遍历）、后台降噪（PollingManager 降频）四轮优化计划
+
 ### [2026-06-15](./2026-06-15/)
 - **节点样式统一化**：删除矩形/圆点样式，全系统统一为面板模式，DetailedNodeStyle 直接继承 NodeStyle 基类
 - **锚点坐标修复**：输入/输出锚点回落位置改为两侧边线中点，修正 setPos/_find_nearest 双倍偏移 bug
@@ -107,4 +116,4 @@
 
 ---
 
-**最后更新**：2026-06-15
+**最后更新**：2026-06-17

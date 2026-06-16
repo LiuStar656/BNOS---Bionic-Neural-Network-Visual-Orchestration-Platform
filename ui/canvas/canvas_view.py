@@ -633,26 +633,34 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
             return
         super().keyReleaseEvent(event)
 
-    def add_node_to_canvas(self, node_name):
-        """添加节点到画布"""
+    def add_node_to_canvas(self, node_name, node_info=None):
+        """添加节点到画布
+
+        Args:
+            node_name: 节点名称
+            node_info: 可选的节点信息字典（子进程模式下直接传入）
+                       包含 'path', 'config', 'status' 等字段
+        """
         if node_name in self.nodes:
             themed_message(self, t("k_title_info"), t("k_canvas_node_exists"), "info")
             return
-        
-        # 获取节点信息
-        if self.parent_window and node_name in self.parent_window.nodes_data:
-            node_info = self.parent_window.nodes_data[node_name]
-            language = self.detect_language(node_info['path'])
+
+        # 获取节点信息（优先使用传入的 node_info，否则从 parent_window 读取）
+        if node_info:
+            language = self.detect_language(node_info.get('path', ''))
             status = node_info.get('status', 'stopped')
+        elif self.parent_window and node_name in self.parent_window.nodes_data:
+            parent_info = self.parent_window.nodes_data[node_name]
+            language = self.detect_language(parent_info['path'])
+            status = parent_info.get('status', 'stopped')
         else:
             language = "Python"
             status = "stopped"
-        
+
         # 计算新节点位置（避免重叠）
         if self.nodes:
             # 找到最右下角的节点位置
             max_x = max(node.pos().x() for node in self.nodes.values())
-
             max_y = max(node.pos().y() for node in self.nodes.values())
             x = max_x + 50
             y = max_y + 50
@@ -660,37 +668,49 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
             # 第一个节点放在中心附近
             x = 200
             y = 150
-        
+
         # 创建节点
         node = NodeItem(node_name, language, status, x, y, 140, 80, self)
         node.on_expand_requested = self.on_node_expand_requested  # 连接展开回调
         self.scene.addItem(node)
         self.nodes[node_name] = node  # 添加到nodes字典
-        
+
         logger.info("节点 %s 已添加到画布 (位置: %d, %d)", node_name, x, y)
 
         # 自动录制命令（重放期间跳过）
         self._record_create_node(node_name)
-        
+
+        # ✅ 触发自动保存布局（包含节点位置）
+        if self.parent_window and self.parent_window.current_project_path:
+            self._save_timer.stop()
+            self._save_timer.start(500)
+
     def remove_node_from_canvas(self, node_name):
         """从画布移除节点"""
         if node_name not in self.nodes:
             return
-        
+
         node = self.nodes[node_name]
-        
+
         # 删除相关连线
         edges_to_remove = []
         for edge in self.edges:
             if edge.start_node == node or edge.end_node == node:
                 edges_to_remove.append(edge)
-        
+
         for edge in edges_to_remove:
             self.remove_edge(edge)
-        
+
         # 移除节点
         self.scene.removeItem(node)
         del self.nodes[node_name]
+
+        logger.info("节点 %s 已从画布移除", node_name)
+
+        # ✅ 触发自动保存布局
+        if self.parent_window and self.parent_window.current_project_path:
+            self._save_timer.stop()
+            self._save_timer.start(500)
         
     # contextMenuEvent 已移至 CanvasMenusMixin（canvas_menus.py）
 

@@ -97,15 +97,17 @@ class SplashScreen(QWidget):
             )
 
     def append_log(self, text: str):
+        # 注意：QTextEdit.append 会自动触发 repaint，无需手动 processEvents
+        # processEvents 可能导致信号重入递归，已移除
         self.log_edit.append(text)
         sb = self.log_edit.verticalScrollBar()
         sb.setValue(sb.maximum())
-        QApplication.instance().processEvents()
 
     def set_progress(self, value: int, text: str = ""):
+        # QProgressBar.setValue / QLabel.setText 会自动触发 repaint
+        # processEvents 已移除，避免主线程信号重入
         self.progress.setValue(value)
         self._hint.setText(text)
-        QApplication.instance().processEvents()
 
     def close_splash(self):
         self.close()

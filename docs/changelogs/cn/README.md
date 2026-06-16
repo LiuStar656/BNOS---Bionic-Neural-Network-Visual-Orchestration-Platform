@@ -6,6 +6,45 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-17】V2.0.16 - 画布布局加载修复、自动打开项目异步化与节点增删持久化</strong></summary>
+
+[查看完整更新](./2026-06-17/README.md)
+
+**主要更新：**
+- 画布布局加载修复：`load_layout` 增加 `try/finally` 确保 `setUpdatesEnabled(True)` 被调用；新增 `scene.update()` + `viewport.update()` 强制刷新；画布节点只来源于 `canvas_layout.json`
+- 自动打开项目异步化重构：`_auto_open_project` 改为 `ProjectLoadWorker` Signal 模式，确保 `nodes_data` 先填充再创建画布；新增 `CanvasHost.remove_canvas_dock_by_path()` 防止 dock 残留
+- 节点增删自动保存触发：`add_node_to_canvas` / `remove_node_from_canvas` 后触发 `_save_timer.start(500)` 防抖保存；修复子进程模式参数不匹配
+- 空引用修复：`_terminal_dock` 未初始化 `hasattr` 保护；`NodeListDockPanel` 新增 `refresh()` 便捷方法
+
+</details>
+
+<details>
+<summary><strong>【2026-06-16】V2.0.15 - 卡顿问题迭代优化方案</strong></summary>
+
+[查看完整更新](./2026-06-16/README.md)
+
+**主要更新：**
+- 渲染层优化：SmartViewportUpdate、DeviceCoordinateCache，替换全场景刷新
+- IO 异步化：新增 `ProjectLoadWorker` 后台线程扫描与 JSON 解析
+- 算法层优化：`load_layout` 合并遍历、切换项目跳过重新扫描磁盘
+- 后台降噪：PollingManager 降频，减少空闲 CPU 占用
+
+</details>
+
+<details>
+<summary><strong>【2026-06-15】V2.0.14 - 节点样式统一化、Bug 修复与 Python 节点虚拟环境可迁移化</strong></summary>
+
+[查看完整更新](./2026-06-15/README.md)
+
+**主要更新：**
+- 节点样式统一化：删除矩形/圆点样式，全系统统一为面板模式；锚点坐标修复（两侧边线中点）
+- dialog_utils pick 函数 UnboundLocalError 修复：闭包定义前移
+- 项目打开异步化与画布布局修复：`project_open` 改为 QTimer.singleShot 两阶段异步加载
+- Python 节点虚拟环境可迁移化：`--copies` 创建 venv，start.json 去绝对路径，导入时 `_repair_portable_venv` 自动修复
+
+</details>
+
+<details>
 <summary><strong>【2026-06-13】V2.0.13 - 日志系统架构重设计 & 历史回滚功能</strong></summary>
 
 [查看完整更新](./2026-06-13/README.md)

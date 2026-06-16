@@ -171,11 +171,26 @@ class CanvasHost(QMainWindow):
         logger.info("CanvasHost: 已初始化空白缓冲层")
     
     def _remove_blank_placeholder(self):
-        """移除空白缓冲层 - 在创建第一个画布时调用"""
+        """移除空白缓冲层 - 在创建第一个画布时调用
+        
+        关键修复：必须设置一个透明占位控件作为中央控件，否则 Qt 的 dock widget
+        停靠系统无法正确显示画布（因为 dock widget 需要围绕中央控件停靠）。
+        首次打开项目时（blank_placeholder 仍存在）才会走这个路径；之后 canvas dock
+        已存在，中央控件也已设置，不会再触发这里。
+        """
         if self._blank_placeholder and self._blank_placeholder.isVisible():
             self.setCentralWidget(None)
             self._blank_placeholder.deleteLater()
             self._blank_placeholder = None
+            
+            # ✅ 创建透明中央占位控件（必须有中央控件，dock widget 才能正确停靠）
+            # 使用一个空的 QWidget，无布局，无内容，不占用实际显示空间，仅为了让
+            # Qt 的 dock 系统正确工作
+            central_placeholder = QWidget(self)
+            central_placeholder.setStyleSheet("background: transparent;")
+            central_placeholder.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, False)
+            central_placeholder.setObjectName("canvas_host_central_placeholder")
+            self.setCentralWidget(central_placeholder)
             
             # 启用Dock停靠功能（PS布局要求）
             self.setTabPosition(Qt.DockWidgetArea.AllDockWidgetAreas, QTabWidget.TabPosition.North)
@@ -192,52 +207,66 @@ class CanvasHost(QMainWindow):
         if self._blank_placeholder:
             self._remove_blank_placeholder()
         
-        # 2. 实例化原生NodeCanvas（完全不修改内部代码）
+        # 2. 实例化 NodeCanvas
         canvas = NodeCanvas(self)
         canvas.parent_window = self._parent_window
-        
+
+        # ===== 诊断: 检查 parent_window.nodes_data 是否有数据 =====
+        pw_nodes_data_count = 0
+        if self._parent_window is not None and hasattr(self._parent_window, 'nodes_data'):
+            pw_nodes_data_count = len(self._parent_window.nodes_data)
+        logger.info(
+            "[CanvasHost] 创建画布前检查: parent_window=%s, nodes_data=%d个节点, project_path=%s",
+            "OK" if self._parent_window is not None else "NONE",
+            pw_nodes_data_count,
+            project_path
+        )
+
         # 初始化画布独立数据
         canvas_data = {
-            'nodes_data': {},  # {node_name: {config, path, process, status}}
-            'connections': [],  # [(source_node, target_node)]
+            'nodes_data': {},
+            'connections': [],
             'project_path': project_path
         }
-        
+
         # 如果有项目路径，加载布局
         if project_path:
-            # 此时parent_window.nodes_data应该已经被project_refresh填充好了
+            logger.info("[CanvasHost] 调用 canvas.load_layout(%s)", project_path)
             canvas.load_layout(project_path)
-        
-        # 3. 用BNOSDock封装画布
+            logger.info("[CanvasHost] load_layout完成，画布上有 %d 个节点", len(canvas.nodes))
+
+        # 3. 用 BNOSDock 封装画布
         dock_name = name if name else f"{t('k_canvas')} {len(self._canvas_docks) + 1}"
         canvas_dock = BnosDock(dock_name, self)
         canvas_dock.set_content_widget(canvas)
-        
+
         # 4. 设置画布Dock特性
-        # - 可关闭：允许关闭画布
-        # - 可移动：可在CanvasHost内部拖动（但仅限顶部区域）
-        # - 可浮动：可脱离成为独立顶级窗口
-        # - 禁用垂直标题栏：强制标题栏在顶部
         canvas_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetClosable |
             QDockWidget.DockWidgetFeature.DockWidgetMovable |
             QDockWidget.DockWidgetFeature.DockWidgetFloatable
-            # 不包含 DockWidgetVerticalTitleBar，强制标题栏在顶部
         )
-        
-        # 5. 关键设置：只允许停靠在顶部区域，禁止停靠到左右侧
-        # 这样Qt会自动将多个画布Dock合并为顶部标签页
+
+        # 5. 只允许停靠在顶部区域
         canvas_dock.setAllowedAreas(Qt.DockWidgetArea.TopDockWidgetArea)
-        
-        # 6. 将画布Dock添加到CanvasHost的顶部区域
-        # 如果已有画布Dock，则与之形成标签页；否则直接添加
+
+        # 6. 添加到 CanvasHost
         if self._canvas_docks:
-            # 与第一个画布Dock形成标签页
             first_dock = self._canvas_docks[0]
             self.tabifyDockWidget(first_dock, canvas_dock)
+            logger.info("[CanvasHost] 画布已合并到标签页")
         else:
-            # 首个画布Dock直接添加
+            # 首个画布Dock — addDockWidget 不自动激活 tab
             self.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea, canvas_dock)
+            logger.info("[CanvasHost] 首个画布已停靠到顶部")
+
+        # ✅ 强制显示（解决首次打开项目时画布不显示的问题）
+        canvas_dock.show()
+        canvas_dock.raise_()
+        canvas.show()
+        canvas.raise_()
+        canvas.setFocus()
+        logger.info("[CanvasHost] 画布Dock已强制显示")
         
         # 7. 添加到画布Dock列表
         self._canvas_docks.append(canvas_dock)
@@ -260,25 +289,10 @@ class CanvasHost(QMainWindow):
         logger.info(f"CanvasHost: 画布Dock '{dock_name}' 已创建（顶部停靠）")
         return canvas_dock, canvas
     
-    def _load_project_data(self, canvas, project_path, canvas_data):
-        """从项目路径加载节点数据"""
-        if not project_path:
-            return
-            
-        nodes_dir = os.path.join(project_path, "nodes")
-        if os.path.exists(nodes_dir):
-            # 扫描并加载节点信息
-            for filename in os.listdir(nodes_dir):
-                if filename.endswith('.json'):
-                    node_file = os.path.join(nodes_dir, filename)
-                    try:
-                        with open(node_file, 'r', encoding='utf-8') as f:
-                            node_info = json.load(f)
-                            node_name = os.path.splitext(filename)[0]
-                            canvas_data['nodes_data'][node_name] = node_info
-                    except Exception as e:
-                        logger.error(f"加载节点文件失败 {node_file}: {e}")
-    
+    # 说明：_load_project_data 已移除 — 该函数从未被调用，且节点扫描已由
+    # ProjectLoadWorker 在后台线程完成，其结果通过 parent_window.nodes_data
+    # 传递给 canvas.load_layout 使用。
+
     def get_canvas_data(self, canvas):
         """获取指定画布的数据"""
         return self._canvas_data_map.get(canvas, {'nodes_data': {}, 'connections': [], 'project_path': None})
@@ -443,21 +457,57 @@ class CanvasHost(QMainWindow):
         """检查项目是否已经打开"""
         if not project_path:
             return False
-        
+
         # 标准化路径以确保比较准确
         normalized_path = os.path.normpath(os.path.abspath(project_path))
-        
+
         for canvas in self.get_all_canvases():
             # 检查画布数据中的项目路径
             canvas_data = self.get_canvas_data(canvas)
             canvas_project_path = canvas_data.get('project_path')
-            
+
             if canvas_project_path:
                 normalized_canvas_path = os.path.normpath(os.path.abspath(canvas_project_path))
                 if normalized_path == normalized_canvas_path:
                     return True
-        
+
         return False
+
+    def remove_canvas_dock_by_path(self, project_path):
+        """根据项目路径移除对应画布 dock"""
+        if not project_path:
+            return
+
+        normalized_path = os.path.normpath(os.path.abspath(project_path))
+        docks_to_remove = []
+
+        for dock in self._canvas_docks:
+            content = dock.get_content_widget()
+            if isinstance(content, NodeCanvas):
+                canvas_data = self.get_canvas_data(content)
+                canvas_project_path = canvas_data.get('project_path')
+                if canvas_project_path:
+                    if os.path.normpath(os.path.abspath(canvas_project_path)) == normalized_path:
+                        docks_to_remove.append(dock)
+
+        for dock in docks_to_remove:
+            try:
+                self.removeDockWidget(dock)
+                dock.setParent(None)
+                dock.deleteLater()
+                if dock in self._canvas_docks:
+                    self._canvas_docks.remove(dock)
+                # 清理 canvas 数据映射
+                for key in list(self._canvas_data_map.keys()):
+                    try:
+                        if key == dock or (hasattr(dock, 'get_content_widget') and
+                                           key == dock.get_content_widget()):
+                            del self._canvas_data_map[key]
+                    except Exception:
+                        pass
+                logger.info("[CanvasHost] 已移除画布 dock: %s", project_path)
+            except Exception as e:
+                logger.warning("[CanvasHost] 移除画布 dock 失败: %s", e)
     
     def get_open_projects(self):
         """获取所有已打开的项目路径"""
@@ -580,6 +630,9 @@ class CanvasHost(QMainWindow):
     
     def _update_terminal_on_canvas_change(self, canvas):
         """画布改变时更新终端"""
+        # 检查终端是否已初始化（在第一个画布创建时才初始化）
+        if not hasattr(self, '_terminal_dock') or self._terminal_dock is None:
+            return
         if hasattr(self._terminal_dock, 'sync_to_canvas'):
             self._terminal_dock.sync_to_canvas()
     
