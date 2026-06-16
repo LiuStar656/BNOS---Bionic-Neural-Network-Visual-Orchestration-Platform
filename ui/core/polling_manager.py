@@ -233,6 +233,13 @@ class PollingManager(QObject):
         """停止轮询管理器（线程安全）"""
         # 跨线程停止定时器：通过 QTimer.singleShot 让 stop 在 worker thread 内执行
         QTimer.singleShot(0, self._timer.stop)
+        # 终止 worker thread 事件循环（quit 是线程安全的，向 worker 投递退出事件）
+        if hasattr(self, '_worker_thread') and self._worker_thread.isRunning():
+            self._worker_thread.quit()
+            # 等待线程真正退出（最多 2 秒，避免卡死）
+            if not self._worker_thread.wait(2000):
+                self._worker_thread.terminate()
+                self._worker_thread.wait(1000)
         logger.info("PollingManager stopped")
     
     # ==================== 初始化 ====================

@@ -10,7 +10,8 @@ from PySide6.QtWidgets import QRubberBand
 
 
 class CanvasConnectionController:
-    """连线控制 — 委托到 CanvasConnectionsMixin"""
+    """连线控制 — 委托到 CanvasConnectionsMixin
+    """
     def __init__(self, canvas):
         self._c = canvas
 
@@ -25,7 +26,8 @@ class CanvasConnectionController:
 
 
 class CanvasBatchOperations:
-    """批量操作 — 委托到 CanvasBatchOpsMixin"""
+    """批量操作 — 委托到 CanvasBatchOpsMixin
+    """
     def __init__(self, canvas):
         self._c = canvas
 
@@ -40,7 +42,8 @@ class CanvasBatchOperations:
 
 
 class BoxSelectionController:
-    """框选 — 委托到 CanvasBoxSelectMixin"""
+    """框选 — 委托到 CanvasBoxSelectMixin
+    """
     def __init__(self, canvas):
         self._c = canvas
         self.rubber_band: Optional[QRubberBand] = None
@@ -73,7 +76,8 @@ class BoxSelectionController:
 
 
 class CanvasMenuController:
-    """右键菜单 — 委托到 CanvasMenusMixin"""
+    """右键菜单 — 委托到 CanvasMenusMixin
+    """
     def __init__(self, canvas):
         self._c = canvas
 
@@ -87,7 +91,8 @@ class CanvasMenuController:
 
 
 class CanvasLayoutController:
-    """布局持久化 — 委托到 CanvasLayoutMixin"""
+    """布局持久化 — 委托到 CanvasLayoutMixin
+    """
     def __init__(self, canvas):
         self._c = canvas
 
@@ -108,7 +113,8 @@ class CanvasLayoutController:
 
 
 class CanvasColorController:
-    """颜色主题 — 委托到 CanvasColorsMixin"""
+    """颜色主题 — 委托到 CanvasColorsMixin
+    """
     def __init__(self, canvas):
         self._c = canvas
 
@@ -132,7 +138,8 @@ class CanvasColorController:
 
 
 class CanvasZoomController:
-    """缩放控制"""
+    """缩放控制
+    """
     def __init__(self, canvas):
         self._c = canvas
 

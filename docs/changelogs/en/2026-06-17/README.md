@@ -1,13 +1,14 @@
-# [2026-06-17] V2.0.16 - Canvas Layout Loading Fix, Auto-Open Project Async Refactoring and Node Add/Remove Persistence
+# [2026-06-17] V2.0.16 - Canvas Layout Loading Fix, Auto-Open Project Async Refactoring, Node Add/Remove Persistence & Canvas Module Directory Reorganization
 
 ---
 
 ## Update Summary
 
-**3 core issues resolved in this update**:
-1. **Canvas nodes not showing on first app launch** - timing issue: `load_layout()` executes before `nodes_data` is populated
-2. **Nodes dragged to canvas not being saved** - `add_node_to_canvas` and `remove_node_from_canvas` did not trigger auto-save
-3. **Null reference crashes** - `_terminal_dock` accessed before initialization, `NodeListDockPanel` missing `refresh()` method
+**3 core issues fixed + 1 structural refactoring**:
+1. **Canvas nodes not showing on first app launch** — timing issue: `load_layout()` executes before `nodes_data` is populated
+2. **Nodes dragged to canvas not being saved** — `add_node_to_canvas` and `remove_node_from_canvas` did not trigger auto-save
+3. **Null reference crashes** — `_terminal_dock` accessed before initialization, `NodeListDockPanel` missing `refresh()` method
+4. **Canvas module directory reorganization** — the 13 Python files accumulated under `ui/canvas/` root were grouped into two subdirectories (`mixins/` and `drawing/`) with backward-compatible import aliasing
 
 ---
 

@@ -327,7 +327,7 @@ class CanvasLayoutMixin:
                     self.edges.append(edge)
                     # 初始更新 - 此时使用绝对坐标，_all_points 会自动转换为相对坐标
                     edge.update_path()
-            
+
             # ---- 双向绑定校验 ----
             self._validate_edge_anchor_binding()
 
@@ -468,7 +468,7 @@ class CanvasLayoutMixin:
             if hasattr(self, 'viewport') and callable(self.viewport):
                 self.viewport().update()
                 logger.info("[load_layout] viewport已刷新")
-    
+
     def _validate_edge_anchor_binding(self):
         """校验并修复连线与锚点的双向绑定关系。
 

@@ -6,11 +6,11 @@
 from PySide6.QtCore import Qt, QPointF
 from PySide6.QtWidgets import QGraphicsItem
 from ui.core.i18n import t
-from ui.canvas.graphic_items import (
+from ui.canvas.drawing.graphic_items import (
     RectGraphic, RoundRectGraphic, PolygonGraphic, ArrowGraphic, TextGraphic,
     GraphicBase, C_STROKE, C_FILL, STROKE_W
 )
-from ui.canvas.draw_toolbar import DrawToolbar
+from ui.canvas.drawing.draw_toolbar import DrawToolbar
 from ui.core.logger import logger
 from ui.core.app_config import AppConfig
 

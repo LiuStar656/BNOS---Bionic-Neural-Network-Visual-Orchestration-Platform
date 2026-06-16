@@ -86,6 +86,7 @@ class FrequencyFilter(logging.Filter):
                 f"[FREQ] 日志过于频繁(>={self.max_count}次/{self.time_window}s)"
                 f"，后续抑制: {suppressed}"
             )
+            record.args = ()
             record.levelno = logging.WARNING
             return True
 

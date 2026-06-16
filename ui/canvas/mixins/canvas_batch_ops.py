@@ -172,7 +172,8 @@ class CanvasBatchOpsMixin:
             self.remove_edge(edge)
 
         themed_message(self, t("k_title_clear_complete"),
-            t("_k_config_cleared").format(count=cleared_count), "info")
+            t("_k_config_cleared").format(count=cleared_count),
+            "info")
         self.clear_box_selection()
 
         if self.parent_window and self.parent_window.current_project_path:

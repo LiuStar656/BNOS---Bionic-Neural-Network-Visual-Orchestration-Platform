@@ -138,7 +138,7 @@ class CanvasColorsMixin:
         self.output_anchor_color = settings.get('output_anchor_color', self.output_anchor_color)
         self.edge_color = settings.get('edge_color', self.edge_color)
         self.edge_width = settings.get('edge_width', self.edge_width)
-        
+
         # Toast通知设置
         self.toast_info_color = settings.get('toast_info_color', '#323232')
         self.toast_success_color = settings.get('toast_success_color', '#4caf50')
@@ -146,7 +146,7 @@ class CanvasColorsMixin:
         self.toast_error_color = settings.get('toast_error_color', '#f44336')
         self.toast_text_color = settings.get('toast_text_color', '#ffffff')
         self.toast_opacity = settings.get('toast_opacity', 0.9)
-        
+
         # 更新Toast全局配置
         from ui.core.toast.toast_notification import set_toast_config
         set_toast_config({

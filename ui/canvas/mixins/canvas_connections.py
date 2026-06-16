@@ -22,12 +22,12 @@ class CanvasConnectionsMixin:
         self.start_connection_from_output(self.nodes[node_name])
 
     def start_connection_from_output(self, source_node, source_anchor=None):
-        """从输出锚点开始连线（支持指定具体输出锚点，否则用 default）
+        """从输出锚点开始连线（支持指定具体输出锚点，否则用默认）
 
         参数:
             source_node: 源节点对象
             source_anchor: 可选，具体的输出 AnchorItem。若为 None 则回退到
-                           source_node.output_anchor（@property，统一返回 default 输出锚点）
+                           source_node.output_anchor（@property，统一返回默认输出锚点）
         """
         self.is_connecting = True
         self.connect_source = source_node
@@ -242,7 +242,7 @@ class CanvasConnectionsMixin:
                 try:
                     with open(config_path, 'w', encoding='utf-8') as f:
                         json.dump(target_config, f, indent=2, ensure_ascii=False)
-                    logger.info("已清空 %s 的监听配置", target_name)
+                    logger.info("已清空 %s 的监听配置及端口映射", target_name)
                 except Exception as e:
                     logger.error("保存配置失败: %s", e)
 
