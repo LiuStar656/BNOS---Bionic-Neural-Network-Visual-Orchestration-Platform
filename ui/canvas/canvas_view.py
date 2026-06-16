@@ -71,8 +71,8 @@ class NodeCanvas(CanvasConnectionsMixin, CanvasBatchOpsMixin, CanvasBoxSelectMix
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)  # 右键拖拽平移
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         
-        # 全视口更新模式 — 滚动/缩放时完整重绘，避免网格线残留拖影
-        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
+        # 智能视口更新模式 — Qt 自动计算需重绘区域，节点/连线独立的场景下重绘范围极小化
+        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
         
         # ===== 颜色配置（支持自定义）— VSCode 深色主题 =====
         self.canvas_bg_color = '#1e1e1e'          # 画布背景（与标题栏统一）

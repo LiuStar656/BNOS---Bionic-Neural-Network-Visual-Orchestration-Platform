@@ -78,10 +78,16 @@ class PollingManager(QObject):
         self._base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self._logs_dir = os.path.join(self._base_dir, "logs")
         
-        # ---- 主定时器（1秒轮询一次，内部按任务间隔分发）----
+        # ---- 主定时器（2秒轮询一次，内部按任务间隔分发；降低空闲 CPU 噪声）----
+        # 注意：下方任务注册中的 interval 单位是"主 tick 数"，每个 tick = 2 秒。
+        #   interval=1  → 2 秒（高频，用于健康检测）
+        #   interval=2  → 4 秒（默认，大多数任务）
+        #   interval=3  → 6 秒（低频，用于配置/输出检测）
+        #   interval=5  → 10 秒（极低频，用于应用状态检测）
+        self.tick_duration = 2
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self._timer.setInterval(1000)  # 1秒基础间隔
+        self._timer.setInterval(self.tick_duration * 1000)
         self._timer.timeout.connect(self._poll)
         
         # ---- 轮询计数器 ----
@@ -182,26 +188,26 @@ class PollingManager(QObject):
     # ==================== 初始化 ====================
     
     def _init_default_tasks(self):
-        """初始化默认轮询任务"""
-        # 节点健康检测（2秒）
-        self.register_task('node_health', 2, self._poll_node_health)
-        
-        # 全局日志检测（2秒）
+        """初始化默认轮询任务（interval 单位：主 tick 数，每 tick = 2 秒）"""
+        # 节点健康检测（2秒 = 1 tick，最高频 —— 直接反映节点生死状态）
+        self.register_task('node_health', 1, self._poll_node_health)
+
+        # 全局日志检测（4秒 = 2 tick，用户打开终端页面后需稍等几秒更新也可接受）
         self.register_task('global_logs', 2, self._poll_global_logs)
-        
-        # 全局配置检测（2秒）
+
+        # 全局配置检测（4秒 = 2 tick，外部手工改配置很少是实时的）
         self.register_task('global_config', 2, self._poll_global_config)
-        
-        # 节点日志检测（2秒）
+
+        # 节点日志检测（4秒 = 2 tick）
         self.register_task('node_logs', 2, self._poll_node_logs)
-        
-        # 节点配置检测（2秒）
-        self.register_task('node_config', 2, self._poll_node_config)
-        
-        # 节点输出检测（2秒）
-        self.register_task('node_output', 2, self._poll_node_output)
-        
-        # 应用状态检测（5秒）
+
+        # 节点配置检测（6秒 = 3 tick，文件内容变化不频繁）
+        self.register_task('node_config', 3, self._poll_node_config)
+
+        # 节点输出检测（6秒 = 3 tick）
+        self.register_task('node_output', 3, self._poll_node_output)
+
+        # 应用状态检测（10秒 = 5 tick）
         self.register_task('app_state', 5, self._poll_app_state)
     
     def _init_global_watchers(self):
@@ -238,10 +244,10 @@ class PollingManager(QObject):
     # ==================== 主轮询逻辑 ====================
     
     def _poll(self):
-        """主轮询回调 - 按间隔分发任务"""
+        """主轮询回调 - 按 tick 间隔分发任务（interval 单位：tick 数）"""
         try:
             self._tick_count += 1
-            
+
             # 执行所有到期的任务
             for task_name, task_info in list(self._tasks.items()):
                 if task_info['enabled'] and self._tick_count % task_info['interval'] == 0:

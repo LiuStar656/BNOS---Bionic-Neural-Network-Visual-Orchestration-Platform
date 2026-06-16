@@ -1,0 +1,72 @@
+[22:46:24] INFO  (app_config.py): 配置已加载: F:\Bionic Neural Network Program Operating System\ui\core\..\..\app_config.json
+[22:46:24] INFO  (node_creator_manager.py): 已注册 Python 节点创建器 (绑定到 tools/python_create_node.py)
+[22:46:24] INFO  (node_creator_manager.py): 已注册 Rust 节点创建器
+[22:46:24] INFO  (node_creator_manager.py): 节点创建管理器已初始化，支持的语言: ['python', 'rust']
+[22:46:24] INFO  (canvas_host.py): CanvasHost: 已初始化空白缓冲层
+[22:46:24] INFO  (ipc.py): IPC Server 已启动: BNOS_IPC_Server
+[22:46:24] INFO  (ipc.py): 进程间通信已就绪
+[22:46:24] INFO  (polling_manager.py): PollingManager started
+[22:46:24] INFO  (lifecycle.py): 进入 _init_and_restore()
+[22:46:24] INFO  (lifecycle.py): 步骤 1：先创建面板
+[22:46:24] INFO  (state.py): [PANEL] 开始恢复面板状态(立即创建Dock)，配置值: {'node_list': True, 'resource_monitor': True, 'node_monitor': False, 'node_list_dock': True, 'resource_monitor_dock': True, 'node_monitor_dock': False, 'node_list_floating': False, 'resource_monitor_floating': False, 'node_monitor_floating': False, 'terminal_dock': False, 'history_dock': True}
+[22:46:24] INFO  (state.py): [PANEL] 旧配置项 node_list_panel.visible: False
+[22:46:24] INFO  (state.py): [PANEL] 节点列表 - dock: True, floating: False
+[22:46:24] INFO  (state.py): [PANEL] 立即恢复节点列表 Dock 版
+[22:46:24] INFO  (app_config.py): 配置已保存: F:\Bionic Neural Network Program Operating System\ui\core\..\..\app_config.json
+[22:46:24] INFO  (state.py): [PANEL] 资源监测 - dock: True, floating: False
+[22:46:24] INFO  (state.py): [PANEL] 立即恢复资源监测 Dock 版
+[22:46:24] INFO  (app_config.py): 配置已保存: F:\Bionic Neural Network Program Operating System\ui\core\..\..\app_config.json
+[22:46:24] INFO  (state.py): [PANEL] 节点监测 - dock: False, floating: False
+[22:46:24] INFO  (state.py): [PANEL] 终端 - dock(将由window_state_manager处理): False
+[22:46:24] INFO  (lifecycle.py): 离开 _init_and_restore()
+[22:46:25] INFO  (lifecycle.py): 进入 _restore_window_state_with_docks()
+[22:46:25] INFO  (state.py): 进入 restore_window_state()
+[22:46:25] INFO  (window_state_manager.py): [WS] ===== 开始恢复窗口状态 =====
+[22:46:25] INFO  (window_state_manager.py): 窗口已居中: (64, 100) 1920x1080
+[22:46:25] INFO  (window_state_manager.py): [WS] 阶段 1：立即恢复 Qt 原生状态
+[22:46:25] INFO  (window_state_manager.py): [WS] [阶段 1] 恢复 Qt 原生状态
+[22:46:25] INFO  (window_state_manager.py): [WS] [OK] Qt 原生状态已恢复（包含布局和分割条位置）
+[22:46:25] INFO  (window_state_manager.py): [WS] ===== 主窗口状态恢复启动 =====
+[22:46:25] INFO  (state.py): 离开 restore_window_state()
+[22:46:25] INFO  (lifecycle.py): 离开 _restore_window_state_with_docks()
+[22:46:25] INFO  (window_state_manager.py): [WS] [阶段 2] 第一次调整 Dock 尺寸
+[22:46:25] INFO  (window_state_manager.py): [WS] [第1次] left区域: [380, 380]
+[22:46:25] INFO  (window_state_manager.py): [WS] [阶段 3] 第二次调整 Dock 尺寸（巩固分割条）
+[22:46:25] INFO  (window_state_manager.py): [WS] [第2次] left区域: [380, 380]
+[22:46:25] INFO  (window_state_manager.py): [WS] [阶段 4] 恢复终端 Dock
+[22:46:25] INFO  (window_state_manager.py): [WS] ===== 主窗口状态恢复完成 =====
+[22:46:25] INFO  (state.py): 自动打开上次项目: C:\Users\Lenovo\4
+[22:46:25] INFO  (canvas_host.py): CanvasHost: 空白缓冲层已移除，启用Dock停靠
+[22:46:25] INFO  (project_load_worker.py): 加载节点: node_python_1 (文件夹=node_python_1)
+[22:46:25] INFO  (project_load_worker.py): 节点注册表已同步: active=1, missing=2, total=3
+[22:46:25] INFO  (app_config.py): 配置已保存: F:\Bionic Neural Network Program Operating System\ui\core\..\..\app_config.json
+[22:46:25] INFO  (canvas_view.py): Canvas控制器组合层已激活 (7个控制器, 委托模式)
+[22:46:25] INFO  (canvas_colors.py): apply_color_settings: bg=#1e1e1e
+[22:46:25] INFO  (canvas_colors.py): 颜色设置已从 C:\Users\Lenovo\4\color_settings.json 加载
+[22:46:25] INFO  (canvas_layout.py): 加载完成: 0个节点, 0条连线
+[22:46:25] INFO  (canvas_layout.py): 画布视图状态已恢复
+[22:46:25] INFO  (canvas_host.py): CanvasHost: 终端 Dock 已初始化
+[22:46:25] INFO  (canvas_host.py): CanvasHost: 画布Dock '4' 已创建（顶部停靠）
+[22:46:25] INFO  (terminal_process.py): 启动终端: powershell.exe ['-NoExit', '-NonInteractive'], 工作目录: C:\Users\Lenovo\4
+[22:46:25] INFO  (__main__.py): === 画布切换 ===
+[22:46:25] INFO  (__main__.py): 画布切换完成（使用内存数据，未重新扫描磁盘）
+[22:46:25] INFO  (app_config.py): 配置已保存: F:\Bionic Neural Network Program Operating System\ui\core\..\..\app_config.json
+[22:46:25] INFO  (window_state_manager.py): [WS] ===== 开始恢复 CanvasHost 状态 =====
+[22:46:25] INFO  (window_state_manager.py): [WS] 阶段 5：恢复 CanvasHost Qt 原生状态
+[22:46:25] INFO  (window_state_manager.py): [WS] [阶段 5] 恢复 CanvasHost Qt 原生状态
+[22:46:25] INFO  (window_state_manager.py): [WS] [OK] CanvasHost Qt 原生状态已恢复（包含布局和分割条位置）
+[22:46:25] INFO  (window_state_manager.py): [WS] ===== CanvasHost 状态恢复启动 =====
+[22:46:26] INFO  (window_state_manager.py): [WS] [阶段 6] 第一次调整 CanvasHost 尺寸
+[22:46:26] INFO  (window_state_manager.py): [WS] [CanvasHost 第1次] top区域: [628]
+[22:46:26] INFO  (window_state_manager.py): [WS] [CanvasHost 第1次] bottom区域: [372]
+[22:46:26] INFO  (project_load_worker.py): 项目加载完成，共 1 个节点, 0 个后台运行
+[22:46:26] INFO  (window_state_manager.py): [WS] [阶段 7] 第二次调整 CanvasHost 尺寸（巩固分割条）
+[22:46:26] INFO  (window_state_manager.py): [WS] [CanvasHost 第2次] top区域: [628]
+[22:46:26] INFO  (window_state_manager.py): [WS] [CanvasHost 第2次] bottom区域: [372]
+[22:46:26] INFO  (window_state_manager.py): [WS] ===== CanvasHost 状态完全恢复 =====
+[22:46:29] INFO  (canvas_layout.py): 画布布局已保存到: C:\Users\Lenovo\4\canvas_layout.json
+[22:46:29] INFO  (canvas_colors.py): 颜色设置已保存到: C:\Users\Lenovo\4\color_settings.json
+[22:46:29] INFO  (canvas_layout.py): 画布布局已保存到: C:\Users\Lenovo\4\canvas_layout.json
+[22:46:29] INFO  (canvas_colors.py): 颜色设置已保存到: C:\Users\Lenovo\4\color_settings.json
+[22:46:32] INFO  (canvas_layout.py): 画布布局已保存到: C:\Users\Lenovo\4\canvas_layout.json
+[22:46:32] INFO  (canvas_colors.py): 颜色设置已保存到: C:\Users\Lenovo\4\color_settings.json

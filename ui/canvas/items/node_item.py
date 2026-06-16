@@ -33,7 +33,8 @@ class NodeItem(QGraphicsRectItem):
         self._style.node_width = w
         self._style.node_height = h
         
-        self.setCacheMode(QGraphicsItem.CacheMode.NoCache)
+        # 使用设备坐标缓存：静态内容被缓存为离屏像素，拖动/平移时无需重绘
+        self.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
         self.setFlags(
             QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
             QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable |
@@ -253,7 +254,7 @@ class NodeItem(QGraphicsRectItem):
         self._style.node_width = self.rect().width() or 340
         self._style.node_height = self.rect().height() or 80
 
-        # 应用新样式
+        # 应用新样式（刷新设备坐标缓存，让新样式立即生效）
         self.setCacheMode(self.CacheMode.NoCache)
         self.prepareGeometryChange()
         self.setRect(0, 0, self._style.node_width, self._style.node_height)
@@ -271,8 +272,9 @@ class NodeItem(QGraphicsRectItem):
 
         self._update_selection_ring(self.isSelected())
 
-        if self.scene():
-            self.scene().update()
+        # 只标记本节点 item 为 dirty，不触发全场景重绘
+        self.setCacheMode(self.CacheMode.DeviceCoordinateCache)
+        self.update()
         from PySide6.QtCore import QTimer
         QTimer.singleShot(0, lambda: self._ensure_rect(self._style.node_width, self._style.node_height))
 
@@ -735,9 +737,11 @@ class NodeItem(QGraphicsRectItem):
                 self.scene().removeItem(p)
         self._proxy_widgets.clear()
         self._param_widgets.clear()
-        # 先禁用缓存再重置 rect，确保旧缓存在尺寸变更后被彻底丢弃
+        # 先禁用缓存再重置 rect，确保旧缓存在尺寸变更后被彻底丢弃，再重新启用设备坐标缓存
         self.setCacheMode(self.CacheMode.NoCache)
         self.setRect(0, 0, self._style.node_width, self._style.node_height)
+        self.setCacheMode(self.CacheMode.DeviceCoordinateCache)
+        self.update()
 
     def _get_label_font(self):
         """获取端口标签字体"""

@@ -145,31 +145,29 @@ class CanvasLayoutMixin:
                         self.edges.append(e)
                     logger.info("画布尺寸已更新: %dx%d", self.canvas_width, self.canvas_height)
 
-            # ---- 节点位置 + 颜色 ----
-            for node_name, pos_data in layout_data.get("nodes", {}).items():
+            # ---- 节点：单次遍历 — 已存在节点 + 缺失节点 ----
+            # 合并了原来的 2 次独立循环（更新已有节点 + 补建缺失节点）
+            layout_nodes = layout_data.get("nodes", {})
+            missing_nodes = []
+
+            for node_name, pos_data in layout_nodes.items():
                 if node_name in self.nodes:
-                    # 节点已存在，更新位置和样式
                     node = self.nodes[node_name]
                     node.setPos(pos_data["x"], pos_data["y"])
-                    node.canvas = self  # 关键：设置画布引用，确保节点移动时更新连线
-                    # 修复：确保子控件正确挂载和事件绑定
-                    node.on_expand_requested = self.on_node_expand_requested  # 确保展开按钮事件绑定
+                    node.canvas = self
+                    node.on_expand_requested = self.on_node_expand_requested
                     for child in node.childItems():
                         child.setParentItem(node)
                         child.setEnabled(True)
                         child.setVisible(True)
-                    # 恢复节点尺寸
                     w = pos_data.get("width", node.rect().width())
                     h = pos_data.get("height", node.rect().height())
                     node.setRect(0, 0, w, h)
-                    # 恢复节点样式
                     sk = pos_data.get("style", "detailed")
                     from ui.canvas.items.styles import StyleRegistry
                     st_cls = StyleRegistry.get(sk)
                     if type(node._style).__name__ != st_cls.__name__:
-                        ns = st_cls()
-                        node._style = ns
-                    # 使用保存的尺寸更新样式
+                        node._style = st_cls()
                     node._style.node_width = w
                     node._style.node_height = h
                     node._style.apply(node)
@@ -178,9 +176,9 @@ class CanvasLayoutMixin:
                     if cc and self.parent_window and node_name in self.parent_window.nodes_data:
                         config = self.parent_window.nodes_data[node_name].get("config", {})
                         for key, cfg_key, action in [
-                            ("bg", "custom_bg_color", lambda c: node.setBrush(QBrush(c))),
-                            ("border", "custom_border_color", lambda c: node.setPen(QPen(c, 2))),
-                            ("text", "custom_text_color", lambda c: node.name_text.setDefaultTextColor(c)),
+                            ("bg", "custom_bg_color", lambda c, n=node: n.setBrush(QBrush(c))),
+                            ("border", "custom_border_color", lambda c, n=node: n.setPen(QPen(c, 2))),
+                            ("text", "custom_text_color", lambda c, n=node: n.name_text.setDefaultTextColor(c)),
                         ]:
                             if key in cc:
                                 try:
@@ -191,92 +189,58 @@ class CanvasLayoutMixin:
                                 except Exception:
                                     pass
                 elif self.parent_window and node_name in self.parent_window.nodes_data:
-                    # 节点不存在但存在于项目数据中，添加到画布
-                    from ui.canvas.items.node_item import NodeItem
-                    config = self.parent_window.nodes_data[node_name]['config']
-                    node_lang = config.get('language', 'python')
-                    
-                    # 获取节点尺寸
-                    w = pos_data.get("width", 140)
-                    h = pos_data.get("height", 80)
-                    
-                    # 创建样式对象并设置尺寸
-                    sk = pos_data.get("style", "detailed")
-                    from ui.canvas.items.styles import StyleRegistry
-                    st_cls = StyleRegistry.get(sk)
-                    node_style = st_cls()
-                    node_style.node_width = w
-                    node_style.node_height = h
-                    
-                    # 创建节点（传递 canvas 和 style 参数）
-                    node = NodeItem(node_name, node_lang, "stopped", 0, 0, w, h, self, style=node_style)
-                    node.setPos(pos_data["x"], pos_data["y"])
-                    
-                    # 应用颜色
-                    cc = pos_data.get("custom_colors")
-                    if cc:
-                        for key, cfg_key, action in [
-                            ("bg", "custom_bg_color", lambda c: node.setBrush(QBrush(c))),
-                            ("border", "custom_border_color", lambda c: node.setPen(QPen(c, 2))),
-                            ("text", "custom_text_color", lambda c: node.name_text.setDefaultTextColor(c)),
-                        ]:
-                            if key in cc:
-                                try:
-                                    color = QColor(cc[key])
-                                    if color.isValid():
-                                        action(color)
-                                except Exception:
-                                    pass
-                    
-                    # 添加到画布和节点字典
-                    self.scene.addItem(node)
-                    self.nodes[node_name] = node
-                    node.canvas = self  # 关键：设置画布引用，确保节点移动时更新连线
-                    # 修复：确保子控件正确挂载和事件绑定
-                    node.on_expand_requested = self.on_node_expand_requested  # 确保展开按钮事件绑定
-                    for child in node.childItems():
-                        child.setParentItem(node)
-                        child.setEnabled(True)
-                        child.setVisible(True)
-                    logger.info(f"从布局文件添加节点: {node_name} (位置: {pos_data['x']}, {pos_data['y']})")
+                    missing_nodes.append((node_name, pos_data))
 
-            # ---- 自动添加缺失节点 ----
-            nodes_added = 0
-            for node_name, pos_data in layout_data.get("nodes", {}).items():
-                if node_name not in self.nodes and self.parent_window and node_name in self.parent_window.nodes_data:
-                    info = self.parent_window.nodes_data[node_name]
-                    lang = self.detect_language(info["path"])
-                    status = info.get("status", "stopped")
-                    x, y = pos_data.get("x", 200), pos_data.get("y", 150)
-                    w, h = pos_data.get("width", 140), pos_data.get("height", 80)
-                    sk = pos_data.get("style", "detailed")
-                    from ui.canvas.items.styles import StyleRegistry
-                    st_cls = StyleRegistry.get(sk)
-                    node_style = st_cls()
-                    node_style.node_width = w
-                    node_style.node_height = h
-                    node = NodeItem(node_name, lang, status, 0, 0, w, h, self, style=node_style)
-                    node.on_expand_requested = self.on_node_expand_requested
-                    node.setPos(x, y)
-                    self.scene.addItem(node)
-                    self.nodes[node_name] = node
-                    node.canvas = self  # 关键：设置画布引用，确保节点移动时更新连线
-                    # 修复：确保子控件正确挂载和事件绑定
-                    node.on_expand_requested = self.on_node_expand_requested  # 确保展开按钮事件绑定
-                    for child in node.childItems():
-                        child.setParentItem(node)
-                        child.setEnabled(True)
-                        child.setVisible(True)
-                    nodes_added += 1
-                    logger.info("自动恢复节点: %s (位置: %d, %d)", node_name, x, y)
+            # —— 批量补建缺失节点 ——
+            for node_name, pos_data in missing_nodes:
+                info = self.parent_window.nodes_data[node_name]
+                config = info.get("config", {})
+                lang = config.get("language") or self.detect_language(info["path"])
+                status = info.get("status", "stopped")
+                x, y = pos_data.get("x", 200), pos_data.get("y", 150)
+                w, h = pos_data.get("width", 140), pos_data.get("height", 80)
+                sk = pos_data.get("style", "detailed")
+                from ui.canvas.items.styles import StyleRegistry
+                st_cls = StyleRegistry.get(sk)
+                node_style = st_cls()
+                node_style.node_width = w
+                node_style.node_height = h
+                node = NodeItem(node_name, lang, status, 0, 0, w, h, self, style=node_style)
+                node.on_expand_requested = self.on_node_expand_requested
+                node.setPos(x, y)
+                cc = pos_data.get("custom_colors")
+                if cc:
+                    for key, cfg_key, action in [
+                        ("bg", "custom_bg_color", lambda c, n=node: n.setBrush(QBrush(c))),
+                        ("border", "custom_border_color", lambda c, n=node: n.setPen(QPen(c, 2))),
+                        ("text", "custom_text_color", lambda c, n=node: n.name_text.setDefaultTextColor(c)),
+                    ]:
+                        if key in cc:
+                            try:
+                                color = QColor(cc[key])
+                                if color.isValid():
+                                    action(color)
+                            except Exception:
+                                pass
+                self.scene.addItem(node)
+                self.nodes[node_name] = node
+                node.canvas = self
+                node.on_expand_requested = self.on_node_expand_requested
+                for child in node.childItems():
+                    child.setParentItem(node)
+                    child.setEnabled(True)
+                    child.setVisible(True)
+                logger.info("自动恢复节点: %s (位置: %d, %d)", node_name, x, y)
 
             # ---- 连线 ----
+            # 建立 node_ref → name 的映射，避免每条 edge 内层遍历所有节点
+            node_by_ref = {node: name for name, node in self.nodes.items()}
+
             existing = set()
             for e in self.edges:
-                sn = tn = tp = None
-                for n, nd in self.nodes.items():
-                    if nd == e.start_node: sn = n
-                    if nd == e.end_node: tn = n
+                sn = node_by_ref.get(e.start_node)
+                tn = node_by_ref.get(e.end_node)
+                tp = None
                 if hasattr(e, 'end_anchor') and e.end_anchor and hasattr(e.end_anchor, 'port_name'):
                     tp = e.end_anchor.port_name
                     if tp == "default": tp = None
@@ -350,13 +314,12 @@ class CanvasLayoutMixin:
                     # 如果已有任意端口的连线，不补默认端口线
                     canvas_pair_set = set()
                     for e in self.edges:
-                        sn = tn = tp = None
-                        for n, nd in self.nodes.items():
-                            if nd == e.start_node: sn = n
-                            if nd == e.end_node: tn = n
+                        sn = node_by_ref.get(e.start_node)
+                        tn = node_by_ref.get(e.end_node)
+                        tp = None
                         if hasattr(e, 'end_anchor') and e.end_anchor and hasattr(e.end_anchor, 'port_name'):
                             tp = e.end_anchor.port_name
-                            if tp == "default": tp = None  # default ↔ None 互认
+                            if tp == "default": tp = None
                         if sn and tn:
                             canvas_set.add((sn, tn, tp))
                             canvas_pair_set.add((sn, tn))
@@ -436,11 +399,6 @@ class CanvasLayoutMixin:
                     self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() + int(dx))
                     self.verticalScrollBar().setValue(self.verticalScrollBar().value() + int(dy))
 
-            # ---- 强制刷新所有连线路径 ----
-            # 确保加载完成后所有连线端点坐标正确
-            for edge in self.edges:
-                edge.update_path()
-            
             logger.info(t("k_log_view_restored"))
 
         except (json.JSONDecodeError, IOError) as e:

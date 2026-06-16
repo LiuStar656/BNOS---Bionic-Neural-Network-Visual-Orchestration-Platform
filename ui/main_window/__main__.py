@@ -32,7 +32,7 @@ from ui.core.toast.toast_notification import ToastNotification
 from ui.core.toast.toast_queue_manager import ToastQueueManager
 from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node, check_running_processes, detect_running_nodes
 from ui.core.polling_manager import polling_manager
-from ui.core.project_manager import project_new, project_open, project_refresh
+from ui.core.project_manager import project_new, project_open, project_refresh, _canvas_call
 from ui.core.external_node_manager import mount_node, unmount_node as _unmount_node
 from ui.core.window_state_manager import save_state, restore_state
 from ui.core.node_creation_worker import start_async_node_creation
@@ -283,34 +283,25 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         return toast
     
     def _on_canvas_changed(self, new_canvas):
-        """画布切换事件 - 同步面板数据"""
+        """画布切换事件 — 同步当前画布的数据到面板（不重新扫描磁盘）
+
+        sync_canvas_data_to_main_window 已经把新画布的 nodes_data 同步到主窗口，
+        此处只刷新面板/画布的显示，无需重新触发 project_refresh 走磁盘扫描。
+        """
         logger.info(f"=== 画布切换 ===")
-        
+
         # 更新当前画布引用
         self.canvas = new_canvas
-        
+
         # 从CanvasHost同步当前画布的数据到主窗口
         if hasattr(self, '_canvas_host') and self._canvas_host:
             self._canvas_host.sync_canvas_data_to_main_window(new_canvas)
-        
-        # 如果画布有项目路径，同步数据
-        # 但只在项目路径存在且至少有一个节点数据时才刷新面板
-        if (self.current_project_path and 
-            os.path.exists(self.current_project_path) and 
-            len(self.nodes_data) > 0):
-            # 刷新节点列表
-            self.refresh_nodes()
-            
-            # 刷新所有面板
+
+        # 数据已经在内存，直接刷新面板与画布
+        if self.current_project_path and os.path.exists(self.current_project_path):
             self._refresh_panels()
-            
-            logger.info("面板数据已同步到新画布")
-        elif self.current_project_path and os.path.exists(self.current_project_path):
-            # 如果项目路径存在但节点数据为空，可能是刚创建画布还没加载完数据
-            # 这种情况下也尝试刷新（例如在打开项目时）
-            self.refresh_nodes()
-            self._refresh_panels()
-            logger.info("面板数据已同步到新画布（可能为空数据集）")
+            _canvas_call(self, 'sync_all_nodes_display')
+            logger.info("画布切换完成（使用内存数据，未重新扫描磁盘）")
     
     def _on_canvas_focused(self, canvas):
         """画布获得焦点事件 - 同步面板数据"""
