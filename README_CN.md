@@ -288,39 +288,45 @@ graph TB
 
 ### 模块结构
 
-| 模块                     | 文件                                     | 说明                               |
-| ---------------------- | -------------------------------------- | -------------------------------- |
-| **主入口**                | `bnos_console.py`                      | 初始化 QApplication，启动主窗口           |
-| **主窗口**                | `ui/main_window/__main__.py`           | 整合 UI 中心（< 500 行，7 个 Mixin 模块）   |
-| **主窗口 Mixins**         | `ui/main_window/*.py`                  | 状态、生命周期、动作、面板、IPC、节点控制、交互        |
-| **ApplicationContext** | `ui/core/application_context.py`       | 单例全局服务聚合器                        |
-| **画布**                 | `ui/canvas/canvas_view.py`             | QGraphicsView 实现节点绘制、拖拽、连线       |
-| **CanvasHost**         | `ui/core/canvas_host.py`               | 画布宿主和面板停靠管理                      |
-| **节点样式**               | `ui/canvas/items/styles/`            | 节点样式系统（方形/圆形/详细版），StyleRegistry 统一注册，三层 z 轴架构       |
-| **节点列表**               | `ui/panels/node_list_panel.py`         | 节点/分组树形视图，拖拽分组，多选操作              |
-| **属性面板**               | `ui/panels/property_panel.py`          | 配置编辑器、日志查看器、进程控制、颜色设置            |
-| **展开面板**               | `ui/panels/node_expand_panel.py`       | 节点 output.json 查看/编辑，自动刷新        |
-| **监测面板**               | `ui/panels/node_monitor.py`            | 全局实时日志查看，多节点同步监测                 |
-| **分组管理器**              | `ui/panels/node_group_manager.py`      | 节点分组创建/删除/持久化                    |
-| **浮动基类**               | `ui/core/floating_panel.py`            | 统一所有悬浮窗的窗口类型和交互                  |
-| **日志模块**               | `ui/core/logger.py`                    | 全局 logger（带轮转功能）                 |
-| **IDE 扫描器**            | `ui/core/ide_scanner.py`               | 自动检测 VSCode / Trae IDE，四层检测链路    |
-| **参数解析器**              | `ui/core/node_config_parser.py`        | 解析节点 config.json 的 parameters 字段 |
-| **参数控件工厂**             | `ui/canvas/parameter_widgets/`       | 11 种参数类型的 Qt 控件库，WidgetRegistry 统一注册              |
-| **Toast 队列**           | `ui/core/toast/toast_queue_manager.py` | Toast 通知队列管理                     |
-| **动作系统**               | `ui/core/actions/`                     | 统一动作注册表和工厂                       |
-| **EventBus**           | `ui/core/event_bus.py`                 | 全局事件发布/订阅系统                      |
-| **DIContainer**        | `ui/core/di.py`                        | 依赖注入容器                           |
-| **PollingManager**     | `ui/core/polling_manager.py`           | 统一轮询管理器（状态、日志、配置）                |
-| **ProcessManager**     | `ui/core/process_manager.py`           | 进程生命周期管理（含 IPC）                  |
-| **NodeControlService** | `ui/core/node_control_service.py`      | 节点控制服务（全局状态）                     |
-| **进程管理**               | `ui/core/node_process.py`              | 统一进程启停/PID/健康检测                  |
-| **历史管理**               | `ui/core/commands/history_manager.py`  | Photoshop 风格历史回滚，扁平命令列表 + current_index |
-| **命令系统**               | `ui/core/commands/`                    | Command 模式：node_commands / edge_commands / base |
-| **菜单管理**               | `ui/menu/menu_manager.py`              | 统一管理菜单栏所有功能                      |
-| **节点创建器**              | `ui/creators/node_creator_manager.py`  | 多语言节点创建管理器（Python/Rust）          |
-| **验证器**                | `ui/core/validators.py`                | 节点名称和路径验证工具                      |
-| **生成工具**               | `tools/python_create_node.py`          | Python 节点模板生成器（venv + 启动脚本）      |
+| 模块 | 路径 | 说明 |
+|------|------|-------------|
+| **主入口** | `bnos_console.py` | 初始化 QApplication，启动主窗口 |
+| **主窗口** | `ui/main_window/__main__.py` | 整合 UI 中心（~500 行，8 个 Mixin 模块） |
+| **主窗口 Mixins** | `ui/main_window/*.py` | 状态、生命周期、动作、面板、IPC、节点控制、交互 |
+| **ApplicationContext** | `ui/core/application_context.py` | 单例全局服务聚合器 |
+| **画布视图** | `ui/canvas/canvas_view.py` | QGraphicsView 实现节点绘制、拖拽、连线 |
+| **画布 Mixins** | `ui/canvas/mixins/` | 布局、连线、菜单、批量操作、框选、颜色、事件等 |
+| **画布元素** | `ui/canvas/items/` | NodeItem、EdgeItem、AnchorItem、AnchorManager、StyleRegistry |
+| **画布绘图** | `ui/canvas/drawing/` | 绘图层、绘图工具栏、图形元素（矩形、箭头、文字等） |
+| **参数控件** | `ui/canvas/parameter_widgets/` | 11 种参数类型的 Qt 控件库，WidgetRegistry 统一注册 |
+| **CanvasHost** | `ui/core/canvas_host.py` | 画布宿主和面板停靠管理 |
+| **节点列表** | `ui/panels/node_list_panel.py` / `node_list_dock.py` | 树形视图，拖拽分组，多选操作（悬浮 + Dock） |
+| **属性面板** | `ui/panels/property_panel.py` | 配置编辑器、日志查看器、进程控制、颜色设置 |
+| **展开面板** | `ui/panels/node_expand_panel.py` | 节点 output.json 查看/编辑，自动刷新 |
+| **节点监测** | `ui/panels/node_monitor.py` / `node_monitor_dock.py` | 全局实时日志查看，多节点同步监测（悬浮 + Dock） |
+| **资源监测** | `ui/panels/resource_monitor.py` / `resource_monitor_dock.py` | 系统资源监测（悬浮 + Dock） |
+| **历史面板** | `ui/panels/history_panel.py` | Photoshop 风格历史回滚 UI |
+| **分组管理器** | `ui/panels/node_group_manager.py` | 节点分组创建/删除/持久化 |
+| **浮动基类** | `ui/core/floating_panel.py` | 统一所有悬浮窗的窗口类型和交互 |
+| **BNOS Dock** | `ui/core/bnos_dock.py` | 基础 Dock 组件，自定义标题栏 |
+| **终端** | `ui/core/terminal/` | 嵌入式终端 Dock（PowerShell/CMD/Bash） |
+| **日志模块** | `ui/core/logger.py` | 全局 logger（带轮转功能） |
+| **IDE 扫描器** | `ui/core/ide_scanner.py` | 自动检测 VSCode / Trae IDE，四层检测链路 |
+| **参数解析器** | `ui/core/node_config_parser.py` | 解析节点 config.json 的 parameters、input/output_ports 字段 |
+| **Toast 队列** | `ui/core/toast/toast_queue_manager.py` | Toast 通知队列管理 |
+| **动作系统** | `ui/core/actions/` | 统一动作注册表和工厂（~80 个动作） |
+| **EventBus** | `ui/core/event_bus.py` | 全局事件发布/订阅系统 |
+| **DIContainer** | `ui/core/di.py` | 依赖注入容器 |
+| **PollingManager** | `ui/core/polling_manager.py` | 统一轮询管理器（状态、日志、配置） |
+| **ProcessManager** | `ui/core/process_manager.py` | 进程生命周期管理（含 IPC） |
+| **NodeControlService** | `ui/core/node_control_service.py` | 节点控制服务（全局状态） |
+| **ShutdownOrchestrator** | `ui/core/shutdown_orchestrator.py` | 优雅关闭序列管理 |
+| **菜单管理** | `ui/menu/menu_manager.py` | 统一管理菜单栏所有功能 |
+| **命令系统** | `ui/core/commands/` | Command 模式：node_commands / edge_commands / compound_commands / base |
+| **节点创建器** | `ui/creators/node_creator_manager.py` | 多语言节点创建管理器（Python/Rust） |
+| **对话框** | `ui/dialogs/` | 节点配置、颜色设置、文件浏览器、设置对话框 |
+| **验证器** | `ui/core/validators.py` | 节点名称和路径验证工具 |
+| **生成工具** | `tools/python_create_node.py`、`tools/rust_create_node.py` | Python / Rust 节点模板生成器 |
 
 ***
 
@@ -999,7 +1005,7 @@ MIT License © 2026 阿东与守一工作室
 - **开发团队**：阿东与守一工作室
 - **GitHub**: <https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform>
 - **邮箱**：<1240543656@qq.com>
-- **最后更新**：2026-06-13
+- **最后更新**：2026-06-17
 
 ***
 

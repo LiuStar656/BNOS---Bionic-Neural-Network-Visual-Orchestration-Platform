@@ -10,11 +10,13 @@
 1. [项目概述](#1-项目概述)
 2. [架构设计](#2-架构设计)
 3. [核心组件详解](#3-核心组件详解)
-   - 3.1 启动层组件
-   - 3.2 进程管理层组件
-   - 3.3 项目管理层组件
-   - 3.4 UI组件
-   - 3.5 工具组件
+   - 3.1 启动层
+   - 3.2 主窗口层
+   - 3.3 画布层
+   - 3.4 核心服务层
+   - 3.5 面板层
+   - 3.6 项目管理层
+   - 3.7 工具层
 4. [数据流程](#4-数据流程)
 5. [进程通信机制](#5-进程通信机制)
 6. [节点生命周期管理](#6-节点生命周期管理)
@@ -38,13 +40,16 @@ BNOS 是一个基于 PySide6 的神经网络可视化编排平台，提供节点
 | 进程监控 | 实时监控节点进程状态和资源使用 |
 | 项目管理 | 项目的新建、打开、保存、导入导出 |
 | 外部挂载 | 支持挂载外部节点到当前项目 |
+| 终端集成 | 嵌入式 PowerShell/CMD/Bash 终端 Dock |
+| 历史回滚 | Photoshop 风格撤销/重做，Command 模式 |
 
 ### 技术栈
 
 - **框架**: PySide6 (Qt6 绑定)
-- **语言**: Python 3.8+
+- **语言**: Python 3.12+
 - **进程通信**: QLocalSocket / QLocalServer
-- **UI样式**: QSS (Qt Style Sheets)
+- **UI 样式**: QSS (Qt Style Sheets)
+- **架构模式**: Mixin + Registry + Command + EventBus
 
 ---
 
@@ -57,62 +62,38 @@ BNOS 是一个基于 PySide6 的神经网络可视化编排平台，提供节点
 │                     BNOS Console                              │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
-│  │   启动层    │───▶│   UI层      │───▶│  业务层     │        │
-│  │ launcher    │    │ main_window │    │ node_process│        │
-│  │ bnos_console│    │ canvas_view │    │ ipc         │        │
+│  │   启动层    │───▶│   UI 层     │───▶│  业务层     │        │
+│  │ bnos_console│    │ main_window │    │ node_process│        │
+│  │             │    │ canvas_view │    │ ipc         │        │
 │  └─────────────┘    └─────────────┘    └─────────────┘        │
 │         │                  │                  │                │
 │         ▼                  ▼                  ▼                │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
-│  │   子进程    │    │    面板     │    │   管理器    │        │
-│  │ canvas_proc │    │ node_list   │    │ polling     │        │
-│  │ panel_proc  │    │ node_monitor│    │ project     │        │
-│  │ core_proc   │    │ resource    │    │ registry    │        │
+│  │   终端      │    │    面板     │    │   管理器    │        │
+│  │ terminal/   │    │ node_list   │    │ polling     │        │
+│  │             │    │ node_monitor│    │ project     │        │
 │  └─────────────┘    └─────────────┘    └─────────────┘        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 进程架构
+### 分层架构
 
-| 进程类型 | 描述 | 职责 |
-|---------|------|------|
-| 主进程 | BNOS Console | UI展示、用户交互、进程协调 |
-| 画布进程 | canvas_process | 独立画布渲染、节点绘制 |
-| 面板进程 | panel_process | 独立面板渲染、属性编辑 |
-| 核心进程 | core_process | 后台业务处理、无UI |
+| 层级 | 组件 | 描述 |
+|-------|-----------|-------------|
+| **UI 层** | `main_window/`、`canvas/`、`panels/`、`dialogs/` | 用户界面渲染与交互 |
+| **核心服务层** | `core/`、`menu/`、`icons/` | EventBus、DI、进程管理、动作系统 |
+| **数据层** | `nodes/`、`app_config.json`、`canvas_layout.json` | 持久化存储与运行时数据 |
+| **工具层** | `tools/` | 节点模板生成器 |
 
 ---
 
 ## 3. 核心组件详解
 
-### 3.1 启动层组件
+### 3.1 启动层
 
-#### 3.1.1 launcher.py
+#### 3.1.1 bnos_console.py
 
-**职责**: 闪屏启动器，负责优雅地启动整个应用
-
-**核心函数**:
-
-| 函数 | 功能 | 参数 | 返回值 |
-|------|------|------|--------|
-| `find_venv_python()` | 查找虚拟环境Python解释器 | 无 | `str` - Python路径 |
-| `main()` | 主启动流程 | 无 | 无 |
-| `_fallback_launch()` | 无tkinter时的降级启动 | 无 | 无 |
-| `_progress()` | 更新进度文件 | `progress_file`: 进度文件路径 | 无 |
-
-**工作流程**:
-1. 显示 tkinter 闪屏（ASCII Logo + 进度条）
-2. 查找虚拟环境 Python 解释器
-3. 创建临时进度文件
-4. 启动主程序 `bnos_console.py --progress=<file>`
-5. 轮询读取进度文件，实时更新闪屏
-6. 进度达到100%后关闭闪屏
-
----
-
-#### 3.1.2 bnos_console.py
-
-**职责**: 应用主入口，初始化Qt环境和主窗口
+**职责**: 应用主入口，初始化 Qt 环境和主窗口
 
 **核心函数**:
 
@@ -124,182 +105,270 @@ BNOS 是一个基于 PySide6 的神经网络可视化编排平台，提供节点
 **启动流程**:
 1. 解析命令行参数（进度文件路径）
 2. 初始化国际化
-3. 初始化Qt应用
+3. 初始化 Qt 应用
 4. 创建主窗口
 5. 加载项目
 6. 进入事件循环
 
 ---
 
-### 3.2 进程管理层组件
+### 3.2 主窗口层
 
-#### 3.2.1 node_process.py
+#### 3.2.1 ui/main_window/__main__.py
 
-**职责**: 节点进程生命周期管理（启动/停止/监控）
+**职责**: 主窗口中心，整合 8 个 Mixin 模块
 
-**核心函数**:
+**Mixin 模块**:
 
-| 函数 | 功能 | 参数 | 返回值 |
-|------|------|------|--------|
-| `start_node_process()` | 启动节点进程 | `node_info`: 节点信息字典 | `(bool, str)` - (成功, 错误消息) |
-| `stop_node_process()` | 停止节点进程 | `node_info`: 节点信息字典, `force`: 是否强制 | `(bool, str)` |
-| `detect_running_nodes()` | 检测后台运行的节点 | `nodes_data`: 节点数据 | `list` - [(节点名, PID)] |
-| `check_running_processes()` | 检测节点进程状态 | `nodes_data`: 节点数据 | `list` - 状态变更列表 |
-| `_find_node_processes()` | 扫描系统中属于节点的进程 | `node_path`: 节点路径 | `list` - PID列表 |
-| `_kill_all_node_processes()` | 强制终止所有孤儿进程 | `node_path`: 节点路径 | 无 |
-| `_write_pid()` | 写入PID文件 | `node_path`: 节点路径, `pid`: 进程ID | 无 |
-| `_read_pid()` | 读取PID文件 | `node_path`: 节点路径 | `int` - PID或None |
+| 文件 | Mixin 名称 | 职责 |
+|------|-----------|--------------|
+| `state.py` | `MainWindowStateMixin` | 窗口状态、节点数据、项目路径管理 |
+| `lifecycle.py` | `MainWindowLifecycleMixin` | 初始化、关闭编排、保存/恢复 |
+| `actions.py` | `MainWindowActionsMixin` | 动作绑定、工具栏、菜单设置 |
+| `panel.py` | `MainWindowPanelMixin` | 浮动面板和 Dock 管理 |
+| `ipc.py` | `MainWindowIPCMixin` | IPC 服务器设置、多实例处理 |
+| `node.py` | `MainWindowNodeMixin` | 节点控制委托（启动/停止/重启） |
+| `interaction.py` | `MainWindowInteractionMixin` | 快捷键、拖拽、窗口事件 |
 
-**进程状态三态模型**:
-
-| 状态 | 描述 | 判定条件 |
-|------|------|----------|
-| `running` | 运行中 | listener运行且有main子进程 |
-| `idle` | 空闲 | listener运行但无main子进程 |
-| `stopped` | 已停止 | 无Python进程运行 |
-
-**PID文件管理**:
-- 支持两种格式：`.pid`（标准）和 `node_python_<name>.pid`（命名）
-- 启动时写入，停止时删除
-- 进程扫描兜底机制处理PID文件丢失情况
+**架构**: 每个 Mixin 聚焦单一职责，主类继承所有 Mixin，保持 `__main__.py` 在 ~500 行以内。
 
 ---
 
-#### 3.2.2 process_manager.py
+### 3.3 画布层
 
-**职责**: 管理UI子进程（画布、面板、核心业务）的生命周期
+#### 3.3.1 画布架构
 
-**核心类**:
+画布层采用 **View + Mixins + Items** 架构：
 
-| 类 | 功能 | 关键方法 |
-|------|------|----------|
-| `ManagedProcess` | 受管理的子进程 | `start()`, `stop()`, `restart()`, `_check_health()` |
-| `ProcessManager` | 进程管理器 | `register()`, `start()`, `stop()`, `stop_all()` |
+```
+ui/canvas/
+├── canvas_view.py          # 主控制器（QGraphicsView）
+├── mixins/                 # 功能 Mixin
+│   ├── canvas_layout.py       # 布局持久化
+│   ├── canvas_connections.py  # 连线创建/管理
+│   ├── canvas_menus.py        # 右键菜单
+│   ├── canvas_batch_ops.py    # 批量启停/清空
+│   ├── canvas_box_select.py   # 框选
+│   ├── canvas_colors.py       # 颜色管理
+│   ├── canvas_event_handlers.py # 鼠标/键盘事件
+│   ├── canvas_node_manager.py # 节点增删改
+│   ├── canvas_selection.py    # 选择逻辑
+│   ├── canvas_background_renderer.py # 网格背景
+│   └── controllers.py         # 保存/加载控制器
+├── items/                  # 图形元素
+│   ├── node_item.py
+│   ├── edge_item.py
+│   ├── anchor_item.py
+│   ├── anchor_manager.py
+│   ├── node_status_widget.py
+│   └── styles/             # 样式注册表
+│       ├── _base.py
+│       └── detailed.py
+├── drawing/                # 绘图层
+│   ├── draw_layer.py
+│   ├── draw_toolbar.py
+│   └── graphic_items/      # 形状注册表
+│       ├── _base.py
+│       ├── rect.py
+│       ├── arrow.py
+│       └── text.py
+└── parameter_widgets/      # 参数控件注册表
+    ├── _base.py
+    ├── string.py
+    ├── int_widget.py
+    └── ... (11 种类型)
+```
 
-**健康检测机制**:
-- 每2秒检查一次进程状态
-- 进程崩溃时自动重启（最多5次）
-- 支持崩溃信号通知
+#### 3.3.2 canvas_view.py
+
+**类 `NodeCanvas(QGraphicsView)`**: 画布主容器，继承所有画布 Mixin。
+
+**关键属性**:
+- `self.nodes: dict[str, NodeItem]` → 节点名 → 节点图形项
+- `self.edges: list[EdgeItem]` → 所有连线
+- `self._save_timer: QTimer` → 自动保存防抖定时器（500ms）
+- `self.canvas_width / canvas_height` → 逻辑画布尺寸
+
+**关键方法**:
+- `save_layout(project_path)` → 持久化到 `canvas_layout.json`
+- `load_layout(project_path)` → 从 `canvas_layout.json` 恢复
+
+#### 3.3.3 canvas_layout.py
+
+**保存流程**:
+1. 遍历 `self.nodes` → 写入 x/y/width/height/style/custom_colors
+2. 遍历 `self.edges` → 写入 source/target/source_port/target_port
+3. 保存视图状态（scale/scroll/center）
+4. 原子写入到 `<project>/canvas_layout.json`
+
+**加载流程**:
+1. `_save_timer.stop()` — 防止加载时保存
+2. 读取 `canvas_layout.json`
+3. 遍历节点 → 创建/更新 NodeItem
+4. 遍历连线 → 通过 AnchorManager 绑定到指定端口
+5. `_validate_edge_anchor_binding()` — 修复失效引用
+6. 恢复视图状态
+
+#### 3.3.4 Items 模块
+
+**NodeItem**: 节点图形容器，通过 StyleRegistry 支持 3 种样式
+- **Rect**: 标准矩形，完整锚点
+- **Dot**: 紧凑圆形，三层 z 轴架构
+- **Detailed**: ComfyUI 风格，画布内嵌参数编辑控件
+
+**EdgeItem**: 直角直线连线，带可拖拽折叠手柄
+- 长按 + 拖拽创建折叠路径点
+- 记录目标/源端口用于锚点重新绑定
+
+**AnchorManager**: 管理每个节点的输入/输出锚点
+- 多端口支持（来自 `config.json` 的 `input_ports`）
+- Required 端口优先作为默认连接点
+- 样式切换时自动迁移连线
 
 ---
 
-#### 3.2.3 ipc.py
+### 3.4 核心服务层
 
-**职责**: 跨进程通信（QLocalServer + QLocalSocket）
+#### 3.4.1 event_bus.py
 
-**核心类**:
+**EventBus 单例**: 解耦的模块间通信
 
-| 类 | 角色 | 关键方法 |
-|------|------|----------|
-| `IPCServer` | 主进程服务端 | `start()`, `stop()`, `send()`, `broadcast()` |
-| `IPCClient` | 子进程客户端 | `connect_to_server()`, `send()` |
+```python
+event_bus.publish("node.status_changed", node_name="node_1", status="running")
+event_bus.subscribe("node.status_changed", on_status_changed)
+```
 
-**Action常量**:
+**常用事件**:
+- `node.created` / `node.removed` / `node.status_changed`
+- `project.opened` / `project.closed`
+- `config.modified` / `canvas.layout_saved`
 
-| 常量 | 含义 |
-|------|------|
-| `A_ADD_NODE` | 添加节点到画布 |
-| `A_REMOVE_NODE` | 从画布移除节点 |
-| `A_UPDATE_STATUS` | 更新节点状态 |
-| `A_CREATE_EDGE` | 创建连线 |
-| `A_REMOVE_EDGE` | 删除连线 |
-| `A_SYNC_DATA` | 同步数据 |
-| `A_CLEAR_ALL` | 清空画布 |
-| `A_WIN_SYNC` | 窗口几何同步 |
+#### 3.4.2 di.py
 
-**Event常量**:
+**DIContainer**: 服务注册与解析
 
-| 常量 | 含义 |
-|------|------|
-| `E_NODE_SELECTED` | 节点被选中 |
-| `E_NODE_DBLCLICKED` | 节点被双击 |
-| `E_EDGE_CREATED` | 连线已创建 |
-| `E_EDGE_REMOVED` | 连线已删除 |
+```python
+container.register("event_bus", event_bus)
+container.register("process_manager", process_manager)
+event_bus = container.resolve("event_bus")
+```
+
+#### 3.4.3 actions/
+
+**统一动作系统**: ~80 个动作，按类别组织
+
+| 类别 | 文件 | 示例 |
+|----------|-------|----------|
+| 画布 | `builtin_canvas_actions.py` | 缩放、适应视图、重置视图、切换绘图 |
+| 节点 | `builtin_node_actions.py` + `node/` | 启动、停止、重命名、删除、切换样式 |
+| 项目 | `builtin_project_actions.py` | 新建项目、打开项目、刷新节点 |
+| 视图 | `builtin_view_actions.py` | 切换面板、切换主题 |
+
+**节点动作子包** (`actions/node/`):
+- `_lifecycle.py`: 启动/停止/重启
+- `_context_menu.py`: IDE 打开、终端、资源管理器
+- `_batch.py`: 批量操作
+- `_selection.py`: 选择/取消选择
+- `_group.py`: 分组/取消分组
+- `_style.py`: 样式切换
+
+#### 3.4.4 polling_manager.py
+
+**统一轮询管理器**: 集中式定时任务调度
+
+| 任务名 | 间隔(秒) | 用途 |
+|-----------|-------------|--------|
+| `node_health` | 2 | 节点进程健康检查 |
+| `global_logs` | 2 | 全局日志检测 |
+| `global_config` | 2 | 全局配置检测 |
+| `node_logs` | 2 | 节点日志检测 |
+| `node_config` | 2 | 节点配置检测 |
+| `node_output` | 2 | 节点输出检测 |
+| `app_state` | 5 | 应用状态检测 |
+
+**信号**: `node_status_changed`、`log_file_changed`、`config_file_changed`、`output_json_changed`
+
+#### 3.4.5 process_manager.py & node_process.py
+
+**ProcessManager**: UI 子进程生命周期（画布、面板、核心）
+- 每 2 秒健康检查
+- 崩溃时自动重启（最多 5 次）
+
+**node_process.py**: 单个节点进程管理
+- 三态模型: `running` | `idle` | `stopped`
+- PID 文件持久化（`.pid`）
+- 孤儿进程扫描与清理
+- 跨会话恢复
+
+#### 3.4.6 terminal/
+
+**嵌入式终端 Dock**:
+- `terminal_process.py`: QProcess 包装，ANSI 剥离
+- `terminal_widget.py`: QTextEdit + 输入历史
+- `terminal_dock.py`: 多标签终端 Dock（PowerShell/CMD/Bash）
+
+**特性**: 实时 stdout/stderr、标签页、工作目录同步到当前项目
+
+#### 3.4.7 commands/
+
+**Command 模式历史系统**:
+- `base.py`: `Command` 基类，含 `execute()` / `undo()`
+- `history_manager.py`: 扁平命令列表 + `current_index` 指针
+- `node_commands.py`: AddNodeCommand、RemoveNodeCommand、MoveNodeCommand
+- `edge_commands.py`: AddEdgeCommand、RemoveEdgeCommand
+- `compound_commands.py`: 多操作原子命令
+
+**特性**: 撤销/重做/跳转到任意历史状态、精确的锚点恢复
+
+#### 3.4.8 toast/
+
+**Toast 通知系统**:
+- `toast_notification.py`: 单个 Toast，带动画
+- `toast_queue_manager.py`: FIFO 队列，最多同时显示 3 个，智能替换
 
 ---
 
-#### 3.2.4 polling_manager.py
+### 3.5 面板层
 
-**职责**: 统一轮询管理器，集中管理所有定时任务
+| 面板 | 文件 | 模式 | 描述 |
+|-------|-------|------|-------------|
+| 节点列表 | `node_list_panel.py` + `node_list_dock.py` | 悬浮 + Dock | 树形视图，分组，拖拽，多选 |
+| 节点监测 | `node_monitor.py` + `node_monitor_dock.py` | 悬浮 + Dock | 实时日志 |
+| 资源监测 | `resource_monitor.py` + `resource_monitor_dock.py` | 悬浮 + Dock | 系统 CPU/内存监测 |
+| 历史 | `history_panel.py` | 悬浮 | 可视化命令历史，点击跳转 |
+| 属性 | `property_panel.py` | 对话框 | 配置编辑器、颜色设置 |
+| 展开 | `node_expand_panel.py` | 面板 | output.json 查看/编辑 |
+| 分组管理 | `node_group_manager.py` | 对话框 | 分组增删改查 |
 
-**核心特性**:
-- 单例模式
-- 所有任务共享一个主定时器
-- 支持不同轮询间隔的任务
-- 提供统一的信号接口
-
-**默认轮询任务**:
-
-| 任务名 | 间隔(秒) | 回调函数 | 功能 |
-|--------|----------|----------|------|
-| `node_health` | 2 | `_poll_node_health()` | 节点进程健康检查 |
-| `global_logs` | 2 | `_poll_global_logs()` | 全局日志检测 |
-| `global_config` | 2 | `_poll_global_config()` | 全局配置检测 |
-| `node_logs` | 2 | `_poll_node_logs()` | 节点日志检测 |
-| `node_config` | 2 | `_poll_node_config()` | 节点配置检测 |
-| `node_output` | 2 | `_poll_node_output()` | 节点输出检测 |
-| `app_state` | 5 | `_poll_app_state()` | 应用状态检测 |
-
-**信号定义**:
-
-| 信号 | 参数 | 触发时机 |
-|------|------|----------|
-| `node_status_changed` | `(node_name, new_status)` | 节点状态变更 |
-| `log_file_changed` | `(node_path, log_filename)` | 节点日志文件变化 |
-| `global_log_changed` | `(log_file, content)` | 全局日志文件变化 |
-| `config_file_changed` | `(node_path)` | 节点配置变化 |
-| `global_config_changed` | `(config_file)` | 全局配置变化 |
-| `output_json_changed` | `(node_path, content)` | 节点输出变化 |
-| `app_state_changed` | `(state)` | 应用状态变化 |
+**共享组件** (`panels/_shared/`):
+- `node_log_sub_panel.py`: 通用日志显示控件
+- `node_panel_sync_mixin.py`: 面板与画布同步逻辑
+- `system_resource_collector.py`: 系统指标采集
 
 ---
 
-### 3.3 项目管理层组件
+### 3.6 项目管理层
 
-#### 3.3.1 project_manager.py
+#### 3.6.1 project_manager.py
 
-**职责**: 项目管理（新建/打开/刷新项目，扫描并加载节点数据）
-
-**核心函数**:
-
-| 函数 | 功能 | 参数 | 返回值 |
-|------|------|------|--------|
-| `project_new()` | 新建项目 | `main_window`: 主窗口实例 | 无 |
-| `project_open()` | 打开项目 | `main_window`: 主窗口实例 | 无 |
-| `project_refresh()` | 刷新节点列表 | `main_window`: 主窗口实例 | 无 |
+**职责**: 项目新建/打开/刷新
 
 **项目结构**:
 ```
 project_dir/
-├── nodes/           # 节点目录
-│   ├── node1/       # 节点文件夹
+├── nodes/              # 节点目录
+│   ├── node1/
 │   │   ├── config.json
-│   │   ├── listener.py
+│   │   ├── main.py
 │   │   └── ...
 │   └── node2/
 ├── node_registry.json  # 节点注册表
 └── canvas_layout.json  # 画布布局
 ```
 
----
+#### 3.6.2 node_registry.py
 
-#### 3.3.2 node_registry.py
-
-**职责**: 节点注册表组件，记录节点名称和路径
-
-**核心类**: `NodeRegistry`
-
-**方法**:
-
-| 方法 | 功能 | 参数 | 返回值 |
-|------|------|------|--------|
-| `load()` | 从文件加载注册表 | 无 | `bool` - 加载是否成功 |
-| `save()` | 保存注册表到文件 | 无 | `bool` - 保存是否成功 |
-| `register_node()` | 注册或更新节点 | `node_name`, `node_path`, `mount_root` | 无 |
-| `unregister_node()` | 移除节点 | `node_name` | 无 |
-| `sync_from_scan()` | 同步扫描结果 | `scan_results`: {name: path} | 无 |
-| `get_active_nodes()` | 获取活跃节点 | 无 | `dict` - 节点信息 |
-| `get_mounted_nodes()` | 获取挂载节点 | 无 | `dict` - 节点信息 |
+**NodeRegistry**: 带挂载来源的持久化节点索引
 
 **数据结构**:
 ```json
@@ -311,197 +380,34 @@ project_dir/
             "status": "active",
             "mount_root": "/mount/path"
         }
-    },
-    "updated_at": "2025-01-01T00:00:00"
+    }
 }
 ```
 
----
+#### 3.6.3 external_node_manager.py
 
-#### 3.3.3 external_node_manager.py
+- 通过引用挂载外部节点（不复制文件）
+- 自动创建锁定组（🔒）
+- 安全卸载保留源文件
 
-**职责**: 外部节点的挂载和卸载管理
+#### 3.6.4 connection_inferrer.py
 
-**核心函数**:
-
-| 函数 | 功能 | 参数 | 返回值 |
-|------|------|------|--------|
-| `mount_node()` | 挂载外部节点 | `main_window`: 主窗口实例 | 无 |
-| `unmount_node()` | 卸载外部节点 | `main_window`: 主窗口实例, `node_name`: 节点名 | 无 |
-
-**挂载特性**:
-- 外部节点存储在项目外部目录
-- 通过注册表记录挂载关系
-- 自动创建锁定组（橙色标识）
+从 `config.json` 的 `listen_upper_file` 和 `port_mappings` 反推连线关系
 
 ---
 
-#### 3.3.4 json_node_starter.py
+### 3.7 工具层
 
-**职责**: 从JSON配置文件读取并启动节点
-
-**核心类**: `JsonNodeStarter`
-
-**方法**:
-
-| 方法 | 功能 | 参数 | 返回值 |
-|------|------|------|--------|
-| `load_config()` | 加载JSON配置 | `config_path`: 配置文件路径 | `(bool, str, list)` |
-| `start_node()` | 启动单个节点 | `node_info`: 节点信息 | `(bool, str)` |
-| `start_nodes_from_config()` | 从配置启动所有节点 | `config_path`: 配置文件路径 | `(dict, str)` |
-| `start_nodes()` | 启动多个节点 | `nodes`: 节点列表 | `(dict, str)` |
-
-**配置文件格式**:
-```json
-{
-    "nodes": [
-        {
-            "name": "node_name",
-            "path": "/path/to/node",
-            "config": {}
-        }
-    ]
-}
-```
-
----
-
-### 3.4 UI组件
-
-#### 3.4.1 main_window.py
-
-**职责**: 主窗口，包含完整界面布局和核心功能
-
-**核心特性**:
-- PS式布局（固定中心画布 + 左右停靠面板）
-- 自定义标题栏（无边框窗口）
-- CanvasHost作为中央控件
-- 多画布Tab支持
-
-**主要方法**:
-
-| 方法 | 功能 |
-|------|------|
-| `init_ui()` | 初始化界面布局 |
-| `new_project()` | 新建项目 |
-| `open_project()` | 打开项目 |
-| `refresh_nodes()` | 刷新节点列表 |
-| `start_selected_node()` | 启动选中节点 |
-| `stop_selected_node()` | 停止选中节点 |
-| `show_toast()` | 显示Toast通知 |
-| `closeEvent()` | 窗口关闭处理 |
-
-**面板管理**:
-- 节点列表面板（浮动/Dock版）
-- 节点监测面板（浮动/Dock版）
-- 资源监测面板（浮动/Dock版）
-
----
-
-#### 3.4.2 canvas_view.py
-
-**职责**: 节点画布（VueFlow风格的无限画布）
-
-**核心特性**:
-- 无限画布支持（5000x5000像素）
-- 节点拖拽、锚点连线、贝塞尔曲线
-- 缩放平移（滚轮/触控板/空格拖拽）
-- 框选模式
-- 画布中心坐标持久化
-
-**交互模式**:
-- **空格平移**: 按住空格进入快捷键模式，再按左键进入平移模式
-- **框选**: 鼠标拖拽选择多个节点
-- **连线**: 从输出锚点拖拽到输入锚点
-
----
-
-#### 3.4.3 canvas_host.py
-
-**职责**: 画布宿主窗口，管理多个画布Dock
-
-**核心特性**:
-- 空白缓冲层设计（启动时显示）
-- 每个画布独立维护节点数据和连接
-- 画布切换时自动同步数据
-
-**方法**:
-
-| 方法 | 功能 |
-|------|------|
-| `add_canvas_dock()` | 添加新画布Dock |
-| `get_active_canvas()` | 获取当前活动画布 |
-| `sync_canvas_data_to_main_window()` | 同步画布数据到主窗口 |
-| `update_canvas_data_from_main_window()` | 从主窗口更新画布数据 |
-| `save_all_layouts()` | 保存所有画布布局 |
-
----
-
-### 3.5 工具组件
-
-#### 3.5.1 app_config.py
-
-**职责**: 应用配置管理，单例模式
-
-**管理的配置项**:
-
-| 配置项 | 描述 | 默认值 |
-|--------|------|--------|
-| `window_geometry` | 窗口几何信息 | `{x:100, y:100, width:1400, height:900}` |
-| `splitter_sizes` | 分割器比例 | `[250, 1150]` |
-| `last_project` | 最后打开的项目 | `None` |
-| `language` | 语言设置 | `"cn"` |
-| `panel_positions` | 面板位置 | 各面板坐标 |
-| `panel_visibility` | 面板可见性 | 各面板状态 |
-
-**方法**:
-- `load()` - 加载配置
-- `save()` - 保存配置
-- `get(key, default)` - 获取配置项
-- `set(key, value)` - 设置配置项
-
----
-
-#### 3.5.2 logger.py
-
-**职责**: 全局日志配置
-
-**特性**:
-- 双输出：控制台(INFO) + 文件(DEBUG)
-- 日志格式：时间戳 + 级别 + 消息
-- 文件保留完整调试信息
-
-**用法**:
-```python
-from ui.core.logger import logger
-logger.info("节点已启动")
-logger.debug("调试信息")
-logger.warning("警告信息")
-logger.error("错误信息")
-```
-
----
-
-#### 3.5.3 shortcut_manager.py
-
-**职责**: 全局快捷键管理
-
-**默认快捷键**:
-
-| 快捷键 | 功能 |
-|--------|------|
-| `Ctrl+N` | 新建项目 |
-| `Ctrl+O` | 打开项目 |
-| `Ctrl+,` | 打开设置 |
-| `Ctrl+R` | 重启应用 |
-| `Ctrl+Q` | 退出应用 |
-| `F5` | 刷新节点 |
-| `Ctrl+Shift+O` | 挂载外部节点 |
-| `Ctrl+Shift+S` | 启动节点 |
-| `Ctrl+Shift+X` | 停止节点 |
-| `Ctrl+Shift+M` | 节点监测 |
-| `Ctrl+Shift+R` | 资源监测 |
-| `Ctrl+T` | 新建画布标签 |
+| 组件 | 文件 | 描述 |
+|-----------|------|-------------|
+| 日志 | `logger.py` | 全局日志，轮转（控制台 INFO + 文件 DEBUG） |
+| IDE 扫描 | `ide_scanner.py` | 四层检测：缓存 → config → PATH → 进程/文件系统扫描 |
+| 配置解析 | `node_config_parser.py` | ParameterDef / InputPortDef / OutputPortDef 解析 |
+| 验证器 | `validators.py` | 节点名和路径验证 |
+| i18n | `i18n.py` | 中英双语资源 |
+| 主题 | `theme.py` | 深色 QSS 主题 |
+| 窗口状态 | `window_state_manager.py` | 几何和分隔条比例持久化 |
+| 快捷键 | `shortcut_manager.py` | 全局键盘快捷键 |
 
 ---
 
@@ -519,10 +425,10 @@ logger.error("错误信息")
 验证项目结构（nodes/ 或 canvas_layout.json）
         │
         ▼
-创建画布Dock（通过CanvasHost）
+创建画布 Dock（通过 CanvasHost）
         │
         ▼
-扫描nodes/目录加载节点
+扫描 nodes/ 目录加载节点
         │
         ▼
 同步节点注册表
@@ -534,7 +440,7 @@ logger.error("错误信息")
 检测后台运行的节点
         │
         ▼
-更新UI（画布+面板）
+更新 UI（画布+面板）
 ```
 
 ### 节点启动流程
@@ -546,35 +452,35 @@ logger.error("错误信息")
 获取选中节点信息
         │
         ▼
-检查节点状态（非running/idle）
+检查节点状态（非 running/idle）
         │
         ▼
 清理残留孤儿进程
         │
         ▼
-读取start.json配置
+读取 start.json 配置
         │
         ▼
-定位虚拟环境Python
+定位虚拟环境 Python
         │
         ▼
-启动listener.py进程
+启动 listener.py 进程
         │
         ▼
-写入PID文件
+写入 PID 文件
         │
         ▼
-更新节点状态为idle
+更新节点状态为 idle
         │
         ▼
-更新UI显示
+更新 UI 显示
 ```
 
 ---
 
 ## 5. 进程通信机制
 
-### IPC架构
+### IPC 架构
 
 ```
 主进程 (Server)
@@ -633,17 +539,17 @@ logger.error("错误信息")
 
 | 检测方式 | 优先级 | 说明 |
 |----------|--------|------|
-| 进程扫描 | 最高 | 通过系统命令查找Python进程 |
-| PID文件 | 次高 | 读取.pid文件获取PID |
-| Process对象 | 次低 | 检查subprocess.Popen对象 |
+| 进程扫描 | 最高 | 通过系统命令查找 Python 进程 |
+| PID 文件 | 次高 | 读取 .pid 文件获取 PID |
+| Process 对象 | 次低 | 检查 subprocess.Popen 对象 |
 
 ### 孤儿进程处理
 
-当PID文件丢失或进程异常退出时：
-1. 通过`_find_node_processes()`扫描系统进程
-2. 找到属于该节点的Python进程
-3. 通过`_kill_all_node_processes()`强制终止
-4. 更新节点状态为`stopped`
+当 PID 文件丢失或进程异常退出时：
+1. 通过 `_find_node_processes()` 扫描系统进程
+2. 找到属于该节点的 Python 进程
+3. 通过 `_kill_all_node_processes()` 强制终止
+4. 更新节点状态为 `stopped`
 
 ### 进程树终止机制
 
@@ -731,187 +637,60 @@ def stop_node_process(node_info):
 
 | 区域 | 文件数 | 总行数 |
 |------|--------|--------|
-| 根目录 | 17 | 6,240 |
-| ui/ 目录 | 77 | ~17,800 |
-| tools/ 目录 | 7 | ~2,435 |
-| tests/ 目录 | 3 | 100 |
-| **总计** | **104** | **~26,575** |
+| ui/main_window/ | 9 | 1,997 |
+| ui/canvas/ | 49 | 7,604 |
+| ui/core/ | 69 | 11,816 |
+| ui/panels/ | 19 | 5,078 |
+| ui/dialogs/ | 5 | 1,555 |
+| ui/creators/ | 1 | 268 |
+| ui/menu/ | 1 | 109 |
+| ui/icons/ | 2 | 711 |
+| tools/ | 2 | 1,304 |
+| tests/ | 9 | 504 |
+| **ui/ 总计** | **157** | **29,155** |
 
-### 根目录文件
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `launcher.py` | 251 | 闪屏启动器 |
-| `bnos_console.py` | 100 | 主入口 |
-| `app_config.json` | 80 | 应用配置 |
-| `canvas_layout.json` | 13 | 画布布局 |
-| `color_settings.json` | 9 | 颜色设置 |
-| `build_bnos.spec` | 47 | PyInstaller 打包配置 |
-| `start_bnos_console.bat` | 78 | Windows 启动脚本 |
-| `start_bnos_console.sh` | 153 | Linux/macOS 启动脚本 |
-| `start_bnos_console.vbs` | 16 | 静默启动脚本 |
-| `requirements.txt` | 16 | Python 依赖 |
-| `README.md` | 812 | 英文 README |
-| `README_CN.md` | 792 | 中文 README |
-| `UPDATE_CN.md` | 1,798 | 中文更新日志 |
-| `UPDATE_EN.md` | 844 | 英文更新日志 |
-| `TECHNICAL_DOCUMENTATION.md` | 696 | 技术文档 |
-| `DEVELOPMENT_GUIDELINES.md` | 364 | 开发规范 |
-| `CODE_ANALYSIS_REPORT.md` | 163 | 代码分析报告 |
-| `下一步计划.md` | 24 | 下一步计划 |
-
-### ui/ 顶层
+### 主窗口层
 
 | 文件 | 行数 | 说明 |
-|------|------|------|
-| `__init__.py` | 4 | 模块入口 |
-| `main_window.py` | 1,133 | 主窗口 |
-| `canvas_widget.py` | 15 | 画布兼容层（Facade） |
-| `app_config.json` | 19 | UI 层配置 |
+|------|------|-------------|
+| `__main__.py` | ~500 | 主窗口中心（8 个 Mixin） |
+| `state.py` | ~300 | 状态管理 |
+| `lifecycle.py` | ~280 | 生命周期与关闭 |
+| `actions.py` | ~250 | 动作绑定 |
+| `panel.py` | ~200 | 面板管理 |
+| `ipc.py` | ~180 | IPC 通信 |
+| `node.py` | ~160 | 节点控制委托 |
+| `interaction.py` | ~127 | 用户交互 |
 
-### ui/canvas/ — 画布模块
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `__init__.py` | 17 | 画布模块入口 |
-| `canvas_view.py` | 935 | 画布主视图 |
-| `canvas_layout.py` | 393 | 布局持久化 Mixin |
-| `draw_layer.py` | 317 | 绘图层管理 |
-| `graphic_items.py` | 299 | 图形项（5 种图形） |
-| `draw_toolbar.py` | 204 | PS 风格绘图工具栏 |
-| `canvas_colors.py` | 180 | 颜色管理 Mixin |
-| `canvas_menus.py` | 170 | 右键菜单 Mixin |
-| `canvas_batch_ops.py` | 166 | 批量操作 Mixin |
-| `canvas_connections.py` | 162 | 连线管理 Mixin |
-| `canvas_process.py` | 116 | 画布子进程入口 |
-| `canvas_box_select.py` | 31 | 框选 Mixin |
-| `CANVAS_SPLIT_REPORT.md` | 305 | 画布拆分报告 |
-
-### ui/canvas/items/ — 画布图形项
+### 画布层
 
 | 文件 | 行数 | 说明 |
-|------|------|------|
-| `edge_item.py` | 587 | 连线项（直角直线+折叠点） |
-| `node_item.py` | 352 | 节点容器项 |
-| `node_style.py` | 314 | 节点样式系统（方形/圆形） |
-| `anchor_item.py` | 76 | 锚点项（I/O 端口） |
-| `__init__.py` | 15 | 图形项模块入口 |
+|------|------|-------------|
+| `canvas_view.py` | ~935 | 画布主视图控制器 |
+| `mixins/canvas_layout.py` | ~593 | 布局持久化 |
+| `mixins/canvas_connections.py` | ~280 | 连接管理 |
+| `mixins/canvas_event_handlers.py` | ~400 | 事件处理 |
+| `mixins/canvas_node_manager.py` | ~240 | 节点增删改 |
+| `items/edge_item.py` | ~650 | 连线项（直角直线） |
+| `items/node_item.py` | ~400 | 节点容器 |
+| `items/anchor_manager.py` | ~350 | 锚点管理 |
+| `drawing/draw_layer.py` | ~317 | 绘图层 |
 
-### ui/core/ — 核心业务模块
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `polling_manager.py` | 520 | 统一轮询管理器（单例） |
-| `canvas_host.py` | 484 | 画布宿主窗口 |
-| `node_process.py` | 484 | 节点进程生命周期管理 |
-| `json_node_starter.py` | 329 | JSON 配置启动节点 |
-| `connection_inferrer.py` | 257 | 连线 config.json 兜底校验 |
-| `project_manager.py` | 233 | 项目管理 |
-| `node_registry.py` | 242 | 节点注册表 |
-| `file_operation_manager.py` | 216 | 文件操作管理器 |
-| `packager.py` | 203 | 节点/项目打包导出 |
-| `import_export_manager.py` | 198 | 导入导出管理器 |
-| `strings_cn.json` | 540 | 中文语言包 |
-| `strings_en.json` | 532 | 英文语言包 |
-| `dark_title_bar.py` | 171 | 自定义深色标题栏 |
-| `floating_panel.py` | 171 | 浮动面板基类 |
-| `theme.py` | 68 | 深色 QSS 主题 |
-| `bnos_dock.py` | 166 | Dock 组件 |
-| `ipc.py` | 150 | 进程通信（QLocalSocket） |
-| `dock_manager.py` | 142 | Dock 管理器 |
-| `node_creation_worker.py` | 134 | 异步节点创建 Worker |
-| `process_manager.py` | 128 | UI 子进程管理 |
-| `external_node_manager.py` | 120 | 外部节点挂载管理 |
-| `splash_screen.py` | 112 | PySide6 启动闪屏 |
-| `app_config.py` | 107 | 应用配置管理 |
-| `window_state_manager.py` | 71 | 窗口状态管理器 |
-| `core_process.py` | 72 | 核心业务后台进程 |
-| `shortcut_manager.py` | 68 | 快捷键管理 |
-| `i18n.py` | 61 | 国际化模块 |
-| `logger.py` | 55 | 全局日志模块 |
-
-### ui/core/toast/ — Toast 通知
+### 核心服务层
 
 | 文件 | 行数 | 说明 |
-|------|------|------|
-| `toast_notification.py` | 238 | Toast 通知组件 |
+|------|------|-------------|
+| `polling_manager.py` | ~520 | 统一轮询管理器 |
+| `canvas_host.py` | ~550 | 画布宿主与停靠 |
+| `node_process.py` | ~484 | 节点进程生命周期 |
+| `actions/action_factory.py` | ~300 | 动作工厂 |
+| `commands/history_manager.py` | ~250 | 历史回滚 |
+| `terminal/terminal_dock.py` | ~224 | 终端 Dock |
+| `terminal/terminal_process.py` | ~120 | 终端进程 |
+| `toast/toast_queue_manager.py` | ~180 | Toast 队列 |
+| `event_bus.py` | ~80 | 事件总线 |
+| `di.py` | ~60 | DI 容器 |
 
-### ui/core/utils/ — 工具函数
+---
 
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `dialog_utils.py` | 814 | 统一对话框组件 |
-| `file_utils.py` | 74 | 文件操作工具 |
-| `log_viewer.py` | 33 | 日志查看器工具 |
-| `__init__.py` | 1 | 空文件 |
-
-### ui/dialogs/ — 对话框
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `node_config_dialog.py` | 580 | 节点配置对话框 |
-| `color_settings_dialog.py` | 443 | 颜色设置对话框 |
-| `file_browser_dialog.py` | 347 | 文件浏览器对话框 |
-| `settings_dialog.py` | 306 | 设置对话框 |
-| `__init__.py` | 2 | 模块入口 |
-
-### ui/panels/ — 面板模块
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `node_list_panel.py` | 1,099 | 节点列表悬浮面板 |
-| `node_list_dock.py` | 776 | 节点列表 Dock 面板 |
-| `resource_monitor.py` | 508 | 资源监测悬浮面板 |
-| `node_monitor.py` | 497 | 节点监测悬浮面板 |
-| `node_expand_panel.py` | 447 | 节点展开面板 |
-| `resource_monitor_dock.py` | 412 | 资源监测 Dock 面板 |
-| `node_monitor_dock.py` | 371 | 节点监测 Dock 面板 |
-| `node_group_manager.py` | 344 | 节点分组管理 |
-| `property_panel.py` | 301 | 属性面板 |
-| `node_list_drag.py` | 262 | 节点拖拽功能 |
-| `node_list_context.py` | 248 | 右键菜单上下文 |
-| `panel_process.py` | 83 | 面板子进程入口 |
-
-### ui/menu/ — 菜单系统
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `menu_manager.py` | 220 | 菜单栏管理器 |
-
-### ui/creators/ — 节点创建器
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `node_creator_manager.py` | 268 | 多语言节点创建管理器 |
-
-### ui/icons/ — 图标系统
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `codicon.py` | 708 | Codicon 图标管理器（597 图标） |
-| `__init__.py` | 3 | 图标模块入口 |
-
-### ui/docs/ — 文档
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `TOAST_MODULE_README.md` | 185 | Toast 模块文档 |
-
-### tools/ — 节点生成工具
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `rust_create_node.py` | 1,155 | Rust 节点模板生成器 |
-| `python_create_node.py` | 144 | Python 节点模板生成器 |
-| `README_CN.md` | 480 | 工具中文说明 |
-| `README.md` | 438 | 工具英文说明 |
-| `Node_Generator_Guidelines_EN.md` | 204 | 新语言节点开发准则（EN） |
-| `节点生成器开发准则.md` | 204 | 新语言节点开发准则（CN） |
-
-### tests/ — 测试
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `test_panel_process.py` | 34 | 面板进程测试 |
-| `test_canvas_process.py` | 33 | 画布进程测试 |
-| `test_core_process.py` | 33 | 核心进程测试 |
+*最后更新: 2026-06-17*

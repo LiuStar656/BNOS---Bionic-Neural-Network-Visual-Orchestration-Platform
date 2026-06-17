@@ -298,38 +298,46 @@ graph TB
 
 ### Module Structure
 
-| Module | File | Description |
+| Module | Path | Description |
 |--------|------|-------------|
 | **Entry Point** | `bnos_console.py` | Initialize QApplication, launch MainWindow |
-| **Main Window** | `ui/main_window/__main__.py` | Integrated UI hub (< 500 lines, 7 Mixin modules) |
+| **Main Window** | `ui/main_window/__main__.py` | Integrated UI hub (~500 lines, 8 Mixin modules) |
 | **Main Window Mixins** | `ui/main_window/*.py` | State, Lifecycle, Actions, Panel, IPC, NodeControl, Interaction |
 | **ApplicationContext** | `ui/core/application_context.py` | Singleton aggregator for all global services |
-| **Canvas** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
+| **Canvas View** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
+| **Canvas Mixins** | `ui/canvas/mixins/` | Layout, connections, menus, batch ops, box select, colors, events |
+| **Canvas Items** | `ui/canvas/items/` | NodeItem, EdgeItem, AnchorItem, AnchorManager, StyleRegistry |
+| **Canvas Drawing** | `ui/canvas/drawing/` | Draw layer, draw toolbar, graphic items (rect, arrow, text, etc.) |
+| **Parameter Widgets** | `ui/canvas/parameter_widgets/` | Qt widget library for 11 param types with WidgetRegistry |
 | **CanvasHost** | `ui/core/canvas_host.py` | Canvas host and panel docking management |
-| **Node Styles** | `ui/canvas/items/styles/` | Node style system (rect/dot/detailed), StyleRegistry, 3-layer z-architecture |
-| **Node List** | `ui/panels/node_list_panel.py` | Tree view, groups, drag-drop, multi-select |
+| **Node List** | `ui/panels/node_list_panel.py` / `node_list_dock.py` | Tree view, groups, drag-drop, multi-select (floating + dock) |
 | **Property Panel** | `ui/panels/property_panel.py` | Config editor, log viewer, process control, colors |
 | **Expand Panel** | `ui/panels/node_expand_panel.py` | output.json viewer/editor with live refresh |
-| **Node Monitor** | `ui/panels/node_monitor.py` | Real-time logs for all canvas nodes |
+| **Node Monitor** | `ui/panels/node_monitor.py` / `node_monitor_dock.py` | Real-time logs for all canvas nodes (floating + dock) |
+| **Resource Monitor** | `ui/panels/resource_monitor.py` / `resource_monitor_dock.py` | System resource monitoring (floating + dock) |
+| **History Panel** | `ui/panels/history_panel.py` | Photoshop-style history rollback UI |
 | **Group Manager** | `ui/panels/node_group_manager.py` | Node group CRUD and persistence |
 | **Floating Panel** | `ui/core/floating_panel.py` | Base class for frameless translucent panels |
+| **BNOS Dock** | `ui/core/bnos_dock.py` | Base dock component with custom title bar |
+| **Terminal** | `ui/core/terminal/` | Embedded terminal dock (PowerShell/CMD/Bash) |
 | **Logger** | `ui/core/logger.py` | Global logger with rotation (console + file) |
 | **IDE Scanner** | `ui/core/ide_scanner.py` | Auto-detects VSCode / Trae IDE, 4-layer detection chain |
-| **Parameter Parser** | `ui/core/node_config_parser.py` | Parses parameters field from node config.json |
-| **Parameter Widget Library** | `ui/canvas/parameter_widgets/` | Qt widget library for 11 param types with WidgetRegistry                       |
+| **Parameter Parser** | `ui/core/node_config_parser.py` | Parses parameters and input/output ports from node config.json |
 | **Toast Queue** | `ui/core/toast/toast_queue_manager.py` | Toast notification queue management |
-| **Action System** | `ui/core/actions/` | Unified action registry and factory |
+| **Action System** | `ui/core/actions/` | Unified action registry and factory (~80 actions) |
 | **EventBus** | `ui/core/event_bus.py` | Global event publishing/subscription system |
 | **DIContainer** | `ui/core/di.py` | Dependency injection container |
 | **PollingManager** | `ui/core/polling_manager.py` | Unified polling for node status, logs, config |
 | **ProcessManager** | `ui/core/process_manager.py` | Process lifecycle management with IPC |
 | **NodeControlService** | `ui/core/node_control_service.py` | Node control service with global state |
+| **ShutdownOrchestrator** | `ui/core/shutdown_orchestrator.py` | Graceful shutdown sequence management |
 | **Menu Manager** | `ui/menu/menu_manager.py` | Unified menu bar (File/Edit/Tools/Help) |
-| **History Manager** | `ui/core/commands/history_manager.py` | Photoshop-style history rollback, flat command list + current_index |
-| **Command System** | `ui/core/commands/` | Command pattern: node_commands / edge_commands / base |
+| **History Manager** | `ui/core/commands/history_manager.py` | Command pattern history rollback |
+| **Command System** | `ui/core/commands/` | Node commands, edge commands, compound commands, base |
 | **Node Creator** | `ui/creators/node_creator_manager.py` | Multi-language node creation manager |
+| **Dialogs** | `ui/dialogs/` | Node config, color settings, file browser, settings dialogs |
 | **Validators** | `ui/core/validators.py` | Node name and path validation utilities |
-| **Tools** | `tools/python_create_node.py` | Python node template generator (venv + scripts) |
+| **Tools** | `tools/python_create_node.py`, `tools/rust_create_node.py` | Python / Rust node template generators |
 
 ---
 
@@ -581,6 +589,7 @@ BNOS/
 ├── bnos_console.py                # Main entry point
 ├── build_bnos.spec                # PyInstaller spec
 ├── app_config.json                # App settings (window state, last project)
+├── bnos_config.json               # App-level meta config
 ├── canvas_layout.json             # Canvas layout persistence
 ├── color_settings.json            # Color settings persistence
 │
@@ -597,9 +606,9 @@ BNOS/
 │   ├── __init__.py
 │   ├── canvas_widget.py          # Compatibility layer (Facade)
 │   │
-│   ├── main_window/               # Main window module (split into 7 Mixins)
+│   ├── main_window/               # Main window module (split into 8 Mixins)
 │   │   ├── __init__.py
-│   │   ├── __main__.py           # Main window hub (~499 lines)
+│   │   ├── __main__.py           # Main window hub (~500 lines)
 │   │   ├── state.py              # State management Mixin
 │   │   ├── lifecycle.py          # Lifecycle events Mixin
 │   │   ├── actions.py            # Business actions Mixin
@@ -615,6 +624,7 @@ BNOS/
 │   │   ├── node_process.py       # Node process management
 │   │   ├── dark_title_bar.py     # VSCode-style title bar
 │   │   ├── floating_panel.py     # Floating panel base class
+│   │   ├── bnos_dock.py          # Base dock component
 │   │   ├── logger.py             # Global logger with rotation
 │   │   ├── i18n.py               # Internationalization support
 │   │   ├── validators.py         # Node name & path validation
@@ -630,7 +640,7 @@ BNOS/
 │   │   ├── shortcut_manager.py   # Keyboard shortcut manager
 │   │   ├── node_registry.py      # Node registry system
 │   │   ├── ide_scanner.py        # IDE auto-detection
-│   │   ├── node_config_parser.py # Parameter field parser
+│   │   ├── node_config_parser.py # Parameter & port field parser
 │   │   ├── window_state_manager.py # Window state persistence
 │   │   ├── external_node_manager.py # External node mounting
 │   │   ├── import_export_manager.py # Node import/export
@@ -639,7 +649,12 @@ BNOS/
 │   │   │   ├── base.py           # Command base class
 │   │   │   ├── history_manager.py # HistoryManager singleton
 │   │   │   ├── node_commands.py  # Node operation commands
-│   │   │   └── edge_commands.py  # Edge operation commands
+│   │   │   ├── edge_commands.py  # Edge operation commands
+│   │   │   └── compound_commands.py # Compound commands
+│   │   ├── terminal/             # Embedded terminal
+│   │   │   ├── terminal_dock.py
+│   │   │   ├── terminal_widget.py
+│   │   │   └── terminal_process.py
 │   │   ├── utils/                # Utility modules
 │   │   │   ├── dialog_utils.py
 │   │   │   ├── file_utils.py
@@ -647,20 +662,25 @@ BNOS/
 │   │   ├── toast/                # Toast notification system
 │   │   │   ├── toast_notification.py
 │   │   │   └── toast_queue_manager.py
-│   │   └── actions/              # Unified action system
+│   │   └── actions/              # Unified action system (~80 actions)
 │   │       ├── __init__.py
 │   │       ├── action_definition.py
 │   │       ├── action_registry.py
 │   │       ├── action_factory.py
 │   │       ├── builtin_project_actions.py
-│   │       ├── builtin_node_actions.py  # Redirect → node/ subpackage
+│   │       ├── builtin_node_actions.py
 │   │       ├── builtin_canvas_actions.py
 │   │       ├── builtin_view_actions.py
-│   │       └── node/              # Node-related actions (Registry-based)
-│   │           ├── __init__.py        # register_node_actions() aggregator
-│   │           ├── _lifecycle.py / _context_menu.py / _batch.py
-│   │           ├── _selection.py / _group.py / _ungrouped.py
-│   │           └── _ide.py / _style.py
+│   │       └── node/              # Node-related actions
+│   │           ├── __init__.py
+│   │           ├── _lifecycle.py
+│   │           ├── _context_menu.py
+│   │           ├── _batch.py
+│   │           ├── _selection.py
+│   │           ├── _group.py
+│   │           ├── _ungrouped.py
+│   │           ├── _ide.py
+│   │           └── _style.py
 │   │
 │   ├── menu/                      # Menu system
 │   │   └── menu_manager.py       # Menu bar manager
@@ -668,43 +688,62 @@ BNOS/
 │   ├── canvas/                    # Canvas engine
 │   │   ├── __init__.py
 │   │   ├── canvas_view.py        # NodeCanvas controller
-│   │   ├── canvas_colors.py      # Color management Mixin
-│   │   ├── canvas_layout.py      # Layout persistence Mixin
-│   │   ├── canvas_menus.py       # Context menu Mixin
-│   │   ├── canvas_connections.py # Synapse connection management
-│   │   ├── canvas_batch_ops.py   # Batch operations
-│   │   ├── canvas_box_select.py  # Box selection
 │   │   ├── canvas_process.py     # Canvas process isolation
-│   │   ├── controllers.py        # Canvas controllers
-│   │   ├── draw_layer.py         # Drawing layer
-│   │   ├── draw_toolbar.py       # Drawing toolbar
-│   │   └── items/                # Graphics items
+│   │   ├── mixins/                # Canvas functional mixins
+│   │   │   ├── canvas_layout.py      # Layout persistence
+│   │   │   ├── canvas_connections.py # Synapse connection management
+│   │   │   ├── canvas_menus.py       # Context menu
+│   │   │   ├── canvas_batch_ops.py   # Batch operations
+│   │   │   ├── canvas_box_select.py  # Box selection
+│   │   │   ├── canvas_colors.py      # Color management
+│   │   │   ├── canvas_event_handlers.py # Event handlers
+│   │   │   ├── canvas_node_manager.py # Node management
+│   │   │   ├── canvas_selection.py   # Selection logic
+│   │   │   ├── canvas_background_renderer.py # Background rendering
+│   │   │   └── controllers.py        # Canvas controllers
+│   │   ├── items/                 # Graphics items
+│   │   │   ├── __init__.py
+│   │   │   ├── README.md
+│   │   │   ├── anchor_item.py
+│   │   │   ├── anchor_manager.py
+│   │   │   ├── node_item.py
+│   │   │   ├── node_status_widget.py
+│   │   │   ├── edge_item.py
+│   │   │   ├── node_style.py       # Compatibility redirect
+│   │   │   └── styles/             # Node style system (Registry-based)
+│   │   │       ├── __init__.py
+│   │   │       ├── _base.py
+│   │   │       └── detailed.py
+│   │   ├── drawing/               # Drawing layer
+│   │   │   ├── __init__.py
+│   │   │   ├── draw_layer.py
+│   │   │   ├── draw_toolbar.py
+│   │   │   └── graphic_items/     # Graphic shapes registry
+│   │   │       ├── __init__.py
+│   │   │       ├── _base.py
+│   │   │       ├── rect.py
+│   │   │       ├── round_rect.py
+│   │   │       ├── polygon.py
+│   │   │       ├── arrow.py
+│   │   │       └── text.py
+│   │   └── parameter_widgets/     # Parameter widgets (Registry-based)
 │   │       ├── __init__.py
-│   │       ├── anchor_item.py    # Anchor (I/O port)
-│   │       ├── anchor_manager.py # Anchor management
-│   │       ├── node_item.py      # Node container
-│   │       ├── node_status_widget.py
-│   │       ├── edge_item.py      # Bezier curve edge
-│   │       ├── styles/           # Node style system (Registry-based)
-│   │       │   ├── __init__.py   # StyleRegistry + re-exports
-│   │       │   ├── _base.py      # NodeStyle base class
-│   │       │   ├── rect.py       # RectNodeStyle + Dark/Light variants
-│   │       │   ├── dot.py        # DotNodeStyle
-│   │       │   └── detailed.py   # DetailedNodeStyle
-│   │       └── node_style.py     # Compatibility redirect
-│   │
-│   ├── graphic_items/             # Drawing graphics (Registry-based)
-│   │   ├── __init__.py            # GraphicRegistry + re-exports
-│   │   ├── _base.py               # GraphicBase + constants
-│   │   ├── rect.py / round_rect.py / polygon.py / arrow.py / text.py
-│   │
-│   ├── parameter_widgets/         # Parameter widgets (Registry-based)
-│   │   ├── __init__.py            # WidgetRegistry + re-exports
-│   │   ├── _base.py               # ParameterWidget base + constants
-│   │   └── string.py / text.py / int_widget.py / ... (11 types)
+│   │       ├── _base.py
+│   │       ├── _proxy_combo.py
+│   │       ├── string.py
+│   │       ├── text.py
+│   │       ├── int_widget.py
+│   │       ├── float_widget.py
+│   │       ├── bool_widget.py
+│   │       ├── enum_widget.py
+│   │       ├── file_picker.py
+│   │       ├── dir_picker.py
+│   │       ├── color_widget.py
+│   │       ├── range_widget.py
+│   │       └── password.py
 │   │
 │   ├── panels/                    # Panels
-│   │   ├── node_list_panel.py    # Node list panel
+│   │   ├── node_list_panel.py    # Node list floating panel
 │   │   ├── node_list_dock.py     # Dock-style node list
 │   │   ├── node_list_context.py  # Context menu for node list
 │   │   ├── node_list_drag.py     # Node list drag-drop
@@ -719,11 +758,13 @@ BNOS/
 │   │   ├── history_panel.py      # History panel
 │   │   ├── panel_process.py      # Panel process isolation
 │   │   └── _shared/              # Shared panel components
+│   │       ├── __init__.py
 │   │       ├── node_log_sub_panel.py
 │   │       ├── node_panel_sync_mixin.py
 │   │       └── system_resource_collector.py
 │   │
 │   ├── dialogs/                   # Dialogs
+│   │   ├── __init__.py
 │   │   ├── color_settings_dialog.py
 │   │   ├── settings_dialog.py
 │   │   ├── node_config_dialog.py
@@ -733,10 +774,11 @@ BNOS/
 │   │   └── node_creator_manager.py
 │   │
 │   ├── icons/                     # Icon system
+│   │   ├── __init__.py
 │   │   ├── codicon.py            # VS Code Codicon icons
 │   │   └── codicon.ttf
 │   │
-│   └── docs/                      # Documentation
+│   └── docs/                      # Module docs
 │       └── TOAST_MODULE_README.md
 │
 ├── tools/                         # Node generation tools
@@ -746,6 +788,7 @@ BNOS/
 │
 ├── docs/                          # Project documentation
 │   ├── TECHNICAL_DOCUMENTATION.md
+│   ├── TECHNICAL_DOCUMENTATION_CN.md
 │   ├── changelogs/               # Update logs
 │   │   ├── cn/                  # Chinese changelogs
 │   │   ├── en/                  # English changelogs
@@ -757,7 +800,7 @@ BNOS/
 ```
 
 **Architecture Highlights**:
-- ✅ **Main Window Decoupled**: Split into 7 Mixin modules, < 500 lines total
+- ✅ **Main Window Decoupled**: Split into 8 Mixin modules, < 500 lines total
 - ✅ **ApplicationContext Singleton**: Centralized service aggregation & lifecycle
 - ✅ **EventBus & DIContainer**: Loosely coupled architecture, testable components
 - ✅ **Test Coverage**: 28+ unit tests covering core modules
@@ -980,7 +1023,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-06-13
+- **Last Updated**: 2026-06-17
 
 
 ---
