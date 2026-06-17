@@ -11,6 +11,8 @@ class ArrowGraphic(GraphicBase):
 
     def __init__(self, points=None):
         super().__init__("arrow", points or [(0,0),(100,0)])
+        self._arrow_size = self.ARROW_LEN
+        self._arrow_angle = self.ARROW_ANGLE
 
     def boundingRect(self):
         if len(self._points) < 2: return QRectF(0,0,1,1)
@@ -25,12 +27,17 @@ class ArrowGraphic(GraphicBase):
 
         # 箭头头部
         angle = atan2(y2-y1, x2-x1)
-        p1 = QPointF(x2 - self.ARROW_LEN*cos(angle-self.ARROW_ANGLE),
-                      y2 - self.ARROW_LEN*sin(angle-self.ARROW_ANGLE))
-        p2 = QPointF(x2 - self.ARROW_LEN*cos(angle+self.ARROW_ANGLE),
-                      y2 - self.ARROW_LEN*sin(angle+self.ARROW_ANGLE))
+        p1 = QPointF(x2 - self._arrow_size*cos(angle-self._arrow_angle),
+                      y2 - self._arrow_size*sin(angle-self._arrow_angle))
+        p2 = QPointF(x2 - self._arrow_size*cos(angle+self._arrow_angle),
+                      y2 - self._arrow_size*sin(angle+self._arrow_angle))
         painter.setBrush(self._stroke.color())
         painter.drawPolygon(QPolygonF([QPointF(x2,y2), p1, p2]))
 
         if self.isSelected():
             self._draw_handles(painter)
+
+    def set_arrow_size(self, size: float):
+        """设置箭头大小"""
+        self._arrow_size = size
+        self.update()

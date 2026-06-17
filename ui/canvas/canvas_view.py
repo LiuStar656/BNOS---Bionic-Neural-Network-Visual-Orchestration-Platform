@@ -116,6 +116,7 @@ class NodeCanvas(
         # 绘图层（独立模块，已有实现）
         self.draw_layer = DrawLayer(self)
         self._draw_toolbar = self.draw_layer.attach_toolbar()
+        self._draw_property_panel = self.draw_layer.attach_property_panel()
 
         # 连线状态（事件处理器用到）
         self.is_connecting = False

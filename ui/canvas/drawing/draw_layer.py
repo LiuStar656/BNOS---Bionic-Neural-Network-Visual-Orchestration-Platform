@@ -1,39 +1,43 @@
 """
-绘图管理层 — 统一管理图形渲染/选中/拖拽/撤销重做，Alt 键切换编辑模式
+绘图管理层 — 工具分发 + 多选管理 + 属性面板 + 撤销重做
 
 注入到 NodeCanvas，作为绘图层 (z=0) 在节点层下方。
 """
 from PySide6.QtCore import Qt, QPointF
-from PySide6.QtWidgets import QGraphicsItem
+from PySide6.QtWidgets import QGraphicsItem, QMenu
+from PySide6.QtGui import QAction
+
 from ui.core.i18n import t
 from ui.canvas.drawing.graphic_items import (
     RectGraphic, RoundRectGraphic, PolygonGraphic, ArrowGraphic, TextGraphic,
     GraphicBase, C_STROKE, C_FILL, STROKE_W
 )
 from ui.canvas.drawing.draw_toolbar import DrawToolbar
+from ui.canvas.drawing.tools import (
+    SelectionTool, RectTool, RoundRectTool, EllipseTool,
+    PolygonTool, ArrowTool, TextTool, ToolResult,
+)
+from ui.canvas.drawing.components import DrawPropertyPanel
+from ui.canvas.drawing.styles import apply_preset, PRESETS
 from ui.core.logger import logger
 from ui.core.app_config import AppConfig
 
 
 class DrawLayer:
-    """绘图层管理器，嵌入 NodeCanvas"""
+    """绘图层管理器，嵌入 NodeCanvas — 工具分发架构"""
 
     MAX_UNDO = 50
 
     def __init__(self, canvas):
         self.canvas = canvas
         self.graphics = []         # 所有图形
-        self._current = None       # 正在拖拽创建的图形
-        self._tool = ""            # 当前工具
+        self._tool = ""            # 当前工具 ID
         self._locked = False       # 图层锁定
         self._visible = True       # 图层可见
         self._alt_mode = False     # Alt 编辑模式
 
         self._undo_stack = []
         self._redo_stack = []
-        self._drag_start = None
-        self._dragging_handle = -1
-        self._dragging_graphic = None
 
         # 样式缓存
         self._stroke = C_STROKE
@@ -41,17 +45,46 @@ class DrawLayer:
         self._stroke_w = STROKE_W
 
         self.toolbar = None
-        self._toolbar_visible = False  # 工具栏默认隐藏
+        self._toolbar_visible = False
+        self.property_panel = None
+
+        # 工具注册表
+        self._tools = {}
+        self._active_tool = None
+        self._register_tools()
+
+    def _register_tools(self):
+        """注册所有绘图工具"""
+        self._tools = {
+            "select": SelectionTool(self),
+            "rect": RectTool(self),
+            "round_rect": RoundRectTool(self),
+            "ellipse": EllipseTool(self),
+            "polygon": PolygonTool(self),
+            "arrow": ArrowTool(self),
+            "text": TextTool(self),
+        }
+        # 默认使用选择工具
+        self._set_active_tool("select")
+
+    def _set_active_tool(self, tool_id: str):
+        """切换激活工具"""
+        if self._active_tool:
+            self._active_tool.on_deactivate()
+        self._tool = tool_id
+        self._active_tool = self._tools.get(tool_id)
+        if self._active_tool:
+            self._active_tool.on_activate()
+
+    # ── 工具栏 ──
 
     def attach_toolbar(self):
         """创建并挂载绘图工具栏到画布左侧（默认隐藏）"""
         if self.toolbar:
             return self.toolbar
-        view = self.canvas.viewport()
-        self.toolbar = DrawToolbar(view)
-        self.toolbar.setParent(view)
-        self.toolbar.setGeometry(0, 0, 36, view.height())
-        # self.toolbar.show()  # ← 默认隐藏，注释掉
+        self.toolbar = DrawToolbar(self.canvas)
+        self.toolbar.setParent(self.canvas)
+        self.toolbar.setGeometry(0, 0, 36, self.canvas.viewport().height())
         self.toolbar.tool_changed.connect(self.set_tool)
         self.toolbar.style_changed.connect(self._on_style)
         self.toolbar.layer_locked.connect(self.set_locked)
@@ -60,41 +93,39 @@ class DrawLayer:
         self.toolbar.redo_requested.connect(self.redo)
         self.toolbar.delete_requested.connect(self.delete_selected)
         self.toolbar.clear_requested.connect(self.clear_all)
-        
-        # 从配置初始化工具栏状态（这里不立即显示/隐藏，等待 canvas_view 的统一初始化）
+
         try:
             app_config = AppConfig()
             self._toolbar_visible = app_config.get("draw_toolbar_visible", False)
         except Exception as e:
             logger.warning("读取绘图工具栏初始配置失败: %s", e)
             self._toolbar_visible = False
-            
+
+        # 根据配置显示/隐藏工具栏
+        if self._toolbar_visible:
+            self.toolbar.show()
+        else:
+            self.toolbar.hide()
+
         return self.toolbar
 
     def show_toolbar(self):
-        """显示绘图工具栏"""
         if not self.toolbar:
             return
-        # 直接设置状态和显示，避免条件判断导致需要两次操作
         self.toolbar.show()
         self._toolbar_visible = True
         logger.debug("绘图工具栏已显示")
-        # 保存到配置
         self._save_toolbar_config(True)
 
     def hide_toolbar(self):
-        """隐藏绘图工具栏"""
         if not self.toolbar:
             return
-        # 直接设置状态和隐藏，避免条件判断导致需要两次操作
         self.toolbar.hide()
         self._toolbar_visible = False
         logger.debug("绘图工具栏已隐藏")
-        # 保存到配置
         self._save_toolbar_config(False)
 
     def toggle_toolbar(self):
-        """切换绘图工具栏显示/隐藏状态"""
         new_visible = not self._toolbar_visible
         if new_visible:
             self.show_toolbar()
@@ -103,7 +134,6 @@ class DrawLayer:
         return self._toolbar_visible
 
     def _save_toolbar_config(self, visible):
-        """保存工具栏显示状态到 app_config"""
         try:
             app_config = AppConfig()
             app_config.set("draw_toolbar_visible", visible)
@@ -111,22 +141,35 @@ class DrawLayer:
         except Exception as e:
             logger.warning("保存绘图工具栏配置失败: %s", e)
 
+    # ── 属性面板 ──
+
+    def attach_property_panel(self):
+        """创建并挂载属性面板"""
+        if self.property_panel:
+            return self.property_panel
+        self.property_panel = DrawPropertyPanel(self, self.canvas)
+        self.property_panel.setParent(self.canvas)
+        self.property_panel.hide()
+        return self.property_panel
+
+    def _refresh_property_panel(self):
+        """刷新属性面板显示状态"""
+        if self.property_panel:
+            self.property_panel.refresh()
+            if self.property_panel.isVisible():
+                self.property_panel.move(44, 10)
+
     # ── 工具/样式/图层控制 ──
 
     def set_tool(self, tool):
-        self._tool = tool
-        view = self.canvas.viewport()
-        cursor = Qt.CursorShape.ArrowCursor
-        if tool in ("rect", "round_rect", "arrow"):
-            cursor = Qt.CursorShape.CrossCursor
-        elif tool == "polygon":
-            cursor = Qt.CursorShape.PointingHandCursor
-        elif tool == "text":
-            cursor = Qt.CursorShape.IBeamCursor
-        view.setCursor(cursor)
-        # 取消当前正在创建的图形
-        self._current = None
-        self._dragging_graphic = None
+        """切换工具（空字符串表示选择工具）"""
+        tool_id = tool if tool else "select"
+        self._set_active_tool(tool_id)
+        # 取消正在创建的图形状态
+        if hasattr(self._active_tool, "_current"):
+            self._active_tool._current = None
+        if hasattr(self._active_tool, "_creating"):
+            self._active_tool._creating = False
 
     def _on_style(self, key, value):
         if key == "stroke":
@@ -147,163 +190,289 @@ class DrawLayer:
     def key_press(self, event):
         if event.key() == Qt.Key.Key_Alt:
             self._alt_mode = True
-            view = self.canvas.viewport()
-            view.setCursor(Qt.CursorShape.CrossCursor)
+            self._set_active_tool("select")
             return True
-        if event.key() == Qt.Key.Key_D:
-            # D 键切换绘图工具栏显示/隐藏
+        if event.key() == Qt.Key.Key_D and not (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
             self.toggle_toolbar()
             return True
+        # 交给当前工具处理
+        if self._active_tool:
+            result = self._active_tool.key_press(event)
+            if result != ToolResult.IGNORED:
+                return True
         return False
 
     def key_release(self, event):
         if event.key() == Qt.Key.Key_Alt:
             self._alt_mode = False
-            self.canvas.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+            # 恢复之前的工具（如果有）
+            if self._tool == "select" and self.toolbar:
+                # 简单处理：Alt 松开后保持选择工具，用户可手动切回其他工具
+                pass
             return True
+        if self._active_tool:
+            result = self._active_tool.key_release(event)
+            if result != ToolResult.IGNORED:
+                return True
         return False
 
-    # ── 鼠标事件（从 canvas_view 调用）──
+    # ── 鼠标事件（工具分发）──
 
     def mouse_press(self, event):
         if self._locked:
             return False
         pos = self.canvas.mapToScene(event.pos())
 
-        # 右键交给画布上下文菜单（不再直接删除图形）
+        # 右键菜单：只在点击绘图图形或工具栏可见时显示绘图菜单
         if event.button() == Qt.MouseButton.RightButton:
-            return False
-
-        # 已有图形 → 拖拽控制点或移动
-        if self._alt_mode or (not self._tool):
             item = self.canvas.scene.itemAt(pos, self.canvas.transform())
+            graphic = None
             while item:
-                if isinstance(item, GraphicBase) and item in self.graphics:
-                    idx = item.hit_handle(pos)
-                    if idx >= 0:
-                        self._save_undo()
-                        self._dragging_graphic = item
-                        self._dragging_handle = idx
-                        return True
-                    self._save_undo()
-                    self._dragging_graphic = item
-                    self._drag_start = pos
-                    return True
-                if isinstance(item, TextGraphic) and item in self.graphics:
-                    self._save_undo()
-                    self._dragging_graphic = item
-                    self._drag_start = pos
-                    return True
+                if isinstance(item, (GraphicBase, TextGraphic)) and item in self.graphics:
+                    graphic = item
+                    break
                 item = item.parentItem()
 
-        # 创建新图形
-        if self._tool == "polygon":
-            return self._polygon_click(event, pos)
-        elif self._tool:
-            return self._start_create(event, pos)
+            if graphic:
+                self._show_context_menu(event, pos)
+                return True
+            elif self._toolbar_visible:
+                self._show_context_menu(event, pos)
+                return True
+            else:
+                return False
+
+        if self._active_tool and self._toolbar_visible:
+            result = self._active_tool.mouse_press(event, pos)
+            if result != ToolResult.IGNORED:
+                self._refresh_property_panel()
+                return True
         return False
 
     def mouse_move(self, event):
         if self._locked:
             return False
         pos = self.canvas.mapToScene(event.pos())
-
-        if self._dragging_handle >= 0 and self._dragging_graphic:
-            self._dragging_graphic.move_handle(self._dragging_handle, pos)
-            return True
-
-        if self._dragging_graphic and self._drag_start:
-            delta = pos - self._drag_start
-            self._dragging_graphic.moveBy(delta.x(), delta.y())
-            self._drag_start = pos
-            return True
-
-        if self._current and self._tool in ("rect", "round_rect", "arrow"):
-            self._current._points[1] = (pos.x(), pos.y())
-            self._current.prepareGeometryChange()
-            self._current._after_edit()
-            return True
-
+        if self._active_tool and self._toolbar_visible:
+            result = self._active_tool.mouse_move(event, pos)
+            if result != ToolResult.IGNORED:
+                return True
         return False
 
     def mouse_release(self, event):
-        if self._dragging_graphic and self._dragging_handle >= 0:
-            self._dragging_handle = -1
-            self._dragging_graphic = None
-            self.canvas._save_timer.start(500)
-            return True
-
-        if self._dragging_graphic:
-            self._dragging_graphic = None
-            self._drag_start = None
-            self.canvas._save_timer.start(500)
-            return True
-
-        if self._current and self._tool in ("rect", "round_rect", "arrow"):
-            self._current = None
-            self.canvas._save_timer.start(500)
-            return True
+        if self._locked:
+            return False
+        pos = self.canvas.mapToScene(event.pos())
+        if self._active_tool and self._toolbar_visible:
+            result = self._active_tool.mouse_release(event, pos)
+            if result != ToolResult.IGNORED:
+                self._refresh_property_panel()
+                return True
         return False
 
     def mouse_double_click(self, event):
-        """双击闭合多边形"""
-        if self._tool == "polygon" and self._current:
-            if len(self._current._points) >= 2:
-                self._current._points.pop()  # 移除最后的临时点
-            if self._current.isFinished():
-                self._current.update()
-                self.canvas._save_timer.start(500)
-            self._current = None
-            return True
+        if self._locked:
+            return False
+        pos = self.canvas.mapToScene(event.pos())
+        if self._active_tool:
+            result = self._active_tool.mouse_double_click(event, pos)
+            if result != ToolResult.IGNORED:
+                return True
         return False
 
-    # ── 创建逻辑 ──
+    # ── 右键菜单 ──
 
-    def _start_create(self, event, pos):
+    def _show_context_menu(self, event, scene_pos):
+        item = self.canvas.scene.itemAt(scene_pos, self.canvas.transform())
+        graphic = None
+        while item:
+            if isinstance(item, (GraphicBase, TextGraphic)) and item in self.graphics:
+                graphic = item
+                break
+            item = item.parentItem()
+
+        menu = QMenu(self.canvas.viewport())
+        menu.setStyleSheet("""
+            QMenu { background-color: #333; color: #FFF; border: 1px solid #555; }
+            QMenu::item:selected { background-color: #00AAFF; }
+        """)
+
+        if graphic:
+            # 确保该图形被选中
+            if graphic not in self.selected_graphics():
+                self.select_graphic(graphic)
+
+            if graphic.gtype == "text":
+                edit_action = QAction(t("编辑文本"), menu)
+                edit_action.triggered.connect(lambda: self.start_text_editing(graphic))
+                menu.addAction(edit_action)
+                menu.addSeparator()
+
+            copy_action = QAction(t("复制"), menu)
+            copy_action.triggered.connect(self.copy_selected)
+            menu.addAction(copy_action)
+
+            delete_action = QAction(t("删除"), menu)
+            delete_action.triggered.connect(self.delete_selected)
+            menu.addAction(delete_action)
+            menu.addSeparator()
+
+            # 预设样式子菜单
+            preset_menu = QMenu(t("预设样式"), menu)
+            for key, preset in PRESETS.items():
+                action = QAction(preset.name, preset_menu)
+                action.triggered.connect(lambda checked, k=key: self._apply_preset_to_selected(k))
+                preset_menu.addAction(action)
+            menu.addMenu(preset_menu)
+            menu.addSeparator()
+
+            top_action = QAction(t("置顶"), menu)
+            top_action.triggered.connect(lambda: self._reorder_graphic(graphic, "top"))
+            menu.addAction(top_action)
+
+            bottom_action = QAction(t("置底"), menu)
+            bottom_action.triggered.connect(lambda: self._reorder_graphic(graphic, "bottom"))
+            menu.addAction(bottom_action)
+
+            lock_action = QAction(t("锁定") if not getattr(graphic, "_locked", False) else t("解锁"), menu)
+            lock_action.triggered.connect(lambda: self._toggle_lock(graphic))
+            menu.addAction(lock_action)
+        else:
+            paste_action = QAction(t("粘贴"), menu)
+            paste_action.triggered.connect(self.paste_clipboard)
+            menu.addAction(paste_action)
+
+            clear_action = QAction(t("清空全部"), menu)
+            clear_action.triggered.connect(self.clear_all)
+            menu.addAction(clear_action)
+
+        menu.exec(event.globalPos())
+
+    def _apply_preset_to_selected(self, preset_key: str):
         self._save_undo()
-        if self._tool == "rect":
-            g = RectGraphic([(pos.x(), pos.y()), (pos.x(), pos.y())])
-        elif self._tool == "round_rect":
-            g = RoundRectGraphic([(pos.x(), pos.y()), (pos.x(), pos.y())])
-        elif self._tool == "arrow":
-            g = ArrowGraphic([(pos.x(), pos.y()), (pos.x(), pos.y())])
-        elif self._tool == "text":
-            from ui.core.utils.dialog_utils import themed_input
-            text = themed_input(self.canvas, t("_k_draw_text_title"), t("_k_draw_text_input"))
-            if not text or not text.strip():
-                return False
-            g = TextGraphic(text.strip(), pos.x(), pos.y())
-            g.set_style(stroke_color=self._stroke, fill_color=self._fill)
-            self.canvas.scene.addItem(g)
-            self.graphics.append(g)
-            self.canvas._save_timer.start(500)
-            return True
+        for g in self.selected_graphics():
+            apply_preset(g, preset_key)
+        self._refresh_property_panel()
+        self.canvas._save_timer.start(500)
+
+    def _reorder_graphic(self, graphic, direction: str):
+        if graphic not in self.graphics:
+            return
+        self._save_undo()
+        self.graphics.remove(graphic)
+        if direction == "top":
+            self.graphics.append(graphic)
         else:
-            return False
+            self.graphics.insert(0, graphic)
+        for i, g in enumerate(self.graphics):
+            g.setZValue(i)
+        self.canvas._save_timer.start(500)
 
-        g.set_style(stroke_color=self._stroke, fill_color=self._fill)
-        self.canvas.scene.addItem(g)
-        self.graphics.append(g)
-        self._current = g
-        return True
+    def _toggle_lock(self, graphic):
+        locked = getattr(graphic, "_locked", False)
+        graphic._locked = not locked
+        graphic.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, not graphic._locked)
+        graphic.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not graphic._locked)
 
-    def _polygon_click(self, event, pos):
-        if not self._current:
-            self._save_undo()
-            g = PolygonGraphic()
-            g.add_point(pos.x(), pos.y())
-            g.add_point(pos.x(), pos.y())  # 临时第二点，跟随鼠标
-            g.set_style(stroke_color=self._stroke, fill_color=self._fill)
-            self.canvas.scene.addItem(g)
-            self.graphics.append(g)
-            self._current = g
-        else:
-            self._current._points[-1] = (pos.x(), pos.y())  # 固定临时点
-            self._current.add_point(pos.x(), pos.y())        # 新的临时点
-            self._current.prepareGeometryChange()
-        return True
+    # ── 选择管理 ──
 
-    # ── 撤销/重做 ──
+    def selected_graphics(self):
+        """返回当前选中的图形列表"""
+        return [g for g in self.graphics if g.isSelected()]
+
+    def select_graphic(self, graphic, append=False):
+        """选中图形"""
+        if not append:
+            self.deselect_all()
+        graphic.setSelected(True)
+        self._refresh_property_panel()
+
+    def deselect_graphic(self, graphic):
+        """取消选中"""
+        graphic.setSelected(False)
+        self._refresh_property_panel()
+
+    def deselect_all(self):
+        """取消所有选中"""
+        for g in self.graphics:
+            g.setSelected(False)
+        self._refresh_property_panel()
+
+    def select_all(self):
+        """全选所有图形"""
+        for g in self.graphics:
+            g.setSelected(True)
+        self._refresh_property_panel()
+
+    # ── 复制粘贴 ──
+
+    def copy_selected(self):
+        """复制选中图形到剪贴板（内存）"""
+        selected = self.selected_graphics()
+        if not selected:
+            return
+        self._clipboard = [g.to_dict() for g in selected]
+
+    def paste_clipboard(self):
+        """粘贴剪贴板图形"""
+        if not hasattr(self, "_clipboard") or not self._clipboard:
+            return
+        self._save_undo()
+        self.deselect_all()
+        offset = 20
+        for data in self._clipboard:
+            data = dict(data)  # 深拷贝
+            # 偏移位置
+            if "points" in data:
+                data["points"] = [[p[0] + offset, p[1] + offset] for p in data["points"]]
+            if "x" in data:
+                data["x"] += offset
+            if "y" in data:
+                data["y"] += offset
+            g = GraphicBase.from_dict(data)
+            if g:
+                self.canvas.scene.addItem(g)
+                self.graphics.append(g)
+                g.setSelected(True)
+        self._refresh_property_panel()
+        self.canvas._save_timer.start(500)
+
+    # ── 文本编辑 ──
+
+    def start_text_editing(self, text_graphic):
+        """开始编辑文本图形"""
+        if not hasattr(text_graphic, "start_editing"):
+            return
+        self._save_undo()
+        text_graphic.start_editing()
+        # 编辑完成后自动保存
+        self.canvas._save_timer.start(500)
+
+    # ── 删除 ──
+
+    def delete_selected(self):
+        selected = self.selected_graphics()
+        if selected:
+            self.delete_graphics(selected)
+
+    def delete_graphics(self, graphics):
+        """删除指定图形列表"""
+        self._save_undo()
+        for g in list(graphics):
+            self.canvas.scene.removeItem(g)
+            if g in self.graphics:
+                self.graphics.remove(g)
+        self.deselect_all()
+        self.canvas._save_timer.start(500)
+
+    def clear_all(self):
+        self._save_undo()
+        for g in self.graphics:
+            self.canvas.scene.removeItem(g)
+        self.graphics.clear()
+        self.canvas._save_timer.start(500)
+
+    # ── 撤销/重做（复用现有快照系统）──
 
     def _save_undo(self):
         self._undo_stack.append(self._snapshot())
@@ -332,8 +501,10 @@ class DrawLayer:
         self.graphics.clear()
         for d in data:
             g = GraphicBase.from_dict(d)
-            self.canvas.scene.addItem(g)
-            self.graphics.append(g)
+            if g:
+                self.canvas.scene.addItem(g)
+                self.graphics.append(g)
+        self._refresh_property_panel()
 
     # ── 持久化 ──
 
@@ -346,26 +517,11 @@ class DrawLayer:
         self.graphics.clear()
         for d in (data or []):
             g = GraphicBase.from_dict(d)
-            self.canvas.scene.addItem(g)
-            self.graphics.append(g)
-
-    # ── 删除选中图形 ──
-
-    def delete_selected(self):
-        self._save_undo()
-        for g in list(self.graphics):
-            if g.isSelected():
-                self.canvas.scene.removeItem(g)
-                self.graphics.remove(g)
-        self.canvas._save_timer.start(500)
-
-    def clear_all(self):
-        self._save_undo()
-        for g in self.graphics:
-            self.canvas.scene.removeItem(g)
-        self.graphics.clear()
-        self.canvas._save_timer.start(500)
+            if g:
+                self.canvas.scene.addItem(g)
+                self.graphics.append(g)
+        self._refresh_property_panel()
 
     def resize_toolbar(self):
         if self.toolbar and self._toolbar_visible:
-            self.toolbar.setGeometry(0, 0, 36, self.canvas.viewport().height())
+            self.toolbar.setGeometry(0, 0, 36, self.canvas.height())

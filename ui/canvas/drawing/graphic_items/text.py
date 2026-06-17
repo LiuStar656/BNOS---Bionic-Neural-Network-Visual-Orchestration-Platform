@@ -1,13 +1,13 @@
 """文本图形"""
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsTextItem
-from PySide6.QtCore import QRectF
+from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QPen, QColor, QBrush, QFont
 
 from ._base import C_STROKE, C_FILL, C_TEXT, STROKE_W, FONT_SIZE
 
 
 class TextGraphic(QGraphicsItem):
-    """文本图形 — 包含背景矩形"""
+    """文本图形 — 包含背景矩形，支持双击编辑"""
     def __init__(self, text="Text", x=0, y=0):
         super().__init__()
         self.gtype = "text"
@@ -23,6 +23,7 @@ class TextGraphic(QGraphicsItem):
         self._text_item.setFont(self._font)
         self._text_item.setPlainText(text)
         self._text_item.setPos(x, y)
+        self._text_item.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
 
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
@@ -49,6 +50,29 @@ class TextGraphic(QGraphicsItem):
         if text_color is not None:
             self._text_color = QColor(text_color)
             self._text_item.setDefaultTextColor(self._text_color)
+        self.update()
+
+    def set_text(self, text: str):
+        """设置文本内容"""
+        self._text = text
+        self._text_item.setPlainText(text)
+        self.update()
+
+    def start_editing(self):
+        """开始文本编辑模式"""
+        self._text_item.setTextInteractionFlags(Qt.TextInteractionFlag.TextEditorInteraction)
+        self._text_item.setFocus()
+
+    def finish_editing(self):
+        """结束文本编辑模式"""
+        self._text_item.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        self._text = self._text_item.toPlainText()
+        self.update()
+
+    def set_text_color(self, color: str):
+        """设置文字颜色"""
+        self._text_color = QColor(color)
+        self._text_item.setDefaultTextColor(self._text_color)
         self.update()
 
     @property

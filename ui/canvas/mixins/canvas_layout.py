@@ -39,6 +39,7 @@ class CanvasLayoutMixin:
                 "height": self.canvas_height,
             },
             "toolbar_visible": self.draw_layer._toolbar_visible if hasattr(self, 'draw_layer') else False,
+            "drawing_graphics": self.draw_layer.to_json() if hasattr(self, 'draw_layer') else [],
         }
 
         for node_name, node in self.nodes.items():
@@ -415,6 +416,17 @@ class CanvasLayoutMixin:
                     logger.warning("[Config兜底] 校验失败: %s", e)
 
             logger.info("加载完成: %d个节点, %d条连线", len(self.nodes), len(self.edges))
+
+            # ---- 恢复绘图标注图形 ----
+            if hasattr(self, 'draw_layer') and self.draw_layer:
+                drawing_data = layout_data.get("drawing_graphics", [])
+                if drawing_data:
+                    try:
+                        self.draw_layer.from_json(drawing_data)
+                        logger.info("[load_layout] 已恢复 %d 个标注图形", len(drawing_data))
+                    except Exception as e:
+                        logger.warning("[load_layout] 标注图形恢复失败: %s", e)
+
             self.setUpdatesEnabled(True)
 
             # ---- 视图状态 ----

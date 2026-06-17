@@ -8,6 +8,8 @@ class RoundRectGraphic(RectGraphic):
     def __init__(self, points=None):
         super().__init__(points)
         self.gtype = "round_rect"
+        self._rx = 10.0
+        self._ry = 10.0
 
     def paint(self, painter, option, widget):
         if len(self._points) < 2: return
@@ -15,6 +17,12 @@ class RoundRectGraphic(RectGraphic):
         rect = QRectF(min(x1,x2), min(y1,y2), abs(x2-x1), abs(y2-y1))
         painter.setPen(self._stroke)
         painter.setBrush(self._fill)
-        painter.drawRoundedRect(rect, 10, 10)
+        painter.drawRoundedRect(rect, self._rx, self._ry)
         if self.isSelected():
             self._draw_handles(painter)
+
+    def set_radius(self, rx: float, ry: float = None):
+        """设置圆角半径"""
+        self._rx = rx
+        self._ry = ry if ry is not None else rx
+        self.update()

@@ -46,6 +46,10 @@ class GraphicBase(QGraphicsItem):
             self._fill.setColor(QColor(fill_color))
         self.update()
 
+    def set_text_color(self, color: str):
+        """设置文字颜色（子类可覆盖）"""
+        pass
+
     def move_handle(self, idx, pos):
         """移动指定控制点"""
         if 0 <= idx < len(self._points):
