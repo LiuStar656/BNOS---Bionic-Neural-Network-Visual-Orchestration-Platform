@@ -23,11 +23,11 @@ BORDER       = "#3e3e42"
 SEPARATOR    = "#454545"
 
 TOOLS = [
-    ("rect",       get_icon("layout-panel"), "_k_draw_rect"),           # 矩形 - 面板图标
-    ("round_rect", get_icon("circle"),       "_k_draw_round_rect"),     # 圆角矩形 - 圆形图标
-    ("polygon",    get_icon("triangle-up"),  "_k_draw_polygon"),        # 多边形 - 三角形图标
-    ("arrow",      get_icon("arrow-right"),  "_k_draw_arrow"),          # 箭头 - 箭头图标
-    ("text",       get_icon("file-text"),    "_k_draw_text"),           # 文本 - 文本文件图标
+    ("rect",       get_icon("layout-panel"),     "_k_draw_rect"),       # 矩形 - 面板图标
+    ("round_rect", get_icon("circle"),           "_k_draw_round_rect"), # 圆角矩形 - 圆形图标
+    ("polygon",    get_icon("triangle-up"),      "_k_draw_polygon"),    # 多边形 - 三角形图标
+    ("arrow",      get_icon("arrow-right"),      "_k_draw_arrow"),      # 箭头 - 箭头图标
+    ("text",       get_icon("text-size"),        "_k_draw_text"),       # 文本 - 文本文件图标
 ]
 
 BTN_BASE = f"""
@@ -124,7 +124,7 @@ class DrawToolbar(QWidget):
         d.setStyleSheet(BTN_BASE + f"QPushButton:hover {{ background: {BG_DANGER}; color: #fff; }}")
         d.clicked.connect(lambda: self.delete_requested.emit())
 
-        c = self._mk_btn(get_icon("close"), t("_k_draw_clear_all"), layout)
+        c = self._mk_btn(get_icon("clear-all"), t("_k_draw_clear_all"), layout)
         c.setStyleSheet(BTN_BASE + f"QPushButton:hover {{ background: {BG_DANGER}; color: #fff; }}")
         c.clicked.connect(lambda: self.clear_requested.emit())
 
