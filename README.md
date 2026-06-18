@@ -240,6 +240,16 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 - **Auto-Cleanup**: Empty groups are auto-deleted (except locked groups)
 - **Color Coding**: Each group can have a custom color for visual distinction
 
+### 🚀 Node Startup Queue System
+
+- **Concurrency Control**: Configurable maximum concurrent startup nodes (default 2), preventing resource competition during batch operations
+- **Priority Scheduling**: Support for node startup priority, higher values mean higher priority — high-priority nodes are started first
+- **Status Feedback**: New `queued` status indicator (blue ◎) showing waiting nodes in the startup queue
+- **Error Retry**: Automatic retry mechanism on startup failure (default 3 times), marking as `FAILED` when limit reached
+- **Startup Interval Control**: 200ms~500ms delay between batches for smooth resource allocation
+- **Queue Persistence**: Saves queue state on application exit, restores on restart for uninterrupted operations
+- **Event-Driven Architecture**: Decouples queue manager from UI layer via callback events (`node_enqueued`, `node_starting`, `node_started`, etc.)
+
 ### 🎯 Smart UI Features
 
 - **Toast Notifications**: Non-intrusive pop-up notifications with advanced queue management
