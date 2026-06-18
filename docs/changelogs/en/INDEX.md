@@ -11,7 +11,7 @@ Click on dates below to view detailed updates for that date:
 ### [2026-06-18](./2026-06-18/)
 - **NodeItem Monolithic Class Split into Composition Pattern**: `node_item.py` reduced from 846 lines to 227 lines, split into 9 sub-components (rendering, geometry, interaction, status, config, style, parameter panel, etc.)
 - **6 Mixin Classes Converted to Composition Pattern**: `CanvasConnections` / `CanvasBatchOps` / `CanvasMenu` / `CanvasBoxSelect` / `CanvasColors` / `CanvasLayout` — explicit dependencies via `self.canvas`, eliminating implicit MRO dependencies
-- **Node Startup Queue Feature Implementation**: Smart DAG scheduler with concurrency control, priority scheduling, topological dependency resolution (Kahn's algorithm), error retry, startup interval control, queue persistence
+- **Node Startup Queue Feature Implementation**: Smart scheduler with concurrency control, priority scheduling, error retry, startup interval control, queue persistence (currently for rate limiting only)
 - **Node Startup Queue and Batch Stop Fixes**: Fixed 10 issues including right-click menu no response, `box_selected_nodes` attribute reference error, batch stop only stopping one node, unable to restart after stopping, second batch start invalid, etc.
 - **Complete Startup Test Validation**: All module imports / instantiations / API calls / complete application startup flow passed
 

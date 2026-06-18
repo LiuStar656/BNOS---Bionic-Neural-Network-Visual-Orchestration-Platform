@@ -114,8 +114,7 @@ After a complete scan, there is another Mixin in the project: `NodePanelSyncMixi
 |---------|-------------|
 | **Concurrency Control** | Configurable maximum concurrent startup nodes (default 2), preventing resource competition |
 | **Priority Scheduling** | Supports node startup priority, higher values mean higher priority |
-| **Topological Dependency Startup** | Automatically resolves canvas connection relationships, starts in dependency order (Kahn's algorithm) |
-| **Status Feedback** | New `queued` (waiting), `blocked` (dependency blocked) statuses added |
+| **Status Feedback** | New `queued` (waiting) status added |
 | **Error Retry** | Automatic retry on failure (default 3 times), marks as `FAILED` when limit reached |
 | **Startup Interval Control** | 200ms~500ms delay between batches, avoiding resource contention |
 | **Queue Persistence** | Saves queue state on exit, restores on restart |

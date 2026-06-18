@@ -1,11 +1,10 @@
 """
-节点启动排队系统 V2.0 - 智能DAG调度器
+节点启动排队系统 V2.0 - 智能调度器
 
 核心特性：
 - 并发控制：可配置同时启动的节点数量
 - 优先级调度：支持设置节点启动优先级
-- 拓扑依赖启动：自动解析节点间连接关系，按依赖顺序启动
-- 状态反馈：新增 queued/blocked 状态
+- 状态反馈：新增 queued 状态
 - 错误重试：支持失败自动重试
 - 启动间隔控制：批次间平滑延迟
 - 队列持久化：退出时保存队列状态，重启后恢复
@@ -75,10 +74,8 @@ class NodeStartupQueueManager:
             return False
 
         item = QueueItem(node_name, priority)
-        if dependencies:
-            item.dependencies = dependencies
         self._queue.append(item)
-        logger.info(f"节点已加入启动队列: {node_name} (优先级: {priority}, 依赖: {dependencies or []})")
+        logger.info(f"节点已加入启动队列: {node_name} (优先级: {priority})")
         self._notify('node_enqueued', node_name=node_name, position=len(self._queue), priority=priority)
 
         if self._stopped:
@@ -265,15 +262,7 @@ class NodeStartupQueueManager:
         item = self._get_item(node_name)
         if not item:
             return False, []
-        if item.status != QueueStatus.QUEUED:
-            return False, []
-
-        blocked_by = []
-        for up_node in item.dependencies:
-            up_status = self._get_node_status(up_node)
-            if up_status not in ('running', 'idle', 'success'):
-                blocked_by.append(up_node)
-        return len(blocked_by) == 0, blocked_by
+        return item.status == QueueStatus.QUEUED, []
 
     def on(self, event_name: str, callback: Callable):
         if event_name not in self._event_callbacks:
@@ -311,46 +300,8 @@ class NodeStartupQueueManager:
         return 'stopped'
 
     def _get_ready_nodes(self) -> List[QueueItem]:
-        ready = []
-        blocked_info = {}
-
-        for item in self._queue:
-            if item.status != QueueStatus.QUEUED:
-                continue
-
-            upstream = item.dependencies
-            if not upstream:
-                ready.append(item)
-                continue
-
-            blocked_by = []
-            for up_node in upstream:
-                up_status = self._get_node_status(up_node)
-                if up_status in ('running', 'idle', 'success'):
-                    continue
-                elif up_status == 'starting':
-                    blocked_by.append(f"{up_node} (启动中)")
-                elif up_status == 'queued':
-                    blocked_by.append(f"{up_node} (排队中)")
-                elif up_status == 'failed':
-                    blocked_by.append(f"{up_node} (启动失败)")
-                elif up_status == 'blocked':
-                    blocked_by.append(f"{up_node} (阻塞中)")
-                else:
-                    blocked_by.append(f"{up_node} (未启动)")
-
-            if blocked_by:
-                item.status = QueueStatus.BLOCKED
-                item.blocked_by = blocked_by
-                blocked_info[item.node_name] = blocked_by
-                logger.debug(f"节点 {item.node_name} 被阻塞: {blocked_by}")
-                self._notify('node_blocked', node_name=item.node_name, blocked_by=blocked_by)
-            else:
-                item.status = QueueStatus.QUEUED
-                item.blocked_by = []
-                ready.append(item)
-
-        self._notify('queue_updated', queue_info=self.get_queue_status(), blocked_info=blocked_info)
+        ready = [item for item in self._queue if item.status == QueueStatus.QUEUED]
+        self._notify('queue_updated', queue_info=self.get_queue_status(), blocked_info={})
         return ready
 
     def _process_queue(self):
@@ -424,14 +375,11 @@ class NodeStartupQueueManager:
                 item.status = QueueStatus.FAILED
                 logger.error(f"节点启动失败（已达最大重试次数）: {item.node_name} - {error}")
                 self._notify('node_failed', node_name=item.node_name, error=error)
-                self._handle_dependency_failure(item.node_name)
 
             self._schedule_next_process()
 
     def _handle_dependency_failure(self, failed_node):
-        for item in self._queue:
-            if failed_node in item.dependencies:
-                self._notify('node_blocked', node_name=item.node_name, blocked_by=[f"{failed_node} (启动失败)"])
+        pass
 
 
 class NodeStartWorker(QThread):
