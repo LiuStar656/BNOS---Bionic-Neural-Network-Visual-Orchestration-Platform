@@ -4,7 +4,7 @@
 
 ## Update Overview
 
-This update implements a complete Node Startup Queue System (V2.0), designed as a smart DAG scheduler with concurrency control, priority scheduling, topological dependency resolution, error retry, startup interval control, and queue persistence.
+This update implements a complete Node Startup Queue System (V2.0), designed as a smart scheduler with concurrency control, priority scheduling, error retry, startup interval control, and queue persistence. Currently for rate limiting only, dependency-based startup is not supported.
 
 ---
 
@@ -35,55 +35,32 @@ startup_queue = NodeStartupQueueManager(
 )
 ```
 
-### 3. Priority Scheduling
+### 4. Status Feedback
 
-Supports setting node startup priority. Higher values mean higher priority. The queue scheduler prioritizes high-priority nodes.
-
-### 4. Topological Dependency Startup (Core Highlight)
-
-Automatically resolves canvas connection relationships between nodes, starts in dependency order:
-
-**Dependency Resolution Logic**:
-1. Iterate all edges (EdgeItem) on canvas
-2. Build dependency relationships from `source_node` → `target_node`
-3. Execute topological sort (Kahn''s algorithm)
-4. Ensure upstream dependency nodes start first
-
-**State Transition**:
-```
-QUEUED ──(dependency not met)──▶ BLOCKED ──(dependency ready)──▶ QUEUED ──(turn to start)──▶ STARTING ──(success)──▶ SUCCESS
-                                                                                          │
-                                                                                          └──(failure)──▶ FAILED ──(retry)──▶ QUEUED
-```
-
-### 5. Status Feedback
-
-Two new statuses added to complete the node status system:
+New queue status added to complete the node status system:
 
 | Status | Icon | Color | Description |
 |--------|------|-------|-------------|
 | `queued` | ◎ | blue | Waiting in queue |
-| `blocked` | ⚠ | orange | Blocked by dependency |
 | `starting` | ◐ | yellow | Starting |
 | `running/idle` | ● | green | Running/Idle |
 | `failed` | ✗ | red | Failed to start |
 
-### 6. Error Retry
+### 5. Error Retry
 
 Automatic retry mechanism on failure, configurable retry count (default 3):
 - On startup failure, automatically reset node status to `QUEUED`
 - Wait for configured retry delay before rescheduling
 - Mark as `FAILED` when maximum retry count reached
-- When a dependency node fails, notify dependent nodes and mark as `BLOCKED`
 
-### 7. Startup Interval Control
+### 6. Startup Interval Control
 
 Smooth delay between batches to avoid resource contention:
 - Uses `QTimer.singleShot` for recursive scheduling
 - 200ms~500ms interval between adjacent batches
 - Gives system time for resource release and status synchronization
 
-### 8. Queue Persistence
+### 7. Queue Persistence
 
 Saves queue state on exit, restores on restart:
 
@@ -107,7 +84,6 @@ Decouples queue manager from UI layer via event callbacks:
 | `node_started` | Node started successfully | `node_name: str` |
 | `node_failed` | Node startup failed | `node_name: str`, `error: str`, `retry_count: int` |
 | `node_retry` | Node preparing for retry | `node_name: str`, `retry_count: int` |
-| `node_blocked` | Node blocked by dependency | `node_name: str`, `blocked_by: List[str]` |
 | `queue_empty` | Queue processing complete | - |
 
 ---
@@ -127,8 +103,6 @@ class QueueItem:
         self.start_time = None              # Start time
         self.complete_time = None           # Complete time
         self.error_message = None           # Error message
-        self.dependencies = []              # List of upstream dependency node names
-        self.blocked_by = []                # Dependency nodes currently blocking this node
 ```
 
 ### QueueStatus Enum
@@ -136,7 +110,6 @@ class QueueItem:
 ```python
 class QueueStatus(Enum):
     QUEUED = "queued"           # Waiting in queue
-    BLOCKED = "blocked"         # Blocked by dependency
     STARTING = "starting"       # Starting
     SUCCESS = "success"         # Started successfully
     FAILED = "failed"           # Failed to start
@@ -151,13 +124,12 @@ class QueueStatus(Enum):
 
 ```python
 def _process_queue(self):
-    """Queue scheduling main logic - Smart DAG Scheduler
+    """Queue scheduling main logic - Smart Scheduler
     
     Core Features:
     1. Concurrency Control: No more than max_concurrent nodes starting simultaneously
-    2. Dependency Awareness: Only nodes with satisfied dependencies can start
-    3. Priority Scheduling: High priority nodes first
-    4. Smooth Startup: Delay between batches to avoid resource competition
+    2. Priority Scheduling: High priority nodes first
+    3. Smooth Startup: Delay between batches to avoid resource competition
     """
     # Check available slots
     running_count = len([item for item in self._queue 
@@ -167,7 +139,7 @@ def _process_queue(self):
         self._schedule_next_process()
         return
     
-    # Get ready nodes (dependencies satisfied)
+    # Get ready nodes (queued nodes)
     ready_items = self._get_ready_nodes()
     
     # Sort by priority
@@ -179,43 +151,6 @@ def _process_queue(self):
     
     # Schedule next processing (with delay)
     self._schedule_next_process()
-```
-
-### Topological Sort Algorithm
-
-Uses Kahn''s algorithm for dependency resolution and sorting:
-
-```python
-def resolve_dependencies(self, canvas_nodes, canvas_edges):
-    """Resolve dependencies from canvas connections"""
-    graph = {}
-    in_degree = {}
-    
-    # Build adjacency list and in-degree table
-    for edge in canvas_edges:
-        source = edge.source_node.name
-        target = edge.target_node.name
-        
-        if source not in graph:
-            graph[source] = []
-        graph[source].append(target)
-        in_degree[target] = in_degree.get(target, 0) + 1
-    
-    # Topological sort
-    queue = deque([node for node in canvas_nodes if node not in in_degree])
-    sorted_nodes = []
-    
-    while queue:
-        node = queue.popleft()
-        sorted_nodes.append(node)
-        
-        if node in graph:
-            for neighbor in graph[node]:
-                in_degree[neighbor] -= 1
-                if in_degree[neighbor] == 0:
-                    queue.append(neighbor)
-    
-    return sorted_nodes
 ```
 
 ---
@@ -251,6 +186,6 @@ def resolve_dependencies(self, canvas_nodes, canvas_edges):
 ## Backward Compatibility
 
 - ✅ Existing `start_selected_node()` method remains compatible
-- ✅ New `queued`/`blocked` statuses don''t affect existing state transitions
+- ✅ New `queued` status doesn''t affect existing state transitions
 - ✅ Configuration items provide default values, no need to modify existing config files
 - ✅ Queue persistence is optional, doesn''t affect existing functionality
