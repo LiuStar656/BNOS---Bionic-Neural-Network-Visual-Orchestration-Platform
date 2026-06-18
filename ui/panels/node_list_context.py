@@ -143,7 +143,7 @@ class NodeListContextMixin:
         ctx = self._make_ctx(node_list=selected_nodes)
 
         # 批量标签
-        ActionFactory.add_disabled_label(menu, "_k_selected_count".format(count=n))
+        ActionFactory.add_disabled_label(menu, t("_k_selected_count").format(count=n))
         menu.addSeparator()
 
         # 批量添加画布（动态名称，手动创建 action 但走 ActionRegistry）

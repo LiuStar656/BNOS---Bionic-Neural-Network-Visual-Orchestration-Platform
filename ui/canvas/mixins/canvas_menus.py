@@ -86,7 +86,7 @@ class CanvasMenu:
         count = len(self.canvas.box_selected_nodes)
         menu = QMenu(self.canvas)
 
-        ActionFactory.add_disabled_label(menu, "_k_selected_count".format(count=count))
+        ActionFactory.add_disabled_label(menu, t("_k_selected_count").format(count=count))
         menu.addSeparator()
 
         ctx = ActionContext(node_list=self.canvas.box_selected_nodes)
