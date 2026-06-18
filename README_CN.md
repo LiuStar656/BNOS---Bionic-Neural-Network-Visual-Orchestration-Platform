@@ -294,9 +294,10 @@ graph TB
 | **主窗口** | `ui/main_window/__main__.py` | 整合 UI 中心（~500 行，8 个 Mixin 模块） |
 | **主窗口 Mixins** | `ui/main_window/*.py` | 状态、生命周期、动作、面板、IPC、节点控制、交互 |
 | **ApplicationContext** | `ui/core/application_context.py` | 单例全局服务聚合器 |
-| **画布视图** | `ui/canvas/canvas_view.py` | QGraphicsView 实现节点绘制、拖拽、连线 |
-| **画布 Mixins** | `ui/canvas/mixins/` | 布局、连线、菜单、批量操作、框选、颜色、事件等 |
-| **画布元素** | `ui/canvas/items/` | NodeItem、EdgeItem、AnchorItem、AnchorManager、StyleRegistry |
+| **画布视图** | `ui/canvas/canvas_view.py` | QGraphicsView 实现节点绘制、拖拽、连线（组合模式，无 mixin 继承） |
+| **画布组件** | `ui/canvas/mixins/` | 组合类：CanvasConnections、CanvasBatchOps、CanvasMenu、CanvasBoxSelect、CanvasColors、CanvasLayout（已从 Mixin 重构为组合模式） |
+| **画布元素** | `ui/canvas/items/` | NodeItem（227 行，委托给 9 个子组件）、EdgeItem、AnchorItem、AnchorManager、StyleRegistry |
+| **节点子组件** | `ui/canvas/items/node_components/` | NodeItem 子组件：rendering、geometry_handler、interaction_handler、status_manager、config_manager、style_manager、param_panel |
 | **画布绘图** | `ui/canvas/drawing/` | 绘图层、绘图工具栏、图形元素（矩形、箭头、文字等） |
 | **参数控件** | `ui/canvas/parameter_widgets/` | 11 种参数类型的 Qt 控件库，WidgetRegistry 统一注册 |
 | **CanvasHost** | `ui/core/canvas_host.py` | 画布宿主和面板停靠管理 |

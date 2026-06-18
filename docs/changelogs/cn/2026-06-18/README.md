@@ -87,6 +87,30 @@ NodeCanvas.__init__():
 
 [详细内容](./03_启动测试验证报告.md)
 
+---
+
+### 4. 关于项目中其他 Mixin 的说明
+
+经过完整扫描，项目中还存在另一个 Mixin：`NodePanelSyncMixin`（位于 `ui/panels/_shared/node_panel_sync_mixin.py`）。
+
+**分析结果**：该 Mixin 设计相对合理，属于**行为注入型 Mixin**（只提供方法，不持有状态），不具备 Canvas Mixins 的典型问题（状态模糊、隐式依赖）。它被 `NodeMonitor` 和 `NodeMonitorDock` 两个类共享，用于同步子面板列表与画布节点。**建议保持现状，无需强制重构**。
+
+| Mixin 名称 | 位置 | 使用方 | 重构状态 |
+|-----------|------|--------|---------|
+| `NodePanelSyncMixin` | `ui/panels/_shared/node_panel_sync_mixin.py` | `NodeMonitor`, `NodeMonitorDock` | 无需重构 |
+| `CanvasConnectionsMixin` | `ui/canvas/mixins/canvas_connections.py` | `NodeCanvas` | ✅ 已重构 |
+| `CanvasBatchOpsMixin` | `ui/canvas/mixins/canvas_batch_ops.py` | `NodeCanvas` | ✅ 已重构 |
+| `CanvasMenusMixin` | `ui/canvas/mixins/canvas_menus.py` | `NodeCanvas` | ✅ 已重构 |
+| `CanvasBoxSelectMixin` | `ui/canvas/mixins/canvas_box_select.py` | `NodeCanvas` | ✅ 已重构 |
+| `CanvasColorsMixin` | `ui/canvas/mixins/canvas_colors.py` | `NodeCanvas` | ✅ 已重构 |
+| `CanvasLayoutMixin` | `ui/canvas/mixins/canvas_layout.py` | `NodeCanvas` | ✅ 已重构 |
+
+---
+
+### 5. 完整启动测试验证（全流程通过）
+
+[详细内容](./03_启动测试验证报告.md)
+
 **测试清单**：
 
 | 测试项 | 内容 | 状态 |

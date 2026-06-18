@@ -304,9 +304,10 @@ graph TB
 | **Main Window** | `ui/main_window/__main__.py` | Integrated UI hub (~500 lines, 8 Mixin modules) |
 | **Main Window Mixins** | `ui/main_window/*.py` | State, Lifecycle, Actions, Panel, IPC, NodeControl, Interaction |
 | **ApplicationContext** | `ui/core/application_context.py` | Singleton aggregator for all global services |
-| **Canvas View** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges |
-| **Canvas Mixins** | `ui/canvas/mixins/` | Layout, connections, menus, batch ops, box select, colors, events |
-| **Canvas Items** | `ui/canvas/items/` | NodeItem, EdgeItem, AnchorItem, AnchorManager, StyleRegistry |
+| **Canvas View** | `ui/canvas/canvas_view.py` | QGraphicsView node rendering, dragging, edges (Composition Pattern, no mixin inheritance) |
+| **Canvas Components** | `ui/canvas/mixins/` | Composed classes: CanvasConnections, CanvasBatchOps, CanvasMenu, CanvasBoxSelect, CanvasColors, CanvasLayout (refactored from Mixin to Composition) |
+| **Canvas Items** | `ui/canvas/items/` | NodeItem (227 lines, delegates to 9 sub-components), EdgeItem, AnchorItem, AnchorManager, StyleRegistry |
+| **Node Components** | `ui/canvas/items/node_components/` | NodeItem sub-components: rendering, geometry_handler, interaction_handler, status_manager, config_manager, style_manager, param_panel |
 | **Canvas Drawing** | `ui/canvas/drawing/` | Draw layer, draw toolbar, graphic items (rect, arrow, text, etc.) |
 | **Parameter Widgets** | `ui/canvas/parameter_widgets/` | Qt widget library for 11 param types with WidgetRegistry |
 | **CanvasHost** | `ui/core/canvas_host.py` | Canvas host and panel docking management |
@@ -685,31 +686,41 @@ BNOS/
 │   ├── menu/                      # Menu system
 │   │   └── menu_manager.py       # Menu bar manager
 │   │
-│   ├── canvas/                    # Canvas engine
+│   ├── canvas/                    # Canvas engine (Composition Pattern)
 │   │   ├── __init__.py
-│   │   ├── canvas_view.py        # NodeCanvas controller
+│   │   ├── canvas_view.py        # NodeCanvas controller (no mixin inheritance)
 │   │   ├── canvas_process.py     # Canvas process isolation
-│   │   ├── mixins/                # Canvas functional mixins
-│   │   │   ├── canvas_layout.py      # Layout persistence
-│   │   │   ├── canvas_connections.py # Synapse connection management
-│   │   │   ├── canvas_menus.py       # Context menu
-│   │   │   ├── canvas_batch_ops.py   # Batch operations
-│   │   │   ├── canvas_box_select.py  # Box selection
-│   │   │   ├── canvas_colors.py      # Color management
-│   │   │   ├── canvas_event_handlers.py # Event handlers
-│   │   │   ├── canvas_node_manager.py # Node management
-│   │   │   ├── canvas_selection.py   # Selection logic
-│   │   │   ├── canvas_background_renderer.py # Background rendering
+│   │   ├── mixins/                # Canvas components (refactored from Mixin to Composition)
+│   │   │   ├── canvas_layout.py      # Layout persistence (CanvasLayout)
+│   │   │   ├── canvas_connections.py # Synapse connection management (CanvasConnections)
+│   │   │   ├── canvas_menus.py       # Context menu (CanvasMenu)
+│   │   │   ├── canvas_batch_ops.py   # Batch operations (CanvasBatchOps)
+│   │   │   ├── canvas_box_select.py  # Box selection (CanvasBoxSelect)
+│   │   │   ├── canvas_colors.py      # Color management (CanvasColors)
+│   │   │   ├── canvas_event_handlers.py # Event handlers (EventHandlers)
+│   │   │   ├── canvas_node_manager.py # Node management (NodeManager)
+│   │   │   ├── canvas_selection.py   # Selection logic (SelectionManager)
+│   │   │   ├── canvas_background_renderer.py # Background rendering (BackgroundRenderer)
 │   │   │   └── controllers.py        # Canvas controllers
 │   │   ├── items/                 # Graphics items
 │   │   │   ├── __init__.py
 │   │   │   ├── README.md
 │   │   │   ├── anchor_item.py
 │   │   │   ├── anchor_manager.py
-│   │   │   ├── node_item.py
+│   │   │   ├── node_item.py        # Main class (227 lines, delegates to sub-components)
 │   │   │   ├── node_status_widget.py
 │   │   │   ├── edge_item.py
 │   │   │   ├── node_style.py       # Compatibility redirect
+│   │   │   ├── node_components/    # NodeItem sub-components (9 modules)
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── rendering.py       # Paint, custom colors
+│   │   │   │   ├── subcomponents.py   # Text labels, status lights
+│   │   │   │   ├── status_manager.py  # Resource monitoring, status updates
+│   │   │   │   ├── config_manager.py  # config.json read/write
+│   │   │   │   ├── geometry_handler.py # itemChange, position, edge refresh
+│   │   │   │   ├── interaction_handler.py # Mouse events, anchor interaction
+│   │   │   │   ├── style_manager.py   # Style settings, dimensions
+│   │   │   │   └── param_panel.py     # Parameter panel construction
 │   │   │   └── styles/             # Node style system (Registry-based)
 │   │   │       ├── __init__.py
 │   │   │       ├── _base.py
