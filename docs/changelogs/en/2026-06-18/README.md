@@ -4,12 +4,13 @@
 
 ## Update Overview
 
-**This update contains 4 main changes:**
+**This update contains 5 main changes:**
 
 1. **NodeItem monolithic class split into composition pattern**: `node_item.py` reduced from 846 lines to 227 lines, split into 9 sub-components (rendering, geometry, interaction, status, config, style, parameter panel, etc.)
 2. **6 Mixin classes fully converted to composition pattern**: `CanvasConnections` / `CanvasBatchOps` / `CanvasMenu` / `CanvasBoxSelect` / `CanvasColors` / `CanvasLayout` — explicit dependencies via `self.canvas`, eliminating implicit MRO dependencies
 3. **Complete startup test verification**: All module imports / instantiations / API calls / complete application startup flow passed
-4. **Node startup queue and batch stop fixes**: Fixed 10 issues including right-click menu no response, batch stop only stopping one node, unable to restart after stopping, etc.
+4. **Node startup queue feature implementation**: Smart DAG scheduler with concurrency control, priority scheduling, topological dependency resolution, error retry, startup interval control, queue persistence
+5. **Node startup queue and batch stop fixes**: Fixed 10 issues including right-click menu no response, batch stop only stopping one node, unable to restart after stopping, etc.
 
 ---
 
@@ -103,7 +104,26 @@ After a complete scan, there is another Mixin in the project: `NodePanelSyncMixi
 
 ---
 
-### 4. Node Startup Queue and Batch Stop Fixes
+### 4. Node Startup Queue Feature Implementation
+
+[Detailed Content](./05_Node_Startup_Queue_Feature_Implementation.md)
+
+**Core Features**:
+
+| Feature | Description |
+|---------|-------------|
+| **Concurrency Control** | Configurable maximum concurrent startup nodes (default 2), preventing resource competition |
+| **Priority Scheduling** | Supports node startup priority, higher values mean higher priority |
+| **Topological Dependency Startup** | Automatically resolves canvas connection relationships, starts in dependency order (Kahn's algorithm) |
+| **Status Feedback** | New `queued` (waiting), `blocked` (dependency blocked) statuses added |
+| **Error Retry** | Automatic retry on failure (default 3 times), marks as `FAILED` when limit reached |
+| **Startup Interval Control** | 200ms~500ms delay between batches, avoiding resource contention |
+| **Queue Persistence** | Saves queue state on exit, restores on restart |
+| **Event Notifications** | Decouples queue manager from UI via callback events (`node_enqueued`, `node_starting`, `node_started`, etc.) |
+
+---
+
+### 5. Node Startup Queue and Batch Stop Fixes
 
 [Detailed Content](./04_Node_Startup_Queue_and_Batch_Stop_Fixes.md)
 
