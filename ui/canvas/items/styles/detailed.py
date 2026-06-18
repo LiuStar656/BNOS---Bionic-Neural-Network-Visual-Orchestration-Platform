@@ -119,6 +119,12 @@ class DetailedNodeStyle(NodeStyle):
             c = QColor(self.status_running)
         elif status == "idle":
             c = QColor(self.status_idle)
+        elif status == "queued":
+            c = QColor("#4A90E2")
+        elif status == "blocked":
+            c = QColor("#F5A623")
+        elif status == "starting":
+            c = QColor("#F5A623")
         else:
             c = QColor(self.status_stopped)
         node_item.status_indicator.setBrush(QBrush(c))

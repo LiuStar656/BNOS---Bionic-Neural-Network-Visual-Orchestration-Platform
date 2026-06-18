@@ -6,7 +6,7 @@ v2 — 拆分后：主类仅保留生命周期编排，具体实现委托给 nod
 """
 from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsItem
 from PySide6.QtCore import Qt, QPointF, QRectF
-from PySide6.QtGui import QPen, QColor, QRectF
+from PySide6.QtGui import QPen, QColor
 
 from ui.core.logger import logger
 

@@ -12,6 +12,7 @@ from PySide6.QtGui import QColor
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
+from ui.core.node_startup_queue import startup_queue
 
 
 class NodeListOperationsMixin:
@@ -22,12 +23,7 @@ class NodeListOperationsMixin:
     def _setup_node_item(self, item, node_name, node_info):
         """配置节点项"""
         status = node_info.get('status', 'stopped')
-        if status in ('running', 'idle'):
-            item.setText(0, f"● {node_name}")
-            item.setForeground(0, QColor("green"))
-        else:
-            item.setText(0, f"○ {node_name}")
-            item.setForeground(0, QColor("gray"))
+        self._update_node_item_status(item, node_name, status)
         item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'node', 'name': node_name})
 
     def update_node_status(self, node_name, status):
@@ -37,24 +33,32 @@ class NodeListOperationsMixin:
             item = root.child(i)
             data = item.data(0, Qt.ItemDataRole.UserRole)
             if data and data.get('type') == 'node' and data.get('name') == node_name:
-                if status in ('running', 'idle'):
-                    item.setText(0, f"● {node_name}")
-                    item.setForeground(0, QColor("green"))
-                else:
-                    item.setText(0, f"○ {node_name}")
-                    item.setForeground(0, QColor("gray"))
+                self._update_node_item_status(item, node_name, status)
                 return
             for j in range(item.childCount()):
                 node_item = item.child(j)
                 node_data = node_item.data(0, Qt.ItemDataRole.UserRole)
                 if node_data and node_data.get('type') == 'node' and node_data.get('name') == node_name:
-                    if status in ('running', 'idle'):
-                        node_item.setText(0, f"● {node_name}")
-                        node_item.setForeground(0, QColor("green"))
-                    else:
-                        node_item.setText(0, f"○ {node_name}")
-                        node_item.setForeground(0, QColor("gray"))
+                    self._update_node_item_status(node_item, node_name, status)
                     return
+
+    def _update_node_item_status(self, item, node_name, status):
+        """更新单个节点项的状态显示"""
+        if status in ('running', 'idle'):
+            item.setText(0, f"● {node_name}")
+            item.setForeground(0, QColor("green"))
+        elif status == 'queued':
+            item.setText(0, f"◎ {node_name}")
+            item.setForeground(0, QColor("#4A90E2"))
+        elif status == 'blocked':
+            item.setText(0, f"⚠ {node_name}")
+            item.setForeground(0, QColor("#F5A623"))
+        elif status == 'starting':
+            item.setText(0, f"◐ {node_name}")
+            item.setForeground(0, QColor("#F5A623"))
+        else:
+            item.setText(0, f"○ {node_name}")
+            item.setForeground(0, QColor("gray"))
 
     def _on_node_status_changed(self, node_name, new_status):
         """处理全局节点状态变化信号"""
@@ -494,29 +498,45 @@ class NodeListOperationsMixin:
             self.parent_window.show_toast(msg, "success")
 
     def batch_start_nodes(self):
-        """批量启动选中的节点（异步执行，逐个启动）"""
+        """批量启动选中的节点（使用队列调度，支持拓扑排序）"""
         selected_nodes = self.get_selected_nodes()
         if not selected_nodes:
             if self.parent_window:
                 self.parent_window.show_toast("请先选中要启动的节点", "warning")
             return
-        to_start = [n for n in selected_nodes if n in self.nodes_data and self.nodes_data[n].get('status') == 'stopped']
+
+        to_start = [n for n in selected_nodes
+                    if n in self.nodes_data
+                    and self.nodes_data[n].get('status') == 'stopped'
+                    and not startup_queue.is_queued(n)]
+
         if not to_start:
             if self.parent_window:
                 self.parent_window.show_toast("没有需要启动的节点", "info")
             return
-        self.parent_window.show_toast(f"正在启动 {len(to_start)} 个节点...", "info",
-                                        node_name="batch_operation", operation_type="batch_start")
-        def start_next(index):
-            if index >= len(to_start):
-                if self.parent_window:
-                    self.parent_window.show_toast(f"已启动 {len(to_start)} 个节点", "success",
-                                                    node_name="batch_operation", operation_type="batch_start")
-                return
-            node_name = to_start[index]
-            self._start_single_node(node_name)
-            QTimer.singleShot(100, lambda: start_next(index + 1))
-        start_next(0)
+
+        sorted_nodes = to_start
+        if self.parent_window and hasattr(self.parent_window, 'canvas') and self.parent_window.canvas:
+            sorted_nodes = self.parent_window.canvas.sort_nodes_by_dependency(to_start)
+
+        if self.parent_window and hasattr(self.parent_window, 'current_project_path'):
+            startup_queue.set_project_context(
+                self.parent_window.current_project_path,
+                self.parent_window.nodes_data,
+                self.parent_window.canvas
+            )
+
+        for node_name in sorted_nodes:
+            dependencies = []
+            if self.parent_window and hasattr(self.parent_window, 'canvas') and self.parent_window.canvas:
+                dependencies = self.parent_window.canvas.get_node_dependencies(node_name)
+            startup_queue.enqueue(node_name, dependencies=dependencies)
+
+        if self.parent_window:
+            self.parent_window.show_toast(f"已将 {len(sorted_nodes)} 个节点加入启动队列", "info")
+            has_dependencies = any(startup_queue.get_dependencies(n) for n in sorted_nodes)
+            if has_dependencies:
+                self.parent_window.show_toast("节点将按依赖顺序启动", "info")
 
     def batch_stop_nodes(self):
         """批量停止选中的节点（异步执行，逐个停止）"""

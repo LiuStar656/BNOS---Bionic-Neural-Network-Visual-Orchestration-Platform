@@ -38,16 +38,18 @@ class CanvasMenu:
     # ---- 主入口 ----
 
     def contextMenuEvent(self, event):
-        item = self.canvas.itemAt(event.pos())
-        probe = item
-        while probe is not None:
+        all_items = self.canvas.items(event.pos())
+        item = None
+        
+        for probe in all_items:
             if isinstance(probe, NodeItem):
                 item = probe
                 break
-            if isinstance(probe, EdgeItem):
+            elif isinstance(probe, EdgeItem) and item is None:
                 item = probe
-                break
-            probe = probe.parentItem()
+        
+        if item is None and all_items:
+            item = all_items[0]
 
         selected_edge = None
         for sel in self.canvas.scene.selectedItems():
@@ -60,7 +62,7 @@ class CanvasMenu:
             register_canvas_actions(self.canvas.parent_window)
 
         # 多节点框选
-        if len(self.canvas.selection.box_selected_nodes) > 1:
+        if len(self.canvas.box_selected_nodes) > 1:
             self._show_multi_node_menu(event)
             return
 
@@ -81,13 +83,13 @@ class CanvasMenu:
     # ---- 多节点框选菜单 ----
 
     def _show_multi_node_menu(self, event):
-        count = len(self.canvas.selection.box_selected_nodes)
+        count = len(self.canvas.box_selected_nodes)
         menu = QMenu(self.canvas)
 
         ActionFactory.add_disabled_label(menu, "_k_selected_count".format(count=count))
         menu.addSeparator()
 
-        ctx = ActionContext(node_list=self.canvas.selection.box_selected_nodes)
+        ctx = ActionContext(node_list=self.canvas.box_selected_nodes)
         ActionFactory.create_action(self.canvas, "node.start", ctx, menu)
         ActionFactory.create_action(self.canvas, "node.stop", ctx, menu)
         menu.addSeparator()
@@ -208,7 +210,7 @@ class CanvasMenu:
             ("k_lang_shell", "Shell (开发中)"),
         ]
         for i18n_key, lang_name in _lang_list:
-            ActionFactory.create_action(self.canvas, f"canvas.new_node.{lang_name}", menu=new_menu)
+            ActionFactory.create_action(self.canvas, f"canvas.new_node.{lang_name}", self._make_ctx(), menu=new_menu)
         menu.addSeparator()
 
         # 节点监控

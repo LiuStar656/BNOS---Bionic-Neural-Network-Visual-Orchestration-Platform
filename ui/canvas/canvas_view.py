@@ -397,3 +397,54 @@ class NodeCanvas(QGraphicsView):
 
     def _switch_node_style(self, style_key, node_item):
         self.menus._switch_node_style(style_key, node_item)
+
+    # ── 依赖解析（供启动队列使用） ──
+
+    def get_node_dependencies(self, node_name: str) -> list:
+        """获取节点的上游依赖节点列表
+        
+        如果节点 A 的输出连接到节点 B 的输入，则 B 依赖 A
+        返回 B 需要等待启动的上游节点名称列表
+        """
+        dependencies = []
+        for edge in self.edges:
+            if hasattr(edge, 'target_node') and edge.target_node == node_name:
+                if hasattr(edge, 'source_node') and edge.source_node not in dependencies:
+                    dependencies.append(edge.source_node)
+        return dependencies
+
+    def sort_nodes_by_dependency(self, node_names: list) -> list:
+        """按依赖顺序排序节点列表
+        
+        使用拓扑排序，确保依赖节点先启动
+        """
+        if not node_names:
+            return []
+
+        in_degree = {name: 0 for name in node_names}
+        adjacency = {name: [] for name in node_names}
+
+        for edge in self.edges:
+            if hasattr(edge, 'source_node') and hasattr(edge, 'target_node'):
+                src = edge.source_node
+                tgt = edge.target_node
+                if src in node_names and tgt in node_names:
+                    adjacency[src].append(tgt)
+                    in_degree[tgt] += 1
+
+        from collections import deque
+        queue = deque([name for name in node_names if in_degree[name] == 0])
+        result = []
+
+        while queue:
+            current = queue.popleft()
+            result.append(current)
+            for neighbor in adjacency[current]:
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        remaining = [name for name in node_names if name not in result]
+        result.extend(remaining)
+
+        return result

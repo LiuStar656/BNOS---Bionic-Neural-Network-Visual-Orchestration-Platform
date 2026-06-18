@@ -13,6 +13,8 @@ from enum import Enum
 
 class NodeStatus(Enum):
     STOPPED = "stopped"
+    QUEUED = "queued"
+    BLOCKED = "blocked"
     STARTING = "starting"
     RUNNING = "running"
     STOPPING = "stopping"
