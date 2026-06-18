@@ -16,14 +16,14 @@ class CanvasBatchOps:
 
     def batch_start_selected_nodes(self):
         """批量启动选中的节点"""
-        if not self.canvas.selection.box_selected_nodes:
+        if not self.canvas.box_selected_nodes:
             return
 
         success_count = 0
         skip_count = 0
         fail_count = 0
 
-        for node_name in self.canvas.selection.box_selected_nodes[:]:
+        for node_name in self.canvas.box_selected_nodes[:]:
             if not self.canvas.parent_window or node_name not in self.canvas.parent_window.nodes_data:
                 fail_count += 1
                 continue
@@ -45,21 +45,21 @@ class CanvasBatchOps:
         self.canvas.selection.clear_box_selection()
 
     def batch_stop_selected_nodes(self):
-        """批量停止选中的节点（仅停止正在运行的）"""
-        if not self.canvas.selection.box_selected_nodes:
+        """批量停止选中的节点（包括运行中、空闲、排队中、启动中的节点）"""
+        if not self.canvas.box_selected_nodes:
             return
 
         success_count = 0
         skip_count = 0
         fail_count = 0
 
-        for node_name in self.canvas.selection.box_selected_nodes[:]:
+        for node_name in self.canvas.box_selected_nodes[:]:
             if not self.canvas.parent_window or node_name not in self.canvas.parent_window.nodes_data:
                 fail_count += 1
                 continue
 
             node_info = self.canvas.parent_window.nodes_data[node_name]
-            if node_info['status'] not in ('running', 'idle'):
+            if node_info['status'] == 'stopped':
                 skip_count += 1
                 continue
 
@@ -76,11 +76,11 @@ class CanvasBatchOps:
 
     def batch_remove_nodes_from_canvas(self):
         """批量从画布移除节点（不删除文件）"""
-        if not self.canvas.selection.box_selected_nodes:
+        if not self.canvas.box_selected_nodes:
             return
 
-        count = len(self.canvas.selection.box_selected_nodes)
-        preview_nodes = self.canvas.selection.box_selected_nodes[:10]
+        count = len(self.canvas.box_selected_nodes)
+        preview_nodes = self.canvas.box_selected_nodes[:10]
         nodes_preview = "\n".join([f"  - {name}" for name in preview_nodes])
         if count > 10:
             nodes_preview += f"\n  ... 还有 {count - 10} 个节点"
@@ -93,7 +93,7 @@ class CanvasBatchOps:
             return
 
         removed_count = 0
-        for node_name in self.canvas.selection.box_selected_nodes[:]:
+        for node_name in self.canvas.box_selected_nodes[:]:
             if node_name in self.canvas.nodes:
                 node = self.canvas.nodes[node_name]
                 self.canvas.scene.removeItem(node)
@@ -125,11 +125,11 @@ class CanvasBatchOps:
 
     def batch_clear_listen_config(self):
         """批量清除选中节点的输入监听配置及画布连线（包括 port_mappings 和 listen_upper_file）"""
-        if not self.canvas.selection.box_selected_nodes:
+        if not self.canvas.box_selected_nodes:
             return
 
         cleared_count = 0
-        for node_name in self.canvas.selection.box_selected_nodes[:]:
+        for node_name in self.canvas.box_selected_nodes[:]:
             if self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
                 node_info = self.canvas.parent_window.nodes_data[node_name]
                 config = node_info['config']

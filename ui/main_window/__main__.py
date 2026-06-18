@@ -86,6 +86,8 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         
         # 节点启动线程跟踪
         self._node_start_workers = []
+        # 节点停止线程跟踪
+        self._stop_node_workers = []
         
         # 初始化节点创建管理器
         self.node_creator = NodeCreatorManager.get_instance()

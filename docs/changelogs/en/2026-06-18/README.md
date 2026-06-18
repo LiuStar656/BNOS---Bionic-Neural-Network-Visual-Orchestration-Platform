@@ -1,14 +1,15 @@
-# 【2026-06-18】V2.0.17 - NodeItem Split Refactoring & Mixin Architecture Composition
+# 【2026-06-18】V2.0.17 - NodeItem Split Refactoring, Mixin Architecture Composition & Node Startup Queue Fixes
 
 ---
 
 ## Update Overview
 
-**This update contains 3 main changes:**
+**This update contains 4 main changes:**
 
 1. **NodeItem monolithic class split into composition pattern**: `node_item.py` reduced from 846 lines to 227 lines, split into 9 sub-components (rendering, geometry, interaction, status, config, style, parameter panel, etc.)
 2. **6 Mixin classes fully converted to composition pattern**: `CanvasConnections` / `CanvasBatchOps` / `CanvasMenu` / `CanvasBoxSelect` / `CanvasColors` / `CanvasLayout` — explicit dependencies via `self.canvas`, eliminating implicit MRO dependencies
 3. **Complete startup test verification**: All module imports / instantiations / API calls / complete application startup flow passed
+4. **Node startup queue and batch stop fixes**: Fixed 10 issues including right-click menu no response, batch stop only stopping one node, unable to restart after stopping, etc.
 
 ---
 
@@ -102,7 +103,36 @@ After a complete scan, there is another Mixin in the project: `NodePanelSyncMixi
 
 ---
 
-### 4. Complete Startup Test Validation (Full Flow Passed)
+### 4. Node Startup Queue and Batch Stop Fixes
+
+[Detailed Content](./04_Node_Startup_Queue_and_Batch_Stop_Fixes.md)
+
+**Fixed Issues**:
+
+| Issue | Symptom | Fix |
+|-------|---------|-----|
+| Right-click menu no response | Right-clicking on canvas nodes had no response | `contextMenuEvent` uses `items()` instead of `itemAt()`, prioritizing `NodeItem` |
+| `box_selected_nodes` attribute error | Right-click menu referenced non-existent attribute | Corrected to `self.canvas.box_selected_nodes` |
+| New node creation invalid | Right-click menu new node had no response | Pass `_make_ctx()` context ensuring `canvas` object included |
+| Incomplete batch stop status detection | Only stopped running/idle, ignored queued/starting | Extended status detection to all non-stopped states |
+| Unable to restart after stop | Showed "Failed to enqueue" | Called `startup_queue.dequeue(node_name)` on stop |
+| Second batch start invalid | Showed "Added to startup list" but didn't start | Set `self._stopped = True` when queue empty |
+| Batch stop only stopped one node | Only stopped the last selected node | Used default parameter `lambda n=node_name: ...` to capture loop variable |
+| Synchronous blocking stop | `subprocess.run` blocking caused incomplete batch stops | Created `NodeStopWorker` background thread |
+| Thread garbage collection | `QThread: Destroyed while thread '' is still running` | Added `_stop_node_workers` list to preserve thread references |
+| `execute_node_stop` no multi-node support | Only handled single node `ctx.node_name` | Added `elif ctx.node_list:` branch iterating all nodes |
+
+**Verification Results**:
+- ✅ Right-click menu works correctly (single node, multi-node, canvas background)
+- ✅ New node creation works properly
+- ✅ Batch stop works for all selected nodes (supports running/idle/queued/starting states)
+- ✅ Nodes can be restarted after stopping
+- ✅ Second batch start executes correctly
+- ✅ Thread references properly preserved, no QThread errors
+
+---
+
+### 5. Complete Startup Test Validation (Full Flow Passed)
 
 [Detailed Content](./03_Startup_Test_Validation_Report.md)
 
@@ -150,15 +180,20 @@ After a complete scan, there is another Mixin in the project: `NodePanelSyncMixi
 |------|-------------|-------------|
 | `ui/canvas/canvas_view.py` | Modified | Added composition layer assembly, state variable init, forwarding APIs |
 | `ui/canvas/mixins/canvas_connections.py` | Modified | Mixin → composed class, `self` → `self.canvas` |
-| `ui/canvas/mixins/canvas_batch_ops.py` | Modified | Mixin → composed class, `self` → `self.canvas` |
-| `ui/canvas/mixins/canvas_menus.py` | Modified | Mixin → composed class, `self` → `self.canvas` |
+| `ui/canvas/mixins/canvas_batch_ops.py` | Modified | Mixin → composed class, `self` → `self.canvas`; batch stop status detection |
+| `ui/canvas/mixins/canvas_menus.py` | Modified | Mixin → composed class, `self` → `self.canvas`; right-click menu node detection, attribute reference, new node context passing |
 | `ui/canvas/mixins/canvas_box_select.py` | Modified | Mixin → composed class, `self` → `self.canvas` |
 | `ui/canvas/mixins/canvas_colors.py` | Modified | Mixin → composed class, `self` → `self.canvas` |
 | `ui/canvas/mixins/canvas_layout.py` | Modified | Mixin → composed class, `self` → `self.canvas` (critical fix) |
 | `ui/canvas/items/node_item.py` | Modified | Reduced from 846 lines to 227 lines (delegation to sub-components) |
 | `ui/canvas/items/node_components/*.py` | New | 9 sub-components (rendering/status/config/geometry/interaction/style/param_panel etc.) |
+| `ui/core/node_startup_queue.py` | Modified | State reset when queue is empty |
+| `ui/main_window/node.py` | Modified | Dequeue on stop, closure variable capture, background thread implementation |
+| `ui/main_window/__main__.py` | Modified | Added `_stop_node_workers` list |
+| `ui/main_window/lifecycle.py` | Modified | Wait for stop threads to complete during shutdown |
+| `ui/core/actions/node/_lifecycle.py` | Modified | Multi-node handling support in `execute_node_stop` |
 
-**Modified files**: 7 (core canvas logic)
+**Modified files**: 12 (core canvas logic + node lifecycle management)
 **New files**: 9 (NodeItem sub-components)
 **Deleted files**: 0
 **Total line count change**: NodeItem 846 → 227 lines (+9 ~100-line sub-components)

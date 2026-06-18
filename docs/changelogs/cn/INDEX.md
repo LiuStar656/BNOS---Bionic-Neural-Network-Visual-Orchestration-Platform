@@ -8,6 +8,12 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-06-18](./2026-06-18/)
+- **NodeItem 单体类拆分为组合模式**：`node_item.py` 从 846 行精简为 227 行，拆分为 9 个子组件（渲染、几何、交互、状态、配置、样式、参数面板等）
+- **6 个 Mixin 类改造为组合模式**：`CanvasConnections` / `CanvasBatchOps` / `CanvasMenu` / `CanvasBoxSelect` / `CanvasColors` / `CanvasLayout` — 通过 `self.canvas` 显式依赖，消除隐式 MRO 依赖
+- **节点启动队列与批量停止修复**：修复右键菜单无响应、`box_selected_nodes` 属性引用错误、批量停止只停一个节点、停止后无法重启、第二次批量启动无效等 10 个问题
+- **完整启动测试验证**：所有模块导入 / 实例化 / API 调用 / 完整应用启动全流程通过
+
 ### [2026-06-17](./2026-06-17/)
 - **画布布局加载修复**：`load_layout` 增加 `try/finally` 确保 `setUpdatesEnabled(True)` 被调用；新增 `scene.update()` + `viewport.update()` 强制刷新；画布节点只来源于 `canvas_layout.json`
 - **自动打开项目异步化重构**：`_auto_open_project` 改为 `ProjectLoadWorker` Signal 模式，确保 `nodes_data` 先填充再创建画布；新增 `CanvasHost.remove_canvas_dock_by_path()` 防止 dock 残留
@@ -116,4 +122,4 @@
 
 ---
 
-**最后更新**：2026-06-17
+**最后更新**：2026-06-18

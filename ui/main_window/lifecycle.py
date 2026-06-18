@@ -91,6 +91,16 @@ class MainWindowLifecycleMixin:
                     if worker.isRunning():
                         logger.warning("节点启动线程超时，强制终止")
                         worker.terminate()
+
+        # 等待节点停止线程完成
+        if hasattr(self, '_stop_node_workers') and self._stop_node_workers:
+            logger.info("等待 %d 个节点停止线程完成...", len(self._stop_node_workers))
+            for worker in list(self._stop_node_workers):
+                if worker.isRunning():
+                    worker.wait(3000)
+                    if worker.isRunning():
+                        logger.warning("节点停止线程超时，强制终止")
+                        worker.terminate()
         
         # 检查是否有运行中的节点
         running_nodes = []

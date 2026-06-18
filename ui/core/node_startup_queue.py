@@ -370,6 +370,7 @@ class NodeStartupQueueManager:
                 return
             else:
                 logger.info("队列调度完成")
+                self._stopped = True
                 self._notify('queue_empty')
                 return
 

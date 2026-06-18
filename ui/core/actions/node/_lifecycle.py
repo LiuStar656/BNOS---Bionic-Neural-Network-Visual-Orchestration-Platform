@@ -39,13 +39,24 @@ def register(main_window):
             else:
                 main_window.stop_selected_node()
             return True
+        elif ctx.node_list:
+            for name in ctx.node_list:
+                if hasattr(main_window, 'stop_selected_node_by_name'):
+                    main_window.stop_selected_node_by_name(name)
+            return True
         main_window.stop_selected_node()
         return True
 
     def is_node_stop_enabled(ctx: ActionContext) -> bool:
         if ctx.node_name and hasattr(main_window, 'nodes_data'):
             node_info = main_window.nodes_data.get(ctx.node_name, {})
-            return node_info.get('status') in ('running', 'idle')
+            return node_info.get('status') in ('running', 'idle', 'queued', 'starting')
+        elif ctx.node_list and hasattr(main_window, 'nodes_data'):
+            for name in ctx.node_list:
+                node_info = main_window.nodes_data.get(name, {})
+                if node_info.get('status') in ('running', 'idle', 'queued', 'starting'):
+                    return True
+            return False
         return True
 
     ActionRegistry.register(ActionDefinition(

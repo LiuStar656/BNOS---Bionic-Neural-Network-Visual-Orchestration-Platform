@@ -1,14 +1,15 @@
-# 【2026-06-18】V2.0.17 - NodeItem 拆分重构与 Mixin 架构组合化
+# 【2026-06-18】V2.0.17 - NodeItem 拆分重构、Mixin 架构组合化与节点启动队列修复
 
 ---
 
 ## 更新总览
 
-**本次更新包含 3 个主要变更：**
+**本次更新包含 4 个主要变更：**
 
 1. **NodeItem 单体类拆分为组合模式**：`node_item.py` 从 846 行精简为 227 行，拆分为 9 个子组件（渲染、几何、交互、状态、配置、样式、参数面板等）
 2. **6 个 Mixin 类完全改造为组合模式**：`CanvasConnections` / `CanvasBatchOps` / `CanvasMenu` / `CanvasBoxSelect` / `CanvasColors` / `CanvasLayout` — 通过 `self.canvas` 显式依赖，消除隐式 MRO 依赖
 3. **完整启动测试验证**：所有模块导入 / 实例化 / API 调用 / 完整应用启动全流程通过
+4. **节点启动队列与批量停止修复**：修复右键菜单无响应、批量停止只停一个节点、停止后无法重启等 10 个问题
 
 ---
 
@@ -89,7 +90,36 @@ NodeCanvas.__init__():
 
 ---
 
-### 4. 关于项目中其他 Mixin 的说明
+### 4. 节点启动队列与批量停止修复
+
+[详细内容](./04_节点启动队列与批量停止修复.md)
+
+**修复的问题**：
+
+| 问题 | 症状 | 修复方案 |
+|------|------|---------|
+| 右键菜单无响应 | 右键点击节点时菜单没有反应 | `contextMenuEvent` 使用 `items()` 替代 `itemAt()`，优先选择 `NodeItem` |
+| `box_selected_nodes` 属性错误 | 右键菜单引用不存在的属性 | 修正为 `self.canvas.box_selected_nodes` |
+| 新建节点功能无效 | 右键菜单新建节点没有反应 | 传递 `_make_ctx()` 上下文确保包含 `canvas` 对象 |
+| 批量停止状态检测不全 | 只停止 running/idle 状态，忽略 queued/starting | 扩展状态检测包含所有非 stopped 状态 |
+| 停止后无法重启 | 显示"加入队列失败" | 停止时调用 `startup_queue.dequeue(node_name)` |
+| 第二次批量启动无效 | 显示"已加入启动列表"但不启动 | 队列为空时设置 `self._stopped = True` |
+| 批量停止只停一个节点 | 只停止框选的最后一个节点 | 使用参数默认值捕获循环变量 `lambda n=node_name: ...` |
+| 同步阻塞停止 | `subprocess.run` 阻塞导致批量停止不完整 | 创建 `NodeStopWorker` 后台线程 |
+| 线程被垃圾回收 | `QThread: Destroyed while thread '' is still running` | 添加 `_stop_node_workers` 列表保存线程引用 |
+| `execute_node_stop` 不支持多节点 | 只处理单节点 `ctx.node_name` | 添加 `elif ctx.node_list:` 分支遍历所有节点 |
+
+**验证结果**：
+- ✅ 右键菜单正常显示（单节点、多节点、画布背景）
+- ✅ 新建节点功能正常
+- ✅ 批量停止所有选中节点（支持 running/idle/queued/starting 状态）
+- ✅ 停止节点后可以正常重新启动
+- ✅ 第二次批量启动节点正常执行
+- ✅ 线程引用正确保存，无 QThread 错误
+
+---
+
+### 5. 关于项目中其他 Mixin 的说明
 
 经过完整扫描，项目中还存在另一个 Mixin：`NodePanelSyncMixin`（位于 `ui/panels/_shared/node_panel_sync_mixin.py`）。
 
@@ -155,15 +185,20 @@ NodeCanvas.__init__():
 |------|---------|------|
 | `ui/canvas/canvas_view.py` | 修改 | 新增组合层装配、状态变量初始化、转发 API |
 | `ui/canvas/mixins/canvas_connections.py` | 修改 | Mixin → 组合类，`self` → `self.canvas` |
-| `ui/canvas/mixins/canvas_batch_ops.py` | 修改 | Mixin → 组合类，`self` → `self.canvas` |
-| `ui/canvas/mixins/canvas_menus.py` | 修改 | Mixin → 组合类，`self` → `self.canvas` |
+| `ui/canvas/mixins/canvas_batch_ops.py` | 修改 | Mixin → 组合类，`self` → `self.canvas`；批量停止状态检测修复 |
+| `ui/canvas/mixins/canvas_menus.py` | 修改 | Mixin → 组合类，`self` → `self.canvas`；右键菜单节点检测、属性引用、新建节点上下文传递修复 |
 | `ui/canvas/mixins/canvas_box_select.py` | 修改 | Mixin → 组合类，`self` → `self.canvas` |
 | `ui/canvas/mixins/canvas_colors.py` | 修改 | Mixin → 组合类，`self` → `self.canvas` |
 | `ui/canvas/mixins/canvas_layout.py` | 修改 | Mixin → 组合类，`self` → `self.canvas`（关键修复） |
 | `ui/canvas/items/node_item.py` | 修改 | 从 846 行精简为 227 行（委托到子组件） |
 | `ui/canvas/items/node_components/*.py` | 新增 | 9 个子组件（rendering/status/config/geometry/interaction/style/param_panel 等） |
+| `ui/core/node_startup_queue.py` | 修改 | 队列为空时状态重置 |
+| `ui/main_window/node.py` | 修改 | 停止节点时从队列移除、闭包变量捕获、后台线程实现 |
+| `ui/main_window/__main__.py` | 修改 | 添加 `_stop_node_workers` 列表 |
+| `ui/main_window/lifecycle.py` | 修改 | 窗口关闭时等待停止线程完成 |
+| `ui/core/actions/node/_lifecycle.py` | 修改 | `execute_node_stop` 多节点处理支持 |
 
-**修改文件数**：7 个（核心 canvas 逻辑）
+**修改文件数**：12 个（核心 canvas 逻辑 + 节点生命周期管理）
 **新增文件数**：9 个（NodeItem 子组件）
 **删除文件数**：0
 **总代码行数变化**：NodeItem 846 → 227 行（+9 个 ~100 行的子组件）

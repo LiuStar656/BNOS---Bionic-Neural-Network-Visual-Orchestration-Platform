@@ -7,6 +7,7 @@ BNOS 主窗口节点控制模块
 - 节点导入/导出
 - 节点状态同步
 """
+from typing import Dict
 from PySide6.QtCore import QTimer, QThread, Signal
 from ui.core.logger import logger
 from ui.core.i18n import t
@@ -217,40 +218,67 @@ class MainWindowNodeControlMixin:
             self.show_toast(t("_k_node_not_running_toast").format(name=node_name), "info")
             return
 
+        startup_queue.dequeue(node_name)
+
         self.node_list_panel.update_node_status(node_name, 'stopping')
         if self.canvas:
             self.canvas.update_node_status(node_name, 'stopping')
         self.show_toast(t("_k_node_stopping").format(name=node_name), "info",
                         node_name=node_name, operation_type="stop")
 
-        QTimer.singleShot(10, lambda: self._stop_node_async(node_name))
+        QTimer.singleShot(10, lambda n=node_name: self._stop_node_async(n))
 
     def _stop_node_async(self, node_name):
         """异步停止节点（内部方法）"""
         if node_name not in self.nodes_data:
             return
 
-        node_info = self.nodes_data[node_name]
-        success, err_msg = stop_node_process(node_info)
+        worker = NodeStopWorker(node_name, self.nodes_data)
+        worker.finished.connect(lambda success, err, nm=node_name: self._on_node_stop_complete(nm, success, err))
+        worker.finished.connect(lambda w=worker: self._on_stop_worker_finished(w))
+        self._stop_node_workers.append(worker)
+        worker.start()
 
-        def on_complete():
-            if success:
-                self.node_list_panel.update_node_status(node_name, 'stopped')
-                if self.canvas:
-                    self.canvas.update_node_status(node_name, 'stopped')
-                self.show_toast(t("_k_node_stopped").format(name=node_name), "success",
-                                node_name=node_name, operation_type="stop")
-                node_control_service._notify(node_name, NodeStatus.STOPPED)
-            else:
-                # 杀失败 → 保持原状态，让健康检查发现僵尸
-                from ui.core.utils.dialog_utils import themed_message
-                from ui.core.i18n import t as i18n_t
-                themed_message(self, i18n_t("k_title_error"),
-                               i18n_t("_k_stop_fail").format(name=node_name, err=err_msg or ""),
-                               "error")
-                node_control_service._notify(node_name, NodeStatus.ERROR)
+    def _on_stop_worker_finished(self, worker):
+        """停止工作线程完成回调"""
+        if worker in self._stop_node_workers:
+            self._stop_node_workers.remove(worker)
 
-        QTimer.singleShot(10, on_complete)
+    def _on_node_stop_complete(self, node_name, success, err_msg):
+        """停止节点完成回调"""
+        if success:
+            self.node_list_panel.update_node_status(node_name, 'stopped')
+            if self.canvas:
+                self.canvas.update_node_status(node_name, 'stopped')
+            self.show_toast(t("_k_node_stopped").format(name=node_name), "success",
+                            node_name=node_name, operation_type="stop")
+            node_control_service._notify(node_name, NodeStatus.STOPPED)
+        else:
+            from ui.core.utils.dialog_utils import themed_message
+            from ui.core.i18n import t as i18n_t
+            themed_message(self, i18n_t("k_title_error"),
+                           i18n_t("_k_stop_fail").format(name=node_name, err=err_msg or ""),
+                           "error")
+            node_control_service._notify(node_name, NodeStatus.ERROR)
+
+
+class NodeStopWorker(QThread):
+    """节点停止工作线程"""
+    finished = Signal(bool, str)
+
+    def __init__(self, node_name: str, nodes_data: Dict, parent=None):
+        super().__init__(parent)
+        self._node_name = node_name
+        self._nodes_data = nodes_data
+
+    def run(self):
+        if self._node_name not in self._nodes_data:
+            self.finished.emit(False, f"节点不存在: {self._node_name}")
+            return
+
+        node_info = self._nodes_data[self._node_name]
+        success, err = stop_node_process(node_info)
+        self.finished.emit(success, err)
 
     def update_node_status(self, node_name, status):
         """更新节点状态并同步UI"""
