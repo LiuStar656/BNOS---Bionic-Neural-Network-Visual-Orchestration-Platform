@@ -14,39 +14,42 @@ from ui.core.connection_inferrer import ConnectionInferrer
 from ui.core.i18n import t
 
 
-class CanvasLayoutMixin:
-    """布局保存/加载 Mixin"""
+class CanvasLayout:
+    """布局保存/加载（组合类，通过 self.canvas 访问画布上下文）"""
+
+    def __init__(self, canvas):
+        self.canvas = canvas
 
     def save_layout(self, project_path):
         if not project_path:
             return
 
-        viewport_center = self.viewport().rect().center()
-        center_scene_pos = self.mapToScene(viewport_center)
+        viewport_center = self.canvas.viewport().rect().center()
+        center_scene_pos = self.canvas.mapToScene(viewport_center)
 
         layout_data = {
             "nodes": {},
             "edges": [],
             "view_state": {
-                "scale": self.transform().m11(),
-                "scroll_x": self.horizontalScrollBar().value(),
-                "scroll_y": self.verticalScrollBar().value(),
+                "scale": self.canvas.transform().m11(),
+                "scroll_x": self.canvas.horizontalScrollBar().value(),
+                "scroll_y": self.canvas.verticalScrollBar().value(),
                 "center_x": center_scene_pos.x(),
                 "center_y": center_scene_pos.y(),
             },
             "canvas_size": {
-                "width": self.canvas_width,
-                "height": self.canvas_height,
+                "width": self.canvas.canvas_width,
+                "height": self.canvas.canvas_height,
             },
-            "toolbar_visible": self.draw_layer._toolbar_visible if hasattr(self, 'draw_layer') else False,
-            "drawing_graphics": self.draw_layer.to_json() if hasattr(self, 'draw_layer') else [],
+            "toolbar_visible": self.canvas.draw_layer._toolbar_visible if hasattr(self.canvas, 'draw_layer') else False,
+            "drawing_graphics": self.canvas.draw_layer.to_json() if hasattr(self.canvas, 'draw_layer') else [],
         }
 
-        for node_name, node in self.nodes.items():
+        for node_name, node in self.canvas.nodes.items():
             pos = node.pos()
             custom_colors = {}
-            if self.parent_window and node_name in self.parent_window.nodes_data:
-                config = self.parent_window.nodes_data[node_name].get("config", {})
+            if self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
+                config = self.canvas.parent_window.nodes_data[node_name].get("config", {})
                 if "custom_bg_color" in config:
                     custom_colors["bg"] = config["custom_bg_color"]
                 if "custom_border_color" in config:
@@ -66,9 +69,9 @@ class CanvasLayoutMixin:
                 "custom_colors": custom_colors if custom_colors else None,
             }
 
-        for edge in self.edges:
+        for edge in self.canvas.edges:
             start_name = end_name = None
-            for name, node in self.nodes.items():
+            for name, node in self.canvas.nodes.items():
                 if node == edge.start_node:
                     start_name = name
                 if node == edge.end_node:
@@ -94,7 +97,7 @@ class CanvasLayoutMixin:
         except Exception as e:
             logger.info("保存布局失败: %s", e)
 
-        self._save_color_settings()
+        self.canvas._save_color_settings()
 
     def load_layout(self, project_path):
         """从项目目录加载画布布局。
@@ -109,10 +112,10 @@ class CanvasLayoutMixin:
             return
 
         # ===== 诊断前置信息 =====
-        parent_ok = hasattr(self, 'parent_window') and self.parent_window is not None
+        parent_ok = hasattr(self.canvas, 'parent_window') and self.canvas.parent_window is not None
         nodes_data_count = 0
-        if parent_ok and hasattr(self.parent_window, 'nodes_data'):
-            nodes_data_count = len(self.parent_window.nodes_data)
+        if parent_ok and hasattr(self.canvas.parent_window, 'nodes_data'):
+            nodes_data_count = len(self.canvas.parent_window.nodes_data)
         logger.info("[load_layout] 开始加载布局: project_path=%s, parent_window=%s, nodes_data=%d个节点",
                     project_path, "OK" if parent_ok else "NONE", nodes_data_count)
 
@@ -120,9 +123,9 @@ class CanvasLayoutMixin:
         has_layout_file = os.path.isfile(layout_file)
 
         # 【关键】加载期间停止自动保存定时器，避免把重建锚点过程中把错误的绑定状态写回文件
-        if hasattr(self, '_save_timer') and self._save_timer:
+        if hasattr(self.canvas, '_save_timer') and self.canvas._save_timer:
             try:
-                self._save_timer.stop()
+                self.canvas._save_timer.stop()
             except Exception:
                 pass
 
@@ -130,9 +133,9 @@ class CanvasLayoutMixin:
 
         try:
             # 批量加载期间抑制 view 更新，避免每次 addItem 触发级联 repaint
-            self.setUpdatesEnabled(False)
+            self.canvas.setUpdatesEnabled(False)
 
-            self._load_color_settings(project_path)
+            self.canvas._load_color_settings(project_path)
 
             if has_layout_file:
                 try:
@@ -146,30 +149,30 @@ class CanvasLayoutMixin:
                 logger.info("[load_layout] canvas_layout.json 不存在，画布初始为空（请从节点列表面板拖入节点）")
             canvas_size = layout_data.get("canvas_size")
             if canvas_size:
-                new_w = canvas_size.get("width", self.canvas_width)
-                new_h = canvas_size.get("height", self.canvas_height)
-                if new_w != self.canvas_width or new_h != self.canvas_height:
-                    self.canvas_width = new_w
-                    self.canvas_height = new_h
-                    hw, hh = self.canvas_width // 2, self.canvas_height // 2
+                new_w = canvas_size.get("width", self.canvas.canvas_width)
+                new_h = canvas_size.get("height", self.canvas.canvas_height)
+                if new_w != self.canvas.canvas_width or new_h != self.canvas.canvas_height:
+                    self.canvas.canvas_width = new_w
+                    self.canvas.canvas_height = new_h
+                    hw, hh = self.canvas.canvas_width // 2, self.canvas.canvas_height // 2
                     saved_nodes = {
                         name: {"item": node, "pos": node.pos(), "rect": node.rect()}
-                        for name, node in self.nodes.items()
+                        for name, node in self.canvas.nodes.items()
                     }
-                    old_scene = self.scene
-                    self.scene = QGraphicsScene(-hw, -hh, self.canvas_width, self.canvas_height, self)
-                    self.setScene(self.scene)
+                    old_scene = self.canvas.scene
+                    self.canvas.scene = QGraphicsScene(-hw, -hh, self.canvas.canvas_width, self.canvas.canvas_height, self.canvas)
+                    self.canvas.setScene(self.canvas.scene)
                     for name, d in saved_nodes.items():
                         old_scene.removeItem(d["item"])
-                        self.scene.addItem(d["item"])
+                        self.canvas.scene.addItem(d["item"])
                         d["item"].setPos(d["pos"])
-                    saved_edges = self.edges[:]
-                    self.edges = []
+                    saved_edges = self.canvas.edges[:]
+                    self.canvas.edges = []
                     for e in saved_edges:
                         old_scene.removeItem(e)
-                        self.scene.addItem(e)
-                        self.edges.append(e)
-                    logger.info("画布尺寸已更新: %dx%d", self.canvas_width, self.canvas_height)
+                        self.canvas.scene.addItem(e)
+                        self.canvas.edges.append(e)
+                    logger.info("画布尺寸已更新: %dx%d", self.canvas.canvas_width, self.canvas.canvas_height)
 
             # ---- 节点：单次遍历 — 已存在节点 + 缺失节点 ----
             # 合并了原来的 2 次独立循环（更新已有节点 + 补建缺失节点）
@@ -177,11 +180,11 @@ class CanvasLayoutMixin:
             missing_nodes = []
 
             for node_name, pos_data in layout_nodes.items():
-                if node_name in self.nodes:
-                    node = self.nodes[node_name]
+                if node_name in self.canvas.nodes:
+                    node = self.canvas.nodes[node_name]
                     node.setPos(pos_data["x"], pos_data["y"])
-                    node.canvas = self
-                    node.on_expand_requested = self.on_node_expand_requested
+                    node.canvas = self.canvas
+                    node.on_expand_requested = self.canvas.on_node_expand_requested
                     for child in node.childItems():
                         child.setParentItem(node)
                         child.setEnabled(True)
@@ -199,8 +202,8 @@ class CanvasLayoutMixin:
                     node._style.apply(node)
                     node._style.apply_status(node, node.status)
                     cc = pos_data.get("custom_colors")
-                    if cc and self.parent_window and node_name in self.parent_window.nodes_data:
-                        config = self.parent_window.nodes_data[node_name].get("config", {})
+                    if cc and self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
+                        config = self.canvas.parent_window.nodes_data[node_name].get("config", {})
                         for key, cfg_key, action in [
                             ("bg", "custom_bg_color", lambda c, n=node: n.setBrush(QBrush(c))),
                             ("border", "custom_border_color", lambda c, n=node: n.setPen(QPen(c, 2))),
@@ -214,7 +217,7 @@ class CanvasLayoutMixin:
                                         config[cfg_key] = cc[key]
                                 except Exception:
                                     pass
-                elif self.parent_window and hasattr(self.parent_window, 'nodes_data') and node_name in self.parent_window.nodes_data:
+                elif self.canvas.parent_window and hasattr(self.canvas.parent_window, 'nodes_data') and node_name in self.canvas.parent_window.nodes_data:
                     missing_nodes.append((node_name, pos_data))
 
             # =================================================================
@@ -222,9 +225,9 @@ class CanvasLayoutMixin:
             # =================================================================
             created_from_layout = 0
             for node_name, pos_data in missing_nodes:
-                info = self.parent_window.nodes_data[node_name]
+                info = self.canvas.parent_window.nodes_data[node_name]
                 config = info.get("config", {})
-                lang = config.get("language") or self.detect_language(info["path"])
+                lang = config.get("language") or self.canvas.detect_language(info["path"])
                 status = info.get("status", "stopped")
                 x, y = pos_data.get("x", 200), pos_data.get("y", 150)
                 w, h = pos_data.get("width", 140), pos_data.get("height", 80)
@@ -234,8 +237,8 @@ class CanvasLayoutMixin:
                 node_style = st_cls()
                 node_style.node_width = w
                 node_style.node_height = h
-                node = NodeItem(node_name, lang, status, 0, 0, w, h, self, style=node_style)
-                node.on_expand_requested = self.on_node_expand_requested
+                node = NodeItem(node_name, lang, status, 0, 0, w, h, self.canvas, style=node_style)
+                node.on_expand_requested = self.canvas.on_node_expand_requested
                 node.setPos(x, y)
                 cc = pos_data.get("custom_colors")
                 if cc:
@@ -251,10 +254,10 @@ class CanvasLayoutMixin:
                                     action(color)
                             except Exception:
                                 pass
-                self.scene.addItem(node)
-                self.nodes[node_name] = node
-                node.canvas = self
-                node.on_expand_requested = self.on_node_expand_requested
+                self.canvas.scene.addItem(node)
+                self.canvas.nodes[node_name] = node
+                node.canvas = self.canvas
+                node.on_expand_requested = self.canvas.on_node_expand_requested
                 for child in node.childItems():
                     child.setParentItem(node)
                     child.setEnabled(True)
@@ -265,14 +268,14 @@ class CanvasLayoutMixin:
                 logger.info("[load_layout] 从布局恢复: %s (位置: %d, %d)", node_name, x, y)
 
             logger.info("[load_layout] 节点创建完成: 从布局恢复=%d, 画布现有=%d个节点",
-                        created_from_layout, len(self.nodes))
+                        created_from_layout, len(self.canvas.nodes))
 
             # ---- 连线 ----
             # 建立 node_ref → name 的映射，避免每条 edge 内层遍历所有节点
-            node_by_ref = {node: name for name, node in self.nodes.items()}
+            node_by_ref = {node: name for name, node in self.canvas.nodes.items()}
 
             existing = set()
-            for e in self.edges:
+            for e in self.canvas.edges:
                 sn = node_by_ref.get(e.start_node)
                 tn = node_by_ref.get(e.end_node)
                 tp = None
@@ -285,9 +288,9 @@ class CanvasLayoutMixin:
                 tp = ed.get("target_port")
                 if tp == "default": tp = None
                 if (sn, tn, tp) in existing: continue
-                if sn in self.nodes and tn in self.nodes:
-                    source_node = self.nodes[sn]
-                    target_node = self.nodes[tn]
+                if sn in self.canvas.nodes and tn in self.canvas.nodes:
+                    source_node = self.canvas.nodes[sn]
+                    target_node = self.canvas.nodes[tn]
 
                     # 提前查找正确的端口锚点，传给构造函数，
                     # 避免 _setup_anchor_binding 误绑到默认锚点
@@ -316,7 +319,7 @@ class CanvasLayoutMixin:
                         )
                         continue
 
-                    edge = EdgeItem(source_node, target_node, self,
+                    edge = EdgeItem(source_node, target_node, self.canvas,
                                     target_anchor=tgt_anchor, source_anchor=src_anchor,
                                     target_port_name=tgt_port, source_port_name=src_port)
 
@@ -324,8 +327,8 @@ class CanvasLayoutMixin:
                     if hasattr(edge, 'from_dict'):
                         # 使用 defer_sync=True 延迟同步，确保锚点坐标就绪后再转换
                         edge.from_dict(ed, defer_sync=True)
-                    self.scene.addItem(edge)
-                    self.edges.append(edge)
+                    self.canvas.scene.addItem(edge)
+                    self.canvas.edges.append(edge)
                     # 初始更新 - 此时使用绝对坐标，_all_points 会自动转换为相对坐标
                     edge.update_path()
 
@@ -333,9 +336,9 @@ class CanvasLayoutMixin:
             self._validate_edge_anchor_binding()
 
             # ---- config.json 兜底校验 ----
-            if self.parent_window and self.parent_window.nodes_data:
+            if self.canvas.parent_window and self.canvas.parent_window.nodes_data:
                 try:
-                    inferrer = ConnectionInferrer(project_path, self.parent_window.nodes_data)
+                    inferrer = ConnectionInferrer(project_path, self.canvas.parent_window.nodes_data)
                     config_edges = inferrer.infer_all_edges()
                     # 去重键 = (source, target, target_port)
                     config_set = {
@@ -348,7 +351,7 @@ class CanvasLayoutMixin:
                     # 同时收集 (source, target) 用于跨端口去重：
                     # 如果已有任意端口的连线，不补默认端口线
                     canvas_pair_set = set()
-                    for e in self.edges:
+                    for e in self.canvas.edges:
                         sn = node_by_ref.get(e.start_node)
                         tn = node_by_ref.get(e.end_node)
                         tp = None
@@ -365,11 +368,11 @@ class CanvasLayoutMixin:
                         # 跨端口去重：如果同 (source, target) 已有任意端口的连线，跳过默认端口补线
                         if port is None and (src, tgt) in canvas_pair_set:
                             continue
-                        if src in self.nodes and tgt in self.nodes:
+                        if src in self.canvas.nodes and tgt in self.canvas.nodes:
                             # 避免重复（含端口维度）
                             already = False
-                            for e in self.edges:
-                                if e.start_node != self.nodes[src] or e.end_node != self.nodes[tgt]:
+                            for e in self.canvas.edges:
+                                if e.start_node != self.canvas.nodes[src] or e.end_node != self.canvas.nodes[tgt]:
                                     continue
                                 ep = None
                                 if hasattr(e, 'end_anchor') and e.end_anchor and hasattr(e.end_anchor, 'port_name'):
@@ -381,13 +384,13 @@ class CanvasLayoutMixin:
                             if not already:
                                 # 查找端口锚点
                                 tgt_anchor = None
-                                if port and hasattr(self.nodes[tgt], 'anchor_manager'):
-                                    tgt_anchor = self.nodes[tgt].anchor_manager.get_input(port)
-                                edge = EdgeItem(self.nodes[src], self.nodes[tgt], self,
+                                if port and hasattr(self.canvas.nodes[tgt], 'anchor_manager'):
+                                    tgt_anchor = self.canvas.nodes[tgt].anchor_manager.get_input(port)
+                                edge = EdgeItem(self.canvas.nodes[src], self.canvas.nodes[tgt], self.canvas,
                                                 target_anchor=tgt_anchor,
                                                 target_port_name=port)
-                                self.scene.addItem(edge)
-                                self.edges.append(edge)
+                                self.canvas.scene.addItem(edge)
+                                self.canvas.edges.append(edge)
                                 edge.update_path()
                                 added += 1
                                 if port:
@@ -415,36 +418,36 @@ class CanvasLayoutMixin:
                 except Exception as e:
                     logger.warning("[Config兜底] 校验失败: %s", e)
 
-            logger.info("加载完成: %d个节点, %d条连线", len(self.nodes), len(self.edges))
+            logger.info("加载完成: %d个节点, %d条连线", len(self.canvas.nodes), len(self.canvas.edges))
 
             # ---- 恢复绘图标注图形 ----
-            if hasattr(self, 'draw_layer') and self.draw_layer:
+            if hasattr(self.canvas, 'draw_layer') and self.canvas.draw_layer:
                 drawing_data = layout_data.get("drawing_graphics", [])
                 if drawing_data:
                     try:
-                        self.draw_layer.from_json(drawing_data)
+                        self.canvas.draw_layer.from_json(drawing_data)
                         logger.info("[load_layout] 已恢复 %d 个标注图形", len(drawing_data))
                     except Exception as e:
                         logger.warning("[load_layout] 标注图形恢复失败: %s", e)
 
-            self.setUpdatesEnabled(True)
+            self.canvas.setUpdatesEnabled(True)
 
             # ---- 视图状态 ----
             vs = layout_data.get("view_state", {})
             if vs:
                 scale = vs.get("scale", 1.0)
                 if scale != 1.0:
-                    self.resetTransform()
-                    self.scale(scale, scale)
-                self.horizontalScrollBar().setValue(vs.get("scroll_x", 0))
-                self.verticalScrollBar().setValue(vs.get("scroll_y", 0))
+                    self.canvas.resetTransform()
+                    self.canvas.scale(scale, scale)
+                self.canvas.horizontalScrollBar().setValue(vs.get("scroll_x", 0))
+                self.canvas.verticalScrollBar().setValue(vs.get("scroll_y", 0))
                 cx, cy = vs.get("center_x"), vs.get("center_y")
                 if cx is not None and cy is not None:
-                    vp = self.viewport().rect().center()
-                    tp = self.mapFromScene(QPointF(cx, cy))
+                    vp = self.canvas.viewport().rect().center()
+                    tp = self.canvas.mapFromScene(QPointF(cx, cy))
                     dx, dy = tp.x() - vp.x(), tp.y() - vp.y()
-                    self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() + int(dx))
-                    self.verticalScrollBar().setValue(self.verticalScrollBar().value() + int(dy))
+                    self.canvas.horizontalScrollBar().setValue(self.canvas.horizontalScrollBar().value() + int(dx))
+                    self.canvas.verticalScrollBar().setValue(self.canvas.verticalScrollBar().value() + int(dy))
 
             logger.info(t("k_log_view_restored"))
 
@@ -452,12 +455,12 @@ class CanvasLayoutMixin:
             logger.info("布局文件损坏: %s", e)
         finally:
             # 无论成功或失败，必须恢复 view 更新；否则 widget 可能永远不刷新
-            self.setUpdatesEnabled(True)
+            self.canvas.setUpdatesEnabled(True)
 
             # ✅ 诊断信息：输出画布上所有节点的坐标和可见性
-            if len(self.nodes) > 0:
+            if len(self.canvas.nodes) > 0:
                 node_diag = []
-                for nn, ni in self.nodes.items():
+                for nn, ni in self.canvas.nodes.items():
                     try:
                         pos = ni.pos()
                         rect = ni.rect()
@@ -473,12 +476,12 @@ class CanvasLayoutMixin:
                 logger.warning("[load_layout] ⚠️  画布上没有任何节点！")
 
             # ✅ 强制 scene 刷新：确保新添加的节点/连线立即显示
-            if hasattr(self, 'scene') and self.scene is not None:
-                self.scene.update(self.scene.sceneRect())
-                logger.info("[load_layout] scene已刷新, sceneRect=%s", str(self.scene.sceneRect()))
+            if hasattr(self.canvas, 'scene') and self.canvas.scene is not None:
+                self.canvas.scene.update(self.canvas.scene.sceneRect())
+                logger.info("[load_layout] scene已刷新, sceneRect=%s", str(self.canvas.scene.sceneRect()))
             # 强制 viewport 重绘
-            if hasattr(self, 'viewport') and callable(self.viewport):
-                self.viewport().update()
+            if hasattr(self.canvas, 'viewport') and callable(self.canvas.viewport):
+                self.canvas.viewport().update()
                 logger.info("[load_layout] viewport已刷新")
 
     def _validate_edge_anchor_binding(self):
@@ -492,7 +495,7 @@ class CanvasLayoutMixin:
         """
         fixed_count = 0
 
-        for edge in self.edges:
+        for edge in self.canvas.edges:
             # —— 输入端绑定检查 ——
             if (edge.end_anchor is None
                     or (hasattr(edge.end_anchor, "scene") and edge.end_anchor.scene() is None)):
@@ -562,3 +565,4 @@ class CanvasLayoutMixin:
 
         if fixed_count > 0:
             logger.info("[绑定校验] 修复了 %d 条连线的锚点绑定", fixed_count)
+

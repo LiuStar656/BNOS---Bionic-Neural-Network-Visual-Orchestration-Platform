@@ -6,6 +6,19 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-18】V2.0.17 - NodeItem Split Refactoring & Mixin Architecture Composition</strong></summary>
+
+[View Full Update](./2026-06-18/README.md)
+
+**Main Updates:**
+- NodeItem monolithic class split: `node_item.py` reduced from 846 lines to 227 lines, split into 9 sub-components (rendering, geometry, interaction, status, config, style, parameter panel, etc.), external API fully compatible
+- Mixin architecture refactoring: 6 Mixin classes (CanvasConnections / CanvasBatchOps / CanvasMenu / CanvasBoxSelect / CanvasColors / CanvasLayout) fully converted to composition pattern, explicit dependencies via `self.canvas`, eliminating implicit MRO dependencies
+- Bug fixes: `NodeCanvas.__init__` explicit initialization of `box_select_rect` / `box_selected_nodes` / `is_connecting` and other state variables; added `_save_color_settings()` / `_load_color_settings()` forwarding APIs; `CanvasLayout` `self` references changed to `self.canvas`
+- Complete startup test verification: 11 module imports, 10 composition layer components, 3 key API calls, full flow passed
+
+</details>
+
+<details>
 <summary><strong>【2026-06-17】V2.0.16 - Canvas Layout Loading Fix, Auto-Open Project Async Refactoring & Node Add/Remove Persistence</strong></summary>
 
 [View Full Update](./2026-06-17/README.md)

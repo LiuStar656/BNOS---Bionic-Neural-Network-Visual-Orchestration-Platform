@@ -19,14 +19,17 @@ from ui.core.actions.builtin_canvas_actions import register_canvas_actions
 from ui.core.utils.file_utils import get_project_root, open_terminal_in_directory
 
 
-class CanvasMenusMixin:
-    """右键菜单 Mixin — 全部通过 Action 系统分发"""
+class CanvasMenu:
+    """画布菜单（组合类，通过 self.canvas 访问画布上下文）"""
+
+    def __init__(self, canvas):
+        self.canvas = canvas
 
     # ---- helpers ----
 
     def _make_ctx(self, **kwargs):
         """构建 ActionContext，自动注入 canvas 引用"""
-        return ActionContext(**(kwargs | {'extra': {'canvas': self}}))
+        return ActionContext(**(kwargs | {'extra': {'canvas': self.canvas}}))
 
     def _dispatch(self, action_id, **kwargs):
         """通过 ActionRegistry 分发操作"""
@@ -35,7 +38,7 @@ class CanvasMenusMixin:
     # ---- 主入口 ----
 
     def contextMenuEvent(self, event):
-        item = self.itemAt(event.pos())
+        item = self.canvas.itemAt(event.pos())
         probe = item
         while probe is not None:
             if isinstance(probe, NodeItem):
@@ -47,17 +50,17 @@ class CanvasMenusMixin:
             probe = probe.parentItem()
 
         selected_edge = None
-        for sel in self.scene.selectedItems():
+        for sel in self.canvas.scene.selectedItems():
             if isinstance(sel, EdgeItem):
                 selected_edge = sel
                 break
 
-        if self.parent_window:
-            register_node_actions(self.parent_window)
-            register_canvas_actions(self.parent_window)
+        if self.canvas.parent_window:
+            register_node_actions(self.canvas.parent_window)
+            register_canvas_actions(self.canvas.parent_window)
 
         # 多节点框选
-        if len(self.box_selected_nodes) > 1:
+        if len(self.canvas.selection.box_selected_nodes) > 1:
             self._show_multi_node_menu(event)
             return
 
@@ -78,15 +81,15 @@ class CanvasMenusMixin:
     # ---- 多节点框选菜单 ----
 
     def _show_multi_node_menu(self, event):
-        count = len(self.box_selected_nodes)
-        menu = QMenu(self)
+        count = len(self.canvas.selection.box_selected_nodes)
+        menu = QMenu(self.canvas)
 
         ActionFactory.add_disabled_label(menu, "_k_selected_count".format(count=count))
         menu.addSeparator()
 
-        ctx = ActionContext(node_list=self.box_selected_nodes)
-        ActionFactory.create_action(self, "node.start", ctx, menu)
-        ActionFactory.create_action(self, "node.stop", ctx, menu)
+        ctx = ActionContext(node_list=self.canvas.selection.box_selected_nodes)
+        ActionFactory.create_action(self.canvas, "node.start", ctx, menu)
+        ActionFactory.create_action(self.canvas, "node.stop", ctx, menu)
         menu.addSeparator()
 
         # 批量移除（动态文本 — 保留 menu.addAction 但走 ActionRegistry）
@@ -95,37 +98,37 @@ class CanvasMenusMixin:
         menu.addAction(a)
 
         menu.addSeparator()
-        ActionFactory.create_action(self, "canvas.clear_listen_config", menu=menu)
+        ActionFactory.create_action(self.canvas, "canvas.clear_listen_config", menu=menu)
         menu.addSeparator()
-        ActionFactory.create_action(self, "canvas.clear_selection", menu=menu)
+        ActionFactory.create_action(self.canvas, "canvas.clear_selection", menu=menu)
 
         menu.exec(event.globalPos())
 
     # ---- 单节点菜单 ----
 
     def _show_single_node_menu(self, event, node_item):
-        menu = QMenu(self)
+        menu = QMenu(self.canvas)
         node_name = node_item.node_name
 
         # 启动/停止
-        if self.parent_window and node_name in self.parent_window.nodes_data:
-            status = self.parent_window.nodes_data[node_name].get('status')
+        if self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
+            status = self.canvas.parent_window.nodes_data[node_name].get('status')
             ctx = ActionContext(node_name=node_name)
             if status in ('running', 'idle'):
-                ActionFactory.create_action(self, "node.stop", ctx, menu)
+                ActionFactory.create_action(self.canvas, "node.stop", ctx, menu)
             else:
-                ActionFactory.create_action(self, "node.start", ctx, menu)
+                ActionFactory.create_action(self.canvas, "node.start", ctx, menu)
             menu.addSeparator()
 
         # 开始连线
-        ActionFactory.create_action(self, "canvas.start_connection",
+        ActionFactory.create_action(self.canvas, "canvas.start_connection",
                                      self._make_ctx(node_name=node_name), menu)
         menu.addSeparator()
 
         # 配置 / 展开节点
-        ActionFactory.create_action(self, "node.config",
+        ActionFactory.create_action(self.canvas, "node.config",
                                      self._make_ctx(node_name=node_name), menu)
-        ActionFactory.create_action(self, "canvas.expand_node",
+        ActionFactory.create_action(self.canvas, "canvas.expand_node",
                                      self._make_ctx(node_name=node_name), menu)
         menu.addSeparator()
 
@@ -134,8 +137,8 @@ class CanvasMenusMixin:
         for key in StyleRegistry.keys():
             cls = StyleRegistry.get(key)
             st = cls()
-            ActionFactory.create_action(self, "node.change_style",
-                ActionContext(extra={'canvas': self, 'node_item': node_item, 'style_key': key}),
+            ActionFactory.create_action(self.canvas, "node.change_style",
+                ActionContext(extra={'canvas': self.canvas, 'node_item': node_item, 'style_key': key}),
                 style_menu
             )
             # 用样式名覆盖 label（ActionFactory 用的是 i18n key，这里需要动态名称）
@@ -147,29 +150,29 @@ class CanvasMenusMixin:
 
         # 节点颜色子菜单（通过 Action 系统分发）
         color_menu = menu.addMenu(t("k_node_color"))
-        color_ctx = ActionContext(extra={'canvas': self, 'node_item': node_item})
-        ActionFactory.create_action(self, "node.change_bg_color", color_ctx, color_menu)
-        ActionFactory.create_action(self, "node.change_border_color", color_ctx, color_menu)
-        ActionFactory.create_action(self, "node.change_text_color", color_ctx, color_menu)
+        color_ctx = ActionContext(extra={'canvas': self.canvas, 'node_item': node_item})
+        ActionFactory.create_action(self.canvas, "node.change_bg_color", color_ctx, color_menu)
+        ActionFactory.create_action(self.canvas, "node.change_border_color", color_ctx, color_menu)
+        ActionFactory.create_action(self.canvas, "node.change_text_color", color_ctx, color_menu)
 
         menu.addSeparator()
 
         # 导出
-        ActionFactory.create_action(self, "node.export",
+        ActionFactory.create_action(self.canvas, "node.export",
                                      ActionContext(node_name=node_name), menu)
 
         menu.addSeparator()
 
         # IDE 打开（通过 Action 系统统一管理）
-        node_path = self.parent_window.nodes_data.get(node_name, {}).get('path', '') if self.parent_window else ''
+        node_path = self.canvas.parent_window.nodes_data.get(node_name, {}).get('path', '') if self.canvas.parent_window else ''
         ide_ctx = ActionContext(extra={'node_name': node_name, 'node_path': node_path})
-        ActionFactory.create_action(self, "node.open_vscode", ide_ctx, menu)
-        ActionFactory.create_action(self, "node.open_trae_ide", ide_ctx, menu)
+        ActionFactory.create_action(self.canvas, "node.open_vscode", ide_ctx, menu)
+        ActionFactory.create_action(self.canvas, "node.open_trae_ide", ide_ctx, menu)
 
         menu.addSeparator()
 
         # 从画布移除
-        ActionFactory.create_action(self, "canvas.remove_node",
+        ActionFactory.create_action(self.canvas, "canvas.remove_node",
                                      self._make_ctx(node_name=node_name), menu)
 
         menu.exec(event.globalPos())
@@ -177,21 +180,21 @@ class CanvasMenusMixin:
     # ---- 连线菜单 ----
 
     def _show_edge_menu(self, event, edge):
-        menu = QMenu(self)
-        edge_ctx = ActionContext(extra={'canvas': self, 'edge': edge})
+        menu = QMenu(self.canvas)
+        edge_ctx = ActionContext(extra={'canvas': self.canvas, 'edge': edge})
 
-        ActionFactory.create_action(self, "canvas.delete_edge", edge_ctx, menu)
+        ActionFactory.create_action(self.canvas, "canvas.delete_edge", edge_ctx, menu)
         menu.addSeparator()
-        ActionFactory.create_action(self, "canvas.change_edge_color", edge_ctx, menu)
+        ActionFactory.create_action(self.canvas, "canvas.change_edge_color", edge_ctx, menu)
         menu.addSeparator()
-        ActionFactory.create_action(self, "canvas.clear_selection", menu=menu)
+        ActionFactory.create_action(self.canvas, "canvas.clear_selection", menu=menu)
 
         menu.exec(event.globalPos())
 
     # ---- 空白画布菜单 ----
 
     def _show_canvas_menu(self, event):
-        menu = QMenu(self)
+        menu = QMenu(self.canvas)
 
         # 新建节点（通过 ActionFactory）
         new_menu = menu.addMenu(t("k_canvas_new_node"))
@@ -205,11 +208,11 @@ class CanvasMenusMixin:
             ("k_lang_shell", "Shell (开发中)"),
         ]
         for i18n_key, lang_name in _lang_list:
-            ActionFactory.create_action(self, f"canvas.new_node.{lang_name}", menu=new_menu)
+            ActionFactory.create_action(self.canvas, f"canvas.new_node.{lang_name}", menu=new_menu)
         menu.addSeparator()
 
         # 节点监控
-        ActionFactory.create_action(self, "canvas.monitor", self._make_ctx(), menu)
+        ActionFactory.create_action(self.canvas, "canvas.monitor", self._make_ctx(), menu)
 
         menu.addSeparator()
 
@@ -230,24 +233,23 @@ class CanvasMenusMixin:
         menu.addSeparator()
 
         # IDE 工作区（通过 Action 系统统一管理）
-        from ui.core.utils.file_utils import get_project_root
         workspace_path = None
-        if self.parent_window and hasattr(self.parent_window, 'current_project_path') and self.parent_window.current_project_path:
-            workspace_path = self.parent_window.current_project_path
+        if self.canvas.parent_window and hasattr(self.canvas.parent_window, 'current_project_path') and self.canvas.parent_window.current_project_path:
+            workspace_path = self.canvas.parent_window.current_project_path
         else:
             workspace_path = get_project_root()
         ws_ctx = ActionContext(extra={'workspace_path': workspace_path or ''})
-        ActionFactory.create_action(self, "workspace.open_vscode", ws_ctx, menu)
-        ActionFactory.create_action(self, "workspace.open_trae_ide", ws_ctx, menu)
+        ActionFactory.create_action(self.canvas, "workspace.open_vscode", ws_ctx, menu)
+        ActionFactory.create_action(self.canvas, "workspace.open_trae_ide", ws_ctx, menu)
 
         menu.addSeparator()
-        ActionFactory.create_action(self, "canvas.clear_connections", menu=menu)
+        ActionFactory.create_action(self.canvas, "canvas.clear_connections", menu=menu)
         menu.addSeparator()
-        ActionFactory.create_action(self, "canvas.reset_view", menu=menu)
+        ActionFactory.create_action(self.canvas, "canvas.reset_view", menu=menu)
         menu.addSeparator()
 
         # 绘画工具栏（动态文本 — 保留 menu.addAction，路由到 ActionRegistry）
-        toolbar_visible = self.draw_layer._toolbar_visible if hasattr(self, 'draw_layer') else False
+        toolbar_visible = self.canvas.draw_layer._toolbar_visible if hasattr(self.canvas, 'draw_layer') else False
         action_text = t("k_canvas_hide_draw_toolbar") if toolbar_visible else t("k_canvas_show_draw_toolbar")
         a = QAction(action_text, menu)
         a.triggered.connect(lambda: self._dispatch("canvas.toggle_draw_toolbar"))
@@ -257,9 +259,9 @@ class CanvasMenusMixin:
 
         # 画布颜色子菜单
         color_menu = menu.addMenu(t("k_canvas_color"))
-        ActionFactory.create_action(self, "canvas.bg_color", self._make_ctx(), color_menu)
-        ActionFactory.create_action(self, "canvas.grid_color", self._make_ctx(), color_menu)
-        ActionFactory.create_action(self, "canvas.default_edge_color", self._make_ctx(), color_menu)
+        ActionFactory.create_action(self.canvas, "canvas.bg_color", self._make_ctx(), color_menu)
+        ActionFactory.create_action(self.canvas, "canvas.grid_color", self._make_ctx(), color_menu)
+        ActionFactory.create_action(self.canvas, "canvas.default_edge_color", self._make_ctx(), color_menu)
 
         menu.exec(event.globalPos())
 
@@ -269,11 +271,11 @@ class CanvasMenusMixin:
         """在项目根目录打开终端"""
         try:
             target_dir = None
-            if hasattr(self.parent_window, 'current_project_path') and self.parent_window.current_project_path:
-                target_dir = self.parent_window.current_project_path
+            if hasattr(self.canvas.parent_window, 'current_project_path') and self.canvas.parent_window.current_project_path:
+                target_dir = self.canvas.parent_window.current_project_path
             else:
                 target_dir = get_project_root()
-            open_terminal_in_directory(target_dir, terminal_type, self)
+            open_terminal_in_directory(target_dir, terminal_type, self.canvas)
         except Exception:
             pass
 
@@ -298,6 +300,6 @@ class CanvasMenusMixin:
         for e in all_edges:
             e.update_path()
 
-        if hasattr(self, '_save_timer'):
-            self._save_timer.stop()
-            self._save_timer.start(500)
+        if hasattr(self.canvas, '_save_timer'):
+            self.canvas._save_timer.stop()
+            self.canvas._save_timer.start(500)

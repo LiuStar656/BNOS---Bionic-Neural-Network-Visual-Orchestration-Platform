@@ -6,6 +6,19 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-18】V2.0.17 - NodeItem 拆分重构与 Mixin 架构组合化</strong></summary>
+
+[查看完整更新](./2026-06-18/README.md)
+
+**主要更新：**
+- NodeItem 单体类拆分：`node_item.py` 从 846 行精简为 227 行，拆分为 9 个子组件（渲染、几何、交互、状态、配置、样式、参数面板等），对外 API 完全兼容
+- Mixin 架构重构：6 个 Mixin 类（CanvasConnections / CanvasBatchOps / CanvasMenu / CanvasBoxSelect / CanvasColors / CanvasLayout）完全改造为组合模式，通过 `self.canvas` 显式依赖，消除隐式 MRO 依赖
+- Bug 修复：`NodeCanvas.__init__` 显式初始化 `box_select_rect` / `box_selected_nodes` / `is_connecting` 等状态变量；新增 `_save_color_settings()` / `_load_color_settings()` 转发 API；`CanvasLayout` 中 `self` 引用改为 `self.canvas`
+- 完整启动测试验证：11 个模块导入、10 个组合层组件、3 个关键 API 调用，全流程通过
+
+</details>
+
+<details>
 <summary><strong>【2026-06-17】V2.0.16 - 画布布局加载修复、自动打开项目异步化与节点增删持久化</strong></summary>
 
 [查看完整更新](./2026-06-17/README.md)
