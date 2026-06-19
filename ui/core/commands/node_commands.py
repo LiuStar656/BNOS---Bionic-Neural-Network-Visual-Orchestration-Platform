@@ -41,6 +41,21 @@ class CreateNodeCommand(Command):
             logger.error("CreateNodeCommand 撤销失败: %s", e)
             return CommandResult(False, str(e))
 
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data.update({
+            "node_name": self._node_name,
+        })
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict, canvas=None):
+        node_name = data.get("node_name", "")
+        cmd = cls(node_name, canvas)
+        cmd.timestamp = data.get("timestamp", 0.0)
+        cmd.executed = data.get("executed", False)
+        return cmd
+
 
 class DeleteNodeCommand(Command):
     """删除节点命令
@@ -55,7 +70,6 @@ class DeleteNodeCommand(Command):
         self._canvas = canvas
         self._parent_window = parent_window
 
-        # 执行前收集恢复数据
         self._position: Optional[Tuple[float, float]] = None
         self._edge_data: List[dict] = []
         self._node_data: Optional[dict] = None
@@ -72,7 +86,6 @@ class DeleteNodeCommand(Command):
             pos = node.pos()
             self._position = (pos.x(), pos.y())
 
-        # 保存关联的连线信息
         for edge in list(self._canvas.edges):
             src = edge.start_node.node_name if edge.start_node else None
             tgt = edge.end_node.node_name if edge.end_node else None
@@ -85,7 +98,6 @@ class DeleteNodeCommand(Command):
                     "target_anchor_name": edge.target_anchor.name if edge.target_anchor else None,
                 })
 
-        # 保存节点配置数据
         if self._parent_window and hasattr(self._parent_window, 'nodes_data'):
             data = self._parent_window.nodes_data.get(self._node_name)
             if data:
@@ -105,21 +117,17 @@ class DeleteNodeCommand(Command):
 
     def undo(self) -> CommandResult:
         try:
-            # 恢复节点数据
             if self._node_data and self._parent_window and hasattr(self._parent_window, 'nodes_data'):
                 self._parent_window.nodes_data[self._node_name] = self._node_data
 
-            # 重新创建节点
             self._canvas._begin_replay()
             self._canvas.add_node_to_canvas(self._node_name)
 
-            # 恢复位置
             if self._position:
                 node = self._canvas.nodes.get(self._node_name)
                 if node:
                     node.setPos(self._position[0], self._position[1])
 
-            # 恢复连线
             for edge_info in self._edge_data:
                 src = self._canvas.nodes.get(edge_info["source"])
                 tgt = self._canvas.nodes.get(edge_info["target"])
@@ -132,6 +140,30 @@ class DeleteNodeCommand(Command):
             self._canvas._end_replay()
             logger.error("DeleteNodeCommand 撤销失败: %s", e)
             return CommandResult(False, str(e))
+
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data.update({
+            "node_name": self._node_name,
+            "position": self._position,
+            "edge_data": self._edge_data,
+            "node_data": self._node_data,
+            "collected": self._collected,
+        })
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict, canvas=None):
+        node_name = data.get("node_name", "")
+        parent_window = canvas.parent_window if canvas else None
+        cmd = cls(node_name, canvas, parent_window)
+        cmd.timestamp = data.get("timestamp", 0.0)
+        cmd.executed = data.get("executed", False)
+        cmd._position = data.get("position")
+        cmd._edge_data = data.get("edge_data", [])
+        cmd._node_data = data.get("node_data")
+        cmd._collected = data.get("collected", False)
+        return cmd
 
 
 class MoveNodeCommand(Command):
@@ -182,3 +214,18 @@ class MoveNodeCommand(Command):
             self._canvas._end_replay()
             logger.error("MoveNodeCommand 撤销失败: %s", e)
             return CommandResult(False, str(e))
+
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data.update({
+            "node_positions": self._node_positions,
+        })
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict, canvas=None):
+        node_positions = data.get("node_positions", {})
+        cmd = cls(node_positions, canvas)
+        cmd.timestamp = data.get("timestamp", 0.0)
+        cmd.executed = data.get("executed", False)
+        return cmd

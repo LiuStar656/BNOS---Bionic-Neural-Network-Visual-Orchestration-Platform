@@ -3,12 +3,21 @@ ApplicationContext - 应用全局状态聚合器
 
 提供统一的服务访问入口，避免全局变量分散。
 
+集成了 AppState 集中式状态管理器，支持：
+- 单一数据源：所有状态集中存储
+- 响应式：状态变化自动通知订阅者
+- 可追踪：支持状态变更历史
+
 用法:
     from ui.core.application_context import ApplicationContext
     
     ctx = ApplicationContext()
     ctx.config.save()
     ctx.node_control.start_node(node_id)
+    
+    # 使用状态管理
+    ctx.state.set('project.current', '/path/to/project')
+    project_path = ctx.state.get('project.current')
 """
 
 
@@ -46,9 +55,15 @@ class ApplicationContext:
         from ui.core.import_export_manager import ImportExportManager
         from ui.core.process_manager import ProcessManager
         from ui.core.event_bus import EventBus
+        from ui.core.app_state import AppState
+        from ui.core.node_debugger import NodeDebugger
         
         # 配置服务
         self._config = AppConfig()
+        
+        # 集中式状态管理
+        self._state = AppState()
+        self._state.initialize()
         
         # 事件总线
         self._event_bus = EventBus()
@@ -56,6 +71,11 @@ class ApplicationContext:
         # 核心服务（不依赖主窗口）
         self._polling = PollingManager.instance()
         self._node_control = NodeControlService()
+        
+        # 调试管理器
+        self._debugger = NodeDebugger()
+        self._debugger.initialize()
+        
         self._process_manager = ProcessManager()
         
         # Toast 管理器
@@ -146,6 +166,16 @@ class ApplicationContext:
     def import_export(self):
         """导入导出管理器"""
         return self._import_export
+    
+    @property
+    def state(self):
+        """集中式状态管理器"""
+        return self._state
+    
+    @property
+    def debugger(self):
+        """节点调试管理器"""
+        return self._debugger
     
     def shutdown(self):
         """

@@ -67,6 +67,7 @@ class PanelManager:
         from ui.panels.node_list_dock import NodeListDockPanel
         from ui.panels.resource_monitor_dock import ResourceMonitorDock
         from ui.panels.node_monitor_dock import NodeMonitorDock
+        from ui.panels.performance_panel import PerformancePanel
 
         self.registry.register(PanelDescriptor(
             key="node_list",
@@ -88,6 +89,13 @@ class PanelManager:
             area=Qt.DockWidgetArea.RightDockWidgetArea,
             default_visible=False,
             title="节点监控"
+        ))
+        self.registry.register(PanelDescriptor(
+            key="performance",
+            factory=lambda p: PerformancePanel(p),
+            area=Qt.DockWidgetArea.RightDockWidgetArea,
+            default_visible=False,
+            title="性能分析"
         ))
 
     def toggle_panel(self, key: str, visible: bool = None):

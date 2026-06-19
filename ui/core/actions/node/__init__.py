@@ -19,6 +19,7 @@ from . import _group
 from . import _ungrouped
 from . import _ide
 from . import _style
+from . import _template
 
 
 def register_node_actions(main_window):
@@ -32,6 +33,7 @@ def register_node_actions(main_window):
         _ungrouped,
         _ide,
         _style,
+        _template,
     ]
     for mod in modules:
         mod.register(main_window)

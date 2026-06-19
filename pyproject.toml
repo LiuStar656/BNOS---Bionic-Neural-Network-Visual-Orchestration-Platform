@@ -1,0 +1,62 @@
+[project]
+name = "bnos"
+version = "1.0.0"
+description = "Bionic Neural Network Program Operating System"
+requires-python = ">=3.8"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v"
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203", "W503"]
+exclude = [
+    "__pycache__",
+    ".git",
+    "node_modules",
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg-info",
+]
+per-file-ignores = {
+    "test_*.py": ["D100", "D101", "D102", "D103", "D104"],
+}
+
+[tool.black]
+line-length = 120
+target-version = ["py38", "py39", "py310"]
+exclude = '''
+(
+    __pycache__
+    | \\.git
+    | node_modules
+    | build
+    | dist
+    | \\.eggs
+    | \\*.egg-info
+)
+'''
+
+[tool.isort]
+line_length = 120
+multi_line_output = 3
+include_trailing_comma = true
+force_alphabetical_sort = true
+force_single_line_imports = false
+known_first_party = ["ui"]
+known_third_party = ["PySide6", "psutil"]
+
+[tool.mypy]
+python_version = "3.8"
+strict = false
+show_error_codes = true
+ignore_missing_imports = true
+follow_imports = "skip"
+exclude = [
+    "__pycache__",
+    ".git",
+    "node_modules",
+]

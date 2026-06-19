@@ -93,6 +93,12 @@ class MenuManager:
 
         tools_menu.addSeparator()
 
+        ActionFactory.create_action(main_window, "view.performance_panel", menu=tools_menu)
+        ActionFactory.create_action(main_window, "view.debug_panel", menu=tools_menu)
+        ActionFactory.create_action(main_window, "view.template_selector", menu=tools_menu)
+
+        tools_menu.addSeparator()
+
         # 终端 — ActionFactory，保留 setCheckable + 状态持久化（canvas_host 引用了 toggle_terminal_action）
         terminal_action = ActionFactory.create_action(main_window, "view.toggle_terminal", menu=tools_menu)
         if terminal_action:

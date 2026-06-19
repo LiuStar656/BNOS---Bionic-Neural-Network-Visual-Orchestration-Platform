@@ -6,6 +6,21 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-20】V2.0.18 - Floating Panel System, Preset Library Refactoring, Translation & UI Unification</strong></summary>
+
+[View Full Update](./2026-06-20/README.md) | [01_Perf](./2026-06-20/01_Performance_Panel_Fix.md) | [02_Debug](./2026-06-20/02_Debug_Panel_Translation.md) | [03_Preset](./2026-06-20/03_Preset_Library_Refactoring.md) | [04_IPC](./2026-06-20/04_IPC_Core_Process.md) | [05_Polling](./2026-06-20/05_Polling_Manager.md) | [06_i18n](./2026-06-20/06_Translation_Key_Revision.md)
+
+**Main Updates:**
+- 01 Performance Panel: ChartCanvas custom paint, QPainter/QPainterPath import fix, drag-pause refresh
+- 02 Debug Panel: 17 CN/EN translation keys completed (port, mode, action, breakpoints, etc.)
+- 03 Preset Library: Deprecated skeleton template system, reuses `.bnos` for complete node packaging, new PresetLibraryDialog
+- 04 IPC Core Process: Added node.stop_all (batch stop) and node.detect_running commands
+- 05 Polling Manager: CPU-load-adaptive dynamic frequency adjustment (1s/2s/4s)
+- 06 Translation Overhaul: 3 mismatch fixes, 29 new keys, 17 deprecated keys removed
+
+</details>
+
+<details>
 <summary><strong>【2026-06-18】V2.0.17 - NodeItem Split Refactoring & Mixin Architecture Composition</strong></summary>
 
 [View Full Update](./2026-06-18/README.md)

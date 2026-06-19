@@ -273,7 +273,64 @@ class HistoryManager(QObject):
 
     def load_history(self, project_path: str):
         """从项目文件加载历史"""
-        pass
+        if not project_path:
+            return
+
+        history_file = os.path.join(project_path, "history.json")
+        if not os.path.exists(history_file):
+            return
+
+        try:
+            with open(history_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            logger.error("Failed to load history: %s", e)
+            return
+
+        commands_data = data.get("commands", [])
+        current_index = data.get("current_index", -1)
+
+        from ui.core.commands.node_commands import (
+            CreateNodeCommand, DeleteNodeCommand, MoveNodeCommand
+        )
+        from ui.core.commands.edge_commands import (
+            CreateEdgeCommand, DeleteEdgeCommand
+        )
+        from ui.core.commands.base import CommandType
+
+        command_type_map = {
+            CommandType.CREATE_NODE: CreateNodeCommand,
+            CommandType.DELETE_NODE: DeleteNodeCommand,
+            CommandType.MOVE_NODE: MoveNodeCommand,
+            CommandType.CREATE_EDGE: CreateEdgeCommand,
+            CommandType.DELETE_EDGE: DeleteEdgeCommand,
+        }
+
+        canvas = None
+        if self._event_bus:
+            canvas = self._event_bus._app_context.canvas if hasattr(self._event_bus, '_app_context') else None
+            if canvas and hasattr(canvas, 'current_canvas'):
+                canvas = canvas.current_canvas
+
+        self.state.commands.clear()
+        for cmd_data in commands_data:
+            cmd_type_name = cmd_data.get("command_type", "")
+            try:
+                cmd_type = CommandType[cmd_type_name]
+                cmd_class = command_type_map.get(cmd_type)
+                if cmd_class:
+                    cmd = cmd_class.from_dict(cmd_data, canvas)
+                    self.state.commands.append(cmd)
+                else:
+                    logger.warning(f"未知命令类型: {cmd_type_name}")
+            except KeyError:
+                logger.warning(f"无效命令类型: {cmd_type_name}")
+
+        self.state.current_index = current_index
+        self._emit_change_signals()
+        self.index_changed.emit(current_index)
+        logger.info("History loaded: %d commands, current index=%d",
+                    len(self.state.commands), current_index)
 
     # ── 内部方法 ──
 

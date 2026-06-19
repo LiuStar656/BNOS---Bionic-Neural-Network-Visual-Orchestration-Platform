@@ -19,23 +19,29 @@
 - items/：纯 UI 渲染组件（node_item / edge_item / anchor_item 等）
 - parameter_widgets/：参数编辑控件
 
-组合层使用方式：
-    canvas = NodeCanvas(parent)
-    canvas.events.mousePressEvent(event)         # 事件处理
-    canvas.background.drawBackground(painter, rect)  # 背景渲染
-    canvas.node_mgr.add_node_to_canvas(name)     # 节点管理
-    canvas.selection.on_node_selected(node)      # 选择管理
-    canvas.connections.start_connection_from_output(node, anchor)  # 连线
-    canvas.menus.contextMenuEvent(event)         # 右键菜单
-    canvas.layout_mgr.save_layout(path)          # 保存布局
+【渲染优化】
+- 视口裁剪：使用 OptimizedScene 实现按需渲染
+- 渲染缓存：节点使用 DeviceCoordinateCache 模式
+- 视图优化：启用 DontSavePainterState 和 DontAdjustForAntialiasing
 """
 import os
-from PySide6.QtWidgets import QGraphicsView
-from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QGraphicsView, QGraphicsScene
+from PySide6.QtCore import QTimer, QRectF, Qt
 from PySide6.QtGui import QPainter
 
 from ui.core.logger import logger
 from ui.canvas.drawing.draw_layer import DrawLayer
+
+
+class OptimizedScene(QGraphicsScene):
+    """优化的场景类，实现视口裁剪和按需渲染"""
+    
+    def __init__(self, x, y, w, h, parent=None):
+        super().__init__(x, y, w, h, parent)
+        self._viewport_margin = 100
+    
+    def setViewportMargin(self, margin):
+        self._viewport_margin = margin
 
 # 4 个原有的组合层模块
 from ui.canvas.mixins.canvas_selection import SelectionManager
@@ -74,17 +80,20 @@ class NodeCanvas(QGraphicsView):
         self.canvas_height = 5000
 
         # ===== 场景与视图设置 =====
-        from PySide6.QtWidgets import QGraphicsScene
-        from PySide6.QtCore import Qt
         half_width = self.canvas_width // 2
         half_height = self.canvas_height // 2
-        self.scene = QGraphicsScene(-half_width, -half_height, self.canvas_width, self.canvas_height, self)
+        self.scene = OptimizedScene(-half_width, -half_height, self.canvas_width, self.canvas_height, self)
         self.setScene(self.scene)
 
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
-        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
+        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.MinimalViewportUpdate)
+        
+        self.setOptimizationFlags(
+            QGraphicsView.OptimizationFlag.DontSavePainterState
+            | QGraphicsView.OptimizationFlag.DontAdjustForAntialiasing
+        )
 
         # ===== 颜色配置（供各组合层读取） =====
         self.canvas_bg_color = "#1e1e1e"

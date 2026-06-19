@@ -753,7 +753,8 @@
   │   │   ├── color_settings_dialog.py
   │   │   ├── settings_dialog.py
   │   │   ├── node_config_dialog.py
-  │   │   └── file_browser_dialog.py
+  │   │   ├── file_browser_dialog.py
+│   │   └── preset_library_dialog.py
   │   │
   │   ├── creators/                  # 节点创建器
   │   │   └── node_creator_manager.py
@@ -777,6 +778,8 @@
   │   │   ├── en/                  # 英文更新日志
   │   │   └── INDEX.md             # 更新日志索引
   │   └── ...                        # 其他文档文件
+  │
+  ├── node_templates/                # 预设节点库（.bnos + .json）
   │
   └── nodes/                         # 运行时节点目录（由用户项目创建）
       └── [node_name]/               # 单个节点文件夹
@@ -1016,7 +1019,7 @@
   - **开发团队**：阿东与守一工作室
   - **GitHub**: <https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform>
   - **邮箱**：<1240543656@qq.com>
-  - **最后更新**：2026-06-18
+  - **最后更新**：2026-06-20
 
   ***
 

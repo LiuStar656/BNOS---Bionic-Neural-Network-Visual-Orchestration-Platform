@@ -7,6 +7,11 @@
   - 检测到变更后通过 Qt Signal 发回主线程（Qt 自动跨线程排队）
   - 外部接口（watch_* / register_task / start / stop）线程安全，由主线程调用
 
+【动态频率】基于系统 CPU 负载自动调整轮询频率：
+  - 低负载 (< 30%): 高频模式，tick = 1秒，快速响应
+  - 中负载 (30%-60%): 标准模式，tick = 2秒，平衡响应与性能
+  - 高负载 (> 60%): 低频模式，tick = 4秒，降低 CPU 占用
+
 管理职责：
   1. 节点进程健康状态检测
   2. 全局日志文件监控
@@ -20,6 +25,12 @@ import threading
 from datetime import datetime
 from PySide6.QtCore import QObject, QTimer, Qt, Signal, QThread
 from ui.core.logger import logger
+
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
 
 
 class PollingManager(QObject):
@@ -92,22 +103,24 @@ class PollingManager(QObject):
         self._base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self._logs_dir = os.path.join(self._base_dir, "logs")
         
-        # ---- 主定时器（2秒轮询一次，降低空闲 CPU 噪声）----
-        # 注意：下方任务注册中的 interval 单位是"主 tick 数"，每个 tick = 2 秒。
-        #   interval=1  → 2 秒（高频，用于健康检测）
-        #   interval=2  → 4 秒（默认，大多数任务）
-        #   interval=3  → 6 秒（低频，用于配置/输出检测）
-        #   interval=5  → 10 秒（极低频，用于应用状态检测）
-        #
-        # 【关键】QTimer 必须在其所属 thread 的 event loop 中运行
-        # PollingManager 自身 moveToThread 到 _worker_thread 后，
-        # self._timer 的父对象 self 也在 worker thread，timer 的 timeout 信号
-        # 会在 worker thread 的 event loop 中触发 → _poll() 在后台执行
-        self.tick_duration = 2
+        # ---- 频率模式常量 ----
+        self.FREQ_HIGH = 1
+        self.FREQ_NORMAL = 2
+        self.FREQ_LOW = 4
+        
+        self.CPU_LOW_THRESHOLD = 30
+        self.CPU_HIGH_THRESHOLD = 60
+        
+        # ---- 主定时器 ----
+        self.tick_duration = self.FREQ_NORMAL
         self._timer = QTimer(self)
         self._timer.setTimerType(Qt.TimerType.PreciseTimer)
         self._timer.setInterval(self.tick_duration * 1000)
         self._timer.timeout.connect(self._poll)
+        
+        # ---- 动态频率相关 ----
+        self._last_cpu_check = 0
+        self._cpu_check_interval = 10
         
         # ---- 轮询计数器 ----
         self._tick_count = 0
@@ -245,26 +258,31 @@ class PollingManager(QObject):
     # ==================== 初始化 ====================
     
     def _init_default_tasks(self):
-        """初始化默认轮询任务（interval 单位：主 tick 数，每 tick = 2 秒）"""
-        # 节点健康检测（2秒 = 1 tick，最高频 —— 直接反映节点生死状态）
+        """初始化默认轮询任务（interval 单位：主 tick 数，tick 时长根据 CPU 负载动态调整）
+        
+        默认频率（中负载）: tick = 2秒
+        高频模式（低负载）: tick = 1秒
+        低频模式（高负载）: tick = 4秒
+        """
+        # 节点健康检测（最高频，直接反映节点生死状态）
         self.register_task('node_health', 1, self._poll_node_health)
 
-        # 全局日志检测（4秒 = 2 tick，用户打开终端页面后需稍等几秒更新也可接受）
+        # 全局日志检测（中高频）
         self.register_task('global_logs', 2, self._poll_global_logs)
 
-        # 全局配置检测（4秒 = 2 tick，外部手工改配置很少是实时的）
+        # 全局配置检测（中高频）
         self.register_task('global_config', 2, self._poll_global_config)
 
-        # 节点日志检测（4秒 = 2 tick）
+        # 节点日志检测（中高频）
         self.register_task('node_logs', 2, self._poll_node_logs)
 
-        # 节点配置检测（6秒 = 3 tick，文件内容变化不频繁）
+        # 节点配置检测（中频，文件内容变化不频繁）
         self.register_task('node_config', 3, self._poll_node_config)
 
-        # 节点输出检测（6秒 = 3 tick）
+        # 节点输出检测（中频）
         self.register_task('node_output', 3, self._poll_node_output)
 
-        # 应用状态检测（10秒 = 5 tick）
+        # 应用状态检测（低频）
         self.register_task('app_state', 5, self._poll_app_state)
     
     def _init_global_watchers(self):
@@ -305,7 +323,9 @@ class PollingManager(QObject):
         try:
             self._tick_count += 1
 
-            # 【关键】在 worker thread 内执行所有任务
+            # 动态频率调整：定期检查 CPU 负载并调整轮询频率
+            self._adjust_frequency()
+
             # 只读快照 _tasks，避免长时间持有锁
             with self._lock:
                 tasks_snapshot = list(self._tasks.items())
@@ -321,6 +341,43 @@ class PollingManager(QObject):
         except KeyboardInterrupt:
             logger.info("Polling interrupted by user")
             self.stop()
+    
+    # ==================== 动态频率调整 ====================
+    
+    def _adjust_frequency(self):
+        """根据 CPU 负载动态调整轮询频率"""
+        if not HAS_PSUTIL:
+            return
+        
+        self._last_cpu_check += 1
+        if self._last_cpu_check < self._cpu_check_interval:
+            return
+        
+        self._last_cpu_check = 0
+        cpu_usage = self._get_cpu_usage()
+        
+        if cpu_usage < self.CPU_LOW_THRESHOLD:
+            new_freq = self.FREQ_HIGH
+        elif cpu_usage <= self.CPU_HIGH_THRESHOLD:
+            new_freq = self.FREQ_NORMAL
+        else:
+            new_freq = self.FREQ_LOW
+        
+        if new_freq != self.tick_duration:
+            old_freq = self.tick_duration
+            self.tick_duration = new_freq
+            self._timer.setInterval(new_freq * 1000)
+            logger.info(f"Polling frequency adjusted: {old_freq}s → {new_freq}s (CPU: {cpu_usage:.1f}%)")
+    
+    def _get_cpu_usage(self):
+        """获取系统 CPU 使用率（百分比）"""
+        if not HAS_PSUTIL:
+            return 0.0
+        try:
+            return psutil.cpu_percent(interval=0.1)
+        except Exception as e:
+            logger.warning(f"Failed to get CPU usage: {e}")
+            return 0.0
     
     # ==================== 节点级检测任务 ====================
     

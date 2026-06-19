@@ -104,3 +104,27 @@ def register_view_actions(main_window):
         description_i18n="k_view_history_panel",
         execute_fn=lambda ctx: (main_window.show_history_panel(), True)[1],
     ))
+    
+    ActionRegistry.register(ActionDefinition(
+        id="view.performance_panel",
+        name_i18n="k_performance_panel",
+        category=ActionCategory.VIEW,
+        description_i18n="k_performance",
+        execute_fn=lambda ctx: (main_window.show_performance_panel(), True)[1],
+    ))
+    
+    ActionRegistry.register(ActionDefinition(
+        id="view.debug_panel",
+        name_i18n="k_debug_panel",
+        category=ActionCategory.VIEW,
+        description_i18n="k_debug",
+        execute_fn=lambda ctx: (main_window.show_debug_panel(), True)[1],
+    ))
+    
+    ActionRegistry.register(ActionDefinition(
+        id="view.template_selector",
+        name_i18n="k_select_template",
+        category=ActionCategory.VIEW,
+        description_i18n="k_preset_library",
+        execute_fn=lambda ctx: (main_window.show_template_selector(), True)[1],
+    ))

@@ -346,7 +346,7 @@ graph TB
 | **History Manager** | `ui/core/commands/history_manager.py` | Command pattern history rollback |
 | **Command System** | `ui/core/commands/` | Node commands, edge commands, compound commands, base |
 | **Node Creator** | `ui/creators/node_creator_manager.py` | Multi-language node creation manager |
-| **Dialogs** | `ui/dialogs/` | Node config, color settings, file browser, settings dialogs |
+|- **Dialogs** | `ui/dialogs/` | Node config, color settings, file browser, settings, preset library dialogs |
 | **Validators** | `ui/core/validators.py` | Node name and path validation utilities |
 | **Tools** | `tools/python_create_node.py`, `tools/rust_create_node.py` | Python / Rust node template generators |
 
@@ -789,7 +789,8 @@ BNOS/
 │   │   ├── color_settings_dialog.py
 │   │   ├── settings_dialog.py
 │   │   ├── node_config_dialog.py
-│   │   └── file_browser_dialog.py
+│   │   ├── file_browser_dialog.py
+│   │   └── preset_library_dialog.py
 │   │
 │   ├── creators/                  # Node creators
 │   │   └── node_creator_manager.py
@@ -815,6 +816,8 @@ BNOS/
 │   │   ├── en/                  # English changelogs
 │   │   └── INDEX.md             # Changelog index
 │   └── ...                       # Other documentation files
+│
+├── node_templates/                # Preset node library (.bnos + .json)
 │
 └── nodes/                         # Runtime node directory
     └── (user-created nodes)
@@ -1044,7 +1047,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-06-18
+- **Last Updated**: 2026-06-20
 
 
 ---

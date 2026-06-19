@@ -1,10 +1,18 @@
 """
 应用配置管理 - 全局配置记忆系统
-负责窗口几何、分割器比例、最后项目等持久化
+
+统一配置系统，支持：
+- 窗口几何、分割器比例、最后项目等基础配置
+- 主题配置（深色/浅色模式、颜色方案）
+- 布局配置（面板位置、可见性、工具栏状态）
+- 快捷键配置（自定义快捷键）
+- 轮询频率配置
+
 使用单例模式确保全局只有一个配置实例
 """
 import os
 import json
+from typing import Dict, Any
 from ui.core.logger import logger
 
 
@@ -62,6 +70,69 @@ class AppConfig:
                 "resource_monitor_floating": False,
                 "node_monitor_floating": False,
                 "terminal_dock": False
+            },
+
+            "theme": {
+                "mode": "dark",
+                "accent_color": "#00D4FF",
+                "primary_color": "#252526",
+                "secondary_color": "#1E1E1E",
+                "text_color": "#FFFFFF",
+                "text_color_secondary": "#A0A0A0",
+                "border_color": "#3C3C3C",
+                "canvas_bg": "#1E1E1E",
+                "canvas_grid": "#2A2A2A",
+                "node_bg": "#2D2D2D",
+                "node_border": "#3C3C3C",
+                "node_selected_border": "#00D4FF",
+                "edge_color": "#666666",
+                "edge_selected_color": "#00D4FF",
+                "success_color": "#00FF88",
+                "warning_color": "#FFAA00",
+                "error_color": "#FF4444",
+                "info_color": "#00D4FF"
+            },
+
+            "layout": {
+                "panel_layout": "left",
+                "toolbar_position": "top",
+                "status_bar_visible": True,
+                "tab_bar_visible": True,
+                "auto_hide_panels": False,
+                "panel_width": 250
+            },
+
+            "shortcuts": {
+                "undo": "Ctrl+Z",
+                "redo": "Ctrl+Y",
+                "cut": "Ctrl+X",
+                "copy": "Ctrl+C",
+                "paste": "Ctrl+V",
+                "delete": "Delete",
+                "select_all": "Ctrl+A",
+                "save": "Ctrl+S",
+                "open": "Ctrl+O",
+                "new": "Ctrl+N",
+                "close": "Ctrl+W",
+                "zoom_in": "Ctrl++",
+                "zoom_out": "Ctrl+-",
+                "zoom_reset": "Ctrl+0",
+                "run": "F5",
+                "stop": "F6",
+                "debug": "F9",
+                "toggle_panel": "Ctrl+Shift+P",
+                "toggle_terminal": "Ctrl+`",
+                "find": "Ctrl+F",
+                "replace": "Ctrl+H"
+            },
+
+            "performance": {
+                "polling_frequency": 2,
+                "dynamic_frequency": True,
+                "cpu_low_threshold": 30,
+                "cpu_high_threshold": 60,
+                "render_caching": True,
+                "viewport_clipping": True
             }
         }
 
@@ -124,3 +195,41 @@ class AppConfig:
 
     def set(self, key, value):
         self.config[key] = value
+
+    def get_theme(self, key=None, default=None):
+        """获取主题配置"""
+        if key is None:
+            return self.config.get("theme", {})
+        return self.config.get("theme", {}).get(key, default)
+
+    def set_theme(self, key, value):
+        """设置主题配置"""
+        self.config["theme"][key] = value
+
+    def get_layout(self, key=None, default=None):
+        """获取布局配置"""
+        if key is None:
+            return self.config.get("layout", {})
+        return self.config.get("layout", {}).get(key, default)
+
+    def set_layout(self, key, value):
+        """设置布局配置"""
+        self.config["layout"][key] = value
+
+    def get_shortcut(self, action, default=None):
+        """获取快捷键配置"""
+        return self.config.get("shortcuts", {}).get(action, default)
+
+    def set_shortcut(self, action, key_sequence):
+        """设置快捷键配置"""
+        self.config["shortcuts"][action] = key_sequence
+
+    def get_performance(self, key=None, default=None):
+        """获取性能配置"""
+        if key is None:
+            return self.config.get("performance", {})
+        return self.config.get("performance", {}).get(key, default)
+
+    def set_performance(self, key, value):
+        """设置性能配置"""
+        self.config["performance"][key] = value

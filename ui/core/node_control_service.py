@@ -1,5 +1,8 @@
 """
 节点控制服务，负责管理节点的启动、停止和其他操作
+
+【统一重构】本服务现在委托给 node_process.py 的标准化实现，
+消除代码重复，保证行为一致性。
 """
 from typing import Dict, List, Optional, Callable
 from PySide6.QtCore import QObject, QThread
@@ -31,13 +34,13 @@ class NodeInfo:
 
 
 class NodeControlService:
-    """节点控制服务"""
+    """节点控制服务 — 统一委托给 node_process.py"""
 
     def __init__(self):
         self.nodes: Dict[str, NodeInfo] = {}
         self._active_processes: Dict[str, subprocess.Popen] = {}
         self._status_callbacks: List[Callable] = []
-        self._monitor_threads: Dict[str, QThread] = {}   # 可追踪的监控线程
+        self._monitor_threads: Dict[str, QThread] = {}
 
     def register_node(self, name: str, path: str):
         self.nodes[name] = NodeInfo(name, path)
@@ -54,32 +57,36 @@ class NodeControlService:
         node_info = self.nodes[name]
         if node_info.status != NodeStatus.STOPPED:
             return False
+
+        from ui.core.node_process import start_node_process
+
         try:
             node_info.status = NodeStatus.STARTING
             self._notify(name, NodeStatus.STARTING)
-            node_path = Path(node_info.path)
-            # 检测节点类型
-            if (node_path / "main.py").exists():
-                cmd = ["python", str(node_path / "main.py")]
-            elif (node_path / "index.js").exists():
-                cmd = ["node", str(node_path / "index.js")]
-            elif (node_path / "Cargo.toml").exists():
-                cmd = ["cargo", "run"]
+
+            node_dict = {
+                "path": node_info.path,
+                "name": name,
+                "config": {},
+                "process": None,
+                "status": "stopped"
+            }
+
+            success, error = start_node_process(node_dict)
+
+            if success:
+                node_info.process = node_dict.get('process')
+                node_info.pid = node_dict.get('process').pid if node_dict.get('process') else None
+                node_info.status = NodeStatus.RUNNING
+                self._active_processes[name] = node_info.process
+                self._notify(name, NodeStatus.RUNNING)
+                self._monitor(name, node_info.process)
+                return True
             else:
-                cmd = ["python", str(node_path / "main.py")]
-            cwd = str(node_path)
-            process = subprocess.Popen(
-                cmd, cwd=cwd,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                preexec_fn=os.setsid if os.name != 'nt' else None
-            )
-            node_info.process = process
-            node_info.pid = process.pid
-            self._active_processes[name] = process
-            node_info.status = NodeStatus.RUNNING
-            self._notify(name, NodeStatus.RUNNING)
-            self._monitor(name, process)
-            return True
+                logger.error("启动节点 %s 失败: %s", name, error)
+                node_info.status = NodeStatus.ERROR
+                self._notify(name, NodeStatus.ERROR)
+                return False
         except Exception as e:
             logger.error("启动节点 %s 失败: %s", name, e)
             node_info.status = NodeStatus.ERROR
@@ -87,39 +94,42 @@ class NodeControlService:
             return False
 
     def stop_node(self, name: str) -> bool:
-        if name not in self.nodes or name not in self._active_processes:
+        if name not in self.nodes:
             return False
         node_info = self.nodes[name]
         if node_info.status not in [NodeStatus.RUNNING, NodeStatus.STARTING]:
             return False
+
+        from ui.core.node_process import stop_node_process
+
         try:
             node_info.status = NodeStatus.STOPPING
             self._notify(name, NodeStatus.STOPPING)
-            process = self._active_processes[name]
-            if os.name == 'nt':
-                process.terminate()
+
+            node_dict = {
+                "path": node_info.path,
+                "process": node_info.process
+            }
+
+            success, error = stop_node_process(node_dict)
+
+            if success:
+                node_info.process = None
+                node_info.pid = None
+                node_info.status = NodeStatus.STOPPED
+                self._notify(name, NodeStatus.STOPPED)
+                return True
             else:
-                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                if os.name == 'nt':
-                    process.kill()
-                else:
-                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                process.wait()
-            node_info.process = None
-            node_info.pid = None
-            node_info.status = NodeStatus.STOPPED
-            self._notify(name, NodeStatus.STOPPED)
-            return True
+                logger.error("停止节点 %s 失败: %s", name, error)
+                node_info.status = NodeStatus.ERROR
+                self._notify(name, NodeStatus.ERROR)
+                return False
         except Exception as e:
             logger.error("停止节点 %s 失败: %s", name, e)
             node_info.status = NodeStatus.ERROR
             self._notify(name, NodeStatus.ERROR)
             return False
         finally:
-            # 无论成功与否，清理进程引用和监控线程
             self._active_processes.pop(name, None)
             self._cleanup_monitor_thread(name)
 
@@ -133,7 +143,6 @@ class NodeControlService:
         return None
 
     def _monitor(self, name: str, process: subprocess.Popen):
-        """监控节点进程退出（线程可追踪、可清理）"""
         def run():
             try:
                 process.wait()
@@ -142,7 +151,6 @@ class NodeControlService:
                     self._notify(name, NodeStatus.ERROR)
             except Exception as e:
                 logger.warning("节点 %s 监控异常: %s", name, e)
-        # 先清理旧线程
         self._cleanup_monitor_thread(name)
         monitor_thread = QThread()
         monitor_worker = QObject()
@@ -153,7 +161,6 @@ class NodeControlService:
         monitor_thread.start()
 
     def _cleanup_monitor_thread(self, name: str):
-        """清理指定节点的监控线程"""
         thread = self._monitor_threads.pop(name, None)
         if thread and thread.isRunning():
             thread.quit()

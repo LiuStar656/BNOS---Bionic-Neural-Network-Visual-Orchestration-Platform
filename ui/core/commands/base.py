@@ -16,8 +16,8 @@ class CommandType(Enum):
     MOVE_NODE = auto()
     CREATE_EDGE = auto()
     DELETE_EDGE = auto()
-    MACRO = auto()          # 复合命令
-    GENERIC = auto()        # 通用命令
+    MACRO = auto()
+    GENERIC = auto()
 
 
 @dataclass
@@ -61,7 +61,13 @@ class Command(ABC):
             "description": self.description,
             "command_type": self.command_type.name,
             "timestamp": self.timestamp,
+            "executed": self.executed,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict, canvas=None):
+        """从字典重建命令对象"""
+        raise NotImplementedError(f"{cls.__name__} 未实现 from_dict 方法")
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: {self.description}>"

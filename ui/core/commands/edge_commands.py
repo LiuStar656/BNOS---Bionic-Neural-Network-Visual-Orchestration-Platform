@@ -52,6 +52,23 @@ class CreateEdgeCommand(Command):
             logger.error("CreateEdgeCommand 撤销失败: %s", e)
             return CommandResult(False, str(e))
 
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data.update({
+            "source_name": self._source_name,
+            "target_name": self._target_name,
+        })
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict, canvas=None):
+        source_name = data.get("source_name", "")
+        target_name = data.get("target_name", "")
+        cmd = cls(source_name, target_name, canvas)
+        cmd.timestamp = data.get("timestamp", 0.0)
+        cmd.executed = data.get("executed", False)
+        return cmd
+
 
 class DeleteEdgeCommand(Command):
     """删除连线命令"""
@@ -100,7 +117,6 @@ class DeleteEdgeCommand(Command):
             if not src or not tgt:
                 return CommandResult(False, "节点不存在")
 
-            # 恢复时解析目标锚点（保持原始端口连接）
             target_anchor = self._resolve_anchor(tgt, self._target_port_name, is_input=True)
             source_anchor = self._resolve_anchor(src, self._source_port_name, is_input=False)
 
@@ -122,3 +138,29 @@ class DeleteEdgeCommand(Command):
             return None
         anchors = node.anchor_manager.input_anchors if is_input else node.anchor_manager.output_anchors
         return anchors.get(port_name)
+
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data.update({
+            "source_name": self._source_name,
+            "target_name": self._target_name,
+            "target_port_name": self._target_port_name,
+            "source_port_name": self._source_port_name,
+            "target_anchor_name": self._target_anchor_name,
+            "removed": self._removed,
+        })
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict, canvas=None):
+        source_name = data.get("source_name", "")
+        target_name = data.get("target_name", "")
+        target_port_name = data.get("target_port_name")
+        source_port_name = data.get("source_port_name")
+        target_anchor_name = data.get("target_anchor_name")
+        cmd = cls(source_name, target_name, target_port_name,
+                  source_port_name, target_anchor_name, canvas)
+        cmd.timestamp = data.get("timestamp", 0.0)
+        cmd.executed = data.get("executed", False)
+        cmd._removed = data.get("removed", False)
+        return cmd

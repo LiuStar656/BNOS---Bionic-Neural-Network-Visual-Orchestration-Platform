@@ -163,6 +163,10 @@ class CanvasMenu:
         ActionFactory.create_action(self.canvas, "node.export",
                                      ActionContext(node_name=node_name), menu)
 
+        # 保存为模板
+        ActionFactory.create_action(self.canvas, "node.save_as_template",
+                                     self._make_ctx(node_name=node_name), menu)
+
         menu.addSeparator()
 
         # IDE 打开（通过 Action 系统统一管理）

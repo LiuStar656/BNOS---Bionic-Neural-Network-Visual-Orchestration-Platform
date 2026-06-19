@@ -169,3 +169,59 @@ class MainWindowPanelMixin:
             self.history_panel = HistoryPanelWidget(self)
         self._dock_manager.add_panel_to_dock(self.history_panel, t("k_view_history_panel"), edge='right')
         self._save_panel_visibility_state('history_dock', True)
+
+    def show_performance_panel(self):
+        """打开性能分析面板（浮动版）"""
+        from ui.panels.performance_panel import PerformancePanel
+        if not hasattr(self, 'performance_panel') or self.performance_panel is None:
+            self.performance_panel = PerformancePanel(self)
+            pos = self.app_config.get('panel_positions', {}).get('performance_panel', {'x': 100, 'y': 100})
+            self.performance_panel.move(pos['x'], pos['y'])
+            self.performance_panel.closed.connect(self._on_performance_panel_closed)
+        self.performance_panel.show()
+        self.performance_panel.raise_()
+        self._save_panel_visibility_state('performance_panel', True)
+
+    def show_debug_panel(self):
+        """打开调试面板（浮动版）"""
+        from ui.panels.debug_panel import DebugPanel
+        if not hasattr(self, 'debug_panel') or self.debug_panel is None:
+            self.debug_panel = DebugPanel(self)
+            pos = self.app_config.get('panel_positions', {}).get('debug_panel', {'x': 200, 'y': 200})
+            self.debug_panel.move(pos['x'], pos['y'])
+            self.debug_panel.closed.connect(self._on_debug_panel_closed)
+        self.debug_panel.show()
+        self.debug_panel.raise_()
+        self._save_panel_visibility_state('debug_panel', True)
+
+    def show_template_selector(self):
+        """打开预设节点库"""
+        from ui.dialogs.preset_library_dialog import PresetLibraryDialog
+        dialog = PresetLibraryDialog(self)
+        dialog.show()
+
+    def _add_node_to_canvas(self, node_name):
+        """将节点添加到画布"""
+        canvas_host = self._get_canvas_host()
+        if canvas_host and hasattr(canvas_host, 'add_node_to_canvas'):
+            canvas_host.add_node_to_canvas(node_name)
+        elif hasattr(self, 'canvas') and hasattr(self.canvas, 'add_node_to_canvas'):
+            self.canvas.add_node_to_canvas(node_name)
+
+    def _get_canvas_host(self):
+        """获取画布主机"""
+        if hasattr(self, 'canvas_host'):
+            return self.canvas_host
+        if hasattr(self, 'canvas') and hasattr(self.canvas, 'parent'):
+            return self.canvas.parent()
+        return None
+
+    def _on_performance_panel_closed(self):
+        """性能分析面板关闭处理"""
+        self._save_panel_position('performance_panel', self.performance_panel)
+        self._save_panel_visibility_state('performance_panel', False)
+
+    def _on_debug_panel_closed(self):
+        """调试面板关闭处理"""
+        self._save_panel_position('debug_panel', self.debug_panel)
+        self._save_panel_visibility_state('debug_panel', False)

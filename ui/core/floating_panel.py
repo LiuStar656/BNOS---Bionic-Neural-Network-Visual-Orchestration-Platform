@@ -143,11 +143,26 @@ class FloatingPanel(QDialog):
         if event.button() == Qt.MouseButton.LeftButton:
             self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
             event.accept()
+            self._on_drag_start()
 
     def mouseMoveEvent(self, event):
         if event.buttons() == Qt.MouseButton.LeftButton and self.drag_position is not None:
             self.move(event.globalPosition().toPoint() - self.drag_position)
             event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self.drag_position is not None:
+            self.drag_position = None
+            event.accept()
+            self._on_drag_end()
+
+    def _on_drag_start(self):
+        """拖动开始回调（子类可覆盖）"""
+        pass
+
+    def _on_drag_end(self):
+        """拖动结束回调（子类可覆盖）"""
+        pass
 
     # ==================== 生命周期 ====================
 
