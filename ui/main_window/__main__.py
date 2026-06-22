@@ -375,7 +375,8 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         if node_name in self.nodes_data:
             self.nodes_data[node_name]['status'] = status
             if self.canvas: self.canvas.sync_node_display(node_name)
-            self.node_list_panel.update_node_list(self.nodes_data)
+            if self.node_list_panel:
+                self.node_list_panel.update_node_list(self.nodes_data)
         
     def refresh_nodes(self):
         project_refresh(self)

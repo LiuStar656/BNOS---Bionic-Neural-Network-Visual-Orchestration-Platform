@@ -45,12 +45,12 @@ class MainWindowStateMixin:
         
         # ===== 节点列表面板 =====
         # 优先使用新格式（带后缀），只有当新格式不存在时才使用旧格式（基础键）
+        # 最终回退为 True — 保证配置文件缺失/重建时面板能正常显示
         show_node_dock = visibility.get('node_list_dock')
         show_node_float = visibility.get('node_list_floating')
-        
-        # 如果新格式键不存在，使用旧格式作为备选
+
         if show_node_dock is None:
-            show_node_dock = visibility.get('node_list', old_visible)
+            show_node_dock = visibility.get('node_list', True)
         if show_node_float is None:
             show_node_float = False
         
@@ -140,21 +140,16 @@ class MainWindowStateMixin:
     
     def _save_panel_visibility(self):
         """保存所有面板的可见性状态到配置"""
-        # 获取当前配置中的状态（保留已关闭面板的状态）
         current_visibility = self.app_config.get('panel_visibility', {})
-        
-        # 检查面板是否真正可见（而不仅仅是对象是否存在）
+        visibility = current_visibility.copy()
+
         def is_panel_visible(panel):
             if panel is None:
-                return None  # 返回 None 表示面板对象不存在，不更新状态
+                return None
             visible = panel.isVisible()
             logger.debug("面板可见性检查: %s = %s", type(panel).__name__, visible)
             return visible
-        
-        # 只更新存在的面板状态，不存在的面板保留配置中的值
-        visibility = current_visibility.copy()
-        
-        # 更新存在的面板状态
+
         dock_panels = [
             ('node_list_dock', self.node_list_panel),
             ('resource_monitor_dock', self.resource_monitor),
@@ -165,25 +160,28 @@ class MainWindowStateMixin:
             ('resource_monitor_floating', getattr(self, 'resource_monitor_floating', None)),
             ('node_monitor_floating', getattr(self, 'node_monitor', None)),
         ]
-        
+
         for key, panel in dock_panels + floating_panels:
             visible = is_panel_visible(panel)
             if visible is not None:
                 visibility[key] = visible
-        
-        # 更新旧格式（兼容旧配置）
-        visibility['node_list'] = is_panel_visible(self.node_list_panel) or is_panel_visible(getattr(self, 'node_list_floating', None)) or False
-        visibility['resource_monitor'] = is_panel_visible(self.resource_monitor) or is_panel_visible(getattr(self, 'resource_monitor_floating', None)) or False
-        visibility['node_monitor'] = is_panel_visible(getattr(self, 'node_monitor_dock', None)) or is_panel_visible(getattr(self, 'node_monitor', None)) or False
-        
-        # 保存终端 Dock 可见性（在 CanvasHost 内部）
+            elif panel is None:
+                visibility[key] = False
+
+        visibility['node_list'] = (is_panel_visible(self.node_list_panel) or
+                                   is_panel_visible(getattr(self, 'node_list_floating', None)) or False)
+        visibility['resource_monitor'] = (is_panel_visible(self.resource_monitor) or
+                                          is_panel_visible(getattr(self, 'resource_monitor_floating', None)) or False)
+        visibility['node_monitor'] = (is_panel_visible(getattr(self, 'node_monitor_dock', None)) or
+                                      is_panel_visible(getattr(self, 'node_monitor', None)) or False)
+
         if hasattr(self, '_canvas_host') and self._canvas_host:
             ch = self._canvas_host
             if hasattr(ch, '_terminal_dock'):
                 term_visible = ch._terminal_dock.isVisible()
                 visibility['terminal_dock'] = term_visible
                 logger.info("[SAVE] _save_panel_visibility: terminal_dock = %s", term_visible)
-        
+
         logger.info("保存面板可见性状态: %s", visibility)
         self.app_config.set('panel_visibility', visibility)
     

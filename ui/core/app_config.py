@@ -60,11 +60,11 @@ class AppConfig:
                 "terminal_dock": {"x": 0, "y": 0}
             },
             "panel_visibility": {
-                "node_list": False,
+                "node_list": True,
                 "resource_monitor": False,
                 "node_monitor": False,
-                "node_list_dock": False,
-                "resource_monitor_dock": False,
+                "node_list_dock": True,
+                "resource_monitor_dock": True,
                 "node_monitor_dock": False,
                 "node_list_floating": False,
                 "resource_monitor_floating": False,

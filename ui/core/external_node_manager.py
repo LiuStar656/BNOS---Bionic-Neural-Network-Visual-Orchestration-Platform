@@ -72,17 +72,20 @@ def _mount_node_async(main_window, folder_path):
             logger.warning("挂载节点注册表同步失败: %s", e)
 
         # 创建组
-        main_window.node_list_panel.set_project_path(main_window.current_project_path)
+        if main_window.node_list_panel:
+            main_window.node_list_panel.set_project_path(main_window.current_project_path)
         mount_group_name = mount_root
-        if not main_window.node_list_panel.group_manager.groups.get(mount_group_name):
-            main_window.node_list_panel.group_manager.create_group(mount_group_name, "#E67E22")
-        main_window.node_list_panel.group_manager.add_nodes_to_group(mount_group_name, [node_name])
-        main_window.node_list_panel.group_manager.lock_group(mount_group_name)
-        main_window.node_list_panel.group_manager.save_groups()
+        if main_window.node_list_panel:
+            if not main_window.node_list_panel.group_manager.groups.get(mount_group_name):
+                main_window.node_list_panel.group_manager.create_group(mount_group_name, "#E67E22")
+            main_window.node_list_panel.group_manager.add_nodes_to_group(mount_group_name, [node_name])
+            main_window.node_list_panel.group_manager.lock_group(mount_group_name)
+            main_window.node_list_panel.group_manager.save_groups()
 
         # 在主线程中更新 UI
         def update_ui():
-            main_window.node_list_panel.update_node_list(main_window.nodes_data)
+            if main_window.node_list_panel:
+                main_window.node_list_panel.update_node_list(main_window.nodes_data)
             _canvas_call(main_window, 'sync_all_nodes_display')
             main_window.show_toast(f"已挂载外部节点: {node_name}", "success")
             logger.info("外部节点挂载完成: %s -> %s (group=%s)", node_name, folder_path, mount_group_name)
@@ -125,7 +128,7 @@ def _unmount_node_async(main_window, node_name):
             pass
 
         # 从组中移除
-        if mount_group_name:
+        if mount_group_name and main_window.node_list_panel:
             main_window.node_list_panel.group_manager.remove_nodes_from_group(mount_group_name, [node_name])
             remaining = main_window.node_list_panel.group_manager.get_group_nodes(mount_group_name)
             if not remaining:
@@ -134,11 +137,13 @@ def _unmount_node_async(main_window, node_name):
 
         # 从节点数据中移除
         del main_window.nodes_data[node_name]
-        main_window.node_list_panel.group_manager.save_groups()
+        if main_window.node_list_panel:
+            main_window.node_list_panel.group_manager.save_groups()
 
         # 在主线程中更新 UI
         def update_ui():
-            main_window.node_list_panel.update_node_list(main_window.nodes_data)
+            if main_window.node_list_panel:
+                main_window.node_list_panel.update_node_list(main_window.nodes_data)
             _canvas_call(main_window, 'remove_node_from_canvas', node_name)
             main_window.show_toast(f"已卸载外部节点: {node_name}", "success")
         

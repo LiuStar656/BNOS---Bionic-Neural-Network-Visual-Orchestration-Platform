@@ -37,6 +37,8 @@ class MainWindowPanelMixin:
             if self.node_list_panel is None:
                 from ui.panels.node_list_dock import NodeListDockPanel
                 self.node_list_panel = NodeListDockPanel(self)
+            # 总是刷新项目路径和节点数据（无论面板是新建还是已存在）
+            if self.node_list_panel is not None:
                 if hasattr(self, 'current_project_path') and self.current_project_path:
                     self.node_list_panel.set_project_path(self.current_project_path)
                 if hasattr(self, 'nodes_data') and self.nodes_data:
@@ -44,6 +46,12 @@ class MainWindowPanelMixin:
             self._dock_manager.add_panel_to_dock(self.node_list_panel, t("k_node_list_dock"), edge='left')
             self._save_panel_visibility_state('node_list_dock', True)
         else:
+            if self.node_list_panel is not None:
+                dock = self._dock_manager.get_dock_by_title(t("k_node_list_dock"))
+                if dock:
+                    dock.close()
+                else:
+                    self.node_list_panel = None
             self._save_panel_visibility_state('node_list_dock', False)
 
     def show_node_list_floating(self):

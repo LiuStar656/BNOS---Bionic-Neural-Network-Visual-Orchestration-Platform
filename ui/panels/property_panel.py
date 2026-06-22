@@ -183,7 +183,8 @@ class PropertyPanel(QWidget):
                 start_node_process(self.parent_window.nodes_data[self.current_node_name])
                 self.parent_window.nodes_data[self.current_node_name]['status'] = 'running'
                 self.parent_window.canvas.update_node_status(self.current_node_name, 'running')
-                self.parent_window.node_list_panel.update_node_status(self.current_node_name, 'running')
+                if self.parent_window.node_list_panel:
+                    self.parent_window.node_list_panel.update_node_status(self.current_node_name, 'running')
                 themed_message(self, t("k_title_success"), t("_k_node_started_prop").format(name=self.current_node_name), "info")
         except Exception as e:
             themed_message(self, t("k_title_error"), t("_k_node_start_fail_prop").format(err=str(e)), "error")
@@ -204,7 +205,8 @@ class PropertyPanel(QWidget):
             stop_node_process(self.parent_window.nodes_data[self.current_node_name])
             self.parent_window.nodes_data[self.current_node_name]['status'] = 'stopped'
             self.parent_window.canvas.update_node_status(self.current_node_name, 'stopped')
-            self.parent_window.node_list_panel.update_node_status(self.current_node_name, 'stopped')
+            if self.parent_window.node_list_panel:
+                self.parent_window.node_list_panel.update_node_status(self.current_node_name, 'stopped')
             themed_message(self, t("k_title_success"), t("_k_node_stopped_prop").format(name=self.current_node_name), "info")
         except Exception as e:
             themed_message(self, t("k_title_error"), t("_k_node_stop_fail_prop").format(err=str(e)), "error")
