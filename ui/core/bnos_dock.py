@@ -5,8 +5,8 @@ from PySide6.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QToolButton, QSizeGrip
 )
-from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QCursor
+from PySide6.QtCore import Qt, Signal, QSize, QTimer
+from PySide6.QtGui import QCursor, QPalette, QColor
 from ui.icons.codicon import get_icon, get_icon_font
 
 # ── 漂浮时外边框颜色（可通过 set_dock_floating_colors() 修改） ──
@@ -25,9 +25,9 @@ def set_dock_floating_colors(active_color, inactive_color):
         if dock.isFloating():
             dock._is_floating = True
             if dock.isActiveWindow():
-                dock.setStyleSheet(dock._dock_css(active_color, _FLOATING_BORDER_WIDTH))
+                dock._apply_floating_border_color(active_color)
             else:
-                dock.setStyleSheet(dock._dock_css(inactive_color, _FLOATING_BORDER_WIDTH))
+                dock._apply_floating_border_color(inactive_color)
             dock.show()
             dock.repaint()
 
@@ -66,6 +66,13 @@ class BnosDock(QDockWidget):
     
     def _setup_ui(self):
         """设置UI"""
+        # 先创建 central_widget（_apply_docked_style 需要用到）
+        self._central_widget = QWidget()
+        self.setWidget(self._central_widget)
+        self._layout = QVBoxLayout(self._central_widget)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
+        
         self._apply_docked_style()
         
         self._title_widget = QWidget()
@@ -122,54 +129,45 @@ class BnosDock(QDockWidget):
         self._title_layout.addWidget(self._close_btn)
         
         self.setTitleBarWidget(self._title_widget)
-        
-        self._central_widget = QWidget()
-        self.setWidget(self._central_widget)
-        
-        self._layout = QVBoxLayout(self._central_widget)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(0)
     
-    def _dock_css(self, border_color, border_width):
-        """生成 QDockWidget 样式"""
-        return f"""
-            QDockWidget {{
-                border: {border_width}px solid {border_color};
-            }}
-            QDockWidget::title {{
-                background-color: #252526;
-                color: #858585;
-                padding: 4px 8px;
-                font-size: 11px;
-            }}
-            QDockWidget::close-button, QDockWidget::float-button {{
-                width: 16px;
-                height: 16px;
-            }}
-        """
+    def _apply_floating_border_color(self, color):
+        """设置漂浮时的边框颜色：通过 QDockWidget 背景色 + central_widget 的 margin 露出边框"""
+        # QDockWidget 自身背景 = 边框颜色
+        self.setAutoFillBackground(True)
+        pal = self.palette()
+        pal.setColor(QPalette.ColorRole.Window, QColor(color))
+        self.setPalette(pal)
+        # central_widget 加 margin 露出边框
+        bw = _FLOATING_BORDER_WIDTH
+        self._central_widget.setStyleSheet(f"background-color: #252526; margin: {bw}px;")
     
     def _apply_docked_style(self):
         """停靠状态样式"""
-        self.setStyleSheet(self._dock_css("#3c3c3c", 1))
+        self.setAutoFillBackground(False)
+        self._central_widget.setStyleSheet("background-color: #252526; margin: 0px;")
         if self._floating_size_grip:
             self._floating_size_grip.hide()
     
     def _apply_floating_style(self):
         """漂浮状态样式（无边框 + 自定义边框色）"""
-        self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint)
-        self.setStyleSheet(self._dock_css(_FLOATING_BORDER_COLOR, _FLOATING_BORDER_WIDTH))
+        # QDockWidget 漂浮时 Qt 会创建内部容器窗口，window() 返回实际浮动窗口
+        w = self.window()
+        w.setWindowFlags(w.windowFlags() | Qt.WindowType.FramelessWindowHint)
+        w.show()
+        self._apply_floating_border_color(_FLOATING_BORDER_COLOR)
         if self._floating_size_grip is None:
             self._floating_size_grip = QSizeGrip(self)
         self._floating_size_grip.show()
-        self.show()
     
     def _on_top_level_changed(self, floating):
         """漂浮状态切换回调"""
         self._is_floating = floating
         if floating:
-            self._apply_floating_style()
+            # 延迟一帧确保 Qt 容器窗口已创建完成
+            QTimer.singleShot(0, self._apply_floating_style)
         else:
-            self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.FramelessWindowHint)
+            w = self.window()
+            w.setWindowFlags(w.windowFlags() & ~Qt.WindowType.FramelessWindowHint)
             self._apply_docked_style()
             self.show()
     
@@ -177,9 +175,9 @@ class BnosDock(QDockWidget):
         """窗口激活状态变化时更新边框颜色"""
         if event.type() == event.Type.ActivationChange and self._is_floating:
             if self.isActiveWindow():
-                self.setStyleSheet(self._dock_css(_FLOATING_BORDER_COLOR, _FLOATING_BORDER_WIDTH))
+                self._apply_floating_border_color(_FLOATING_BORDER_COLOR)
             else:
-                self.setStyleSheet(self._dock_css(_FLOATING_BORDER_COLOR_INACTIVE, _FLOATING_BORDER_WIDTH))
+                self._apply_floating_border_color(_FLOATING_BORDER_COLOR_INACTIVE)
         super().changeEvent(event)
     
     def nativeEvent(self, eventType, message):

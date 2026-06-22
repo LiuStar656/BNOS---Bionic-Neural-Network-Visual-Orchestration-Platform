@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QSplitter, QTabWidget, QToolButton, QLabel, QFrame, QSizeGrip
 )
 from PySide6.QtCore import Qt, Signal, QSize, QObject
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QPalette
 from ui.core.i18n import t
 from ui.icons.codicon import get_icon, get_icon_font
 
@@ -27,9 +27,9 @@ def set_dock_floating_colors(active_color, inactive_color):
         if dock.isFloating():
             dock._is_floating = True
             if dock.isActiveWindow():
-                dock.setStyleSheet(dock._dock_css(active_color, _FLOATING_BORDER_WIDTH))
+                dock._apply_floating_border_color(active_color)
             else:
-                dock.setStyleSheet(dock._dock_css(inactive_color, _FLOATING_BORDER_WIDTH))
+                dock._apply_floating_border_color(inactive_color)
             dock.show()
             dock.repaint()
 
@@ -58,7 +58,6 @@ class BnosDockWidget(QDockWidget):
         self._size_grip = None
         self._is_floating = False
         
-        # 🔴 关键：设置 objectName，让 Qt saveState/restoreState 能正确识别
         self.setObjectName(f"bnos_dock_widget_{title}")
         
         self.setFeatures(
@@ -72,45 +71,41 @@ class BnosDockWidget(QDockWidget):
             Qt.DockWidgetArea.BottomDockWidgetArea
         )
         
-        # 初始样式（停靠状态）
+        # 创建内部包装容器（用于漂浮时 margin 露出边框色）
+        self._central_widget = QWidget()
+        self._central_layout = QVBoxLayout(self._central_widget)
+        self._central_layout.setContentsMargins(0, 0, 0, 0)
+        self._central_layout.setSpacing(0)
+        self.setWidget(self._central_widget)
+        
         self._apply_docked_style()
         
-        # 监听漂浮状态变化
         self.topLevelChanged.connect(self._on_top_level_changed)
     
-    @staticmethod
-    def _dock_css(border_color, border_width):
-        """生成 QDockWidget 样式"""
-        return f"""
-            QDockWidget {{
-                border: {border_width}px solid {border_color};
-                background-color: #252526;
-            }}
-            QDockWidget::title {{
-                background-color: #252526;
-                color: #d4d4d4;
-                padding: 4px 8px;
-                font-size: 12px;
-                border-bottom: 1px solid #3c3c3c;
-            }}
-        """
+    def _apply_floating_border_color(self, color):
+        """设置漂浮时的边框颜色：QDockWidget 背景 + central_widget margin"""
+        self.setAutoFillBackground(True)
+        pal = self.palette()
+        pal.setColor(QPalette.ColorRole.Window, QColor(color))
+        self.setPalette(pal)
+        bw = _FLOATING_BORDER_WIDTH
+        self._central_widget.setStyleSheet(f"background-color: #252526; margin: {bw}px;")
     
     def _apply_docked_style(self):
-        """停靠状态样式"""
-        self.setStyleSheet(self._dock_css("#3c3c3c", 1))
+        """停靠状态样式（恢复默认）"""
+        self.setAutoFillBackground(False)
+        self._central_widget.setStyleSheet("background-color: #252526; margin: 0px;")
         if self._size_grip:
             self._size_grip.hide()
     
     def _apply_floating_style(self):
         """漂浮状态样式（无边框 + 自定义边框色）"""
-        # 先显示确保窗口创建完成，再设无边框
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint)
-        self.setStyleSheet(self._dock_css(_FLOATING_BORDER_COLOR, _FLOATING_BORDER_WIDTH))
-        # 添加右下角大小调节手柄
+        self._apply_floating_border_color(_FLOATING_BORDER_COLOR)
         if self._size_grip is None:
             self._size_grip = QSizeGrip(self)
         self._size_grip.show()
-        self.show()  # 重新显示以应用窗口标志
+        self.show()
     
     def _on_top_level_changed(self, floating):
         """漂浮状态切换回调"""
@@ -118,7 +113,6 @@ class BnosDockWidget(QDockWidget):
         if floating:
             self._apply_floating_style()
         else:
-            # 停靠恢复：去掉无边框标志
             self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.FramelessWindowHint)
             self._apply_docked_style()
             self.show()
@@ -127,9 +121,9 @@ class BnosDockWidget(QDockWidget):
         """窗口激活状态变化时更新边框颜色"""
         if event.type() == event.Type.ActivationChange and self._is_floating:
             if self.isActiveWindow():
-                self.setStyleSheet(self._dock_css(_FLOATING_BORDER_COLOR, _FLOATING_BORDER_WIDTH))
+                self._apply_floating_border_color(_FLOATING_BORDER_COLOR)
             else:
-                self.setStyleSheet(self._dock_css(_FLOATING_BORDER_COLOR_INACTIVE, _FLOATING_BORDER_WIDTH))
+                self._apply_floating_border_color(_FLOATING_BORDER_COLOR_INACTIVE)
         super().changeEvent(event)
     
     def nativeEvent(self, eventType, message):
@@ -138,7 +132,6 @@ class BnosDockWidget(QDockWidget):
         if not self._is_floating or eventType != b"windows_generic_MSG":
             return False, 0
         
-        # WM_NCHITTEST = 0x0084：让系统知道鼠标在窗口的哪个区域
         class MSG(ctypes.Structure):
             _fields_ = [
                 ("hwnd", ctypes.c_void_p),
@@ -153,25 +146,21 @@ class BnosDockWidget(QDockWidget):
         if msg.message != 0x0084:
             return False, 0
         
-        # 解析鼠标屏幕坐标
         x = msg.lParam & 0xFFFF
         y = (msg.lParam >> 16) & 0xFFFF
         
-        # 获取窗口矩形
         pos = self.mapToGlobal(self.rect().topLeft())
         win_x, win_y = pos.x(), pos.y()
         w, h = self.width(), self.height()
         
-        border = 6  # 边缘拖动检测宽度
+        border = 6
         left = x < win_x + border
         right = x > win_x + w - border
         top = y < win_y + border
         bottom = y > win_y + h - border
         
-        # 返回对应的 HT* 区域码
         HTLEFT, HTRIGHT, HTTOP, HTBOTTOM = 10, 11, 12, 15
         HTTOPLEFT, HTTOPRIGHT, HTBOTTOMLEFT, HTBOTTOMRIGHT = 13, 14, 16, 17
-        HTCLIENT = 1
         
         if top and left:
             return True, HTTOPLEFT
@@ -195,7 +184,7 @@ class BnosDockWidget(QDockWidget):
     def set_content_widget(self, widget):
         """设置内容部件"""
         self._content_widget = widget
-        self.setWidget(widget)
+        self._central_layout.addWidget(widget, 1)
     
     def get_content_widget(self):
         """获取内容部件"""
@@ -223,39 +212,32 @@ class DockManager(QObject):
     
     def add_panel_to_dock(self, widget, title, edge='left'):
         """添加面板到指定边缘停靠（防止重复添加）"""
-        # 检查是否已存在相同的内容部件
         for existing_edge, docks in self._docks.items():
             for dock in docks:
                 if dock.get_content_widget() == widget:
-                    # 如果已存在，显示它并返回
                     dock.show()
                     dock.raise_()
                     return dock
         
-        # 创建自定义 Dock
         dock = BnosDockWidget(title, self._main_window)
         dock.set_content_widget(widget)
         dock.closed.connect(lambda: self._remove_dock(dock, edge))
         
-        # 存储到对应边缘
         if edge not in self._docks:
             self._docks[edge] = []
         self._docks[edge].append(dock)
         
-        # 记录 Dock 信息
         self._dock_info_map[title] = {
             'dock': dock,
             'edge': edge,
             'widget': widget
         }
         
-        # PS式布局：面板仅允许停靠在左右两侧
         if edge == 'left':
             self._main_window.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock)
         elif edge == 'right':
             self._main_window.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         else:
-            # 默认停靠到右侧（PS布局不允许底部停靠）
             self._main_window.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         
         dock.show()
@@ -267,7 +249,6 @@ class DockManager(QObject):
             self._docks[edge].remove(dock)
             self._main_window.removeDockWidget(dock)
             
-            # 从信息映射中移除
             title_to_remove = None
             for title, info in self._dock_info_map.items():
                 if info['dock'] == dock:
@@ -294,7 +275,6 @@ class DockManager(QObject):
     
     def save_layout(self, filepath):
         """保存布局到文件"""
-        # 保存主窗口状态
         state = self._main_window.saveState()
         with open(filepath, 'wb') as f:
             f.write(state)
