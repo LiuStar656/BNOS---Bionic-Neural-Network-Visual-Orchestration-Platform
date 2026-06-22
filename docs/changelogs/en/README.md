@@ -6,6 +6,18 @@
 ---
 
 <details open>
+<summary><strong>【2026-06-22】V2.0.19 - Vector Outline Filling for Edge Rendering, High DPI Support and Canvas Resolution Customization</strong></summary>
+
+[View Full Update](./2026-06-22/README.md) | [01_Edges](./2026-06-22/01_Edge_Rendering.md) | [02_HighDPI](./2026-06-22/02_HighDPI_Support.md) | [03_Resolution](./2026-06-22/03_Canvas_Resolution.md)
+
+**Main Updates:**
+- 01 Edge Rendering: QPainterPathStroker expands line paths into closed outline paths, filled with QBrush (consistent with arrow polygon fill), completely eliminating zoom-in jagged edges
+- 02 High DPI Support: Both main process and canvas subprocess enable AA_EnableHighDpiScaling / AA_UseHighDpiPixmaps, ensuring proper rendering on 4K/Retina displays
+- 03 Canvas Resolution: New "Rendering" tab in settings dialog, 5 presets (1000-10000) + custom W/H + antialiasing toggle, configuration persisted to app_config.json
+
+</details>
+
+<details>
 <summary><strong>【2026-06-20】V2.0.18 - Floating Panel System, Preset Library Refactoring, Translation & UI Unification</strong></summary>
 
 [View Full Update](./2026-06-20/README.md) | [01_Perf](./2026-06-20/01_Performance_Panel_Fix.md) | [02_Debug](./2026-06-20/02_Debug_Panel_Translation.md) | [03_Preset](./2026-06-20/03_Preset_Library_Refactoring.md) | [04_IPC](./2026-06-20/04_IPC_Core_Process.md) | [05_Polling](./2026-06-20/05_Polling_Manager.md) | [06_i18n](./2026-06-20/06_Translation_Key_Revision.md)
