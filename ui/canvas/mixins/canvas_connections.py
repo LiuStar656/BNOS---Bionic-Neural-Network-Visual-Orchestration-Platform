@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPen, QColor, QPainterPath
 from ui.core.logger import logger
 from ui.core.i18n import t
-from ui.canvas.items.edge_item import EdgeItem
+from ui.canvas.items.edge_item import EdgeItem, TempEdgeItem
 
 
 class CanvasConnections:
@@ -44,7 +44,7 @@ class CanvasConnections:
 
         self.canvas.viewport().setCursor(Qt.CursorShape.CrossCursor)
 
-        self.canvas.temp_edge = QGraphicsPathItem()
+        self.canvas.temp_edge = TempEdgeItem()
         self.canvas.temp_edge.setZValue(2)
         self.canvas.temp_edge.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
         pen = QPen(QColor("#4A90E2"), 2, Qt.PenStyle.DashLine)

@@ -45,7 +45,7 @@ class NodeStyleManager:
         self._node._update_selection_ring(self._node.isSelected())
 
         # 只标记本节点 item 为 dirty，不触发全场景重绘
-        self._node.setCacheMode(self._node.CacheMode.DeviceCoordinateCache)
+        self._node.setCacheMode(self._node.CacheMode.ItemCoordinateCache)
         self._node.update()
         from PySide6.QtCore import QTimer
         QTimer.singleShot(0, lambda: self._ensure_rect(
@@ -60,7 +60,7 @@ class NodeStyleManager:
             self._node.prepareGeometryChange()
             self._node.setCacheMode(self._node.CacheMode.NoCache)
             self._node.setRect(0, 0, w, h)
-            self._node.setCacheMode(self._node.CacheMode.DeviceCoordinateCache)
+            self._node.setCacheMode(self._node.CacheMode.ItemCoordinateCache)
             self._node.update()
 
     def update_display(self, node_name=None, language=None, status=None):

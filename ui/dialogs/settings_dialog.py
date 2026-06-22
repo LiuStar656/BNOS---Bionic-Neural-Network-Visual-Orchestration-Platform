@@ -3,7 +3,8 @@
 """
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                               QComboBox, QCheckBox, QPushButton, QGroupBox,
-                              QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView)
+                              QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
+                              QSpinBox, QDoubleSpinBox, QSlider)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QKeySequence
 from ui.core.floating_panel import FloatingPanel
@@ -57,6 +58,7 @@ class SettingsDialog(FloatingPanel):
         # 标签页
         tabs = QTabWidget()
         tabs.addTab(self._make_general_tab(), t("_k_settings_tab_general"))
+        tabs.addTab(self._make_rendering_tab(), t("_k_settings_tab_rendering"))
         tabs.addTab(self._make_shortcuts_tab(), t("_k_settings_tab_shortcuts"))
         self.content_layout.addWidget(tabs, 1)
 
@@ -114,6 +116,98 @@ class SettingsDialog(FloatingPanel):
 
         l.addStretch()
         return w
+
+    # ─── 渲染设置标签页 ───
+    def _make_rendering_tab(self):
+        w = QWidget()
+        l = QVBoxLayout(w)
+        l.setSpacing(10)
+
+        # 画布分辨率预设
+        rg = QGroupBox(t("_k_settings_rendering_canvas_size"))
+        rl = QVBoxLayout(rg)
+        rl.setSpacing(6)
+
+        # 预设分辨率选择
+        preset_row = QHBoxLayout()
+        preset_row.addWidget(QLabel(t("_k_settings_rendering_preset")))
+        self._canvas_preset = QComboBox()
+        self._canvas_preset.addItem("1000 x 1000", (1000, 1000))
+        self._canvas_preset.addItem("2000 x 2000", (2000, 2000))
+        self._canvas_preset.addItem("3000 x 3000", (3000, 3000))
+        self._canvas_preset.addItem("4000 x 4000", (4000, 4000))
+        self._canvas_preset.addItem("5000 x 5000", (5000, 5000))
+        self._canvas_preset.addItem(t("_k_settings_rendering_custom"), None)
+        self._canvas_preset.currentIndexChanged.connect(self._on_preset_changed)
+        preset_row.addWidget(self._canvas_preset, 1)
+        rl.addLayout(preset_row)
+
+        # 自定义宽度
+        w_row = QHBoxLayout()
+        w_row.addWidget(QLabel(t("_k_settings_rendering_width")))
+        self._canvas_width = QSpinBox()
+        self._canvas_width.setRange(500, 10000)
+        self._canvas_width.setValue(5000)
+        self._canvas_width.setSuffix(" px")
+        w_row.addWidget(self._canvas_width, 1)
+        rl.addLayout(w_row)
+
+        # 自定义高度
+        h_row = QHBoxLayout()
+        h_row.addWidget(QLabel(t("_k_settings_rendering_height")))
+        self._canvas_height = QSpinBox()
+        self._canvas_height.setRange(500, 10000)
+        self._canvas_height.setValue(5000)
+        self._canvas_height.setSuffix(" px")
+        h_row.addWidget(self._canvas_height, 1)
+        rl.addLayout(h_row)
+
+        # 抗锯齿设置
+        aa_row = QHBoxLayout()
+        aa_row.addWidget(QLabel(t("_k_settings_rendering_antialiasing")))
+        self._antialiasing_check = QCheckBox()
+        self._antialiasing_check.setChecked(True)
+        aa_row.addStretch()
+        aa_row.addWidget(self._antialiasing_check)
+        rl.addLayout(aa_row)
+
+        l.addWidget(rg)
+
+        # 应用提示
+        hint = QLabel(t("_k_settings_rendering_hint"))
+        hint.setStyleSheet("color: #888; font-size: 10px;")
+        hint.setWordWrap(True)
+        l.addWidget(hint)
+
+        l.addStretch()
+
+        # 加载当前配置
+        self._load_rendering_settings()
+
+        return w
+
+    def _load_rendering_settings(self):
+        """加载当前渲染设置"""
+        try:
+            cfg = self.main_window.app_config.get("rendering", {})
+            width = cfg.get("canvas_width", 5000)
+            height = cfg.get("canvas_height", 5000)
+            self._canvas_width.setValue(width)
+            self._canvas_height.setValue(height)
+            self._antialiasing_check.setChecked(cfg.get("antialiasing", True))
+
+            presets = [(1000, 1000), (2000, 2000), (3000, 3000), (4000, 4000), (5000, 5000)]
+            idx = presets.index((width, height)) if (width, height) in presets else 5
+            self._canvas_preset.setCurrentIndex(idx)
+        except Exception:
+            pass
+
+    def _on_preset_changed(self, idx):
+        """预设选择变更"""
+        preset = self._canvas_preset.itemData(idx)
+        if preset is not None:
+            self._canvas_width.setValue(preset[0])
+            self._canvas_height.setValue(preset[1])
 
     # ─── 快捷键标签页 ───
     def _make_shortcuts_tab(self):
@@ -191,6 +285,17 @@ class SettingsDialog(FloatingPanel):
         lang_changed = (lang != self._orig_lang)
         proc_changed = (proc_mode != self.main_window.CANVAS_PROCESS_MODE)
 
+        # 渲染设置变更
+        cfg = self.main_window.app_config.get("rendering", {})
+        new_width = self._canvas_width.value()
+        new_height = self._canvas_height.value()
+        new_aa = self._antialiasing_check.isChecked()
+        render_changed = (
+            new_width != cfg.get("canvas_width", 5000) or
+            new_height != cfg.get("canvas_height", 5000) or
+            new_aa != cfg.get("antialiasing", True)
+        )
+
         # 快捷键变更
         sc_changed = bool(self._shortcut_changes)
         if sc_changed:
@@ -200,7 +305,19 @@ class SettingsDialog(FloatingPanel):
             mgr.save()
             mgr.apply_all(self.main_window)
 
-        if lang_changed or proc_changed:
+        # 保存渲染设置
+        if render_changed:
+            try:
+                self.main_window.app_config.set("rendering", {
+                    "canvas_width": new_width,
+                    "canvas_height": new_height,
+                    "antialiasing": new_aa
+                })
+                self.main_window.app_config.save()
+            except Exception:
+                pass
+
+        if lang_changed or proc_changed or render_changed:
             if lang_changed:
                 try: self.main_window.app_config.set("language", lang)
                 except Exception: pass

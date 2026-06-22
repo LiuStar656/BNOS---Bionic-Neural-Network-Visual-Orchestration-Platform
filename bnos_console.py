@@ -48,6 +48,9 @@ def main():
         if progress_file:
             _progress(progress_file, 35, "Config loaded (" + saved_lang + ")")
 
+        # 高DPI支持 - 必须在创建QApplication之前设置
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling)
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)
         QApplication.setStyle("Fusion")
         app = QApplication(sys.argv)

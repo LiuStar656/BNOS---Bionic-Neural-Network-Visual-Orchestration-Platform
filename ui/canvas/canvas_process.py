@@ -26,6 +26,9 @@ class CanvasProcessApp:
     """画布子进程应用，内嵌 NodeCanvas"""
 
     def __init__(self):
+        # 高DPI支持 - 必须在创建QApplication之前设置
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling)
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
         self.app = QApplication(sys.argv)
         self.app.setApplicationName("BNOS Canvas Process")
 

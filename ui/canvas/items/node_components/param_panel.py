@@ -237,5 +237,5 @@ class NodeParamPanel:
         # 先禁用缓存再重置 rect
         self._node.setCacheMode(self._node.CacheMode.NoCache)
         self._node.setRect(0, 0, self._node._style.node_width, self._node._style.node_height)
-        self._node.setCacheMode(self._node.CacheMode.DeviceCoordinateCache)
+        self._node.setCacheMode(self._node.CacheMode.ItemCoordinateCache)
         self._node.update()
