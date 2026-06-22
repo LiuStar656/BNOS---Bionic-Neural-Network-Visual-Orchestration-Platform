@@ -8,6 +8,19 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-06-22](./2026-06-22/)
+- **连线渲染矢量轮廓填充**：使用 `QPainterPathStroker` 将线条的 `QPainterPath` 扩展为闭合轮廓路径，使用 `QBrush` 填充，彻底解决放大锯齿问题
+- **高 DPI 屏幕适配**：主进程与画布子进程均启用 `AA_EnableHighDpiScaling` / `AA_UseHighDpiPixmaps`，确保 4K/Retina 屏幕效果；渲染提示启用 `SmoothPixmapTransform`
+- **画布分辨率自定义**：设置对话框新增「渲染」标签页，5 个预设分辨率（1000-10000）+ 自定义宽高 + 抗锯齿开关，配置持久化至 `app_config.json`
+
+### [2026-06-20](./2026-06-20/)
+- **性能分析面板修复**：ChartCanvas 自定义绘制、QPainter/QPainterPath 导入修复、拖动暂停刷新
+- **调试面板翻译补全**：17 个中英文翻译键补全（端口、模式、操作、断点等）
+- **预设节点库重构**：废弃空壳模板系统，复用 `.bnos` 打包完整节点，新增 PresetLibraryDialog
+- **IPC 核心进程命令扩展**：新增 node.stop_all（批量停止）和 node.detect_running 命令分发
+- **轮询管理器动态调频**：CPU 负载自适应动态调频（1s/2s/4s）
+- **翻译键值全面修订**：3 处错配修复，29 个新增键，17 个废弃键清理
+
 ### [2026-06-18](./2026-06-18/)
 - **NodeItem 单体类拆分为组合模式**：`node_item.py` 从 846 行精简为 227 行，拆分为 9 个子组件（渲染、几何、交互、状态、配置、样式、参数面板等）
 - **6 个 Mixin 类改造为组合模式**：`CanvasConnections` / `CanvasBatchOps` / `CanvasMenu` / `CanvasBoxSelect` / `CanvasColors` / `CanvasLayout` — 通过 `self.canvas` 显式依赖，消除隐式 MRO 依赖
@@ -123,4 +136,4 @@
 
 ---
 
-**最后更新**：2026-06-18
+**最后更新**：2026-06-22
