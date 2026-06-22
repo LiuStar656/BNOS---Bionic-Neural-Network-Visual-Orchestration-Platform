@@ -43,3 +43,4 @@ bnos_config.json
 
 # 日志文件
 logs/
+.pytest_cache/
