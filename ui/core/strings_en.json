@@ -167,6 +167,8 @@
   "k_field_toast_error": "Error Toast:",
   "k_field_toast_text": "Toast Text:",
   "k_field_toast_opacity": "Toast Opacity:",
+  "k_field_dock_active": "Floating Active Border:",
+  "k_field_dock_inactive": "Floating Inactive Border:",
 
   "k_color_settings": "Color Settings",
   "k_color_settings_desc": "Customize canvas and node colors",
@@ -175,6 +177,7 @@
   "k_color_anchor_style": "Anchor Style",
   "k_color_edge_style": "Connection Style",
   "k_color_toast_style": "Toast Style",
+  "k_color_dock_style": "Dock Panel",
   "k_color_quick_theme": "Quick Theme",
   "k_color_dark_theme": "Dark Theme (Default)",
   "k_color_light_theme": "Light Theme",

@@ -24,7 +24,7 @@ class ColorSettingsDialog(FloatingPanel):
         super().__init__(parent, title=t("k_color_settings"))
         self.canvas = canvas
         
-        self.resize(500, 580)
+        self.resize(500, 640)
         self.setStyleSheet(_STYLE)
         
         # 居中显示
@@ -196,6 +196,25 @@ class ColorSettingsDialog(FloatingPanel):
         
         content_layout.addWidget(toast_group)
         
+        # ===== Dock 面板漂浮边框设置 =====
+        dock_group = QGroupBox(t("k_color_dock_style"))
+        dock_layout = QFormLayout(dock_group)
+        
+        dock_border_active = getattr(self.canvas, 'dock_floating_border_color', '#007acc')
+        dock_border_inactive = getattr(self.canvas, 'dock_floating_border_inactive', '#3c3c3c')
+        
+        self.dock_border_active_btn = QPushButton(t("k_color_select"))
+        self.dock_border_active_btn.setStyleSheet(f"background-color: {dock_border_active}; min-height: 30px;")
+        self.dock_border_active_btn.clicked.connect(lambda: self.choose_color('dock_active'))
+        dock_layout.addRow(t("k_field_dock_active"), self.dock_border_active_btn)
+        
+        self.dock_border_inactive_btn = QPushButton(t("k_color_select"))
+        self.dock_border_inactive_btn.setStyleSheet(f"background-color: {dock_border_inactive}; min-height: 30px;")
+        self.dock_border_inactive_btn.clicked.connect(lambda: self.choose_color('dock_inactive'))
+        dock_layout.addRow(t("k_field_dock_inactive"), self.dock_border_inactive_btn)
+        
+        content_layout.addWidget(dock_group)
+        
         # ===== 预设主题 =====
         theme_group = QGroupBox(t("k_color_quick_theme"))
         theme_layout = QVBoxLayout(theme_group)
@@ -271,7 +290,9 @@ class ColorSettingsDialog(FloatingPanel):
             'toast_success': '#4caf50',
             'toast_warning': '#ff9800',
             'toast_error': '#f44336',
-            'toast_text': '#ffffff'
+            'toast_text': '#ffffff',
+            'dock_active': getattr(self.canvas, 'dock_floating_border_color', '#007acc'),
+            'dock_inactive': getattr(self.canvas, 'dock_floating_border_inactive', '#3c3c3c')
         }
         
         # 检查是否有临时颜色
@@ -299,7 +320,9 @@ class ColorSettingsDialog(FloatingPanel):
                 'toast_success': self.toast_success_btn,
                 'toast_warning': self.toast_warning_btn,
                 'toast_error': self.toast_error_btn,
-                'toast_text': self.toast_text_btn
+                'toast_text': self.toast_text_btn,
+                'dock_active': self.dock_border_active_btn,
+                'dock_inactive': self.dock_border_inactive_btn
             }
             
             btn_map[target].setStyleSheet(f"background-color: {color_hex}; min-height: 30px;")
@@ -323,7 +346,9 @@ class ColorSettingsDialog(FloatingPanel):
                 'input_anchor_color': '#6a9955',
                 'output_anchor_color': '#007acc',
                 'edge_color': '#007acc',
-                'edge_width': 2
+                'edge_width': 2,
+                'dock_floating_border_color': '#007acc',
+                'dock_floating_border_inactive': '#3c3c3c'
             },
             'light': {
                 'canvas_bg_color': '#f3f3f3',
@@ -336,7 +361,9 @@ class ColorSettingsDialog(FloatingPanel):
                 'input_anchor_color': '#388a34',
                 'output_anchor_color': '#007acc',
                 'edge_color': '#007acc',
-                'edge_width': 2
+                'edge_width': 2,
+                'dock_floating_border_color': '#007acc',
+                'dock_floating_border_inactive': '#d4d4d4'
             }
         }
         
@@ -359,6 +386,8 @@ class ColorSettingsDialog(FloatingPanel):
             self.output_anchor_btn.setStyleSheet(f"background-color: {theme['output_anchor_color']}; min-height: 30px;")
             self.edge_color_btn.setStyleSheet(f"background-color: {theme['edge_color']}; min-height: 30px;")
             self.edge_width_spinbox.setValue(theme['edge_width'])
+            self.dock_border_active_btn.setStyleSheet(f"background-color: {theme['dock_floating_border_color']}; min-height: 30px;")
+            self.dock_border_inactive_btn.setStyleSheet(f"background-color: {theme['dock_floating_border_inactive']}; min-height: 30px;")
             
     def collect_settings(self):
         """收集当前所有颜色设置（供 apply 和 confirm 共用）"""
@@ -379,7 +408,9 @@ class ColorSettingsDialog(FloatingPanel):
             'toast_warning_color': getattr(self, 'temp_toast_warning_color', '#ff9800'),
             'toast_error_color': getattr(self, 'temp_toast_error_color', '#f44336'),
             'toast_text_color': getattr(self, 'temp_toast_text_color', '#ffffff'),
-            'toast_opacity': self.toast_opacity_slider.value() / 100.0
+            'toast_opacity': self.toast_opacity_slider.value() / 100.0,
+            'dock_floating_border_color': getattr(self, 'temp_dock_active_color', getattr(self.canvas, 'dock_floating_border_color', '#007acc')),
+            'dock_floating_border_inactive': getattr(self, 'temp_dock_inactive_color', getattr(self.canvas, 'dock_floating_border_inactive', '#3c3c3c'))
         }
 
     def apply_settings(self):

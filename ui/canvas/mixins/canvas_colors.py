@@ -112,6 +112,8 @@ class CanvasColors:
             'toast_error_color': getattr(self.canvas, 'toast_error_color', '#f44336'),
             'toast_text_color': getattr(self.canvas, 'toast_text_color', '#ffffff'),
             'toast_opacity': getattr(self.canvas, 'toast_opacity', 0.9),
+            'dock_floating_border_color': getattr(self.canvas, 'dock_floating_border_color', '#007acc'),
+            'dock_floating_border_inactive': getattr(self.canvas, 'dock_floating_border_inactive', '#3c3c3c'),
         }
         path = os.path.join(self.canvas.parent_window.current_project_path, "color_settings.json")
         try:
@@ -157,6 +159,17 @@ class CanvasColors:
         self.canvas.toast_error_color = settings.get('toast_error_color', '#f44336')
         self.canvas.toast_text_color = settings.get('toast_text_color', '#ffffff')
         self.canvas.toast_opacity = settings.get('toast_opacity', 0.9)
+
+        # ── Dock 漂浮边框颜色 ──
+        dock_active = settings.get('dock_floating_border_color', '#007acc')
+        dock_inactive = settings.get('dock_floating_border_inactive', '#3c3c3c')
+        self.canvas.dock_floating_border_color = dock_active
+        self.canvas.dock_floating_border_inactive = dock_inactive
+
+        from ui.core.bnos_dock import set_dock_floating_colors as set_bnos_dock_colors
+        from ui.core.dock_manager import set_dock_floating_colors as set_mgr_dock_colors
+        set_bnos_dock_colors(dock_active, dock_inactive)
+        set_mgr_dock_colors(dock_active, dock_inactive)
 
         # 更新 Toast 全局配置
         from ui.core.toast.toast_notification import set_toast_config

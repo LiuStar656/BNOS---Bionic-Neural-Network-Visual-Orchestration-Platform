@@ -115,6 +115,8 @@ class NodeCanvas(QGraphicsView):
         self.output_anchor_color = "#007acc"
         self.edge_color = "#007acc"
         self.edge_width = 2
+        self.dock_floating_border_color = "#007acc"
+        self.dock_floating_border_inactive = "#3c3c3c"
 
         # 应用背景色
         from PySide6.QtGui import QColor

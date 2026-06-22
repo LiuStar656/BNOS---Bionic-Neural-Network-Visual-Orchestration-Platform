@@ -167,6 +167,8 @@
   "k_field_toast_error": "错误通知:",
   "k_field_toast_text": "通知文字:",
   "k_field_toast_opacity": "通知透明度:",
+  "k_field_dock_active": "漂浮选中边框:",
+  "k_field_dock_inactive": "漂浮未选中边框:",
 
   "k_color_settings": "颜色设置",
   "k_color_settings_desc": "自定义画布和节点颜色",
@@ -175,6 +177,7 @@
   "k_color_anchor_style": "锚点样式",
   "k_color_edge_style": "连线样式",
   "k_color_toast_style": "通知样式",
+  "k_color_dock_style": "Dock 面板",
   "k_color_quick_theme": "快速主题",
   "k_color_dark_theme": "深色主题（默认）",
   "k_color_light_theme": "浅色主题",
