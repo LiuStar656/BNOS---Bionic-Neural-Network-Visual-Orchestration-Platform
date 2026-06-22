@@ -6,7 +6,6 @@
 """
 import os
 import json
-from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QMessageBox
 from ui.core.logger import logger
 from ui.core.i18n import t
@@ -142,14 +141,10 @@ def project_open(main_window):
         if hasattr(main_window, '_canvas_host'):
             main_window._canvas_host.add_canvas_dock(project_name, project_dir)
 
-        # 4) 恢复 CanvasHost 状态
-        from ui.core.window_state_manager import restore_canvas_host_state
-        QTimer.singleShot(300, lambda: restore_canvas_host_state(main_window))
-
-        # 5) 更新面板 + 画布 UI
+        # 4) 更新面板 + 画布 UI（不调用 restore_canvas_host_state 避免用旧状态隐藏新画布 dock）
         _apply_after_refresh(main_window, running_nodes)
 
-        # 6) 保存项目到配置文件
+        # 5) 保存项目到配置文件
         main_window.app_config.set("last_project", main_window.current_project_path)
         main_window.app_config.save()
 

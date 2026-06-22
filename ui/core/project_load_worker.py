@@ -50,23 +50,30 @@ class ProjectLoadWorker(QThread):
 
             for idx, item in enumerate(dir_items):
                 node_path = os.path.join(self._nodes_dir, item)
-                node_path = os.path.normpath(os.path.abspath(node_path))
+                node_path = os.path.normpath(os.path.abspath(node_path))        
 
                 if not os.path.isdir(node_path):
                     continue
 
                 config_path = os.path.join(node_path, "config.json")
-                if not os.path.isfile(config_path):
-                    continue
+                has_config = os.path.isfile(config_path)
 
                 try:
-                    with open(config_path, 'r', encoding='utf-8') as f:
-                        config = json.load(f)
-
-                    node_name = config.get('node_name', item)
+                    if has_config:
+                        with open(config_path, 'r', encoding='utf-8') as f:
+                            config = json.load(f)
+                        node_name = config.get('node_name', item)
+                    else:
+                        config = {
+                            'node_name': item,
+                            'type': 'custom' if not item.startswith('node_python_') else 'python',
+                            'startup_mode': 'local'
+                        }
+                        node_name = item
+                        logger.info("节点 '%s' 无 config.json，使用默认配置", item)
 
                     expected_path = os.path.normpath(
-                        os.path.abspath(os.path.join(self._nodes_dir, item))
+                        os.path.abspath(os.path.join(self._nodes_dir, item))    
                     )
                     if node_path != expected_path:
                         logger.warning("节点 '%s' 路径不一致: 期望=%s, 实际=%s",

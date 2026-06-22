@@ -290,12 +290,7 @@ class MainWindowStateMixin:
                             len(self.nodes_data))
                 self._canvas_host.add_canvas_dock(project_name, project_dir)
 
-                # 3) 恢复 CanvasHost 状态（分割条位置等）
-                from ui.core.window_state_manager import restore_canvas_host_state
-                from PySide6.QtCore import QTimer
-                QTimer.singleShot(200, lambda: restore_canvas_host_state(self))
-
-                # 4) 统一 UI 更新（面板、运行状态同步等）
+                # 3) 统一 UI 更新（面板、运行状态同步等——不调用 restore_canvas_host_state 避免用旧状态隐藏新画布 dock）
                 from ui.core.project_manager import _apply_after_refresh
                 _apply_after_refresh(self, running_nodes)
 
