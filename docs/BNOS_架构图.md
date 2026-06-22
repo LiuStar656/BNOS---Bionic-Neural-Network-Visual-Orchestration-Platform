@@ -21,7 +21,7 @@ flowchart TD
     C1 --> C2 --> C3 --> C4 --> C5 --> C6 --> C7
     C7 --> D["window.show()"]
     D --> E{"app.exec()"}
-    E -->|exit code = 42| F["restart_helper.py<br/>等待旧进程退出<br/>启动新进程"]
+    E -->|exit code = 42| F["scripts/restart_helper.py<br/>等待旧进程退出<br/>启动新进程"]
     E -->|其他| G["正常退出"]
 ```
 
@@ -485,7 +485,7 @@ graph LR
     subgraph ENTRY["入口层"]
         L["launcher.py"]
         BC["bnos_console.py"]
-        RH["restart_helper.py"]
+        RH["scripts/restart_helper.py"]
     end
 
     subgraph UI["ui/ 主代码"]

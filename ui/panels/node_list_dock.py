@@ -32,15 +32,30 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
         self.parent_window = parent
         self.nodes_data = {}
         self.selected_node_ids = []
-        
+
         from ui.panels.node_group_manager import NodeGroupManager
-        self.group_manager = NodeGroupManager()
+        initial_project = None
+        if parent is not None and hasattr(parent, 'current_project_path'):
+            initial_project = parent.current_project_path
+        self.group_manager = NodeGroupManager(initial_project)
         self.group_manager.on_changed = lambda: self.update_node_list(self.nodes_data)
+
+        # 先初始化UI，确保 path_label 等控件存在
+        self._init_ui()
+
+        # 若创建时已有项目数据，且 nodes_data 非空，直接填充一次，避免空面板
+        initial_nodes = None
+        if parent is not None and hasattr(parent, 'nodes_data') and parent.nodes_data:
+            initial_nodes = dict(parent.nodes_data)
+        if initial_project:
+            # 先设置项目路径（此方法内部会加载分组）
+            self.set_project_path(initial_project)
+        if initial_nodes:
+            # 再刷新节点列表 UI
+            self.update_node_list(initial_nodes)
         
         # 订阅全局节点状态变化
         polling_manager.node_status_changed.connect(self._on_node_status_changed)
-        
-        self._init_ui()
     
     def _init_ui(self):
         """初始化UI"""
@@ -262,8 +277,20 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
             self.parent_window.show_toast(f"已停止组 '{group_name}' 中的节点", "success")
     
     def set_project_path(self, path):
-        """设置项目路径（兼容旧接口）"""
+        """设置项目路径，重新加载分组配置并刷新节点列表UI"""
         if path:
             self.path_label.setText(f"{t('k_project')}: {os.path.basename(path)}")
         else:
             self.path_label.setText(t("k_node_no_project"))
+
+        # 让分组管理器跟随项目加载，确保分组信息（node_groups.json）持久化可用
+        if hasattr(self, 'group_manager') and self.group_manager is not None:
+            try:
+                self.group_manager.set_project_path(path)
+            except Exception as e:
+                from ui.core.logger import logger
+                logger.warning("NodeListDockPanel.set_project_path 加载分组失败: %s", e)
+
+        # 关键：在分组加载完成后，如果已有节点数据则刷新UI，确保切换到dock版能立即显示节点
+        if self.nodes_data:
+            self.update_node_list(self.nodes_data)

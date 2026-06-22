@@ -8,6 +8,20 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-06-22](./2026-06-22/)
+- **Edge Rendering Vector Outline Fill**: Use `QPainterPathStroker` to expand line `QPainterPath` into closed outline paths, filled with `QBrush`, completely eliminating zoom-in jagged edges
+- **High DPI Screen Adaptation**: Both main and canvas subprocess enable `AA_EnableHighDpiScaling` / `AA_UseHighDpiPixmaps`, ensuring proper rendering on 4K/Retina displays; paint hint `SmoothPixmapTransform` enabled
+- **Canvas Resolution Customization**: New "Rendering" tab in settings dialog, 5 preset resolutions (1000-10000) + custom W/H + antialiasing toggle, configuration persisted to `app_config.json`
+- **restart_helper Script Directory Refactoring**: `restart_helper.py` moved from root to `scripts/`; call path in `bnos_console.py` and 4 tech docs updated
+
+### [2026-06-20](./2026-06-20/)
+- **Performance Panel Fix**: ChartCanvas custom paint, QPainter/QPainterPath import fix, drag-pause refresh
+- **Debug Panel Translation**: 17 CN/EN translation keys completed (port, mode, action, breakpoints, etc.)
+- **Preset Library Refactoring**: Deprecated skeleton template system, reuses `.bnos` for complete node packaging, new PresetLibraryDialog
+- **IPC Core Process Expansion**: Added node.stop_all (batch stop) and node.detect_running commands
+- **Polling Manager Dynamic Frequency**: CPU-load-adaptive dynamic frequency adjustment (1s/2s/4s)
+- **Translation Key Revision**: 3 mismatch fixes, 29 new keys, 17 deprecated keys removed
+
 ### [2026-06-18](./2026-06-18/)
 - **NodeItem Monolithic Class Split into Composition Pattern**: `node_item.py` reduced from 846 lines to 227 lines, split into 9 sub-components (rendering, geometry, interaction, status, config, style, parameter panel, etc.)
 - **6 Mixin Classes Converted to Composition Pattern**: `CanvasConnections` / `CanvasBatchOps` / `CanvasMenu` / `CanvasBoxSelect` / `CanvasColors` / `CanvasLayout` — explicit dependencies via `self.canvas`, eliminating implicit MRO dependencies
@@ -122,4 +136,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-06-18
+**Last Updated**: 2026-06-22

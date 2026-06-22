@@ -14,7 +14,8 @@
 BNOS 根目录
 ├── launcher.py                 # 启动动画（tkinter 闪屏）
 ├── bnos_console.py             # PySide6 主程序入口
-├── restart_helper.py           # 重启辅助脚本
+├── scripts/
+│   └── restart_helper.py       # 重启辅助脚本
 ├── build_bnos.spec             # PyInstaller 打包配置
 ├── requirements.txt            # 依赖清单
 ├── app_config.json             # 运行时配置持久化
@@ -554,9 +555,9 @@ if sys.version_info < (3, 9):
 
 ### 7.4 Windows 专用 API 未做平台保护
 
-**文件**: `restart_helper.py`、`ui/core/node_process.py`
+**文件**: `scripts/restart_helper.py`、`ui/core/node_process.py`
 
-**问题**: 代码中多处使用 Windows 专用逻辑（`ctypes.windll.kernel32`、`tasklist`、`CREATE_NO_WINDOW`），但未用 `if os.name == 'nt'` 完全隔离（node_process.py 做得较好，restart_helper.py 也有）。
+**问题**: 代码中多处使用 Windows 专用逻辑（`ctypes.windll.kernel32`、`tasklist`、`CREATE_NO_WINDOW`），但未用 `if os.name == 'nt'` 完全隔离（node_process.py 做得较好，scripts/restart_helper.py 也有）。
 
 **优化建议**: 增加跨平台 CI（GitHub Actions: `windows-latest`、`ubuntu-latest`、`macos-latest`），确保导入时不会失败。
 

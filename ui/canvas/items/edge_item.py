@@ -14,13 +14,54 @@
 """
 import math
 from PySide6.QtWidgets import (
-    QGraphicsPathItem, QGraphicsPolygonItem, QStyle,
+    QGraphicsPathItem, QGraphicsPolygonItem, QStyle, QGraphicsItem,
 )
 from PySide6.QtCore import Qt, QPointF, QLineF, QTimer
 from PySide6.QtGui import (
     QPen, QColor, QPainterPath, QPolygonF, QPainterPathStroker, QBrush,
+    QPainter,
 )
 from ui.core.logger import logger
+
+
+class EdgeArrowItem(QGraphicsPolygonItem):
+    """带抗锯齿的箭头项—— 使用填充多边形渲染，任意缩放平滑"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # 禁用缓存：确保任意缩放都重新计算矢量路径
+        self.setCacheMode(QGraphicsPolygonItem.CacheMode.NoCache)
+        # 不描边，只填充：抗锯齿效果最佳（与三角形填充一致）
+        self.setPen(QPen(Qt.PenStyle.NoPen))
+    
+    def paint(self, painter, option, widget=None):
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        super().paint(painter, option, widget)
+
+
+class TempEdgeItem(QGraphicsPathItem):
+    """带抗锯齿的临时连线（拖拽时显示）—— 使用矢量轮廓填充渲染"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # 禁用缓存：确保任意缩放都重新计算矢量路径，避免缓存拉伸产生锯齿
+        self.setCacheMode(QGraphicsPathItem.CacheMode.NoCache)
+    
+    def paint(self, painter, option, widget=None):
+        # 抗锯齿 + 平滑变换
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        
+        # 使用 QPainterPathStroker 填充法（与箭头/正式连线同样的渲染方式）
+        pen = self.pen()
+        if pen.style() != Qt.PenStyle.NoPen and pen.widthF() > 0:
+            color = pen.color()
+            stroker = QPainterPathStroker(pen)
+            filled_path = stroker.createStroke(self.path())
+            painter.setPen(QPen(Qt.PenStyle.NoPen))
+            painter.setBrush(QBrush(color))
+            painter.drawPath(filled_path)
 
 
 class EdgeItem(QGraphicsPathItem):
@@ -44,7 +85,10 @@ class EdgeItem(QGraphicsPathItem):
         self._source_anchor = source_anchor  # 显式指定的源锚点
         self._desired_target_port_name = target_port_name  # 期望绑定的目标端口名（如"prompt"/"context"等）
         self._desired_source_port_name = source_port_name  # 期望绑定的源端口名
-        self._base_width = 2.5
+        
+        # 获取设备像素比，确保高DPI屏幕上显示正常
+        self._device_pixel_ratio = self._get_device_pixel_ratio()
+        self._base_width = 2.5 * self._device_pixel_ratio
         self._edge_color = QColor("#4A90E2")
 
         self._waypoints: list = []
@@ -63,8 +107,8 @@ class EdgeItem(QGraphicsPathItem):
         self._hovered_handle = -1
         self._hovered_wp = -1
 
-        # ItemCoordinateCache: setPath时自动失效旧缓存，不产生残留
-        self.setCacheMode(QGraphicsPathItem.CacheMode.ItemCoordinateCache)
+        # NoCache：禁用缓存，确保任意缩放抗锯齿始终生效（箭头就是这样）
+        self.setCacheMode(QGraphicsPathItem.CacheMode.NoCache)
         self.setZValue(20)  # 线条层：最顶层，不被节点/锚点遮挡
         self.update_edge_style()
 
@@ -81,6 +125,24 @@ class EdgeItem(QGraphicsPathItem):
         
         # 建立双向绑定
         self._setup_anchor_binding()
+    
+    def _get_device_pixel_ratio(self):
+        """获取设备像素比，用于高DPI屏幕适配"""
+        try:
+            if self.canvas and hasattr(self.canvas, 'viewport'):
+                return self.canvas.viewport().devicePixelRatio()
+        except Exception:
+            pass
+        try:
+            from PySide6.QtWidgets import QApplication
+            app = QApplication.instance()
+            if app:
+                screen = app.primaryScreen()
+                if screen:
+                    return screen.devicePixelRatio()
+        except Exception:
+            pass
+        return 1.0
     
     def _setup_anchor_binding(self):
         """建立与锚点的双向绑定（支持多输入/输出端口）
@@ -322,7 +384,7 @@ class EdgeItem(QGraphicsPathItem):
             return
         if self.arrow_item:
             scene.removeItem(self.arrow_item)
-        self.arrow_item = QGraphicsPolygonItem(self)
+        self.arrow_item = EdgeArrowItem(self)
         self.arrow_item.setPolygon(arrow)
         self.arrow_item.setBrush(self._edge_color)
         self.arrow_item.setPen(QPen(Qt.PenStyle.NoPen))
@@ -335,24 +397,40 @@ class EdgeItem(QGraphicsPathItem):
     def paint(self, painter, option, widget=None):
         hovered = bool(option.state & QStyle.StateFlag.State_MouseOver)
         selected = self.isSelected()
-        base_w = self._base_width
+
+        # 动态计算当前缩放倍数下的合适线条宽度（确保放大后仍有清晰平滑的边缘）
+        # 通过 painter.transform 的 m11 获取当前 x 方向缩放比例
+        transform = painter.transform()
+        current_scale = max(abs(transform.m11()), abs(transform.m22()), 1.0)
+        # 基础宽度 + 根据缩放调整：1x 显示 3px，放大后保持矢量平滑
+        base_w = max(3.0, self._base_width)
+
+        # 抗锯齿 + 平滑变换
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
 
         # 选中=变色不加粗，悬停=微微提亮
         if selected:
-            pen = QPen(QColor("#2aaaff"), base_w)        # 选中 → 亮蓝
+            color = QColor("#2aaaff")
         elif hovered:
-            pen = QPen(self._edge_color.lighter(140), base_w)  # 悬停 → 提亮
+            color = self._edge_color.lighter(140)
         else:
-            pen = self.pen()
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawPath(self.path())
+            color = self.pen().color()
+
+        # 用 QPainterPathStroker 将线条转为矢量轮廓填充（与箭头同样的填充渲染）
+        # 这样在任意缩放倍数下，线条边缘都像多边形填充一样平滑，无锯齿
+        stroker_pen = QPen(color, base_w)
+        stroker_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        stroker_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        stroker = QPainterPathStroker(stroker_pen)
+        filled_path = stroker.createStroke(self.path())
+        painter.setPen(QPen(Qt.PenStyle.NoPen))
+        painter.setBrush(QBrush(color))
+        painter.drawPath(filled_path)
 
         pts = self._all_points()
 
-        # 已有折叠点（可拖拽调整角度）
+        # 已有折叠点（可拖拽调整角度）— 使用填充椭圆，与箭头同样平滑
         for i in range(1, len(pts) - 1):
             wp = pts[i]
             if self._hovered_wp == i - 1 or self._drag_wp_index == i - 1:

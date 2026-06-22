@@ -50,6 +50,11 @@ class AppConfig:
             "language": "cn",
             "process_mode": False,
             "draw_toolbar_visible": False,
+            "rendering": {
+                "canvas_width": 5000,
+                "canvas_height": 5000,
+                "antialiasing": True
+            },
             "panel_positions": {
                 "node_list_floating": {"x": 10, "y": 100},
                 "resource_monitor_floating": {"x": 10, "y": 100},

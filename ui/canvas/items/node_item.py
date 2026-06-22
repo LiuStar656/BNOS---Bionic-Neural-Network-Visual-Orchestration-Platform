@@ -55,7 +55,7 @@ class NodeItem(QGraphicsRectItem):
         self._param_panel = NodeParamPanel(self)
 
         # ── Qt 设施 ──
-        self.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
+        self.setCacheMode(QGraphicsItem.CacheMode.ItemCoordinateCache)
         self.setFlags(
             QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable
             | QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable

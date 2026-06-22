@@ -374,9 +374,16 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         """更新节点状态并同步UI"""
         if node_name in self.nodes_data:
             self.nodes_data[node_name]['status'] = status
+<<<<<<< HEAD
             if self.canvas: self.canvas.sync_node_display(node_name)
             if self.node_list_panel:
                 self.node_list_panel.update_node_list(self.nodes_data)
+=======
+        if self.canvas:
+            self.canvas.sync_node_display(node_name)
+        if hasattr(self, 'node_list_panel') and self.node_list_panel:
+            self.node_list_panel.update_node_list(self.nodes_data)
+>>>>>>> origin/main
         
     def refresh_nodes(self):
         project_refresh(self)

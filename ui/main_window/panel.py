@@ -23,13 +23,12 @@ class MainWindowPanelMixin:
     def _refresh_panels(self):
         """刷新所有面板以适配当前画布"""
         if hasattr(self, 'node_list_panel') and self.node_list_panel and hasattr(self, 'nodes_data'):
+            if hasattr(self, 'current_project_path') and self.current_project_path:
+                self.node_list_panel.set_project_path(self.current_project_path)
             self.node_list_panel.update_node_list(self.nodes_data)
 
         if hasattr(self, 'node_list_floating') and self.node_list_floating and hasattr(self, 'nodes_data'):
             self.node_list_floating.update_node_list(self.nodes_data)
-
-        if hasattr(self, 'node_list_dock') and self.node_list_dock and hasattr(self, 'nodes_data'):
-            self.node_list_dock.update_node_list(self.nodes_data)
 
     def toggle_node_list_panel(self, checked):
         """切换节点列表面板（Dock版）- 停靠到左侧"""

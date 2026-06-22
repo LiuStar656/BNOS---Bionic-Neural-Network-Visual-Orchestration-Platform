@@ -10,8 +10,9 @@ graph LR
 
     ROOT --> S1["launcher.py"]:::file
     ROOT --> S2["bnos_console.py"]:::file
-    ROOT --> S3["restart_helper.py"]:::file
     ROOT --> S4["requirements.txt"]:::file
+    ROOT --> SCRIPTS("scripts/"):::dir
+    SCRIPTS --> S3["restart_helper.py"]:::file
     ROOT --> S5["run_tests.py"]:::file
     ROOT --> S6["build_bnos.spec"]:::file
     ROOT --> S7["bnos_config.json"]:::file
@@ -231,7 +232,9 @@ graph LR
 ```mermaid
 graph TB
     R["BNOS/"]:::root
-    R --> R1["launcher.py<br/>bnos_console.py<br/>restart_helper.py<br/>requirements.txt / run_tests.py<br/>build_bnos.spec / bnos_config.json<br/>color_settings.json / bnos_logo.png<br/>start_bnos_console.{bat,sh,vbs}<br/>README.md / README_CN.md / LICENSE"]:::file
+    R --> R1["launcher.py<br/>bnos_console.py<br/>requirements.txt / run_tests.py<br/>build_bnos.spec / bnos_config.json<br/>color_settings.json / bnos_logo.png<br/>start_bnos_console.{bat,sh,vbs}<br/>README.md / README_CN.md / LICENSE"]:::file
+    R --> SCRIPTS("scripts/"):::dir
+    SCRIPTS --> R_H["restart_helper.py"]:::file
 
     R --> UI["ui/"]:::dir
     R --> TESTS["tests/ (10 test_*.py)"]:::dir

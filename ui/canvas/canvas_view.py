@@ -75,9 +75,17 @@ class NodeCanvas(QGraphicsView):
         super().__init__(parent)
         self.parent_window = parent
 
-        # ===== 画布场景尺寸 =====
-        self.canvas_width = 5000
-        self.canvas_height = 5000
+        # ===== 画布场景尺寸（从配置读取）=====
+        try:
+            from ui.core.app_config import AppConfig
+            cfg = AppConfig().get("rendering", {})
+            self.canvas_width = cfg.get("canvas_width", 5000)
+            self.canvas_height = cfg.get("canvas_height", 5000)
+            self._antialiasing_enabled = cfg.get("antialiasing", True)
+        except Exception:
+            self.canvas_width = 5000
+            self.canvas_height = 5000
+            self._antialiasing_enabled = True
 
         # ===== 场景与视图设置 =====
         half_width = self.canvas_width // 2
@@ -85,14 +93,14 @@ class NodeCanvas(QGraphicsView):
         self.scene = OptimizedScene(-half_width, -half_height, self.canvas_width, self.canvas_height, self)
         self.setScene(self.scene)
 
-        self.setRenderHint(QPainter.RenderHint.Antialiasing)
+        if self._antialiasing_enabled:
+            self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.MinimalViewportUpdate)
         
         self.setOptimizationFlags(
             QGraphicsView.OptimizationFlag.DontSavePainterState
-            | QGraphicsView.OptimizationFlag.DontAdjustForAntialiasing
         )
 
         # ===== 颜色配置（供各组合层读取） =====

@@ -48,6 +48,9 @@ def main():
         if progress_file:
             _progress(progress_file, 35, "Config loaded (" + saved_lang + ")")
 
+        # 高DPI支持 - 必须在创建QApplication之前设置
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling)
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)
         QApplication.setStyle("Fusion")
         app = QApplication(sys.argv)
@@ -97,7 +100,7 @@ def main():
         if ret == 42:
             # 使用重启脚本，确保先完全关闭再启动新进程
             import subprocess
-            restart_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "restart_helper.py")
+            restart_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "restart_helper.py")
             main_script = os.path.abspath(__file__)
             subprocess.Popen(
                 [sys.executable, restart_script, main_script] + args,
