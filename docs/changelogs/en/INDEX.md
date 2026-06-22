@@ -12,6 +12,7 @@ Click on dates below to view detailed updates for that date:
 - **Edge Rendering Vector Outline Fill**: Use `QPainterPathStroker` to expand line `QPainterPath` into closed outline paths, filled with `QBrush`, completely eliminating zoom-in jagged edges
 - **High DPI Screen Adaptation**: Both main and canvas subprocess enable `AA_EnableHighDpiScaling` / `AA_UseHighDpiPixmaps`, ensuring proper rendering on 4K/Retina displays; paint hint `SmoothPixmapTransform` enabled
 - **Canvas Resolution Customization**: New "Rendering" tab in settings dialog, 5 preset resolutions (1000-10000) + custom W/H + antialiasing toggle, configuration persisted to `app_config.json`
+- **restart_helper Script Directory Refactoring**: `restart_helper.py` moved from root to `scripts/`; call path in `bnos_console.py` and 4 tech docs updated
 
 ### [2026-06-20](./2026-06-20/)
 - **Performance Panel Fix**: ChartCanvas custom paint, QPainter/QPainterPath import fix, drag-pause refresh

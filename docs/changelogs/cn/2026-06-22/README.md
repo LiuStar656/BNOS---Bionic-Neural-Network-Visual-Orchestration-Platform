@@ -1,14 +1,16 @@
-# 【2026-06-22】V2.0.19 - 连线渲染矢量轮廓填充、高 DPI 支持与画布分辨率自定义
+# 【2026-06-22】V2.0.19 - 连线渲染矢量轮廓填充、高 DPI 支持、画布分辨率自定义、脚本目录重构与节点列表 Dock 持久化修复
 
 ## 更新总览
 
-**本次更新包含 3 个子模块变更**：
+**本次更新包含 5 个子模块变更**：
 
 | 编号 | 模块 | 说明 | 详情 |
 |------|------|------|------|
 | 01 | 连线渲染矢量轮廓填充 | QPainterPathStroker 将线条转为闭合轮廓并用 QBrush 填充 | [→](01_连线渲染矢量轮廓填充.md) |
 | 02 | 高 DPI 屏幕适配 | AA_EnableHighDpiScaling、AA_UseHighDpiPixmaps | [→](02_高DPI屏幕适配.md) |
 | 03 | 画布分辨率设置 | 设置对话框新增「渲染」标签页，支持预设/自定义分辨率与抗锯齿开关 | [→](03_画布分辨率自定义.md) |
+| 04 | restart_helper 脚本目录迁移 | `restart_helper.py` 从根目录迁入 `scripts/`，同时同步更新相关路径与技术文档 | [→](04_restart_helper脚本目录迁移.md) |
+| 05 | 节点列表 Dock 加载与持久化修复 | `NodeListDockPanel.set_project_path` 同步调用 `NodeGroupManager`；修复 `self.node_list_dock` 空引用；主窗口启动/打开项目时 Dock 不再显示空白 | [→](05_节点列表Dock加载与持久化修复.md) |
 
 ---
 
@@ -16,7 +18,9 @@
 
 | 变更类型 | 数量 | 涉及文件 |
 |----------|------|---------|
-| **修改** | 9 | `ui/canvas/items/edge_item.py`、`bnos_console.py`、`ui/canvas/canvas_process.py`、`ui/canvas/canvas_view.py`、`ui/dialogs/settings_dialog.py`、`ui/core/app_config.py`、`ui/core/strings_cn.json`、`ui/core/strings_en.json`、`ui/canvas/mixins/canvas_connections.py` |
+| **修改** | 9+1 | `ui/canvas/items/edge_item.py`、`bnos_console.py`、`ui/canvas/canvas_process.py`、`ui/canvas/canvas_view.py`、`ui/dialogs/settings_dialog.py`、`ui/core/app_config.py`、`ui/core/strings_cn.json`、`ui/core/strings_en.json`、`ui/canvas/mixins/canvas_connections.py`；以及 4 篇 `docs/` 技术文档中的路径引用 |
+| **新增** | 1 | `scripts/restart_helper.py`（从根目录迁入，内容保持不变） |
+| **删除** | 1 | `restart_helper.py`（旧根位置） |
 
 ## 全部变更文件
 
@@ -31,3 +35,9 @@
 | `ui/core/strings_cn.json` | 新增 `settings.rendering.title`、`preset_1000/2000/5000/8000/10000`、`custom`、`width`、`height`、`px`、`antialiasing`、`restart_tip` 等翻译键 | 03_分辨率 |
 | `ui/core/strings_en.json` | 新增上述翻译键对应的英文文本 | 03_分辨率 |
 | `ui/canvas/mixins/canvas_connections.py` | `TempEdgeItem` 创建统一使用填充渲染；`setCacheMode(NoCache)` | 01_连线渲染 |
+| `scripts/restart_helper.py` | 从根目录迁入 `scripts/`，内容与功能保持不变 | 04_脚本目录重构 |
+| `bnos_console.py` | 定位 `restart_helper.py` 的路径由 `"restart_helper.py"` 改为 `os.path.join("scripts", "restart_helper.py")` | 04_脚本目录重构 |
+| `docs/BNOS_文件结构图.md` | 增加 `scripts/` 节点，`restart_helper.py` 归入其子节点 | 04_脚本目录重构 |
+| `docs/BNOS_架构图.md` | 流程图中的 `restart_helper.py` 改为 `scripts/restart_helper.py` | 04_脚本目录重构 |
+| `docs/BNOS_技术分析报告.md` | LOC 表格中文件名同步为 `scripts/restart_helper.py` | 04_脚本目录重构 |
+| `docs/BNOS_项目优化分析报告.md` | 根目录树形展示与 7.4 小节文件引用同步 | 04_脚本目录重构 |

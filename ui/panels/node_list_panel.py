@@ -429,5 +429,15 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
     # ==================== 鼠标拖动支持（继承自 FloatingPanel 基类）====================
 
     def set_project_path(self, project_path):
-        """设置项目路径并加载节点组配置"""
+        """设置项目路径，加载节点组配置，并刷新UI"""
         self.group_manager.set_project_path(project_path)
+
+        # 更新路径标签
+        if project_path:
+            self.path_label.setText(f"项目: {os.path.basename(project_path)}")
+        else:
+            self.path_label.setText(t("k_node_no_project"))
+
+        # 加载分组后立即刷新UI，确保节点列表和分组正确显示
+        if self.nodes_data:
+            self.update_node_list(self.nodes_data)

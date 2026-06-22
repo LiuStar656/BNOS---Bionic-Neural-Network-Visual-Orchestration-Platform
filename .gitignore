@@ -40,6 +40,8 @@ app_config.json
 canvas_layout.json
 color_settings.json
 bnos_config.json
+debug.log
+
 
 # 日志文件
 logs/

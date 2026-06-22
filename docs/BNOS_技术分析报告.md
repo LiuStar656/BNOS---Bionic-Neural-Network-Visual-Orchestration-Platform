@@ -53,7 +53,7 @@
 |------|-----|------|
 | `launcher.py` | ~251 | Tkinter 闪屏启动器，启动虚拟环境+主程序 |
 | `bnos_console.py` | ~100 | 主程序入口，初始化 QApplication + BNOSMainWindow |
-| `restart_helper.py` | ~30 | 重启辅助脚本 |
+| `scripts/restart_helper.py` | ~30 | 重启辅助脚本 |
 | `test_terminal_feature.py` | ~40 | 终端功能测试脚本 |
 | `build_bnos.spec` | ~30 | PyInstaller 打包配置 |
 

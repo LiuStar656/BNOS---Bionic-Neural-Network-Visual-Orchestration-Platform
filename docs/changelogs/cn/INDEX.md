@@ -12,6 +12,7 @@
 - **连线渲染矢量轮廓填充**：使用 `QPainterPathStroker` 将线条的 `QPainterPath` 扩展为闭合轮廓路径，使用 `QBrush` 填充，彻底解决放大锯齿问题
 - **高 DPI 屏幕适配**：主进程与画布子进程均启用 `AA_EnableHighDpiScaling` / `AA_UseHighDpiPixmaps`，确保 4K/Retina 屏幕效果；渲染提示启用 `SmoothPixmapTransform`
 - **画布分辨率自定义**：设置对话框新增「渲染」标签页，5 个预设分辨率（1000-10000）+ 自定义宽高 + 抗锯齿开关，配置持久化至 `app_config.json`
+- **restart_helper 脚本目录迁移**：`restart_helper.py` 从根目录迁入 `scripts/`，同时同步更新 `bnos_console.py` 的调用路径和 4 篇技术文档中的路径引用
 
 ### [2026-06-20](./2026-06-20/)
 - **性能分析面板修复**：ChartCanvas 自定义绘制、QPainter/QPainterPath 导入修复、拖动暂停刷新
