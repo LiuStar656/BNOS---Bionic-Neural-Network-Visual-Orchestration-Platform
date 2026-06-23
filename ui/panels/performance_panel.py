@@ -6,24 +6,27 @@ from PySide6.QtWidgets import (
     QGroupBox, QWidget, QTableWidget, QTableWidgetItem,
     QHeaderView, QSplitter, QComboBox, QSpinBox, QCheckBox, QTabWidget
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QThread, QMutex, QMutexLocker
+from PySide6.QtCore import Qt, Signal, QThread, QMutex, QMutexLocker
 from PySide6.QtGui import QColor, QPen, QPainter, QPainterPath
-from ui.core.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.logger import logger
 from ui.panels._shared.system_resource_collector import shared_resource_collector
+from ui.core.dock_panel_base import DockPanelBase
+import time
 
 
 class StatsCollectorThread(QThread):
-    """后台数据收集线程"""
+    """后台数据收集线程（系统+节点+进程）"""
     
     stats_ready = Signal(dict, dict)
+    processes_ready = Signal(list)
     
     def __init__(self, parent_window, parent=None):
         super().__init__(parent)
         self._parent_window = parent_window
         self._mutex = QMutex()
         self._running = True
+        self._iteration = 0
     
     def stop(self):
         self._running = False
@@ -32,6 +35,7 @@ class StatsCollectorThread(QThread):
     def run(self):
         while self._running:
             try:
+                # 系统+节点资源采集（每 2 秒）
                 system_stats = shared_resource_collector.collect_system_stats()
                 
                 node_stats = {}
@@ -45,10 +49,34 @@ class StatsCollectorThread(QThread):
                                 node_stats[name] = stats
                 
                 self.stats_ready.emit(system_stats, node_stats)
+                
+                # 进程列表采集（每 3 次迭代 = 6 秒，避免过于频繁）
+                self._iteration += 1
+                if self._iteration % 3 == 0:
+                    self._collect_processes()
+                    
             except Exception as e:
                 logger.warning("后台数据收集失败: %s", e)
             
             self.msleep(2000)
+    
+    def _collect_processes(self):
+        """在后台线程采集进程列表（避免主线程 psutil 卡顿）"""
+        try:
+            import psutil
+            processes = []
+            for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_info']):
+                try:
+                    cpu = proc.cpu_percent()
+                    mem = proc.memory_info().rss / (1024 ** 2)
+                    if cpu > 0 or mem > 1:
+                        processes.append((proc.pid, proc.name(), cpu, mem))
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            processes.sort(key=lambda x: x[2], reverse=True)
+            self.processes_ready.emit(processes[:20])
+        except ImportError:
+            pass
 
 
 class ChartCanvas(QWidget):
@@ -56,6 +84,7 @@ class ChartCanvas(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.parent_window = parent
         self._history = {'cpu': [], 'mem': []}
         self._history_mutex = QMutex()
         self.setMinimumHeight(200)
@@ -121,13 +150,14 @@ class ChartCanvas(QWidget):
             painter.drawText(padding - 25, y + 4, f"{100 - i * 25}%")
 
 
-class PerformancePanel(FloatingPanel):
-    """性能分析面板（优化版）"""
+class PerformancePanel(DockPanelBase):
+    """性能分析面板"""
 
     performance_alert = Signal(str, str, float, float)
 
     def __init__(self, parent=None):
-        super().__init__(parent, title=t("k_performance"))
+        super().__init__(parent)
+        self.parent_window = parent
         self._system_stats = {}
         self._node_stats = {}
         self._history = {}
@@ -144,24 +174,35 @@ class PerformancePanel(FloatingPanel):
         self.setMinimumSize(600, 450)
         self._init_ui()
 
-        self._update_timer = QTimer(self)
-        self._update_timer.timeout.connect(self._update_ui)
-        self._update_timer.start(500)
-
-        self._process_timer = QTimer(self)
-        self._process_timer.timeout.connect(self._update_process_table)
-        self._process_timer.start(5000)
+        self._schedule_update(1000, self._update_ui)
 
         self._collector_thread = StatsCollectorThread(self.parent_window, self)
+        self._register_resource(self._collector_thread, 'stop')
         self._collector_thread.stats_ready.connect(self._on_stats_ready)
+        self._collector_thread.processes_ready.connect(self._on_processes_ready)
         self._collector_thread.start()
 
-        QTimer.singleShot(500, self._update_process_table)
-
     def _init_ui(self):
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(8)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # 顶部标题栏
+        top_bar = QWidget()
+        top_bar.setStyleSheet("background-color: #252526; border-bottom: 1px solid #3c3c3c;")
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(8, 4, 8, 4)
+
+        title_label = QLabel(t("k_performance"))
+        title_label.setStyleSheet("color: rgba(255,255,255,180); font-size: 11px; font-weight: bold; border: none;")
+        top_layout.addWidget(title_label)
+        top_layout.addStretch()
+        layout.addWidget(top_bar)
+
+        content_area = QWidget()
+        content_layout = QVBoxLayout(content_area)
+        content_layout.setContentsMargins(8, 8, 8, 8)
+        content_layout.setSpacing(8)
 
         splitter = QSplitter(Qt.Vertical)
 
@@ -176,11 +217,11 @@ class PerformancePanel(FloatingPanel):
         splitter.addWidget(bottom_tab)
 
         splitter.setSizes([300, 300])
-        main_layout.addWidget(splitter)
+        content_layout.addWidget(splitter)
 
-        self._build_alert_section(main_layout)
+        self._build_alert_section(content_layout)
 
-        self.content_layout.addLayout(main_layout)
+        layout.addWidget(content_area, 1)
 
     def _build_system_tab(self):
         widget = QWidget()
@@ -488,36 +529,19 @@ class PerformancePanel(FloatingPanel):
             self._node_combo.setCurrentText(current_text)
         self._node_combo.blockSignals(False)
 
-    def _update_process_table(self):
-        """更新进程表格（独立定时器，5秒更新一次）"""
-        try:
-            import psutil
-            processes = []
-            for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_info']):
-                try:
-                    cpu = proc.cpu_percent()
-                    mem = proc.memory_info().rss / (1024**2)
-                    if cpu > 0 or mem > 1:
-                        processes.append((proc.pid, proc.name(), cpu, mem))
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    continue
+    def _on_processes_ready(self, processes):
+        """后台进程数据就绪 → 主线程更新表格"""
+        if self._process_table.rowCount() != len(processes):
+            self._process_table.setRowCount(len(processes))
+            for i in range(len(processes)):
+                for j in range(4):
+                    self._process_table.setItem(i, j, QTableWidgetItem(""))
 
-            processes.sort(key=lambda x: x[2], reverse=True)
-            processes = processes[:20]
-
-            if self._process_table.rowCount() != len(processes):
-                self._process_table.setRowCount(len(processes))
-                for i in range(len(processes)):
-                    for j in range(4):
-                        self._process_table.setItem(i, j, QTableWidgetItem(""))
-
-            for i, (pid, name, cpu, mem) in enumerate(processes):
-                self._process_table.item(i, 0).setText(str(pid))
-                self._process_table.item(i, 1).setText(name)
-                self._process_table.item(i, 2).setText(f"{cpu:.1f}%")
-                self._process_table.item(i, 3).setText(f"{mem:.1f} MB")
-        except ImportError:
-            pass
+        for i, (pid, name, cpu, mem) in enumerate(processes):
+            self._process_table.item(i, 0).setText(str(pid))
+            self._process_table.item(i, 1).setText(name)
+            self._process_table.item(i, 2).setText(f"{cpu:.1f}%")
+            self._process_table.item(i, 3).setText(f"{mem:.1f} MB")
 
     def _update_history(self):
         """更新历史数据"""
@@ -575,21 +599,23 @@ class PerformancePanel(FloatingPanel):
 
     def _on_drag_start(self):
         """拖动开始：暂停所有更新"""
-        self._update_timer.stop()
-        self._process_timer.stop()
+        from ui.core.update_scheduler import update_scheduler
+        update_scheduler.unsubscribe(self)
 
     def _on_drag_end(self):
         """拖动结束：恢复所有更新"""
-        self._update_timer.start(500)
-        self._process_timer.start(5000)
+        self._schedule_update(1000, self._update_ui)
         self._update_ui()
 
-    def _on_close(self):
-        """面板关闭处理"""
-        self._update_timer.stop()
-        self._process_timer.stop()
-        self._collector_thread.stop()
-        super()._on_close()
+    def dispose(self):
+        """面板销毁时清理"""
+        if self._disposed:
+            return
+        if hasattr(self, '_collector_thread') and self._collector_thread.isRunning():
+            self._collector_thread.stop()
+            self._collector_thread.quit()
+            self._collector_thread.wait(1000)
+        super().dispose()
 
     def get_stats(self):
         """获取所有统计数据"""

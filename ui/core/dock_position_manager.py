@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer, QObject
-from PySide6.QtWidgets import QMainWindow, QApplication
+from PySide6.QtWidgets import QMainWindow
 
 
 class DockPositionManager(QObject):
@@ -140,32 +140,30 @@ class DockPositionManager(QObject):
             self._float_tracker.timeout.connect(self._track_float_position)
         self._float_tracker.start(500)
 
+    def _track_float_position(self):
+        try:
+            if self._dock_widget.isFloating():
+                self._persist_floating_geometry(self._dock_widget.geometry())
+        except RuntimeError:
+            self._stop_float_tracking()
+
     def _stop_float_tracking(self):
         if self._float_tracker:
             self._float_tracker.stop()
-        if self._dock_widget.isFloating():
-            self._persist_floating_geometry(self._dock_widget.geometry())
-
-    def _track_float_position(self):
-        if self._dock_widget.isFloating():
-            self._persist_floating_geometry(self._dock_widget.geometry())
+        try:
+            if self._dock_widget.isFloating():
+                self._persist_floating_geometry(self._dock_widget.geometry())
+        except RuntimeError:
+            pass
 
     # ── 恢复到停靠位置 ──
 
-    def restore_to_docked_position(self, attempt=0):
+    def restore_to_docked_position(self):
         """
-        绕过 setFloating(False) 的平移动画。
-        关键：先 setFloating(False) 转换内部状态，再用 removeDockWidget+addDockWidget
-        强制覆盖目标区域。用 setUpdatesEnabled 抑制动画。
+        利用 Qt 原生 setDockLocation() API：
+        在 setFloating(False) 之前设置目标停靠区域，
+        Qt 会直接停靠到该区域，而不是用浮动窗口位置推测。
         """
-        main_win = self._find_main_window()
-        if not main_win:
-            if attempt < 5:
-                QTimer.singleShot(80, lambda: self.restore_to_docked_position(attempt + 1))
-            else:
-                self._block_persist = False
-            return
-
         area = self._original_dock_area
         if area is None:
             area = self._get_persisted_docked_area()
@@ -174,34 +172,8 @@ class DockPositionManager(QObject):
             self._block_persist = False
             return
 
-        main_win.setUpdatesEnabled(False)
-        self._dock_widget.hide()
+        # 关键：先告诉 Qt 目标区域，再切回停靠
+        self._dock_widget.setDockLocation(area)
         self._dock_widget.setFloating(False)
-        QApplication.processEvents()  # 清空 setFloating 触发的布局请求
-        main_win.removeDockWidget(self._dock_widget)
-        main_win.addDockWidget(area, self._dock_widget)
-        QApplication.processEvents()  # 处理 addDockWidget 的布局请求
-        self._dock_widget.show()
-        self._dock_widget.raise_()
-        main_win.setUpdatesEnabled(True)
-
-        main_win.centralWidget().updateGeometry()
-        main_win.update()
-        main_win.repaint()
-        QApplication.processEvents()
 
         self._block_persist = False
-
-    def _find_main_window(self):
-        """找到所属的 QMainWindow"""
-        # 先通过 parent() 找（浮动时 QMainWindow 仍是 QObject parent）
-        p = self._dock_widget.parent()
-        while p:
-            if isinstance(p, QMainWindow):
-                return p
-            p = p.parent()
-        # 再通过顶层窗口找
-        top = self._dock_widget.window()
-        if isinstance(top, QMainWindow):
-            return top
-        return None

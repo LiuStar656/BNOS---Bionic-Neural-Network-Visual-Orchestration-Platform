@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QFormLayout, QLineEdit, QPushButton, QLabel, QGroupBox,
     QComboBox, QDialog, QDialogButtonBox, QHeaderView,
     QTableWidget, QTableWidgetItem, QMenu, QGraphicsView, QGraphicsScene,
-    QInputDialog, QGraphicsOpacityEffect, QApplication
+    QInputDialog, QGraphicsOpacityEffect, QApplication, QTabWidget
 )
 from PySide6.QtCore import Qt, Signal, QPoint, QRectF, QTimer, QThread, QEvent
 from PySide6.QtGui import QIcon, QFont, QPainter, QPen, QColor, QAction, QMouseEvent
@@ -69,6 +69,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
     
     def __init__(self):
         super().__init__()
+        self.setTabPosition(Qt.DockWidgetArea.AllDockWidgetAreas, QTabWidget.TabPosition.North)
         
         # 应用配置
         self.app_config = AppConfig()

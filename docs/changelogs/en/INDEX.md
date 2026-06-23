@@ -8,11 +8,19 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-06-24](./2026-06-24/)
+- **Debug Panel Removal**: Deleted debug_panel.py and node_debugger.py, cleaned up 7 file references, removed 34 i18n keys
+- **Performance Panel Async**: psutil.process_iter() moved from main thread to background thread, eliminating UI freeze on panel open
+- **Dangling Pointer Guard**: _is_panel_alive() uses shiboken6.isValid() to detect C++ object liveness, fixing Internal C++ object already deleted crashes
+- **Menu Check Mark Fix**: 6 Dock panel is_checked_fn unified to use config fallback, correct check marks after restart
+- **Dock Tab Position**: Main window dock tab bar moved from bottom to top
+
 ### [2026-06-23](./2026-06-23/)
 - **Dock Window Re-Dock Bug Fix**: Fixed crash in `BnosDock._on_top_level_changed` caused by operating `self.window()`, changed to operate `self` directly
 - **Dock Edge Resize Detection Optimization**: Edge resize threshold reduced from 6px to 4px to reduce false triggers
 - **Canvas Dock Double-Click Edge Auto-Embed**: Double-click floating dock edge to auto-embed into CanvasHost and hide title bar; default title bar double-click behavior disabled
 - **CanvasHost Extra Space Fix**: Optimized `central_placeholder` widget properties to ensure no visible space occupation
+- **Dock Float-Drag Double-Click Embed Position Issue**: Documented known issue with root cause analysis of Qt's internal cache clearing on floating window drag, multiple attempted approaches, and current status
 
 ### [2026-06-22](./2026-06-22/)
 - **Edge Rendering Vector Outline Fill**: Use `QPainterPathStroker` to expand line `QPainterPath` into closed outline paths, filled with `QBrush`, completely eliminating zoom-in jagged edges

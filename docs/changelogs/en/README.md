@@ -4,8 +4,21 @@
 > 📖 中文版本：[中文版](../cn/README.md)
 
 ---
-
 <details open>
+<summary><strong>【2026-06-24】V2.0.20 - Debug Panel Removal, Performance Async Rework & Lifecycle Protection</strong></summary>
+
+[View Full Update](./2026-06-24/README.md) | [01_Removal_and_Optimization](./2026-06-24/01_Debug_Panel_Removal_and_Performance_Optimization.md)
+
+**Main Updates:**
+- Debug Panel Removal: Deleted debug_panel.py and node_debugger.py, cleaned up 7 file references, removed 34 i18n keys
+- Performance Panel Async: psutil.process_iter() moved from main thread to background thread, eliminating UI freeze on panel open
+- Dangling Pointer Guard: _is_panel_alive() uses shiboken6.isValid() to detect C++ object liveness, fixing Internal C++ object already deleted crashes
+- Menu Check Mark Fix: 6 Dock panel is_checked_fn unified to use config fallback
+- Dock tab bar moved from bottom to top
+
+</details>
+
+<details>
 <summary><strong>【2026-06-22】V2.0.19 - Vector Outline Filling for Edge Rendering, High DPI Support and Canvas Resolution Customization</strong></summary>
 
 [View Full Update](./2026-06-22/README.md) | [01_Edges](./2026-06-22/01_Edge_Rendering.md) | [02_HighDPI](./2026-06-22/02_HighDPI_Support.md) | [03_Resolution](./2026-06-22/03_Canvas_Resolution.md)

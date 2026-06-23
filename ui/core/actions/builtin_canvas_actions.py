@@ -188,7 +188,7 @@ def register_canvas_actions(main_window):
     def execute_canvas_monitor(ctx: ActionContext) -> bool:
         canvas = (ctx.extra or {}).get('canvas') if ctx.extra else None
         if canvas and canvas.parent_window:
-            canvas.parent_window.show_node_monitor()
+            canvas.parent_window.show_node_monitor_dock()
             return True
         return False
 

@@ -90,10 +90,9 @@ class BaseNodeLogSubPanel(QGroupBox):
     # ──── 共享逻辑 ────
 
     def _start_resource_timer(self):
-        """启动资源监测定时器"""
-        self._resource_timer = QTimer(self)
-        self._resource_timer.timeout.connect(self._update_resource_usage)
-        self._resource_timer.start(1000)
+        """启动资源监测定时器（使用统一调度器）"""
+        from ui.core.update_scheduler import update_scheduler
+        update_scheduler.subscribe(self, 1000, self._update_resource_usage)
 
     def _update_resource_usage(self):
         """更新资源占用（采集数据 + 更新 UI）"""
@@ -181,9 +180,8 @@ class BaseNodeLogSubPanel(QGroupBox):
     def unsubscribe_monitor(self):
         """取消订阅 polling_manager（面板移除时调用）"""
         polling_manager.unwatch_log(self.node_path, "listener.log")
-        if self._resource_timer:
-            self._resource_timer.stop()
-            self._resource_timer = None
+        from ui.core.update_scheduler import update_scheduler
+        update_scheduler.unsubscribe(self)
 
     # ──── 可选的扩展功能（子类按需覆盖）────
 

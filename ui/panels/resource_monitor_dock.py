@@ -11,16 +11,17 @@ from PySide6.QtWidgets import (
     QGroupBox, QWidget, QTableWidget, QTableWidgetItem,
     QHeaderView, QScrollArea
 )
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 from ui.core.i18n import t
 from ui.core.polling_manager import polling_manager
 from ui.core.logger import logger
 from ui.panels._shared.system_resource_collector import shared_resource_collector
+from ui.core.dock_panel_base import DockPanelBase
 
 
-class ResourceMonitorDock(QWidget):
-    """硬件资源监测面板（Dock版本 - 无标题栏）"""
+class ResourceMonitorDock(DockPanelBase):
+    """硬件资源监测面板（Dock版本）"""
 
     node_state_updated = Signal(str, float, float)
 
@@ -35,10 +36,9 @@ class ResourceMonitorDock(QWidget):
         self.setMinimumSize(380, 400)
         self._init_ui()
 
-        self._update_timer = QTimer(self)
-        self._update_timer.timeout.connect(self._update_stats)
-        self._update_timer.start(3000)
+        self._schedule_update(3000, self._update_stats)
 
+        from PySide6.QtCore import QTimer
         QTimer.singleShot(500, self._update_stats)
 
     def _init_ui(self):

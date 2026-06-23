@@ -157,7 +157,7 @@ class MainWindowLifecycleMixin:
         event.accept()
 
     def _cleanup_on_shutdown(self):
-        """窗口关闭时的清理链（释放 NodeItem 信号、监控器、回调等）"""
+        """窗口关闭时的清理链（释放线程、定时器、监控器、回调等）"""
         logger.info("[CLEANUP] 开始关闭清理链...")
 
         # 1. 释放画布上所有 NodeItem 的信号连接和子对象
@@ -175,21 +175,59 @@ class MainWindowLifecycleMixin:
             except Exception as e:
                 logger.warning("[CLEANUP] NodeItem 清理异常: %s", e)
 
-        # 2. 清空 PollingManager 节点级监控器
+        # 2. 清空 PollingManager 节点级监控器并停止工作线程
         try:
             from ui.core.polling_manager import polling_manager
             polling_manager.cleanup_all_watchers()
-            logger.debug("[CLEANUP] 监控器已清理")
+            if hasattr(polling_manager, '_worker_thread') and polling_manager._worker_thread:
+                polling_manager._worker_thread.quit()
+                polling_manager._worker_thread.wait(2000)
+                if polling_manager._worker_thread.isRunning():
+                    polling_manager._worker_thread.terminate()
+                    polling_manager._worker_thread.wait(1000)
+            logger.debug("[CLEANUP] PollingManager 监控器+工作线程已清理")
         except Exception as e:
             logger.warning("[CLEANUP] 监控器清理异常: %s", e)
 
-        # 3. 清空 NodeControlService 回调列表
+        # 3. 停止 NodeControlService 回调并清理所有监控线程
         try:
             from ui.core.node_control_service import node_control_service
             node_control_service._status_callbacks.clear()
-            logger.debug("[CLEANUP] 状态回调已清理")
+            node_control_service.cleanup_all_monitors()
+            logger.debug("[CLEANUP] NodeControlService 回调+监控线程已清理")
         except Exception as e:
-            logger.warning("[CLEANUP] 回调清理异常: %s", e)
+            logger.warning("[CLEANUP] NodeControlService 清理异常: %s", e)
+
+        # 4. 停止启动队列的工作线程
+        try:
+            from ui.core.node_startup_queue import startup_queue
+            if hasattr(startup_queue, 'stop_queue'):
+                startup_queue.stop_queue()
+            logger.debug("[CLEANUP] 启动队列已停止")
+        except Exception as e:
+            logger.warning("[CLEANUP] 启动队列清理异常: %s", e)
+
+        # 5. 停止所有Dock面板中的定时器，防止线程残留
+        try:
+            from PySide6.QtCore import QTimer
+            from PySide6.QtCore import QThread
+            count_timers = 0
+            count_threads = 0
+            for dock_title in list(self._dock_manager.get_all_dock_titles()):
+                dock = self._dock_manager.get_dock_by_title(dock_title)
+                if dock:
+                    content = dock.get_content_widget()
+                    if content:
+                        for child in content.findChildren(QTimer):
+                            try:
+                                if child.isActive():
+                                    child.stop()
+                                    count_timers += 1
+                            except RuntimeError:
+                                pass
+            logger.debug("[CLEANUP] 面板 %d 个定时器已停止", count_timers)
+        except Exception as e:
+            logger.warning("[CLEANUP] 面板定时器清理异常: %s", e)
 
         logger.info("[CLEANUP] 清理链完成")
     
@@ -209,17 +247,6 @@ class MainWindowLifecycleMixin:
         
         logger.info("[SAVE] 保存面板可见性...")
         self._save_panel_visibility()
-        
-        # 保存所有浮动面板的位置（仅可见的）
-        panels = [
-            ('node_list', getattr(self, 'node_list_floating', None)),
-            ('resource_monitor', getattr(self, 'resource_monitor_floating', None)),
-            ('node_monitor', getattr(self, 'node_monitor', None)),
-        ]
-        for panel_name, panel_widget in panels:
-            if panel_widget and panel_widget.isVisible():
-                logger.info("保存面板位置: %s", panel_name)
-                self._save_panel_position(panel_name, panel_widget)
         
         logger.info("[SAVE] 强制保存配置到文件...")
         self.app_config.save()

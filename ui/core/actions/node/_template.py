@@ -84,9 +84,7 @@ def _register_save_as_preset(main_window):
 def _register_open_preset_library(main_window):
     """注册"打开预设节点库"功能"""
     def execute(ctx: ActionContext) -> bool:
-        from ui.dialogs.preset_library_dialog import PresetLibraryDialog
-        dialog = PresetLibraryDialog(main_window)
-        dialog.show()
+        main_window.show_template_selector()
         return True
 
     ActionRegistry.register(ActionDefinition(

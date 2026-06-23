@@ -5,7 +5,7 @@
 消除代码重复，保证行为一致性。
 """
 from typing import Dict, List, Optional, Callable
-from PySide6.QtCore import QObject, QThread
+from PySide6.QtCore import QObject
 from pathlib import Path
 from ui.core.logger import logger
 import subprocess
@@ -40,7 +40,7 @@ class NodeControlService:
         self.nodes: Dict[str, NodeInfo] = {}
         self._active_processes: Dict[str, subprocess.Popen] = {}
         self._status_callbacks: List[Callable] = []
-        self._monitor_threads: Dict[str, QThread] = {}
+        self._monitor_threads: Dict[str, int] = {}  # task_id per node
 
     def register_node(self, name: str, path: str):
         self.nodes[name] = NodeInfo(name, path)
@@ -151,20 +151,24 @@ class NodeControlService:
                     self._notify(name, NodeStatus.ERROR)
             except Exception as e:
                 logger.warning("节点 %s 监控异常: %s", name, e)
+
         self._cleanup_monitor_thread(name)
-        monitor_thread = QThread()
-        monitor_worker = QObject()
-        monitor_worker.moveToThread(monitor_thread)
-        monitor_thread.started.connect(run)
-        monitor_thread.finished.connect(monitor_thread.deleteLater)
-        self._monitor_threads[name] = monitor_thread
-        monitor_thread.start()
+        from ui.core.thread_pool import thread_pool
+        task_id = thread_pool.run_task(run)
+        self._monitor_threads[name] = task_id
 
     def _cleanup_monitor_thread(self, name: str):
-        thread = self._monitor_threads.pop(name, None)
-        if thread and thread.isRunning():
-            thread.quit()
-            thread.wait(1000)
+        task_id = self._monitor_threads.pop(name, None)
+        if task_id is not None:
+            from ui.core.thread_pool import thread_pool
+            thread_pool.cancel(task_id)
+
+    def cleanup_all_monitors(self):
+        """清理所有监控线程（应用退出时调用）"""
+        from ui.core.thread_pool import thread_pool
+        for name in list(self._monitor_threads.keys()):
+            self._cleanup_monitor_thread(name)
+        thread_pool.wait_for_done(2000)
 
     def _notify(self, name: str, status: NodeStatus):
         for cb in self._status_callbacks:

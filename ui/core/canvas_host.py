@@ -588,6 +588,11 @@ class CanvasHost(QMainWindow):
         
         self._terminal_initialized = True
         logger.info("CanvasHost: 终端 Dock 已初始化")
+        
+        # 终端创建后立即恢复可见性（showEvent 可能在此之前就触发了）
+        if hasattr(self._parent_window, '_restore_terminal_dock'):
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(0, self._parent_window._restore_terminal_dock)
     
     def _connect_terminal_signals(self):
         """延迟连接终端 Dock 的信号，避免与 restoreState 冲突"""

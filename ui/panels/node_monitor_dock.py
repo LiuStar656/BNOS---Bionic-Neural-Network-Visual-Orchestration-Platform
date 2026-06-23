@@ -17,6 +17,7 @@ from ui.core.i18n import t
 from ui.core.polling_manager import polling_manager
 from ui.panels._shared.system_resource_collector import SystemResourceCollector
 from ui.panels._shared.node_panel_sync_mixin import NodePanelSyncMixin
+from ui.core.dock_panel_base import DockPanelBase
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -60,6 +61,7 @@ class NodeLogSubPanel(QGroupBox):
         polling_manager.log_file_changed.connect(self._on_external_log_change)
 
         self._start_resource_timer()
+        self.destroyed.connect(self.unsubscribe_monitor)
 
     # ──── UI 构建（Dock版特有：内联资源条在标题栏）────
 
@@ -151,9 +153,8 @@ class NodeLogSubPanel(QGroupBox):
     # ──── 定时器 + 资源采集（委托给 SystemResourceCollector）────
 
     def _start_resource_timer(self):
-        self._resource_timer = QTimer(self)
-        self._resource_timer.timeout.connect(self._update_resource_usage)
-        self._resource_timer.start(1000)
+        from ui.core.update_scheduler import update_scheduler
+        update_scheduler.subscribe(self, 1000, self._update_resource_usage)
 
     def _update_resource_usage(self):
         """更新资源占用 — 委托 SystemResourceCollector"""
@@ -205,8 +206,8 @@ class NodeLogSubPanel(QGroupBox):
             self.setFixedHeight(120)
 
     def unsubscribe_monitor(self):
-        if self._resource_timer:
-            self._resource_timer.stop()
+        from ui.core.update_scheduler import update_scheduler
+        update_scheduler.unsubscribe(self)
 
     # ──── 状态更新（Dock版：仅 running/stopped）────
 
@@ -232,11 +233,11 @@ class NodeLogSubPanel(QGroupBox):
 #  使用 NodePanelSyncMixin 消除同步逻辑重复
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-class NodeMonitorDock(QWidget, NodePanelSyncMixin):
-    """节点监测面板（Dock版本 - 无标题栏）"""
+class NodeMonitorDock(DockPanelBase, NodePanelSyncMixin):
+    """节点监测面板（Dock版本）"""
 
     def __init__(self, parent=None):
-        QWidget.__init__(self, parent)
+        DockPanelBase.__init__(self, parent)
         NodePanelSyncMixin.__init__(self)
         self.parent_window = parent
         self._sub_panels = {}
@@ -246,9 +247,7 @@ class NodeMonitorDock(QWidget, NodePanelSyncMixin):
         self.setMinimumSize(320, 350)
         self._init_ui()
 
-        self._list_timer = QTimer(self)
-        self._list_timer.timeout.connect(self._sync_panels)
-        self._list_timer.start(3000)
+        self._schedule_update(3000, self._sync_panels)
 
         self._sync_panels()
 
@@ -290,8 +289,11 @@ class NodeMonitorDock(QWidget, NodePanelSyncMixin):
         self._scroll.setWidget(self._panel_widget)
         layout.addWidget(self._scroll)
 
-    def closeEvent(self, event):
-        for sub in self._sub_panels.values():
-            sub.unsubscribe_monitor()
-        self._list_timer.stop()
-        super().closeEvent(event)
+    def dispose(self):
+        """面板销毁时清理"""
+        if self._disposed:
+            return
+        for panel in self._sub_panels.values():
+            panel.unsubscribe_monitor()
+        self._sub_panels.clear()
+        super().dispose()

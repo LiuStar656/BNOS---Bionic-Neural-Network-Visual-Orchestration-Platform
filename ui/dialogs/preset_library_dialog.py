@@ -1,4 +1,4 @@
-"""预设节点库对话框 — 使用浮动面板统一UI风格"""
+"""预设节点库对话框 — 使用统一Dock面板风格"""
 import os
 import json
 import shutil
@@ -8,19 +8,16 @@ from PySide6.QtWidgets import (
     QListWidget, QListWidgetItem, QPushButton,
     QTextEdit, QGroupBox, QSplitter, QWidget, QMessageBox
 )
-from PySide6.QtCore import Qt, Signal
-from ui.core.floating_panel import FloatingPanel
+from PySide6.QtCore import Qt
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
 
 
-class PresetLibraryDialog(FloatingPanel):
+class PresetLibraryDialog(QWidget):
     """预设节点库对话框"""
 
-    closed = Signal()
-
     def __init__(self, parent=None):
-        super().__init__(parent, title=t("k_preset_library"))
+        super().__init__(parent)
         self.setMinimumSize(600, 450)
         self.resize(700, 500)
 
@@ -35,12 +32,19 @@ class PresetLibraryDialog(FloatingPanel):
             os.path.dirname(os.path.abspath(__file__)))), "node_templates")
 
     def _init_ui(self):
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(8)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        top_layout = QHBoxLayout()
-        top_layout.setContentsMargins(8, 0, 8, 0)
+        # 顶部工具栏
+        top_bar = QWidget()
+        top_bar.setStyleSheet("background-color: #252526; border-bottom: 1px solid #3c3c3c;")
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(8, 4, 8, 4)
+
+        title_label = QLabel(t("k_preset_library"))
+        title_label.setStyleSheet("color: rgba(255,255,255,180); font-size: 11px; font-weight: bold; border: none;")
+        top_layout.addWidget(title_label)
         top_layout.addStretch()
 
         refresh_btn = QPushButton(t("k_refresh"))
@@ -59,10 +63,14 @@ class PresetLibraryDialog(FloatingPanel):
             }
         """)
         top_layout.addWidget(refresh_btn)
+        layout.addWidget(top_bar)
 
-        main_layout.addLayout(top_layout)
+        content_area = QWidget()
+        content_layout = QVBoxLayout(content_area)
+        content_layout.setContentsMargins(8, 8, 8, 8)
+        content_layout.setSpacing(8)
 
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setStyleSheet("""
             QSplitter::handle {
                 background-color: rgba(255,255,255,15);
@@ -80,20 +88,21 @@ class PresetLibraryDialog(FloatingPanel):
         self._preset_list = QListWidget()
         self._preset_list.setStyleSheet("""
             QListWidget {
-                background-color: rgba(255,255,255,5);
-                color: #b0b0b0;
+                background-color: #1e1e1e;
+                color: rgba(255,255,255,200);
                 border: none;
                 font-size: 12px;
+                outline: none;
             }
             QListWidget::item {
                 padding: 6px 8px;
                 border-radius: 3px;
             }
             QListWidget::item:hover {
-                background-color: rgba(255,255,255,10);
+                background-color: rgba(255,255,255,30);
             }
             QListWidget::item:selected {
-                background-color: rgba(0, 122, 204, 50);
+                background-color: rgba(0, 102, 255, 100);
                 color: white;
             }
         """)
@@ -157,10 +166,10 @@ class PresetLibraryDialog(FloatingPanel):
         splitter.addWidget(right_widget)
         splitter.setSizes([250, 400])
 
-        main_layout.addWidget(splitter)
+        content_layout.addWidget(splitter)
 
         button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(8, 0, 8, 0)
+        button_layout.setContentsMargins(0, 4, 0, 0)
         button_layout.addStretch()
 
         delete_btn = QPushButton(t("k_delete"))
@@ -171,8 +180,8 @@ class PresetLibraryDialog(FloatingPanel):
                 color: #F44336;
                 border: 1px solid rgba(244, 67, 54, 50);
                 border-radius: 4px;
-                padding: 4px 12px;
-                font-size: 11px;
+                padding: 5px 14px;
+                font-size: 12px;
             }
             QPushButton:hover {
                 background-color: rgba(244, 67, 54, 50);
@@ -181,23 +190,6 @@ class PresetLibraryDialog(FloatingPanel):
         delete_btn.setEnabled(False)
         self._delete_btn = delete_btn
         button_layout.addWidget(delete_btn)
-
-        close_btn = QPushButton(t("k_cancel"))
-        close_btn.clicked.connect(self._on_close)
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(255,255,255,10);
-                color: rgba(255,255,255,150);
-                border: 1px solid rgba(255,255,255,20);
-                border-radius: 4px;
-                padding: 4px 16px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: rgba(255,255,255,20);
-            }
-        """)
-        button_layout.addWidget(close_btn)
 
         self._import_btn = QPushButton(t("k_import_to_project"))
         self._import_btn.clicked.connect(self._import_preset)
@@ -208,7 +200,7 @@ class PresetLibraryDialog(FloatingPanel):
                 color: white;
                 border: none;
                 border-radius: 4px;
-                padding: 4px 16px;
+                padding: 5px 16px;
                 font-size: 12px;
             }
             QPushButton:hover {
@@ -221,8 +213,8 @@ class PresetLibraryDialog(FloatingPanel):
         """)
         button_layout.addWidget(self._import_btn)
 
-        main_layout.addLayout(button_layout)
-        self.content_layout.addLayout(main_layout)
+        content_layout.addLayout(button_layout)
+        layout.addWidget(content_area, 1)
 
     def _load_presets(self):
         self._presets.clear()
@@ -342,7 +334,7 @@ class PresetLibraryDialog(FloatingPanel):
             main_window.refresh_nodes()
             themed_message(self, t("k_title_success"),
                            t("_k_preset_imported").format(name=base_name), "info")
-            self._on_close()
+            self.close()
         except Exception as e:
             themed_message(self, t("k_title_error"),
                            f"Import failed: {e}", "error")
@@ -377,10 +369,6 @@ class PresetLibraryDialog(FloatingPanel):
         self._import_btn.setEnabled(False)
         self._delete_btn.setEnabled(False)
         self._load_presets()
-
-    def _on_close(self):
-        self.closed.emit()
-        super()._on_close()
 
 
 from ui.core.packager import Packager

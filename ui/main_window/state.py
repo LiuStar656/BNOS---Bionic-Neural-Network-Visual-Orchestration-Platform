@@ -39,71 +39,61 @@ class MainWindowStateMixin:
         visibility = self.app_config.get('panel_visibility', {})
         logger.info("[PANEL] 开始恢复面板状态(立即创建Dock)，配置值: %s", visibility)
         
-        # 检查旧的配置项（兼容旧版本）
-        old_visible = self.app_config.get('node_list_panel', {}).get('visible', False)
-        logger.info("[PANEL] 旧配置项 node_list_panel.visible: %s", old_visible)
-        
         # ===== 节点列表面板 =====
-        # 优先使用新格式（带后缀），只有当新格式不存在时才使用旧格式（基础键）
-        # 最终回退为 True — 保证配置文件缺失/重建时面板能正常显示
         show_node_dock = visibility.get('node_list_dock')
-        show_node_float = visibility.get('node_list_floating')
-
         if show_node_dock is None:
             show_node_dock = visibility.get('node_list', True)
-        if show_node_float is None:
-            show_node_float = False
         
-        logger.info("[PANEL] 节点列表 - dock: %s, floating: %s", show_node_dock, show_node_float)
+        logger.info("[PANEL] 节点列表 - dock: %s", show_node_dock)
         
-        # 根据配置分别显示，不再强制优先显示Dock版
         if show_node_dock:
             logger.info("[PANEL] 立即恢复节点列表 Dock 版")
             self.toggle_node_list_panel(True)
-        if show_node_float:
-            logger.info("[PANEL] 立即恢复节点列表 浮动版")
-            self.show_node_list_floating()
         
         # ===== 资源监测面板 =====
         show_resource_dock = visibility.get('resource_monitor_dock')
-        show_resource_float = visibility.get('resource_monitor_floating')
-        
         if show_resource_dock is None:
             show_resource_dock = visibility.get('resource_monitor', False)
-        if show_resource_float is None:
-            show_resource_float = False
         
-        logger.info("[PANEL] 资源监测 - dock: %s, floating: %s", show_resource_dock, show_resource_float)
+        logger.info("[PANEL] 资源监测 - dock: %s", show_resource_dock)
         
         if show_resource_dock:
             logger.info("[PANEL] 立即恢复资源监测 Dock 版")
             self.show_resource_monitor_dock()
-        if show_resource_float:
-            logger.info("[PANEL] 立即恢复资源监测 浮动版")
-            self.show_resource_monitor()
         
         # ===== 节点监测面板 =====
         show_monitor_dock = visibility.get('node_monitor_dock')
-        show_monitor_float = visibility.get('node_monitor_floating')
-        
         if show_monitor_dock is None:
             show_monitor_dock = visibility.get('node_monitor', False)
-        if show_monitor_float is None:
-            show_monitor_float = False
         
-        logger.info("[PANEL] 节点监测 - dock: %s, floating: %s", show_monitor_dock, show_monitor_float)
+        logger.info("[PANEL] 节点监测 - dock: %s", show_monitor_dock)
         
         if show_monitor_dock:
             logger.info("[PANEL] 立即恢复节点监测 Dock 版")
             self.show_node_monitor_dock()
-        if show_monitor_float:
-            logger.info("🔴 立即恢复节点监测 浮动版")
-            self.show_node_monitor()
         
         # ===== 终端 Dock =====
         # 终端 Dock 由 window_state_manager 恢复，这里不处理
         show_terminal = visibility.get('terminal_dock', False)
         logger.info("[PANEL] 终端 - dock(将由window_state_manager处理): %s", show_terminal)
+        
+        # ===== 历史记录面板 =====
+        show_history = visibility.get('history_dock', False)
+        if show_history:
+            logger.info("[PANEL] 恢复历史记录面板")
+            self.show_history_panel()
+        
+        # ===== 性能面板 =====
+        show_performance = visibility.get('performance_dock', False)
+        if show_performance:
+            logger.info("[PANEL] 恢复性能面板")
+            self.show_performance_panel()
+        
+        # ===== 预设节点库 =====
+        show_preset = visibility.get('preset_library_dock', False)
+        if show_preset:
+            logger.info("[PANEL] 恢复预设节点库")
+            self.show_template_selector()
     
     def _restore_terminal_dock(self):
         """恢复终端 Dock 可见性（必须在主窗口 show 后调用）"""
@@ -154,26 +144,21 @@ class MainWindowStateMixin:
             ('node_list_dock', self.node_list_panel),
             ('resource_monitor_dock', self.resource_monitor),
             ('node_monitor_dock', getattr(self, 'node_monitor_dock', None)),
-        ]
-        floating_panels = [
-            ('node_list_floating', getattr(self, 'node_list_floating', None)),
-            ('resource_monitor_floating', getattr(self, 'resource_monitor_floating', None)),
-            ('node_monitor_floating', getattr(self, 'node_monitor', None)),
+            ('history_dock', getattr(self, 'history_panel', None)),
+            ('performance_dock', getattr(self, 'performance_panel', None)),
+            ('preset_library_dock', getattr(self, 'template_selector', None)),
         ]
 
-        for key, panel in dock_panels + floating_panels:
+        for key, panel in dock_panels:
             visible = is_panel_visible(panel)
             if visible is not None:
                 visibility[key] = visible
             elif panel is None:
                 visibility[key] = False
 
-        visibility['node_list'] = (is_panel_visible(self.node_list_panel) or
-                                   is_panel_visible(getattr(self, 'node_list_floating', None)) or False)
-        visibility['resource_monitor'] = (is_panel_visible(self.resource_monitor) or
-                                          is_panel_visible(getattr(self, 'resource_monitor_floating', None)) or False)
-        visibility['node_monitor'] = (is_panel_visible(getattr(self, 'node_monitor_dock', None)) or
-                                      is_panel_visible(getattr(self, 'node_monitor', None)) or False)
+        visibility['node_list'] = is_panel_visible(self.node_list_panel) or False
+        visibility['resource_monitor'] = is_panel_visible(self.resource_monitor) or False
+        visibility['node_monitor'] = is_panel_visible(getattr(self, 'node_monitor_dock', None)) or False
 
         if hasattr(self, '_canvas_host') and self._canvas_host:
             ch = self._canvas_host
@@ -196,7 +181,7 @@ class MainWindowStateMixin:
         
         if hasattr(self, '_canvas_host') and self._canvas_host:
             ch = self._canvas_host
-            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
+            if hasattr(ch, '_terminal_dock') and ch._terminal_dock is not None:
                 if show_terminal:
                     ch._terminal_dock.show()
                 else:

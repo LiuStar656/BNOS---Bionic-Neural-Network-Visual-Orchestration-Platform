@@ -1,32 +1,116 @@
 {
   "bnos_dock_widget_资源监测(Dock)": {
     "floating": {
-      "x": 274,
-      "y": 1075,
-      "width": 382,
-      "height": 429
+      "x": 1125,
+      "y": 295,
+      "width": 517,
+      "height": 839
     },
-    "docked_area": 1
+    "docked_area": 2
   },
   "bnos_dock_widget_节点列表(Dock)": {
     "floating": {
-      "x": 522,
-      "y": 231,
-      "width": 305,
-      "height": 490
+      "x": 1144,
+      "y": 254,
+      "width": 568,
+      "height": 764
     },
-    "docked_area": 1
+    "docked_area": 2
   },
   "bnos_dock_2": {
     "docked_area": 4,
     "floating": {
-      "x": 826,
-      "y": 264,
+      "x": 756,
+      "y": 284,
       "width": 1008,
       "height": 854
     }
   },
   "bnos_dock_终端": {
+    "docked_area": 8,
+    "floating": {
+      "x": 854,
+      "y": 967,
+      "width": 1008,
+      "height": 558
+    }
+  },
+  "bnos_dock_widget_历史记录": {
+    "docked_area": 2,
+    "floating": {
+      "x": 1027,
+      "y": 365,
+      "width": 600,
+      "height": 153
+    }
+  },
+  "bnos_dock_widget_节点监测(Dock)": {
+    "docked_area": 2,
+    "floating": {
+      "x": 1123,
+      "y": 237,
+      "width": 602,
+      "height": 814
+    }
+  },
+  "bnos_dock_widget_性能分析面板": {
+    "docked_area": 2,
+    "floating": {
+      "x": 830,
+      "y": 430,
+      "width": 602,
+      "height": 479
+    }
+  },
+  "bnos_dock_widget_调试面板": {
+    "docked_area": 2,
+    "floating": {
+      "x": 1268,
+      "y": 254,
+      "width": 602,
+      "height": 854
+    }
+  },
+  "bnos_dock_widget_预设节点库": {
+    "docked_area": 2,
+    "floating": {
+      "x": 840,
+      "y": 409,
+      "width": 602,
+      "height": 479
+    }
+  },
+  "bnos_dock_widget_节点列表": {
+    "docked_area": 1
+  },
+  "bnos_dock_widget_资源监测": {
+    "docked_area": 1,
+    "floating": {
+      "x": 323,
+      "y": 263,
+      "width": 382,
+      "height": 827
+    }
+  },
+  "bnos_dock_widget_节点监测": {
+    "docked_area": 2,
+    "floating": {
+      "x": 438,
+      "y": 398,
+      "width": 600,
+      "height": 854
+    }
+  },
+  "bnos_dock_widget_Node List": {
+    "docked_area": 1
+  },
+  "bnos_dock_widget_Resource Monitor": {
+    "docked_area": 1
+  },
+  "bnos_dock_widget_Node Monitor": {
+    "docked_area": 2
+  },
+  "bnos_dock_Terminal": {
     "docked_area": 8
   }
 }

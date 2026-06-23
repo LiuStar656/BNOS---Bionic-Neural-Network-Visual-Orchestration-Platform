@@ -74,27 +74,14 @@ class MenuManager:
         ActionFactory.create_action(main_window, "node.start", menu=edit_menu)
         ActionFactory.create_action(main_window, "node.stop", menu=edit_menu)
 
-        edit_menu.addSeparator()
-
-        ActionFactory.create_action(main_window, "view.toggle_node_monitor", menu=edit_menu)
-
-        # 节点列表(Dock) — ActionFactory，保留 setCheckable + 状态持久化
-        node_list_action = ActionFactory.create_action(main_window, "view.toggle_node_list", menu=edit_menu)
-
-        ActionFactory.create_action(main_window, "view.toggle_resource_monitor", menu=edit_menu)
-
         # ========== 工具菜单 ==========
         tools_menu = ActionFactory.create_submenu(main_window, "k_menu_tools", menubar=menubar)
 
-        ActionFactory.create_action(main_window, "view.node_monitor", menu=tools_menu)
-        ActionFactory.create_action(main_window, "view.resource_monitor", menu=tools_menu)
         ActionFactory.create_action(main_window, "view.history_panel", menu=tools_menu)
-        ActionFactory.create_action(main_window, "view.node_list_floating", menu=tools_menu)
 
         tools_menu.addSeparator()
 
         ActionFactory.create_action(main_window, "view.performance_panel", menu=tools_menu)
-        ActionFactory.create_action(main_window, "view.debug_panel", menu=tools_menu)
         ActionFactory.create_action(main_window, "view.template_selector", menu=tools_menu)
 
         tools_menu.addSeparator()
@@ -103,6 +90,12 @@ class MenuManager:
         terminal_action = ActionFactory.create_action(main_window, "view.toggle_terminal", menu=tools_menu)
         if terminal_action:
             main_window.toggle_terminal_action = terminal_action
+
+        tools_menu.addSeparator()
+
+        ActionFactory.create_action(main_window, "view.toggle_node_list", menu=tools_menu)
+        ActionFactory.create_action(main_window, "view.toggle_node_monitor", menu=tools_menu)
+        ActionFactory.create_action(main_window, "view.toggle_resource_monitor", menu=tools_menu)
 
         # ========== 帮助菜单 ==========
         help_menu = ActionFactory.create_submenu(main_window, "k_menu_help", menubar=menubar)

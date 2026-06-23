@@ -21,10 +21,6 @@ class NodeStatusManager:
 
         parent = self._node.canvas.parent_window
 
-        if hasattr(parent, 'resource_monitor_floating') and parent.resource_monitor_floating:
-            parent.resource_monitor_floating.node_state_updated.connect(
-                self._on_status_updated)
-
         if hasattr(parent, 'resource_monitor') and parent.resource_monitor:
             if hasattr(parent.resource_monitor, 'node_state_updated'):
                 parent.resource_monitor.node_state_updated.connect(
@@ -67,12 +63,6 @@ class NodeStatusManager:
         """断开所有资源监测面板信号连接"""
         if self._node.canvas and self._node.canvas.parent_window:
             parent = self._node.canvas.parent_window
-            try:
-                if hasattr(parent, 'resource_monitor_floating') and parent.resource_monitor_floating:
-                    parent.resource_monitor_floating.node_state_updated.disconnect(
-                        self._on_status_updated)
-            except (TypeError, RuntimeError):
-                pass
             try:
                 if hasattr(parent, 'resource_monitor') and parent.resource_monitor:
                     if hasattr(parent.resource_monitor, 'node_state_updated'):

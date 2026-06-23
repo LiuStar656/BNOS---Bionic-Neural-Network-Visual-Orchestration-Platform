@@ -14,7 +14,7 @@
 """
 import math
 from PySide6.QtWidgets import (
-    QGraphicsPathItem, QGraphicsPolygonItem, QStyle, QGraphicsItem,
+    QGraphicsPathItem, QGraphicsPolygonItem, QStyle, QGraphicsItem, QApplication,
 )
 from PySide6.QtCore import Qt, QPointF, QLineF, QTimer
 from PySide6.QtGui import (
@@ -100,7 +100,7 @@ class EdgeItem(QGraphicsPathItem):
         self._press_on_handle = -1   # 按下的手柄索引（-1 = 按在线身上）
         self._long_press_fired = False
 
-        self._long_press_timer = QTimer()
+        self._long_press_timer = QTimer(QApplication.instance())
         self._long_press_timer.setSingleShot(True)
         self._long_press_timer.timeout.connect(self._on_long_press)
 

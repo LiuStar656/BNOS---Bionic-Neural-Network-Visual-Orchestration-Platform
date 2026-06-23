@@ -56,7 +56,6 @@ class ApplicationContext:
         from ui.core.process_manager import ProcessManager
         from ui.core.event_bus import EventBus
         from ui.core.app_state import AppState
-        from ui.core.node_debugger import NodeDebugger
         
         # 配置服务
         self._config = AppConfig()
@@ -71,11 +70,7 @@ class ApplicationContext:
         # 核心服务（不依赖主窗口）
         self._polling = PollingManager.instance()
         self._node_control = NodeControlService()
-        
-        # 调试管理器
-        self._debugger = NodeDebugger()
-        self._debugger.initialize()
-        
+
         self._process_manager = ProcessManager()
         
         # Toast 管理器
@@ -171,11 +166,6 @@ class ApplicationContext:
     def state(self):
         """集中式状态管理器"""
         return self._state
-    
-    @property
-    def debugger(self):
-        """节点调试管理器"""
-        return self._debugger
     
     def shutdown(self):
         """

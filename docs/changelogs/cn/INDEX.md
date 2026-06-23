@@ -8,11 +8,19 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-06-24](./2026-06-24/)
+- **调试面板移除**：删除 debug_panel.py 和 node_debugger.py，清理全部 7 个文件引用，移除 34 个 i18n 键
+- **性能分析面板异步化**：psutil.process_iter() 从主线程移入后台线程，消除打开面板时的 UI 冻结
+- **面板生命周期防悬空指针**：_is_panel_alive() 使用 shiboken6.isValid() 检测 C++ 对象存活，修复 Internal C++ object already deleted 崩溃
+- **菜单打钩标记修复**：6 个 Dock 面板 is_checked_fn 统一使用 config fallback，重启后自启面板正确显示打钩
+- **Dock 标签栏位置**：主窗口 Dock 标签栏从底部移到顶部
+
 ### [2026-06-23](./2026-06-23/)
 - **Dock 窗口吸附 Bug 修复**：修复 `BnosDock._on_top_level_changed` 中操作 `self.window()` 导致的崩溃问题，改为直接操作 `self`
 - **Dock 边缘尺寸控制判定范围优化**：边缘拖拽判定区域从 6px 调整为 4px，减少误触
 - **画布 Dock 双击边缘自动嵌入功能**：双击漂浮状态下的 Dock 边缘区域自动嵌入到 CanvasHost 并隐藏标题栏，屏蔽双击标题栏默认行为
 - **CanvasHost 多余空间修复**：优化 `central_placeholder` 控件属性，确保不占用可见空间
+- **Dock 浮动拖动双击嵌入位置异常分析**：记录悬浮窗口拖动后双击嵌入位置异常的已知问题、Qt 根因分析、尝试过的多种方案及当前状态
 
 ### [2026-06-22](./2026-06-22/)
 - **连线渲染矢量轮廓填充**：使用 `QPainterPathStroker` 将线条的 `QPainterPath` 扩展为闭合轮廓路径，使用 `QBrush` 填充，彻底解决放大锯齿问题

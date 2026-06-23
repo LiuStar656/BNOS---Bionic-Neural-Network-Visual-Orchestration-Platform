@@ -122,14 +122,12 @@ def project_open(main_window):
         for name, info in nodes_data.items():
             main_window.nodes_data[name] = info
 
-        # 2) 处理挂载节点的锁定组 UI（Dock版 + 浮动版）
+        # 2) 处理挂载节点的锁定组 UI（Dock版）
         for m in mounted_nodes:
             m_mount_root = m['mount_root']
             _panels_to_update = []
             if hasattr(main_window, 'node_list_panel') and main_window.node_list_panel:
                 _panels_to_update.append(main_window.node_list_panel)
-            if hasattr(main_window, 'node_list_floating') and main_window.node_list_floating:
-                _panels_to_update.append(main_window.node_list_floating)
             for panel in _panels_to_update:
                 gm = panel.group_manager
                 if not gm.groups.get(m_mount_root):
@@ -197,8 +195,6 @@ def project_refresh(main_window, async_mode=True):
             _panels_to_update = []
             if hasattr(main_window, 'node_list_panel') and main_window.node_list_panel:
                 _panels_to_update.append(main_window.node_list_panel)
-            if hasattr(main_window, 'node_list_floating') and main_window.node_list_floating:
-                _panels_to_update.append(main_window.node_list_floating)
             for panel in _panels_to_update:
                 gm = panel.group_manager
                 if not gm.groups.get(m_mount_root):
@@ -224,15 +220,10 @@ def _apply_after_refresh(main_window, running_nodes):
     参数:
         running_nodes: [(name, pid), ...] （由 Worker 传回的后台运行节点列表）  
     """
-    # 1) 更新节点列表面板（Dock 版 + 浮动版）
+    # 1) 更新节点列表面板（Dock 版）
     if hasattr(main_window, 'node_list_panel') and main_window.node_list_panel:
         main_window.node_list_panel.set_project_path(main_window.current_project_path)
         main_window.node_list_panel.update_node_list(main_window.nodes_data)
-
-    if hasattr(main_window, 'node_list_floating') and main_window.node_list_floating:
-        if hasattr(main_window.node_list_floating, 'set_project_path') and main_window.current_project_path:
-            main_window.node_list_floating.set_project_path(main_window.current_project_path)
-        main_window.node_list_floating.update_node_list(main_window.nodes_data)
 
     # 2) 画布：同步所有节点的显示状态
     _canvas_call(main_window, 'sync_all_nodes_display')
@@ -242,8 +233,6 @@ def _apply_after_refresh(main_window, running_nodes):
         for name, pid in running_nodes:
             if hasattr(main_window, 'node_list_panel') and main_window.node_list_panel:
                 main_window.node_list_panel.update_node_status(name, 'running')
-            if hasattr(main_window, 'node_list_floating') and main_window.node_list_floating:
-                main_window.node_list_floating.update_node_status(name, 'running')
             _canvas_call(main_window, 'update_node_status', name, 'running')
         main_window.show_toast(f"检测到 {len(running_nodes)} 个节点在后台运行", "info")
     else:

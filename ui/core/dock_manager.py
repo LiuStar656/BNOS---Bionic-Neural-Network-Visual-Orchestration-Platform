@@ -350,8 +350,39 @@ class DockManager(QObject):
             if title_to_remove:
                 del self._dock_info_map[title_to_remove]
             
+            # 递归停止 content widget 中所有定时器和线程
+            self._stop_content_timers(dock)
+            
             dock.deleteLater()
+            QApplication.processEvents()
             self.panel_closed.emit(dock.get_content_widget())
+    
+    @staticmethod
+    def _stop_content_timers(dock):
+        """停止 dock 内部 widget 的所有 QTimer 和 QThread"""
+        content = dock.get_content_widget()
+        if content is None:
+            return
+        try:
+            from PySide6.QtCore import QTimer, QThread
+            for child in content.findChildren(QTimer):
+                try:
+                    if child.isActive():
+                        child.stop()
+                except RuntimeError:
+                    pass
+            for child in content.findChildren(QThread):
+                try:
+                    if child.isRunning():
+                        child.quit()
+                        child.wait(500)
+                        if child.isRunning():
+                            child.terminate()
+                            child.wait(500)
+                except RuntimeError:
+                    pass
+        except RuntimeError:
+            pass
     
     def get_docks_by_edge(self, edge):
         """获取指定边缘的所有Dock"""

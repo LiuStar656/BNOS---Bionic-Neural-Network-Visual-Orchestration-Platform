@@ -4,8 +4,21 @@
 > 📖 英文版本：[English Version](../en/README.md)
 
 ---
-
 <details open>
+<summary><strong>【2026-06-24】V2.0.20 - 调试面板移除、性能异步化与生命周期防护</strong></summary>
+
+[查看完整更新](./2026-06-24/README.md) | [01_调试面板精简与性能优化](./2026-06-24/01_调试面板精简与性能优化.md)
+
+**主要更新：**
+- 调试面板移除：删除 debug_panel.py 和 node_debugger.py，清理全部 7 个文件引用，移除 34 个 i18n 键
+- 性能分析面板异步化：psutil.process_iter() 从主线程移入后台线程，消除打开面板时的 UI 冻结
+- 面板生命周期防悬空指针：_is_panel_alive() 使用 shiboken6.isValid() 检测 C++ 对象存活，修复 Internal C++ object already deleted 崩溃
+- 菜单打钩标记修复：6 个 Dock 面板 is_checked_fn 统一使用 config fallback
+- Dock 标签栏从底部移到顶部
+
+</details>
+
+<details>
 <summary><strong>【2026-06-22】V2.0.19 - 连线渲染矢量轮廓填充、高 DPI 支持与画布分辨率自定义</strong></summary>
 
 [查看完整更新](./2026-06-22/README.md) | [01_连线渲染](./2026-06-22/01_连线渲染矢量轮廓填充.md) | [02_高DPI](./2026-06-22/02_高DPI屏幕适配.md) | [03_分辨率](./2026-06-22/03_画布分辨率自定义.md)
