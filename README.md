@@ -203,6 +203,11 @@ This documentation provides deep technical insights beyond what's covered in thi
   - **Auto-Rebuild on Startup**: Validates Rust toolchain and binaries, rebuilds if necessary before execution
   - **Modular Design**: Clean separation of concerns (main.rs, listener.rs, packet.rs)
   - **Cross-Platform Launchers**: Platform-specific startup scripts with environment validation
+  
+> **Node Generator Status**: 
+> - ✅ **Python Node Generator**: Fully available and functional
+> - ⚠️ **Rust Node Generator**: Under maintenance
+> - 🚧 **Other Language Generators** (Node.js, Go, Java, C++, Ruby): Under development
 
 ### ⚙️ Configuration Editor
 
@@ -1047,7 +1052,7 @@ Contributions welcome! Please read our guidelines:
 - **Team**: 阿东与守一工作室
 - **GitHub**: [https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform](https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform)
 - **Email**: 1240543656@qq.com
-- **Last Updated**: 2026-06-20
+- **Last Updated**: 2026-06-23
 
 
 ---
