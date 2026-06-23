@@ -272,7 +272,7 @@ class BnosDockWidget(QDockWidget):
     
     def _auto_embed(self):
         """自动嵌入到父容器"""
-        self.setFloating(False)
+        self._position_manager.restore_to_docked_position()
     
     def set_title(self, title):
         """设置标题"""

@@ -314,8 +314,8 @@ class BnosDock(QDockWidget):
     
     def _auto_embed_and_hide_title(self):
         """自动嵌入到父容器并隐藏标题栏"""
-        self.setFloating(False)
         self.hide_title_bar()
+        self._position_manager.restore_to_docked_position()
         
         logger.info(f"BnosDock: '{self.windowTitle()}' 已自动嵌入并隐藏标题栏")
     
