@@ -8,6 +8,12 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-06-23](./2026-06-23/)
+- **Dock Window Re-Dock Bug Fix**: Fixed crash in `BnosDock._on_top_level_changed` caused by operating `self.window()`, changed to operate `self` directly
+- **Dock Edge Resize Detection Optimization**: Edge resize threshold reduced from 6px to 4px to reduce false triggers
+- **Canvas Dock Double-Click Edge Auto-Embed**: Double-click floating dock edge to auto-embed into CanvasHost and hide title bar; default title bar double-click behavior disabled
+- **CanvasHost Extra Space Fix**: Optimized `central_placeholder` widget properties to ensure no visible space occupation
+
 ### [2026-06-22](./2026-06-22/)
 - **Edge Rendering Vector Outline Fill**: Use `QPainterPathStroker` to expand line `QPainterPath` into closed outline paths, filled with `QBrush`, completely eliminating zoom-in jagged edges
 - **High DPI Screen Adaptation**: Both main and canvas subprocess enable `AA_EnableHighDpiScaling` / `AA_UseHighDpiPixmaps`, ensuring proper rendering on 4K/Retina displays; paint hint `SmoothPixmapTransform` enabled
@@ -136,4 +142,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-06-22
+**Last Updated**: 2026-06-23

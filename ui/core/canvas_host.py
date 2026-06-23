@@ -20,7 +20,7 @@ CanvasHost - 画布宿主窗口（QMainWindow）
 import os
 import json
 from PySide6.QtWidgets import (
-    QMainWindow, QDockWidget, QTabWidget, QWidget, QVBoxLayout, QLabel
+    QMainWindow, QDockWidget, QTabWidget, QWidget, QVBoxLayout, QLabel, QSizePolicy
 )
 from PySide6.QtCore import Qt, Signal
 from ui.core.logger import logger
@@ -188,7 +188,10 @@ class CanvasHost(QMainWindow):
             # Qt 的 dock 系统正确工作
             central_placeholder = QWidget(self)
             central_placeholder.setStyleSheet("background: transparent;")
-            central_placeholder.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, False)
+            central_placeholder.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            central_placeholder.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
+            central_placeholder.setFixedSize(0, 0)
+            central_placeholder.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
             central_placeholder.setObjectName("canvas_host_central_placeholder")
             self.setCentralWidget(central_placeholder)
             

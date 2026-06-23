@@ -8,6 +8,12 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-06-23](./2026-06-23/)
+- **Dock 窗口吸附 Bug 修复**：修复 `BnosDock._on_top_level_changed` 中操作 `self.window()` 导致的崩溃问题，改为直接操作 `self`
+- **Dock 边缘尺寸控制判定范围优化**：边缘拖拽判定区域从 6px 调整为 4px，减少误触
+- **画布 Dock 双击边缘自动嵌入功能**：双击漂浮状态下的 Dock 边缘区域自动嵌入到 CanvasHost 并隐藏标题栏，屏蔽双击标题栏默认行为
+- **CanvasHost 多余空间修复**：优化 `central_placeholder` 控件属性，确保不占用可见空间
+
 ### [2026-06-22](./2026-06-22/)
 - **连线渲染矢量轮廓填充**：使用 `QPainterPathStroker` 将线条的 `QPainterPath` 扩展为闭合轮廓路径，使用 `QBrush` 填充，彻底解决放大锯齿问题
 - **高 DPI 屏幕适配**：主进程与画布子进程均启用 `AA_EnableHighDpiScaling` / `AA_UseHighDpiPixmaps`，确保 4K/Retina 屏幕效果；渲染提示启用 `SmoothPixmapTransform`
@@ -137,4 +143,4 @@
 
 ---
 
-**最后更新**：2026-06-22
+**最后更新**：2026-06-23

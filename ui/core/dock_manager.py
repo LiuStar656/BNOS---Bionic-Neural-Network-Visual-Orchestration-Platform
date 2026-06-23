@@ -153,7 +153,7 @@ class BnosDockWidget(QDockWidget):
         win_x, win_y = pos.x(), pos.y()
         w, h = self.width(), self.height()
         
-        border = 6
+        border = 4
         left = x < win_x + border
         right = x > win_x + w - border
         top = y < win_y + border

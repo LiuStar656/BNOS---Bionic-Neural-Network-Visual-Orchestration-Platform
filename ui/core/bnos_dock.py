@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtGui import QCursor, QPalette, QColor
 from ui.icons.codicon import get_icon, get_icon_font
+from ui.core.logger import logger
 
 # ── 漂浮时外边框颜色（可通过 set_dock_floating_colors() 修改） ──
 _FLOATING_BORDER_COLOR = "#007acc"
@@ -41,12 +42,15 @@ class BnosDock(QDockWidget):
     """自定义Dock基类
     
     漂浮时自动切换为无边框模式，使用自定义边框颜色（不再跟随系统主题色）。
+    
+    增强功能：双击漂浮状态下的边缘区域可自动嵌入到父容器并隐藏标题栏。
     """
     
     _instances = []
     
     closed = Signal(object)
     visibility_changed = Signal(bool)
+    title_bar_hidden = Signal(bool)  # 标题栏隐藏状态变化
     
     def __init__(self, title, parent=None):
         super().__init__(title, parent)
@@ -57,6 +61,7 @@ class BnosDock(QDockWidget):
         self._original_width = None
         self._is_floating = False
         self._floating_size_grip = None
+        self._title_bar_hidden = False  # 标题栏是否隐藏
         
         self.setObjectName(f"bnos_dock_{title}")
         
@@ -163,11 +168,9 @@ class BnosDock(QDockWidget):
         """漂浮状态切换回调"""
         self._is_floating = floating
         if floating:
-            # 延迟一帧确保 Qt 容器窗口已创建完成
             QTimer.singleShot(0, self._apply_floating_style)
         else:
-            w = self.window()
-            w.setWindowFlags(w.windowFlags() & ~Qt.WindowType.FramelessWindowHint)
+            self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.FramelessWindowHint)
             self._apply_docked_style()
             self.show()
     
@@ -207,7 +210,7 @@ class BnosDock(QDockWidget):
         win_x, win_y = pos.x(), pos.y()
         w, h = self.width(), self.height()
         
-        border = 6
+        border = 4
         left = x < win_x + border
         right = x > win_x + w - border
         top = y < win_y + border
@@ -271,6 +274,64 @@ class BnosDock(QDockWidget):
         """关闭Dock"""
         self.hide()
         self.closed.emit(self)
+    
+    def mouseDoubleClickEvent(self, event):
+        """双击事件：屏蔽双击标题栏功能"""
+        # 屏蔽双击标题栏的默认行为（如最大化/还原窗口）
+        # 只允许在漂浮状态下双击边缘区域触发自动嵌入
+        if self._is_floating:
+            pos = event.pos()
+            border = 4
+            w, h = self.width(), self.height()
+            
+            is_on_edge = (pos.x() < border or pos.x() > w - border or
+                         pos.y() < border or pos.y() > h - border)
+            
+            if is_on_edge:
+                self._auto_embed_and_hide_title()
+                event.accept()
+                return
+        
+        # 屏蔽默认的双击标题栏行为
+        event.ignore()
+    
+    def _auto_embed_and_hide_title(self):
+        """自动嵌入到父容器并隐藏标题栏"""
+        if not self.parent() or not hasattr(self.parent(), 'addDockWidget'):
+            return
+        
+        # 1. 取消漂浮状态（嵌入到父容器）
+        self.setFloating(False)
+        
+        # 2. 隐藏标题栏
+        self.hide_title_bar()
+        
+        logger.info(f"BnosDock: '{self.windowTitle()}' 已自动嵌入并隐藏标题栏")
+    
+    def hide_title_bar(self):
+        """隐藏标题栏"""
+        if self._title_bar_hidden:
+            return
+        
+        self._title_bar_hidden = True
+        self.setTitleBarWidget(None)
+        self.title_bar_hidden.emit(True)
+        
+        # 调整样式，移除标题栏占用的空间
+        self._central_widget.setStyleSheet("background-color: #252526; margin: 0px;")
+    
+    def show_title_bar(self):
+        """显示标题栏"""
+        if not self._title_bar_hidden:
+            return
+        
+        self._title_bar_hidden = False
+        self.setTitleBarWidget(self._title_widget)
+        self.title_bar_hidden.emit(False)
+    
+    def is_title_bar_hidden(self):
+        """检查标题栏是否隐藏"""
+        return self._title_bar_hidden
     
     def set_title(self, title):
         """设置标题"""
