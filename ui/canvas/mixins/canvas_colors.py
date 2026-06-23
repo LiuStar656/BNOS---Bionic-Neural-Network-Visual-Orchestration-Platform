@@ -153,16 +153,16 @@ class CanvasColors:
         self.canvas.edge_width = settings.get('edge_width', self.canvas.edge_width)
 
         # Toast 通知设置
-        self.canvas.toast_info_color = settings.get('toast_info_color', '#323232')
-        self.canvas.toast_success_color = settings.get('toast_success_color', '#4caf50')
-        self.canvas.toast_warning_color = settings.get('toast_warning_color', '#ff9800')
-        self.canvas.toast_error_color = settings.get('toast_error_color', '#f44336')
-        self.canvas.toast_text_color = settings.get('toast_text_color', '#ffffff')
-        self.canvas.toast_opacity = settings.get('toast_opacity', 0.9)
+        self.canvas.toast_info_color = settings.get('toast_info_color', getattr(self.canvas, 'toast_info_color', '#323232'))
+        self.canvas.toast_success_color = settings.get('toast_success_color', getattr(self.canvas, 'toast_success_color', '#4caf50'))
+        self.canvas.toast_warning_color = settings.get('toast_warning_color', getattr(self.canvas, 'toast_warning_color', '#ff9800'))
+        self.canvas.toast_error_color = settings.get('toast_error_color', getattr(self.canvas, 'toast_error_color', '#f44336'))
+        self.canvas.toast_text_color = settings.get('toast_text_color', getattr(self.canvas, 'toast_text_color', '#ffffff'))
+        self.canvas.toast_opacity = settings.get('toast_opacity', getattr(self.canvas, 'toast_opacity', 0.9))
 
         # ── Dock 漂浮边框颜色 ──
-        dock_active = settings.get('dock_floating_border_color', '#007acc')
-        dock_inactive = settings.get('dock_floating_border_inactive', '#3c3c3c')
+        dock_active = settings.get('dock_floating_border_color', getattr(self.canvas, 'dock_floating_border_color', '#007acc'))
+        dock_inactive = settings.get('dock_floating_border_inactive', getattr(self.canvas, 'dock_floating_border_inactive', '#3c3c3c'))
         self.canvas.dock_floating_border_color = dock_active
         self.canvas.dock_floating_border_inactive = dock_inactive
 
@@ -186,6 +186,8 @@ class CanvasColors:
         border_pen = QPen(QColor(self.canvas.node_border_color), 2)
         text_c = QColor(self.canvas.node_text_color)
         sel_c = QColor(self.canvas.node_selected_color)
+        input_c = QColor(self.canvas.input_anchor_color)
+        output_c = QColor(self.canvas.output_anchor_color)
 
         for node in self.canvas.nodes.values():
             node.setBrush(QBrush(bg))
@@ -194,10 +196,20 @@ class CanvasColors:
                 node.name_text.setDefaultTextColor(text_c)
             if hasattr(node, '_selection_ring') and node._selection_ring:
                 node._selection_ring.setPen(QPen(sel_c, 3))
+            if hasattr(node, '_anchor_manager') and node._anchor_manager:
+                node._anchor_manager.update_anchor_colors(input_c, output_c)
+            if hasattr(node, '_style') and hasattr(node._style, 'apply'):
+                node._style.apply(node)
 
         for edge in self.canvas.edges:
             edge.update_edge_style()
 
+        # 强制刷新网格（清除缓存）
+        if hasattr(self.canvas, 'background') and hasattr(self.canvas.background, '_grid_item'):
+            if self.canvas.background._grid_item:
+                self.canvas.background._grid_item._cache_key = None
+
         self.canvas.setBackgroundBrush(QColor(self.canvas.canvas_bg_color))
+        self.canvas.scene.invalidate()
         self.canvas.repaint()
-        logger.info("apply_color_settings: bg=%s", self.canvas.canvas_bg_color)
+        logger.info("apply_color_settings: bg=%s, grid=%s", self.canvas.canvas_bg_color, self.canvas.grid_color)

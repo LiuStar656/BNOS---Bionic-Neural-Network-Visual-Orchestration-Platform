@@ -2,7 +2,7 @@
 name = "bnos"
 version = "1.0.0"
 description = "Bionic Neural Network Program Operating System"
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -22,12 +22,12 @@ exclude = [
     "*.egg-info",
 ]
 per-file-ignores = {
-    "test_*.py": ["D100", "D101", "D102", "D103", "D104"],
+    "test_*.py" =  ["D100", "D101", "D102", "D103", "D104"],
 }
 
 [tool.black]
 line-length = 120
-target-version = ["py38", "py39", "py310"]
+target-version = ["py312"]
 exclude = '''
 (
     __pycache__
@@ -50,7 +50,7 @@ known_first_party = ["ui"]
 known_third_party = ["PySide6", "psutil"]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.12"
 strict = false
 show_error_codes = true
 ignore_missing_imports = true

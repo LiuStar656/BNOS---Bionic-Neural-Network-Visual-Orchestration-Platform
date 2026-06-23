@@ -880,10 +880,46 @@
   pip install pyinstaller
 
   # 打包
-  pyinstaller --onefile --windowed --name="BNOS" bnos_gui.py
+  pyinstaller --onefile --windowed --name="BNOS" bnos_console.py
   ```
 
   输出：`dist/BNOS.exe`（约 100MB+，包含 PySide6）
+
+  ***
+
+  ## 📦 项目配置 (pyproject.toml)
+
+  本项目使用 `pyproject.toml` 作为统一配置文件，涵盖以下内容：
+
+  | 配置段 | 说明 |
+  |--------|------|
+  | `[project]` | 项目元信息（名称、版本、描述、Python 版本） |
+  | `[tool.pytest.ini_options]` | pytest 测试配置 |
+  | `[tool.flake8]` | flake8 代码风格检查配置 |
+  | `[tool.black]` | black 代码格式化配置 |
+  | `[tool.isort]` | isort 导入排序配置 |
+  | `[tool.mypy]` | mypy 类型检查配置 |
+
+  ### 常用命令
+
+  ```bash
+  # 格式化代码（读取 [tool.black] 配置）
+  black .
+
+  # 排序导入（读取 [tool.isort] 配置）
+  isort .
+
+  # 代码风格检查（读取 [tool.flake8] 配置）
+  flake8 .
+
+  # 类型检查（读取 [tool.mypy] 配置）
+  mypy .
+
+  # 运行测试（读取 [tool.pytest.ini_options] 配置）
+  pytest
+  ```
+
+  > **提示**：工具会自动从 `pyproject.toml` 读取配置，无需手动传参。
 
   ***
 

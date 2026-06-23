@@ -356,7 +356,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
 
     def open_color_settings(self):
         """打开颜色设置对话框"""
-        dialog = ColorSettingsDialog(self.canvas, self)
+        dialog = ColorSettingsDialog(self)
         dialog.exec()
 
     def open_settings(self):
@@ -437,9 +437,10 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         if config_file == "app_config.json":
             self.app_config.load()
             self.show_toast(f"配置文件已更新: {config_file}", "info")
-        # 如果是 color_settings.json，重新应用主题
+        # 如果是 color_settings.json，重新加载并应用颜色设置
         elif config_file == "color_settings.json":
-            self._apply_dark_theme()
+            if self.canvas:
+                self.canvas._load_color_settings(self.current_project_path)
             self.show_toast(f"颜色配置已更新: {config_file}", "info")
 
     def _on_app_state_changed(self, state):

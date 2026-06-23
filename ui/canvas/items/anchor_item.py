@@ -75,6 +75,10 @@ class AnchorItem(QGraphicsEllipseItem):
             color = QColor("#4CAF50" if self.anchor_type == "input" else "#2196F3")
         self.setBrush(color)
 
+    def set_color(self, color: QColor) -> None:
+        """直接设置锚点颜色"""
+        self.setBrush(color)
+
     def hoverEnterEvent(self, event):
         """鼠标进入时高亮"""
         if self.parentItem() and hasattr(self.parentItem(), 'canvas') and self.parentItem().canvas:

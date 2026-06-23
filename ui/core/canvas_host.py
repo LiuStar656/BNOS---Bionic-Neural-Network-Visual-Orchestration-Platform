@@ -262,6 +262,8 @@ class CanvasHost(QMainWindow):
             # 首个画布Dock — addDockWidget 不自动激活 tab
             self.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea, canvas_dock)
             logger.info("[CanvasHost] 首个画布已停靠到顶部")
+        
+        canvas_dock.save_original_dock_info(Qt.DockWidgetArea.TopDockWidgetArea)
 
         # ✅ 强制显示（解决首次打开项目时画布不显示的问题）
         canvas_dock.show()
@@ -575,6 +577,7 @@ class CanvasHost(QMainWindow):
             Qt.DockWidgetArea.BottomDockWidgetArea, 
             self._terminal_dock
         )
+        self._terminal_dock.save_original_dock_info(Qt.DockWidgetArea.BottomDockWidgetArea)
         
         # 默认先隐藏（不触发持久化保存，因为恢复状态在之后执行）
         self._terminal_dock.hide()

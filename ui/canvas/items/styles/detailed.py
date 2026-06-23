@@ -67,6 +67,12 @@ class DetailedNodeStyle(NodeStyle):
         2. _build_detailed_view 构建参数控件 → 计算节点尺寸
         3. build_anchors_from_config 根据 config 生成多锚点
         """
+        # 从 canvas 读取颜色设置
+        if node_item.canvas:
+            self.body_bg = getattr(node_item.canvas, 'node_bg_color', '#2d2d30')
+            self.body_border = getattr(node_item.canvas, 'node_border_color', '#454545')
+            self.body_text_color = getattr(node_item.canvas, 'node_text_color', '#cccccc')
+
         # 关闭缓存模式（详细版中有 proxy widgets，缓存会导致视觉错误）
         node_item.setCacheMode(QGraphicsItem.CacheMode.NoCache)
 

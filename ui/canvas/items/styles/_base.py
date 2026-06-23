@@ -59,6 +59,12 @@ class NodeStyle:
 
     def apply(self, node_item):
         """子类必须实现 — 将样式属性渲染到 node_item 上"""
+        # 从 canvas 读取颜色设置
+        if node_item.canvas:
+            self.bg_color = getattr(node_item.canvas, 'node_bg_color', '#2d2d30')
+            self.border_color = getattr(node_item.canvas, 'node_border_color', '#454545')
+            self.text_color = getattr(node_item.canvas, 'node_text_color', '#d4d4d4')
+            self.selected_color = getattr(node_item.canvas, 'node_selected_color', '#007acc')
         raise NotImplementedError
 
     def apply_status(self, node_item, status):

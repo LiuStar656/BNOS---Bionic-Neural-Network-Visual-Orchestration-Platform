@@ -660,3 +660,10 @@ class AnchorManager:
         f.setPointSize(8)
         f.setWeight(QFont.Weight.Light)
         return f
+
+    def update_anchor_colors(self, input_color: QColor, output_color: QColor) -> None:
+        """更新所有锚点的颜色。"""
+        for anchor in self.input_anchors.values():
+            anchor.set_color(input_color)
+        for anchor in self.output_anchors.values():
+            anchor.set_color(output_color)

@@ -917,11 +917,47 @@ self.show_toast("Operation successful", "success", duration=3000)
 pip install pyinstaller
 
 # Package
-pyinstaller --onefile --windowed --name="BNOS" bnos_gui.py
+pyinstaller --onefile --windowed --name="BNOS" bnos_console.py
 ```
 
 Output: `dist/BNOS.exe` (~100MB+, includes PySide6)
 
+
+---
+
+## 📦 Project Configuration (pyproject.toml)
+
+This project uses `pyproject.toml` as the unified configuration file, covering:
+
+| Section | Description |
+|---------|-------------|
+| `[project]` | Project metadata (name, version, description, Python version) |
+| `[tool.pytest.ini_options]` | Pytest test configuration |
+| `[tool.flake8]` | Flake8 code style check configuration |
+| `[tool.black]` | Black code formatter configuration |
+| `[tool.isort]` | isort import sorting configuration |
+| `[tool.mypy]` | mypy type checker configuration |
+
+### Quick Commands
+
+```bash
+# Format code (reads config from [tool.black])
+black .
+
+# Sort imports (reads config from [tool.isort])
+isort .
+
+# Code style check (reads config from [tool.flake8])
+flake8 .
+
+# Type check (reads config from [tool.mypy])
+mypy .
+
+# Run tests (reads config from [tool.pytest.ini_options])
+pytest
+```
+
+> **Note**: Tools automatically read configuration from `pyproject.toml`—no need to manually pass parameters.
 
 ---
 
