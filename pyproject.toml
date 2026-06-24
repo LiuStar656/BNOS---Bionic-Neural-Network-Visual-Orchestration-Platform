@@ -21,9 +21,8 @@ exclude = [
     ".eggs",
     "*.egg-info",
 ]
-per-file-ignores = {
-    "test_*.py" =  ["D100", "D101", "D102", "D103", "D104"],
-}
+[tool.flake8.per-file-ignores]
+"test_*.py" = ["D100", "D101", "D102", "D103", "D104"]
 
 [tool.black]
 line-length = 120
