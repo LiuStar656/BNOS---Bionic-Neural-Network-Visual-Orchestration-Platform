@@ -131,10 +131,9 @@ class MainWindowInteractionMixin:
             return
 
     def show_about(self):
-        """显示关于对话框"""
-        from ui.core.utils.dialog_utils import themed_message
-        from ui.core.i18n import t
-        themed_message(self, t("k_title_about"), t("_k_about_text"), "info")
+        """显示关于对话框 — 加载根目录 README"""
+        from ui.core.utils.changelog_viewer import show_about_readme
+        show_about_readme(self)
 
     def show_changelog(self):
         """显示更新日志对话框"""
