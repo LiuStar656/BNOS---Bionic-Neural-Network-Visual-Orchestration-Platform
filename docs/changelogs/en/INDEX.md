@@ -16,6 +16,7 @@ Click on dates below to view detailed updates for that date:
 - **Dock Tab Position**: Main window dock tab bar moved from bottom to top
 - **Dock Double-Click Componentization**: Extracted DockDoubleClickHandler to unify double-click title bar/edge handling, eliminating duplicate code between BnosDock and BnosDockWidget
 - **Dock Double-Click Disabled**: Dual interception (eventFilter + event.accept()) to completely block double-click float/dock toggle due to bugs
+- **Changelog Viewer**: New "Help→View Changelog" menu entry, QWebEngineView + markdown library rendering, auto-reads CN/EN changelogs based on language, interactive expand/collapse support
 
 ### [2026-06-23](./2026-06-23/)
 - **Dock Window Re-Dock Bug Fix**: Fixed crash in `BnosDock._on_top_level_changed` caused by operating `self.window()`, changed to operate `self` directly

@@ -117,6 +117,14 @@ def register_view_actions(main_window):
     ))
 
     ActionRegistry.register(ActionDefinition(
+        id="view.changelog",
+        name_i18n="k_menu_changelog",
+        category=ActionCategory.VIEW,
+        description_i18n="k_menu_changelog_desc",
+        execute_fn=lambda ctx: (main_window.show_changelog(), True)[1],
+    ))
+
+    ActionRegistry.register(ActionDefinition(
         id="view.history_panel",
         name_i18n="k_view_history_panel",
         category=ActionCategory.VIEW,

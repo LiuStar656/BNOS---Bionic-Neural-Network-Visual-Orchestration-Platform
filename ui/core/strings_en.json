@@ -229,6 +229,8 @@
   "k_menu_toggle_nodes": "Show/Hide Node List Panel",
   "k_menu_monitor": "Real-time log monitoring for all canvas nodes",
   "k_menu_about_desc": "Show about information",
+  "k_menu_changelog": "View Changelog",
+  "k_menu_changelog_desc": "View software changelog",
   "k_menu_open_project_desc": "Open an existing neural network project",
 
   "k_title_confirm": "Confirm",
@@ -404,6 +406,8 @@
   "_k_start_node_tip": "Start selected node",
   "_k_stop_node_tip": "Stop selected node",
   "_k_about_text": "BNOS - Bionic Neural Network Program Operating System\nVersion: 1.0.0\n\nA PySide6-based desktop visual node orchestration platform.\n\nCore Features:\n• Project Management: VSCode-style open/create\n• Visual Orchestration: Drag & drop + connection lines\n• Multi-language: Python, Rust, etc.\n• Environment Isolation: Per-node venv\n• Config Editor: Direct JSON editing\n• Real-time Monitor: Log viewing\n• State Persistence: Auto-save/restore",
+  "_k_changelog_not_found": "The changelog file was not found. Please check the docs/changelogs/ directory.",
+  "_k_changelog_read_error": "Failed to read the changelog file. Please check file permissions.",
 
   "_k_panel": "Panel",
   "_k_folder_picker_header": "📁 Folders",

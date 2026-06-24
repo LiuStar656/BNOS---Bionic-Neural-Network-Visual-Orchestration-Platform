@@ -232,6 +232,8 @@
   "k_menu_toggle_nodes": "显示/隐藏节点列表面板",
   "k_menu_monitor": "实时查看画布上所有节点的日志",
   "k_menu_about_desc": "显示关于信息",
+  "k_menu_changelog": "查看更新日志",
+  "k_menu_changelog_desc": "查看软件版本更新日志",
   "k_menu_open_project_desc": "打开现有的神经网络项目",
 
   "k_title_confirm": "确认",
@@ -412,6 +414,8 @@
   "_k_start_node_tip": "启动选中的节点",
   "_k_stop_node_tip": "停止选中的节点",
   "_k_about_text": "BNOS - Bionic Neural Network Program Operating System\n版本: 1.0.0\n仿生神经网络程序操作系统\n\n一款基于 PySide6 的纯桌面端可视化节点编排平台。\n\n核心特性:\n• 项目管理：仿 VSCode 模式，新建/打开\n• 可视化编排：自由拖拽 + 连线\n• 多语言支持：Python、Rust 等\n• 环境隔离：每个节点独立 venv\n• 配置编辑：直接编辑 JSON\n• 实时监控：日志查看\n• 状态持久化：自动保存/恢复",
+  "_k_changelog_not_found": "未找到更新日志文件，请检查 docs/changelogs/ 目录。",
+  "_k_changelog_read_error": "读取更新日志文件失败，请检查文件权限。",
 
   "_k_panel": "面板",
   "_k_folder_picker_header": "📁 文件夹",

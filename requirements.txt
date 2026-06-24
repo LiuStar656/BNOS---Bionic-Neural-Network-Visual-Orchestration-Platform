@@ -6,6 +6,9 @@ pyside6>=6.4.0
 # Process management (required for node health detection)
 psutil>=5.9.0
 
+# Markdown rendering (changelog viewer)
+markdown>=3.5
+
 # Packaging
 pyinstaller>=5.0.0
 

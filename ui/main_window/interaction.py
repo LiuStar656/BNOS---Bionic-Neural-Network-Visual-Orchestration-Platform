@@ -136,6 +136,11 @@ class MainWindowInteractionMixin:
         from ui.core.i18n import t
         themed_message(self, t("k_title_about"), t("_k_about_text"), "info")
 
+    def show_changelog(self):
+        """显示更新日志对话框"""
+        from ui.core.utils.changelog_viewer import show_changelog
+        show_changelog(self)
+
     def _on_node_service_status(self, name: str, status):
         """接收节点控制服务的状态变化通知（解耦回调）"""
         if hasattr(self, 'node_list_panel') and self.node_list_panel:

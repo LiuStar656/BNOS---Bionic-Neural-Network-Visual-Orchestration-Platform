@@ -7,7 +7,7 @@
 <details open>
 <summary><strong>【2026-06-24】V2.0.20 - Debug Panel Removal, Performance Async Rework & Lifecycle Protection</strong></summary>
 
-[View Full Update](./2026-06-24/README.md) | [01_Removal_and_Optimization](./2026-06-24/01_Debug_Panel_Removal_and_Performance_Optimization.md) | [02_DoubleClick_Componentization](./2026-06-24/02_Dock_DoubleClick_Event_Componentization.md) | [03_DoubleClick_Disabled](./2026-06-24/03_Dock_DoubleClick_Event_Disabled.md)
+[View Full Update](./2026-06-24/README.md) | [01_Removal_and_Optimization](./2026-06-24/01_Debug_Panel_Removal_and_Performance_Optimization.md) | [02_DoubleClick_Componentization](./2026-06-24/02_Dock_DoubleClick_Event_Componentization.md) | [03_DoubleClick_Disabled](./2026-06-24/03_Dock_DoubleClick_Event_Disabled.md) | [04_Changelog_Viewer](./2026-06-24/04_Changelog_Viewer.md)
 
 **Main Updates:**
 - Debug Panel Removal: Deleted debug_panel.py and node_debugger.py, cleaned up 7 file references, removed 34 i18n keys
@@ -17,6 +17,7 @@
 - Dock tab bar moved from bottom to top
 - Dock Double-Click Componentization: Extracted DockDoubleClickHandler to unify double-click handling, eliminating ~25 lines of duplicate code
 - Dock Double-Click Disabled: Dual interception (eventFilter + event.accept()) to completely block double-click float/dock toggle due to bugs
+- Changelog Viewer: New "Help→View Changelog" menu entry, auto-reads CN/EN changelogs based on language, QWebEngineView + markdown library rendering with interactive expand/collapse support
 
 </details>
 

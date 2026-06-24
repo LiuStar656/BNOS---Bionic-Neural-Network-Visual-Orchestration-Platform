@@ -16,6 +16,7 @@
 - **Dock 标签栏位置**：主窗口 Dock 标签栏从底部移到顶部
 - **Dock 双击事件组件化**：提取 DockDoubleClickHandler 统一处理双击标题栏/边缘切换浮动停靠，消除 BnosDock 与 BnosDockWidget 间重复代码
 - **Dock 双击事件屏蔽**：因存在 Bug，采用 eventFilter + event.accept() 双重拦截彻底屏蔽双击切换浮动/停靠
+- **更新日志查看器**：菜单栏新增「帮助→查看更新日志」入口，QWebEngineView + markdown 库渲染，自动根据语言读取中英文 changelogs，支持交互式折叠展开
 
 ### [2026-06-23](./2026-06-23/)
 - **Dock 窗口吸附 Bug 修复**：修复 `BnosDock._on_top_level_changed` 中操作 `self.window()` 导致的崩溃问题，改为直接操作 `self`

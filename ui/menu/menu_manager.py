@@ -100,6 +100,8 @@ class MenuManager:
         # ========== 帮助菜单 ==========
         help_menu = ActionFactory.create_submenu(main_window, "k_menu_help", menubar=menubar)
 
+        ActionFactory.create_action(main_window, "view.changelog", menu=help_menu)
+        help_menu.addSeparator()
         ActionFactory.create_action(main_window, "view.about", menu=help_menu)
 
     @staticmethod
