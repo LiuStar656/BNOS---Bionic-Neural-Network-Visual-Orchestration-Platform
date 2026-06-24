@@ -14,6 +14,8 @@ Click on dates below to view detailed updates for that date:
 - **Dangling Pointer Guard**: _is_panel_alive() uses shiboken6.isValid() to detect C++ object liveness, fixing Internal C++ object already deleted crashes
 - **Menu Check Mark Fix**: 6 Dock panel is_checked_fn unified to use config fallback, correct check marks after restart
 - **Dock Tab Position**: Main window dock tab bar moved from bottom to top
+- **Dock Double-Click Componentization**: Extracted DockDoubleClickHandler to unify double-click title bar/edge handling, eliminating duplicate code between BnosDock and BnosDockWidget
+- **Dock Double-Click Disabled**: Dual interception (eventFilter + event.accept()) to completely block double-click float/dock toggle due to bugs
 
 ### [2026-06-23](./2026-06-23/)
 - **Dock Window Re-Dock Bug Fix**: Fixed crash in `BnosDock._on_top_level_changed` caused by operating `self.window()`, changed to operate `self` directly
@@ -150,4 +152,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-06-23
+**Last Updated**: 2026-06-24

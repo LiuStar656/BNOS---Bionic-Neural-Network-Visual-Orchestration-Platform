@@ -5,11 +5,11 @@ from PySide6.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QToolButton, QSizeGrip, QMainWindow, QApplication
 )
-from PySide6.QtCore import Qt, Signal, QSize, QTimer
+from PySide6.QtCore import Qt, Signal, QSize, QTimer, QEvent
 from PySide6.QtGui import QCursor, QPalette, QColor
 from ui.icons.codicon import get_icon, get_icon_font
 from ui.core.logger import logger
-from ui.core.dock_position_manager import DockPositionManager
+from ui.core.dock_position_manager import DockPositionManager  # DockDoubleClickHandler 已禁用
 
 # ── 漂浮时外边框颜色（可通过 set_dock_floating_colors() 修改） ──
 _FLOATING_BORDER_COLOR = "#007acc"
@@ -47,7 +47,7 @@ class BnosDock(QDockWidget):
     
     漂浮时自动切换为无边框模式，使用自定义边框颜色（不再跟随系统主题色）。
     
-    增强功能：双击漂浮状态下的边缘区域可自动嵌入到父容器并隐藏标题栏。
+    [已禁用] 双击漂浮状态下的边缘区域自动嵌入到父容器并隐藏标题栏。
     """
     
     _instances = []
@@ -72,6 +72,8 @@ class BnosDock(QDockWidget):
         self._setup_ui()
         
         self._position_manager = DockPositionManager(self)
+        # [已禁用] DockDoubleClickHandler — 双击切换浮动/停靠功能已屏蔽
+        self.installEventFilter(self)
     
     def _setup_ui(self):
         """设置UI"""
@@ -284,40 +286,20 @@ class BnosDock(QDockWidget):
         self.hide()
         self.closed.emit(self)
     
-    def mouseDoubleClickEvent(self, event):
-        """双击事件：双击标题栏或边缘区域都触发嵌入"""
-        pos = event.pos()
-        w, h = self.width(), self.height()
-        
-        border = 4
-        is_on_edge = (pos.x() < border or pos.x() > w - border or
-                     pos.y() < border or pos.y() > h - border)
-        
-        is_on_title_bar = False
-        if self._title_widget and not self._title_bar_hidden:
-            title_bar_rect = self._title_widget.geometry()
-            if title_bar_rect.contains(pos):
-                is_on_title_bar = True
-        
-        if is_on_edge or is_on_title_bar:
-            if hasattr(self, '_position_manager'):
-                self._position_manager.save_current_state_before_toggle()
-            
-            if self.isFloating():
-                self._auto_embed_and_hide_title()
-            else:
-                self.setFloating(True)
-            event.accept()
-            return
-        
-        event.ignore()
+    def eventFilter(self, obj, event):
+        """[已禁用] 拦截所有双击事件，防止 Qt 原生 Dock 切换浮动/停靠"""
+        if event.type() == QEvent.Type.MouseButtonDblClick:
+            return True  # 吞噬事件，阻止传播
+        return super().eventFilter(obj, event)
     
-    def _auto_embed_and_hide_title(self):
-        """自动嵌入到父容器并隐藏标题栏"""
-        self.hide_title_bar()
-        self._position_manager.restore_to_docked_position()
-        
-        logger.info(f"BnosDock: '{self.windowTitle()}' 已自动嵌入并隐藏标题栏")
+    def mouseDoubleClickEvent(self, event):
+        """[已禁用] 双击事件已屏蔽"""
+        event.accept()  # 吞噬事件，阻止 Qt 原生处理
+    
+    # [已禁用] _on_before_embed — DockDoubleClickHandler 已屏蔽，保留方法以防后续恢复
+    # def _on_before_embed(self):
+    #     self.hide_title_bar()
+    #     logger.info(f"BnosDock: '{self.windowTitle()}' 已自动嵌入并隐藏标题栏")
     
     def hide_title_bar(self):
         """隐藏标题栏"""

@@ -6,13 +6,16 @@ Dock位置管理器 - 使用 JSON 文件持久化停靠/悬浮坐标
 2. 每次浮动窗口拖动时定时保存最新坐标
 3. 双击回到停靠状态时从 JSON 文件读取目标区域，不受 Qt 缓存清空影响
 4. 恢复过程中屏蔽 dockLocationChanged 信号，防止被 Qt 自动分配的区域覆盖
+
+DockDoubleClickHandler - 独立的双击标题栏/边缘事件处理组件
+与 DockPositionManager 配合完成浮动↔停靠切换。
 """
 import json
 import os
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer, QObject
-from PySide6.QtWidgets import QMainWindow
+from PySide6.QtWidgets import QMainWindow, QDockWidget
 
 
 class DockPositionManager(QObject):
@@ -177,3 +180,11 @@ class DockPositionManager(QObject):
         self._dock_widget.setFloating(False)
 
         self._block_persist = False
+
+
+class DockDoubleClickHandler(QObject):
+    """[已禁用] Dock 双击处理组件
+
+    因双击 Dock 标题栏切换浮动/停靠存在 Bug，暂时屏蔽此功能。
+    保留类定义便于后续修复后重新启用。
+    """

@@ -14,6 +14,8 @@
 - **面板生命周期防悬空指针**：_is_panel_alive() 使用 shiboken6.isValid() 检测 C++ 对象存活，修复 Internal C++ object already deleted 崩溃
 - **菜单打钩标记修复**：6 个 Dock 面板 is_checked_fn 统一使用 config fallback，重启后自启面板正确显示打钩
 - **Dock 标签栏位置**：主窗口 Dock 标签栏从底部移到顶部
+- **Dock 双击事件组件化**：提取 DockDoubleClickHandler 统一处理双击标题栏/边缘切换浮动停靠，消除 BnosDock 与 BnosDockWidget 间重复代码
+- **Dock 双击事件屏蔽**：因存在 Bug，采用 eventFilter + event.accept() 双重拦截彻底屏蔽双击切换浮动/停靠
 
 ### [2026-06-23](./2026-06-23/)
 - **Dock 窗口吸附 Bug 修复**：修复 `BnosDock._on_top_level_changed` 中操作 `self.window()` 导致的崩溃问题，改为直接操作 `self`
@@ -151,4 +153,4 @@
 
 ---
 
-**最后更新**：2026-06-23
+**最后更新**：2026-06-24

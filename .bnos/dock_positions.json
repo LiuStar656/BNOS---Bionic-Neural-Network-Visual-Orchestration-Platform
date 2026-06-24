@@ -81,7 +81,13 @@
     }
   },
   "bnos_dock_widget_节点列表": {
-    "docked_area": 1
+    "docked_area": 1,
+    "floating": {
+      "x": 130,
+      "y": 47,
+      "width": 381,
+      "height": 317
+    }
   },
   "bnos_dock_widget_资源监测": {
     "docked_area": 1,
@@ -112,5 +118,14 @@
   },
   "bnos_dock_Terminal": {
     "docked_area": 8
+  },
+  "bnos_dock_1": {
+    "docked_area": 4,
+    "floating": {
+      "x": 424,
+      "y": 65,
+      "width": 1008,
+      "height": 854
+    }
   }
 }

@@ -7,7 +7,7 @@
 <details open>
 <summary><strong>【2026-06-24】V2.0.20 - 调试面板移除、性能异步化与生命周期防护</strong></summary>
 
-[查看完整更新](./2026-06-24/README.md) | [01_调试面板精简与性能优化](./2026-06-24/01_调试面板精简与性能优化.md)
+[查看完整更新](./2026-06-24/README.md) | [01_调试面板精简与性能优化](./2026-06-24/01_调试面板精简与性能优化.md) | [02_Dock双击事件组件化](./2026-06-24/02_Dock双击事件组件化.md) | [03_Dock双击事件屏蔽](./2026-06-24/03_Dock双击事件屏蔽.md)
 
 **主要更新：**
 - 调试面板移除：删除 debug_panel.py 和 node_debugger.py，清理全部 7 个文件引用，移除 34 个 i18n 键
@@ -15,6 +15,8 @@
 - 面板生命周期防悬空指针：_is_panel_alive() 使用 shiboken6.isValid() 检测 C++ 对象存活，修复 Internal C++ object already deleted 崩溃
 - 菜单打钩标记修复：6 个 Dock 面板 is_checked_fn 统一使用 config fallback
 - Dock 标签栏从底部移到顶部
+- Dock 双击事件组件化：提取 DockDoubleClickHandler 统一处理双击标题栏/边缘切换浮动停靠，消除 BnosDock 与 BnosDockWidget 间 ~25 行重复代码
+- Dock 双击事件屏蔽：因存在 Bug，暂时禁用双击切换浮动/停靠功能
 
 </details>
 
