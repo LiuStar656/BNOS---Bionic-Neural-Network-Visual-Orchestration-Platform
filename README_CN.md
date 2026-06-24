@@ -342,7 +342,7 @@
   | **节点创建器** | `ui/creators/node_creator_manager.py` | 多语言节点创建管理器（Python/Rust） |
   | **对话框** | `ui/dialogs/` | 节点配置、颜色设置、文件浏览器、设置对话框 |
   | **验证器** | `ui/core/validators.py` | 节点名称和路径验证工具 |
-  | **生成工具** | `tools/python_create_node.py`、`tools/rust_create_node.py` | Python / Rust 节点模板生成器 |
+  | **生成工具** | `tools/python_create_node.py`、`tools/rust_create_node.py` | Python / Rust 节点模板生成器 → [📚 节点开发文档](tools/README_CN.md) |
 
   ***
 

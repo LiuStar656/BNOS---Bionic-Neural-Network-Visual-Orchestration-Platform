@@ -2,6 +2,15 @@
 
   🌍 Language | 语言选择：[中文](README_CN.md) | [English](README.md)
 
+  ## 📚 文档导航
+
+  | 文档 | 用途 |
+  |------|------|
+  | [节点开发规范](节点开发规范.md) | **节点开发者必读** — 目录结构、config.json、监听器、main 处理逻辑、启动脚本、通信协议 |
+  | [config_json 开发规范](config_json_开发规范.md) | config.json 参数控件与输入输出端口详细配置（11 种控件类型） |
+  | [节点生成器开发准则](节点生成器开发准则.md) | 开发新语言节点生成器的规范（Go/Java/C++ 等） |
+  | [Node_Generator_Guidelines_EN.md](Node_Generator_Guidelines_EN.md) | 节点生成器准则英文版 |
+
   ## 📋 更新日志
 
   ### 2026-05-18 - 增强节点创建与启动脚本

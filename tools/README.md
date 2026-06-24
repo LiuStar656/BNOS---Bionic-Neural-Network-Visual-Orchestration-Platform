@@ -2,6 +2,15 @@
 
 🌍 Language | 语言选择：[中文](README_CN.md) | [English](README.md)
 
+## 📚 Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [节点开发规范](节点开发规范.md) (CN) | **Node Developer Guide** — Directory structure, config.json, listener, main logic, startup scripts, communication protocol |
+| [config_json 开发规范](config_json_开发规范.md) (CN) | config.json parameter widgets & input/output port detailed configuration (11 widget types) |
+| [节点生成器开发准则](节点生成器开发准则.md) (CN) | Node generator development guidelines for new languages (Go/Java/C++ etc.) |
+| [Node_Generator_Guidelines_EN.md](Node_Generator_Guidelines_EN.md) | Same as above, English version |
+
 ## 📋 Changelog
 
 ### 2026-05-18 - Enhanced Node Creation & Startup Scripts

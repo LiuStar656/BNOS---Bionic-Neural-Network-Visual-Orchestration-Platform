@@ -353,7 +353,7 @@ graph TB
 | **Node Creator** | `ui/creators/node_creator_manager.py` | Multi-language node creation manager |
 |- **Dialogs** | `ui/dialogs/` | Node config, color settings, file browser, settings, preset library dialogs |
 | **Validators** | `ui/core/validators.py` | Node name and path validation utilities |
-| **Tools** | `tools/python_create_node.py`, `tools/rust_create_node.py` | Python / Rust node template generators |
+| **Tools** | `tools/python_create_node.py`, `tools/rust_create_node.py` | Python / Rust node template generators → [📚 Node Dev Docs](tools/README.md) |
 
 ---
 
