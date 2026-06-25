@@ -7,8 +7,8 @@ import re
 from html import escape
 import markdown
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTextBrowser
-from PySide6.QtCore import Qt, QUrl, QTimer
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QColor, QPalette
 from ui.core.i18n import t, get_lang
 
 
@@ -89,6 +89,12 @@ class ChangelogViewer(QDialog):
         # 浏览器
         self._browser = QTextBrowser()
         self._browser.setStyleSheet(_STYLE_BROWSER)
+        # 消除闪白：viewport + document 默认暗色
+        palette = self._browser.palette()
+        palette.setColor(QPalette.ColorRole.Base, QColor("#1e1e1e"))
+        palette.setColor(QPalette.ColorRole.Text, QColor("#ffffff"))
+        self._browser.setPalette(palette)
+        self._browser.document().setDefaultStyleSheet("body { background: #1e1e1e; color: #fff; }")
         self._browser.setOpenExternalLinks(False)
         self._browser.setOpenLinks(False)
         self._browser.anchorClicked.connect(self._on_anchor_clicked)
@@ -152,13 +158,16 @@ class ChangelogViewer(QDialog):
                 content = f.read()
             # 去除每行前导空格（README_CN.md 每行有缩进，会干扰 markdown 解析）
             content = "\n".join(line.lstrip() for line in content.split("\n"))
-            # <div> → markdown="1" 让内部 Markdown 被解析（不再移除 <div>，保留居中）
+            # <div>/<details> → markdown="1" 让内部 Markdown 被解析
             content = re.sub(r'(<div\b[^>]*)(>)', r'\1 markdown="1"\2', content, flags=re.IGNORECASE)
+            content = re.sub(r'(<details\b[^>]*)(>)', r'\1 markdown="1"\2', content, flags=re.IGNORECASE)
             html_body = markdown.markdown(
                 content,
                 extensions=["extra", "sane_lists"],
                 output_format="html5",
             )
+            # <details> → 展开的 div（QTextBrowser 不支持 HTML5 details）
+            html_body = self._details_to_div(html_body)
             # shields.io 远程图片 → 彩色文字徽章（QTextBrowser 不支持远程图片）
             html_body = self._badge_to_span(html_body)
             # 本地相对路径 → file:/// 绝对路径
@@ -201,6 +210,22 @@ class ChangelogViewer(QDialog):
             r'<img\s+alt="(?P<alt>[^"]*)"\s+src="(?P<src>https?://img\.shields\.io/[^"]+)"[^>]*/?>',
             _repl, html_body
         )
+
+    def _details_to_div(self, html_body):
+        """<details>/<summary> → 展开的 div（QTextBrowser 不支持 HTML5 details）"""
+        html_body = re.sub(
+            r'<details[^>]*>',
+            '<div style="border:1px solid #444;border-radius:4px;margin:6px 0;padding:4px 10px;">',
+            html_body
+        )
+        html_body = re.sub(
+            r'<summary[^>]*>',
+            '<div style="color:#4daafc;font-weight:bold;margin-bottom:4px;">',
+            html_body
+        )
+        html_body = html_body.replace('</summary>', '</div>')
+        html_body = html_body.replace('</details>', '</div>')
+        return html_body
 
     def _absolutify_urls(self, html_body, md_file_path):
         """相对路径 → file:/// 绝对路径"""
