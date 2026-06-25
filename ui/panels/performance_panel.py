@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QThread, QMutex, QMutexLocker
 from PySide6.QtGui import QColor, QPen, QPainter, QPainterPath
+from PySide6.QtWidgets import QApplication
 from ui.core.i18n import t
 from ui.core.logger import logger
 from ui.panels._shared.system_resource_collector import shared_resource_collector
@@ -23,6 +24,7 @@ class StatsCollectorThread(QThread):
     
     def __init__(self, parent_window, parent=None):
         super().__init__(parent)
+        self.setObjectName("StatsCollector")
         self._parent_window = parent_window
         self._mutex = QMutex()
         self._running = True
@@ -30,7 +32,9 @@ class StatsCollectorThread(QThread):
     
     def stop(self):
         self._running = False
-        self.wait()
+        if not self.wait(5000):
+            self.terminate()
+            self.wait(1000)
     
     def run(self):
         while self._running:
@@ -181,6 +185,9 @@ class PerformancePanel(DockPanelBase):
         self._collector_thread.stats_ready.connect(self._on_stats_ready)
         self._collector_thread.processes_ready.connect(self._on_processes_ready)
         self._collector_thread.start()
+        
+        # 确保应用退出前停止线程（在 Qt 销毁 widget 树之前触发）
+        QApplication.instance().aboutToQuit.connect(self._on_app_quitting)
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
@@ -611,11 +618,23 @@ class PerformancePanel(DockPanelBase):
         """面板销毁时清理"""
         if self._disposed:
             return
-        if hasattr(self, '_collector_thread') and self._collector_thread.isRunning():
-            self._collector_thread.stop()
-            self._collector_thread.quit()
-            self._collector_thread.wait(1000)
+        self._stop_collector_thread()
         super().dispose()
+    
+    def _on_app_quitting(self):
+        """应用退出前停止采集线程（比 closeEvent 更早触发）"""
+        self._stop_collector_thread()
+    
+    def _stop_collector_thread(self):
+        """安全停止采集线程"""
+        if not hasattr(self, '_collector_thread'):
+            return
+        t = self._collector_thread
+        if t.isRunning():
+            t._running = False
+            if not t.wait(5000):
+                t.terminate()
+                t.wait(1000)
 
     def get_stats(self):
         """获取所有统计数据"""

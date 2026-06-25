@@ -17,7 +17,7 @@ class TerminalProcess(QObject):
 
     def __init__(self, working_dir: str = None):
         super().__init__()
-        self.process = QProcess()
+        self.process = QProcess(self)  # 设置父对象，Qt 管理生命周期
         self.working_dir = working_dir
         self._stopped = False
 
@@ -102,17 +102,67 @@ class TerminalProcess(QObject):
 
         if state == QProcess.ProcessState.NotRunning:
             logger.debug("TerminalProcess: 进程已结束，无需终止")
+            self._disconnect_process()
             return
 
-        logger.info("TerminalProcess: 正在终止子进程...")
-        # 先尝试温和终止
+        pid = self.process.processId()
+        logger.info("TerminalProcess: 正在终止子进程 (PID=%d)...", pid if pid else 0)
+        # 先尝试温和终止（Windows 上对控制台进程无效，但仍尝试）
         self.process.terminate()
         if not self.process.waitForFinished(3000):
             # 3秒内未退出则强制杀死
             logger.warning("TerminalProcess: 子进程未响应终止信号，强制杀死")
             self.process.kill()
-            self.process.waitForFinished(2000)
+            if not self.process.waitForFinished(2000):
+                # QProcess.kill() 也未奏效，用系统级 taskkill 兜底
+                logger.warning("TerminalProcess: QProcess.kill() 失败，尝试 taskkill")
+                self._os_kill(pid)
         logger.info("TerminalProcess: 子进程已终止")
+        # 断开信号连接，防止析构时残留回调
+        self._disconnect_process()
+        # 关闭 QProcess 通道
+        try:
+            self.process.close()
+        except RuntimeError:
+            pass
+
+    def _os_kill(self, pid: int):
+        """系统级强制杀进程"""
+        if not pid or pid <= 0:
+            return
+        try:
+            import subprocess
+            import os
+            if os.name == 'nt':
+                subprocess.run(
+                    ['taskkill', '/F', '/T', '/PID', str(pid)],
+                    capture_output=True, timeout=5,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            else:
+                import signal
+                os.kill(pid, signal.SIGKILL)
+        except Exception as e:
+            logger.warning("TerminalProcess: OS kill 失败: %s", e)
+
+    def _disconnect_process(self):
+        """断开 QProcess 的所有信号连接，防止析构时触发回调"""
+        try:
+            self.process.readyReadStandardOutput.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+        try:
+            self.process.readyReadStandardError.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+        try:
+            self.process.started.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+        try:
+            self.process.finished.disconnect()
+        except (RuntimeError, TypeError):
+            pass
 
     def __del__(self):
         """析构时确保子进程被终止"""

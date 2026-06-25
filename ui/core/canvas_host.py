@@ -548,8 +548,13 @@ class CanvasHost(QMainWindow):
         self._is_closing = True
         
         # 先清理终端进程，避免 QProcess: Destroyed while process is still running 警告
+        # 注意：主窗口 closeEvent 已通过 ShutdownOrchestrator 统一清理终端，
+        # 此处仅在主窗口未完成清理时作为兜底；若控件树已被 Qt 销毁则跳过
         if hasattr(self, '_terminal_dock') and self._terminal_dock:
-            self._terminal_dock.stop_all_terminals()
+            try:
+                self._terminal_dock.stop_all_terminals()
+            except RuntimeError:
+                pass  # C++ 控件已被 Qt 销毁，无需重复清理
         
         if self._parent_window and self._parent_window.current_project_path:
             self.save_all_layouts(self._parent_window.current_project_path)

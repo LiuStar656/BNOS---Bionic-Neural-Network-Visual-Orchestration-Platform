@@ -5,6 +5,20 @@
 
 ---
 <details open>
+<summary><strong>【2026-06-25】V2.0.21 - 关闭时 QProcess/QThread 警告修复与崩溃消除</strong></summary>
+
+[查看完整更新](./2026-06-25/README.md) | [01_关闭时QProcess和QThread警告修复](./2026-06-25/01_关闭时QProcess和QThread警告修复.md)
+
+**主要更新：**
+- QThread 警告修复：PerformancePanel 使用 `QApplication.aboutToQuit` 信号在 Qt 销毁控件树前停止 StatsCollectorThread，消除 `QThread: Destroyed while thread 'StatsCollector' is still running` 警告
+- QProcess 警告修复：TerminalProcess 设置 QProcess(self) 父对象、增强 stop() 终止链（terminate→kill→taskkill）、新增 _disconnect_process() 信号断开和 process.close() 清理，消除 `QProcess: Destroyed while process ("powershell.exe") is still running` 警告
+- 崩溃修复：关闭流程顺序优化与 C++ 对象存活保护，退出码从 `-1073740791`（STATUS_STACK_BUFFER_OVERRUN）恢复为 `0`
+- 线程池优化：shutdown() 超时提升至 8s + 二次等待，线程清理更可靠
+- CanvasHost 关闭保护：closeEvent 添加 RuntimeError 异常守卫
+
+</details>
+
+<details>
 <summary><strong>【2026-06-24】V2.0.20 - 调试面板移除、性能异步化与生命周期防护</strong></summary>
 
 [查看完整更新](./2026-06-24/README.md) | [01_调试面板精简与性能优化](./2026-06-24/01_调试面板精简与性能优化.md) | [02_Dock双击事件组件化](./2026-06-24/02_Dock双击事件组件化.md) | [03_Dock双击事件屏蔽](./2026-06-24/03_Dock双击事件屏蔽.md) | [04_更新日志查看器](./2026-06-24/04_更新日志查看器.md)
@@ -348,3 +362,5 @@
 1. 点击日期左侧的三角展开/收起该版本摘要
 2. 点击「查看完整更新」链接进入该日期的详细更新页面
 3. 每个日期文件夹包含该日期的所有更新条目，支持单独浏览和归档
+
+**最后更新**：2026-06-25

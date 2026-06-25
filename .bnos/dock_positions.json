@@ -83,10 +83,10 @@
   "bnos_dock_widget_节点列表": {
     "docked_area": 1,
     "floating": {
-      "x": 130,
-      "y": 47,
-      "width": 381,
-      "height": 317
+      "x": 21,
+      "y": 78,
+      "width": 380,
+      "height": 193
     }
   },
   "bnos_dock_widget_资源监测": {

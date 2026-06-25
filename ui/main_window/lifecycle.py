@@ -37,7 +37,7 @@ class MainWindowLifecycleMixin:
         
         # ===== 步骤 3：自动打开上次项目 =====
         QTimer.singleShot(800, self.auto_open_last_project)
-        
+
         logger.info("离开 _init_and_restore()")
     
     def _restore_window_state_with_docks(self):
@@ -150,7 +150,7 @@ class MainWindowLifecycleMixin:
         except Exception as e:
             logger.error("关闭编排器执行失败: %s", e)
 
-        # ── 清理链：防止信号/内存泄漏 ──
+        # ── 清理链：清理面板线程/定时器（防止 Qt 销毁 Widget 后再清理失败）──
         self._cleanup_on_shutdown()
 
         logger.info("✅ 窗口关闭流程完成，所有数据已安全保存")
@@ -207,27 +207,38 @@ class MainWindowLifecycleMixin:
         except Exception as e:
             logger.warning("[CLEANUP] 启动队列清理异常: %s", e)
 
-        # 5. 停止所有Dock面板中的定时器，防止线程残留
+        # 5. 停止所有Dock面板中的定时器和后台线程，防止线程残留
         try:
-            from PySide6.QtCore import QTimer
-            from PySide6.QtCore import QThread
-            count_timers = 0
-            count_threads = 0
-            for dock_title in list(self._dock_manager.get_all_dock_titles()):
+            from ui.core.dock_manager import DockManager
+            titles = list(self._dock_manager.get_all_dock_titles())
+            for dock_title in titles:
                 dock = self._dock_manager.get_dock_by_title(dock_title)
-                if dock:
+                if not dock:
+                    continue
+                try:
+                    # 先委托 dock_manager 清理 QTimer 和 QThread
+                    DockManager._stop_content_timers(dock)
+                    # 再显式调用面板的 dispose() 确保自定义清理（如 StatsCollectorThread.stop()）
                     content = dock.get_content_widget()
-                    if content:
-                        for child in content.findChildren(QTimer):
-                            try:
-                                if child.isActive():
-                                    child.stop()
-                                    count_timers += 1
-                            except RuntimeError:
-                                pass
-            logger.debug("[CLEANUP] 面板 %d 个定时器已停止", count_timers)
+                    if content and hasattr(content, 'dispose'):
+                        try:
+                            content.dispose()
+                            logger.debug("[CLEANUP] 面板已 dispose: %s", dock_title)
+                        except RuntimeError:
+                            pass
+                except RuntimeError:
+                    pass
+            logger.debug("[CLEANUP] 面板定时器和线程已停止")
         except Exception as e:
             logger.warning("[CLEANUP] 面板定时器清理异常: %s", e)
+
+        # 6. 关闭全局线程池（防止 QThread: Destroyed while thread is still running）
+        try:
+            from ui.core.thread_pool import thread_pool
+            thread_pool.shutdown()  # 使用默认 8000ms 超时
+            logger.debug("[CLEANUP] 全局线程池已关闭")
+        except Exception as e:
+            logger.warning("[CLEANUP] 线程池关闭异常: %s", e)
 
         logger.info("[CLEANUP] 清理链完成")
     

@@ -8,6 +8,11 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-06-25](./2026-06-25/)
+- **QThread 警告修复**：PerformancePanel 使用 `QApplication.aboutToQuit` 信号在 Qt 销毁控件树前停止 StatsCollectorThread，消除关闭时线程残留警告
+- **QProcess 警告修复**：TerminalProcess 设置 QProcess(self) 父对象 + 增强 stop() 终止链（terminate→kill→taskkill）+ 信号断开 + process.close()
+- **崩溃修复**：关闭流程顺序优化与 C++ 对象存活保护，退出码从 `-1073740791` 恢复为 `0`
+
 ### [2026-06-24](./2026-06-24/)
 - **调试面板移除**：删除 debug_panel.py 和 node_debugger.py，清理全部 7 个文件引用，移除 34 个 i18n 键
 - **性能分析面板异步化**：psutil.process_iter() 从主线程移入后台线程，消除打开面板时的 UI 冻结
@@ -154,4 +159,4 @@
 
 ---
 
-**最后更新**：2026-06-24
+**最后更新**：2026-06-25

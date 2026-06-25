@@ -116,17 +116,24 @@ class ThreadPool(QObject):
         """等待所有任务完成"""
         return self._pool.waitForDone(timeout_ms)
 
-    def shutdown(self, timeout_ms: int = 5000):
+    def shutdown(self, timeout_ms: int = 8000):
         """关闭线程池（应用退出时调用）
         
         1. 禁止新任务提交
         2. 等待所有任务完成
-        3. 超时后释放
+        3. 超时后强制释放
         """
+        from ui.core.logger import logger
         self._pool.clear()
+        remaining = self.active_task_count()
+        if remaining > 0:
+            logger.debug(f"[ThreadPool] 仍有 {remaining} 个活跃任务，等待完成...")
         if not self._pool.waitForDone(timeout_ms):
-            from ui.core.logger import logger
-            logger.warning(f"[ThreadPool] 关闭超时（{timeout_ms}ms），仍有 {self.active_task_count()} 个任务")
+            logger.warning(f"[ThreadPool] 关闭超时（{timeout_ms}ms），仍有 {self.active_task_count()} 个任务未完成")
+        # 二次确认：等待额外 2000ms
+        self._pool.waitForDone(2000)
+        self._active_tasks.clear()
+        logger.debug("[ThreadPool] 线程池已关闭")
 
 
 # 全局单例

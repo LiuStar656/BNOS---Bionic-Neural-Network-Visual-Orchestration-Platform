@@ -356,11 +356,20 @@ class DockManager(QObject):
             for child in content.findChildren(QThread):
                 try:
                     if child.isRunning():
-                        child.quit()
-                        child.wait(500)
-                        if child.isRunning():
-                            child.terminate()
-                            child.wait(500)
+                        # 尝试调用自定义 stop() 方法（如 StatsCollectorThread）
+                        # 对于基于标志位的线程，先设置标志再 wait 效果最好
+                        if hasattr(child, '_running'):
+                            child._running = False
+                            child.wait(3000)
+                            if child.isRunning():
+                                child.terminate()
+                                child.wait(1000)
+                        else:
+                            child.quit()
+                            child.wait(1000)
+                            if child.isRunning():
+                                child.terminate()
+                                child.wait(2000)
                 except RuntimeError:
                     pass
         except RuntimeError:
