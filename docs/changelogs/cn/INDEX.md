@@ -8,6 +8,9 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-07-02](./2026-07-02/)
+- **自定义标题栏窗口缩放修复**：nativeEvent MRO 遮蔽修复 + QCursor.pos() 坐标获取替代 ctypes.MSG.lParam，解决上/左/右/右下边缘缩放均异常的问题
+
 ### [2026-06-25](./2026-06-25/)
 - **QThread 警告修复**：PerformancePanel 使用 `QApplication.aboutToQuit` 信号在 Qt 销毁控件树前停止 StatsCollectorThread，消除关闭时线程残留警告
 - **QProcess 警告修复**：TerminalProcess 设置 QProcess(self) 父对象 + 增强 stop() 终止链（terminate→kill→taskkill）+ 信号断开 + process.close()
@@ -159,4 +162,4 @@
 
 ---
 
-**最后更新**：2026-06-25
+**最后更新**：2026-07-02

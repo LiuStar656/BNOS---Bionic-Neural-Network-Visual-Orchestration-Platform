@@ -8,6 +8,9 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-07-02](./2026-07-02/)
+- **Custom Title Bar Window Resize Fix**: nativeEvent MRO shadowing fix + QCursor.pos() coordinate extraction replacing ctypes.MSG.lParam, resolving all edge resize issues (top/left/right/bottom-right)
+
 ### [2026-06-24](./2026-06-24/)
 - **Debug Panel Removal**: Deleted debug_panel.py and node_debugger.py, cleaned up 7 file references, removed 34 i18n keys
 - **Performance Panel Async**: psutil.process_iter() moved from main thread to background thread, eliminating UI freeze on panel open
@@ -153,4 +156,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-06-24
+**Last Updated**: 2026-07-02

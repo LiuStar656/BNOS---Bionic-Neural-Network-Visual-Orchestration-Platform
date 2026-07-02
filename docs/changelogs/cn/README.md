@@ -5,6 +5,18 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-02】V2.0.22 - 自定义标题栏窗口缩放修复</strong></summary>
+
+[查看完整更新](./2026-07-02/README.md) | [01_自定义标题栏窗口缩放修复](./2026-07-02/01_自定义标题栏窗口缩放修复.md)
+
+**主要更新：**
+- nativeEvent MRO 遮蔽修复：将 WM_NCHITTEST 处理从 Mixin 移入主类，解决 QMainWindow 遮蔽导致边缘缩放失效
+- 坐标获取修正：用 QCursor.pos() 替代 ctypes.MSG.lParam，消除 64 位结构体内存对齐导致的坐标错位（上/左边缘不识别）
+- 移除失败的 Win32 hack：删除 _enable_native_resize() 的 WS_THICKFRAME 注入和 DwmExtendFrameIntoClientArea 尝试
+
+</details>
+
+<details>
 <summary><strong>【2026-06-25】V2.0.21 - 关闭时 QProcess/QThread 警告修复与崩溃消除</strong></summary>
 
 [查看完整更新](./2026-06-25/README.md) | [01_关闭时QProcess和QThread警告修复](./2026-06-25/01_关闭时QProcess和QThread警告修复.md)

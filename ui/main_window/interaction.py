@@ -13,72 +13,12 @@ from ui.core.theme import DARK_QSS
 
 
 class MainWindowInteractionMixin:
-    """窗口交互Mixin - 处理窗口控制（缩放走 WM_NCHITTEST 原生方案）"""
-
-    # ---- 窗口缩放：Windows WM_NCHITTEST 原生方案 ----
-    # 与 bnos_dock/dock_manager 中的浮动 Dock 缩放方案一致。
-    # 不使用 mousePressEvent/mouseMoveEvent 方案的原因是：
-    # CanvasHost（centralWidget）和 DarkTitleBar（menuWidget）覆盖了
-    # 整个主窗口区域，子控件的鼠标事件不会传播到主窗口，
-    # 导致 _get_resize_region 永远检测不到边缘点击。
-
-    def nativeEvent(self, eventType, message):
-        """Windows 原生事件 — 无边框窗口边缘缩放"""
-        import ctypes
-        # 最大化时不处理（系统管理）
-        if self.isMaximized():
-            return False, 0
-        if eventType != b"windows_generic_MSG":
-            return False, 0
-
-        class MSG(ctypes.Structure):
-            _fields_ = [
-                ("hwnd", ctypes.c_void_p),
-                ("message", ctypes.c_uint),
-                ("wParam", ctypes.c_ulonglong),
-                ("lParam", ctypes.c_longlong),
-                ("time", ctypes.c_uint),
-                ("pt_x", ctypes.c_long),
-                ("pt_y", ctypes.c_long),
-            ]
-        msg = MSG.from_address(int(message))
-        if msg.message != 0x0084:  # WM_NCHITTEST
-            return False, 0
-
-        # 光标屏幕坐标
-        x = msg.lParam & 0xFFFF
-        y = (msg.lParam >> 16) & 0xFFFF
-
-        # 窗口屏幕坐标
-        geo = self.geometry()
-        border = self._RESIZE_MARGIN
-
-        left = x < geo.x() + border
-        right = x >= geo.x() + geo.width() - border
-        top = y < geo.y() + border
-        bottom = y >= geo.y() + geo.height() - border
-
-        HTLEFT, HTRIGHT, HTTOP, HTBOTTOM = 10, 11, 12, 15
-        HTTOPLEFT, HTTOPRIGHT, HTBOTTOMLEFT, HTBOTTOMRIGHT = 13, 14, 16, 17
-
-        if top and left:
-            return True, HTTOPLEFT
-        if top and right:
-            return True, HTTOPRIGHT
-        if bottom and left:
-            return True, HTBOTTOMLEFT
-        if bottom and right:
-            return True, HTBOTTOMRIGHT
-        if left:
-            return True, HTLEFT
-        if right:
-            return True, HTRIGHT
-        if top:
-            return True, HTTOP
-        if bottom:
-            return True, HTBOTTOM
-
-        return False, 0
+    """窗口交互Mixin - 处理窗口控制
+    
+    注意：nativeEvent 不能放在 Mixin 中——Python MRO 中 QMainWindow 排在所有
+    Mixin 之前，Mixin 中的 nativeEvent 会被 QMainWindow.nativeEvent 遮蔽。
+    因此 nativeEvent 直接写在 BNOSMainWindow.__main__.py 主类中。
+    """
 
     def _toggle_maximize(self):
         if self.isMaximized():

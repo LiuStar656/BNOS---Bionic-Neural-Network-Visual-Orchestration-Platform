@@ -94,6 +94,8 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         self.node_creator = NodeCreatorManager.get_instance()
         
         # 无边框 + 自定义标题栏
+        # 恢复 FramelessWindowHint：由 Win32 WS_THICKFRAME 提供原生 resize，
+        # 不再需要 nativeEvent 的 WM_NCHITTEST hack。
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         
         # 限制主窗口大小（保留最小尺寸，移除最大尺寸限制支持高分辨率显示器）
@@ -235,7 +237,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         # 所有画布关闭时重置项目状态
         self._canvas_host.all_canvases_closed.connect(self._on_all_canvases_closed)
         
-        # 设置标题栏（通过setMenuWidget放在窗口顶部，不占用centralWidget空间）
+        # 设置标题栏（通过 setMenuWidget 放在窗口顶部，全宽覆盖 dock 区域）
         self.setMenuWidget(self._title_bar)
         
         # ========== IPC 进程间通信（主进程 = Server）==========
@@ -476,5 +478,69 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
             self._terminal_restored = True
             # 延迟恢复，确保 CanvasHost 内的画布 dock 也已完成创建
             QTimer.singleShot(100, self._restore_terminal_dock)
+    
+    def nativeEvent(self, eventType, message):
+        """Windows 原生事件 — 无边框窗口 WM_NCHITTEST 边缘缩放
+        
+        必须直接定义在 BNOSMainWindow 类中，不能放在 Mixin 里：
+        Python MRO 中 QMainWindow 排在所有 Mixin 之前，Mixin 中的
+        nativeEvent 会被 QMainWindow.nativeEvent 遮蔽，永远不会调用。
+        
+        坐标获取使用 QCursor.pos() 而非 MSG.lParam：
+        ctypes MSG 结构体在 64 位下有内存对齐不确定性，
+        直接读 lParam 可能拿到错误坐标，改用 Qt 的高层 API。
+        """
+        if self.isMaximized():
+            return False, 0
+        if eventType != b"windows_generic_MSG":
+            return False, 0
+
+        # 仅检查消息类型（只需读 message 字段，偏移小，不容易受对齐影响）
+        import ctypes
+
+        class MSG_HEADER(ctypes.Structure):
+            _fields_ = [
+                ("hwnd", ctypes.c_void_p),
+                ("message", ctypes.c_uint),
+            ]
+        header = MSG_HEADER.from_address(int(message))
+        if header.message != 0x0084:  # WM_NCHITTEST
+            return False, 0
+
+        # 用 QCursor 获取光标屏幕坐标，避免 MSG 结构体对齐问题
+        from PySide6.QtGui import QCursor
+        cursor_pos = QCursor.pos()
+        x, y = cursor_pos.x(), cursor_pos.y()
+
+        geo = self.geometry()
+        border = self._RESIZE_MARGIN
+
+        left = x < geo.x() + border
+        right = x >= geo.x() + geo.width() - border
+        top = y < geo.y() + border
+        bottom = y >= geo.y() + geo.height() - border
+
+        HTLEFT, HTRIGHT, HTTOP, HTBOTTOM = 10, 11, 12, 15
+        HTTOPLEFT, HTTOPRIGHT, HTBOTTOMLEFT, HTBOTTOMRIGHT = 13, 14, 16, 17
+
+        if top and left:
+            return True, HTTOPLEFT
+        if top and right:
+            return True, HTTOPRIGHT
+        if bottom and left:
+            return True, HTBOTTOMLEFT
+        if bottom and right:
+            return True, HTBOTTOMRIGHT
+        if left:
+            return True, HTLEFT
+        if right:
+            return True, HTRIGHT
+        if top:
+            return True, HTTOP
+        if bottom:
+            return True, HTBOTTOM
+
+        return False, 0
+
     # 关闭辅助方法（_shutdown_save_all_data / _disconnect_terminal_signals / _stop_terminal_subprocesses）
     # —— 定义在 lifecycle.py 的 MainWindowLifecycleMixin 中，由 ShutdownOrchestrator 统一调用

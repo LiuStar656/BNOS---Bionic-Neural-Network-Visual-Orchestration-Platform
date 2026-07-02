@@ -6,6 +6,9 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QMenuBa
 from PySide6.QtCore import Qt, QPoint, Signal
 
 
+_RESIZE_MARGIN = 6  # 顶部边缘保留给窗口 resize，不响应拖动
+
+
 class DarkTitleBar(QWidget):
     """VSCode 风格深色标题栏"""
 
@@ -21,6 +24,7 @@ class DarkTitleBar(QWidget):
 
         self.setFixedHeight(40)
         self.setObjectName("darkTitleBar")
+        self.setMouseTracking(True)  # 边缘 hover 时改变光标为 resize 样式
 
         self._init_ui(title, menubar)
         self._apply_styles()
@@ -153,16 +157,27 @@ class DarkTitleBar(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
+            # 顶部 6px 不响应拖动，留给主窗口 resize
+            if event.position().y() < _RESIZE_MARGIN:
+                event.ignore()
+                return
             self._drag_pos = event.globalPosition().toPoint()
             event.accept()
 
     def mouseMoveEvent(self, event):
+        # 顶部边缘区域内不拖动，避免与 resize 冲突
+        if event.position().y() < _RESIZE_MARGIN:
+            self.setCursor(Qt.CursorShape.SizeVerCursor)
+            event.ignore()
+            return
         if event.buttons() == Qt.MouseButton.LeftButton and self._drag_pos is not None:
             if self._parent_window:
                 delta = event.globalPosition().toPoint() - self._drag_pos
                 self._parent_window.move(self._parent_window.pos() + delta)
                 self._drag_pos = event.globalPosition().toPoint()
             event.accept()
+        else:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:

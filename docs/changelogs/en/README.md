@@ -5,6 +5,18 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-02】V2.0.22 - Custom Title Bar Window Resize Fix</strong></summary>
+
+[View Full Update](./2026-07-02/README.md) | [01_Custom_Title_Bar_Resize_Fix](./2026-07-02/01_Custom_Title_Bar_Resize_Fix.md)
+
+**Main Updates:**
+- nativeEvent MRO Shadowing Fix: Moved WM_NCHITTEST handling from Mixin to main class, resolving QMainWindow shadowing that broke edge resize
+- Coordinate Fix: Replaced ctypes.MSG.lParam with QCursor.pos(), eliminating 64-bit struct alignment issues causing wrong coordinates (top/left edges not recognized)
+- Removed Failed Win32 Hacks: Deleted _enable_native_resize() WS_THICKFRAME injection and DwmExtendFrameIntoClientArea attempts
+
+</details>
+
+<details>
 <summary><strong>【2026-06-24】V2.0.20 - Debug Panel Removal, Performance Async Rework & Lifecycle Protection</strong></summary>
 
 [View Full Update](./2026-06-24/README.md) | [01_Removal_and_Optimization](./2026-06-24/01_Debug_Panel_Removal_and_Performance_Optimization.md) | [02_DoubleClick_Componentization](./2026-06-24/02_Dock_DoubleClick_Event_Componentization.md) | [03_DoubleClick_Disabled](./2026-06-24/03_Dock_DoubleClick_Event_Disabled.md) | [04_Changelog_Viewer](./2026-06-24/04_Changelog_Viewer.md)
