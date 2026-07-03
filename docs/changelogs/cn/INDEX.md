@@ -8,6 +8,10 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-07-03](./2026-07-03/)
+- **终端面板内存泄漏修复**：_stop_content_timers() 新增 QProcess 三级终止链和 TerminalWidget.close_terminal() 显式清理，解决面板隐藏/关闭时 powershell.exe 进程残留问题
+- **docs 文档整理**：按职能将 46 个散落文档分类到 archive/、design/、reference/，新增导航索引 README.md，更新 6 处跨文件路径引用
+
 ### [2026-07-02](./2026-07-02/)
 - **自定义标题栏窗口缩放修复**：nativeEvent MRO 遮蔽修复 + QCursor.pos() 坐标获取替代 ctypes.MSG.lParam，解决上/左/右/右下边缘缩放均异常的问题
 

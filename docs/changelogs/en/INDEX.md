@@ -8,6 +8,10 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-07-03](./2026-07-03/)
+- **Terminal Panel Memory Leak Fix**: Added QProcess three-level termination chain and TerminalWidget.close_terminal() explicit cleanup in _stop_content_timers(), resolving powershell.exe process persistence when panel is hidden/closed
+- **Docs Organization**: Classified 46 scattered documents into archive/, design/, reference/, added navigation index README.md, updated 6 cross-file path references
+
 ### [2026-07-02](./2026-07-02/)
 - **Custom Title Bar Window Resize Fix**: nativeEvent MRO shadowing fix + QCursor.pos() coordinate extraction replacing ctypes.MSG.lParam, resolving all edge resize issues (top/left/right/bottom-right)
 

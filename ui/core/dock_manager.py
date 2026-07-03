@@ -341,12 +341,12 @@ class DockManager(QObject):
     
     @staticmethod
     def _stop_content_timers(dock):
-        """停止 dock 内部 widget 的所有 QTimer 和 QThread"""
+        """停止 dock 内部 widget 的所有 QTimer、QThread 和 QProcess"""
         content = dock.get_content_widget()
         if content is None:
             return
         try:
-            from PySide6.QtCore import QTimer, QThread
+            from PySide6.QtCore import QTimer, QThread, QProcess
             for child in content.findChildren(QTimer):
                 try:
                     if child.isActive():
@@ -356,8 +356,6 @@ class DockManager(QObject):
             for child in content.findChildren(QThread):
                 try:
                     if child.isRunning():
-                        # 尝试调用自定义 stop() 方法（如 StatsCollectorThread）
-                        # 对于基于标志位的线程，先设置标志再 wait 效果最好
                         if hasattr(child, '_running'):
                             child._running = False
                             child.wait(3000)
@@ -372,6 +370,36 @@ class DockManager(QObject):
                                 child.wait(2000)
                 except RuntimeError:
                     pass
+            for child in content.findChildren(QProcess):
+                try:
+                    state = child.state()
+                    if state != QProcess.ProcessState.NotRunning:
+                        pid = child.processId()
+                        child.terminate()
+                        if not child.waitForFinished(3000):
+                            child.kill()
+                            if not child.waitForFinished(2000):
+                                if pid and pid > 0:
+                                    import subprocess
+                                    import os
+                                    if os.name == 'nt':
+                                        subprocess.run(
+                                            ['taskkill', '/F', '/T', '/PID', str(pid)],
+                                            capture_output=True, timeout=5,
+                                            creationflags=subprocess.CREATE_NO_WINDOW,
+                                        )
+                        child.close()
+                except RuntimeError:
+                    pass
+            try:
+                from ui.core.terminal.terminal_widget import TerminalWidget
+                for child in content.findChildren(TerminalWidget):
+                    try:
+                        child.close_terminal()
+                    except RuntimeError:
+                        pass
+            except ImportError:
+                pass
         except RuntimeError:
             pass
     

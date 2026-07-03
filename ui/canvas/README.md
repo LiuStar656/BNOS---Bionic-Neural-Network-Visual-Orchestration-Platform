@@ -248,7 +248,7 @@ target_anchor.add_edge(edge)      （用于锚点重建后的重绑定）
 ## 📖 相关文档
 
 - [Items 模块详细说明](items/README.md)
-- [Multi-Anchor 重构计划](../docs/MULTI_ANCHOR_REFACTOR_PLAN.md)
+- [Multi-Anchor 重构计划](../docs/design/MULTI_ANCHOR_REFACTOR_PLAN.md)
 - [Canvas 拆分报告](CANVAS_SPLIT_REPORT.md)
 - [更新日志](../../docs/changelogs/README.md)
 

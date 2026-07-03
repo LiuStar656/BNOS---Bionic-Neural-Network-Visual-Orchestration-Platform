@@ -420,6 +420,6 @@ packager.import_project(bnos_path, target_dir)
 
 - [画布模块](../canvas/README.md)
 - [画布项模块](../canvas/items/README.md)
-- [Toast 模块详细设计](../docs/TOAST_MODULE_README.md)
-- [Multi-Anchor 重构计划](../docs/MULTI_ANCHOR_REFACTOR_PLAN.md)
+- [Toast 模块详细设计](../docs/reference/TOAST_MODULE_README.md)
+- [Multi-Anchor 重构计划](../docs/design/MULTI_ANCHOR_REFACTOR_PLAN.md)
 - [更新日志](../../docs/changelogs/README.md)

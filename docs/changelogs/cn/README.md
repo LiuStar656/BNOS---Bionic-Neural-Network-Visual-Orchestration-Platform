@@ -5,6 +5,17 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-03】V2.0.23 - 终端面板内存泄漏修复与文档整理</strong></summary>
+
+[查看完整更新](./2026-07-03/README.md) | [01_终端面板内存泄漏修复](./2026-07-03/01_终端面板内存泄漏修复.md) | [02_docs文档整理](./2026-07-03/02_docs文档整理.md)
+
+**主要更新：**
+- 终端面板内存泄漏修复：_stop_content_timers() 新增 QProcess 三级终止链（terminate→kill→taskkill）和 TerminalWidget.close_terminal() 显式清理，解决面板隐藏/关闭时 powershell.exe 进程残留问题
+- docs 文档整理：按职能将 46 个散落文档分类到 archive/（21个）、design/（17个）、reference/（8个），新增导航索引 README.md，更新 6 处跨文件路径引用
+
+</details>
+
+<details>
 <summary><strong>【2026-07-02】V2.0.22 - 自定义标题栏窗口缩放修复</strong></summary>
 
 [查看完整更新](./2026-07-02/README.md) | [01_自定义标题栏窗口缩放修复](./2026-07-02/01_自定义标题栏窗口缩放修复.md)

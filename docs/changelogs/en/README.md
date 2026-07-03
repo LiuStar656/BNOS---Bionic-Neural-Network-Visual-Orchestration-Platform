@@ -5,6 +5,17 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-03】V2.0.23 - Terminal Panel Memory Leak Fix & Docs Organization</strong></summary>
+
+[View Full Update](./2026-07-03/README.md) | [01_Terminal_Panel_Memory_Leak_Fix](./2026-07-03/01_Terminal_Panel_Memory_Leak_Fix.md) | [02_Docs_Organization](./2026-07-03/02_Docs_Organization.md)
+
+**Main Updates:**
+- Terminal Panel Memory Leak Fix: Added QProcess three-level termination chain (terminate→kill→taskkill) and TerminalWidget.close_terminal() explicit cleanup in _stop_content_timers(), resolving powershell.exe process persistence when panel is hidden/closed
+- Docs Organization: Classified 46 scattered documents into archive/ (21), design/ (17), reference/ (8), added navigation index README.md, updated 6 cross-file path references
+
+</details>
+
+<details>
 <summary><strong>【2026-07-02】V2.0.22 - Custom Title Bar Window Resize Fix</strong></summary>
 
 [View Full Update](./2026-07-02/README.md) | [01_Custom_Title_Bar_Resize_Fix](./2026-07-02/01_Custom_Title_Bar_Resize_Fix.md)
