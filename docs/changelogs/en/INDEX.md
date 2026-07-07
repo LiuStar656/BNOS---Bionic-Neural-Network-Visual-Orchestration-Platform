@@ -8,6 +8,9 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-07-07](./2026-07-07/)
+- **Node Name Chinese Support**: Validation rule changed from alphanumeric-only to excluding file system reserved characters, unified with NodeNameValidator, updated error messages in both languages
+
 ### [2026-07-03](./2026-07-03/)
 - **Terminal Panel Memory Leak Fix**: Added QProcess three-level termination chain and TerminalWidget.close_terminal() explicit cleanup in _stop_content_timers(), resolving powershell.exe process persistence when panel is hidden/closed
 - **Docs Organization**: Classified 46 scattered documents into archive/, design/, reference/, added navigation index README.md, updated 6 cross-file path references

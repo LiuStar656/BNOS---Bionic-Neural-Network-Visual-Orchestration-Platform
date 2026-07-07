@@ -5,6 +5,18 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-07】V2.0.24 - Node Name Chinese Support</strong></summary>
+
+[View Full Update](./2026-07-07/README.md) | [01_Node_Name_Chinese_Support](./2026-07-07/01_Node_Name_Chinese_Support.md)
+
+**Main Updates:**
+- Node name validation rule changed: from `^[a-zA-Z0-9_-]+$` to `^[^\\/:*?"<>|]+$`, supporting Chinese and other Unicode characters
+- Unified validation architecture: `node_list_panel.py` and `node_creator_manager.py` now use `NodeNameValidator` for consistent rules
+- Updated Chinese and English error messages to reflect new naming rules
+
+</details>
+
+<details>
 <summary><strong>【2026-07-03】V2.0.23 - Terminal Panel Memory Leak Fix & Docs Organization</strong></summary>
 
 [View Full Update](./2026-07-03/README.md) | [01_Terminal_Panel_Memory_Leak_Fix](./2026-07-03/01_Terminal_Panel_Memory_Leak_Fix.md) | [02_Docs_Organization](./2026-07-03/02_Docs_Organization.md)
