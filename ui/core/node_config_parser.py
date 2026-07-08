@@ -1,7 +1,7 @@
 """
 节点配置解析器 — 从 config.json 中提取参数定义和输入端口定义
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any, Optional
 
 
@@ -13,6 +13,7 @@ class ParameterDef:
     label: str
     default: Any = None
     required: bool = False
+    description: str = ""
     # 数值约束
     min: Optional[float] = None
     max: Optional[float] = None
@@ -68,7 +69,8 @@ class NodeConfigParser:
         raw = config.get("parameters", [])
         if not raw:
             return []
-        return [ParameterDef(**p) for p in raw]
+        known_fields = {f.name for f in fields(ParameterDef)}
+        return [ParameterDef(**{k: v for k, v in p.items() if k in known_fields}) for p in raw]
 
     @staticmethod
     def extract_values(config: dict) -> dict[str, Any]:
@@ -90,7 +92,8 @@ class NodeConfigParser:
         raw = config.get("input_ports", [])
         if not raw:
             return []
-        return [InputPortDef(**p) for p in raw]
+        known_fields = {f.name for f in fields(InputPortDef)}
+        return [InputPortDef(**{k: v for k, v in p.items() if k in known_fields}) for p in raw]
 
     @staticmethod
     def has_input_ports(config: dict) -> bool:
@@ -109,7 +112,8 @@ class NodeConfigParser:
         raw = config.get("output_ports", [])
         if not raw:
             return []
-        return [OutputPortDef(**p) for p in raw]
+        known_fields = {f.name for f in fields(OutputPortDef)}
+        return [OutputPortDef(**{k: v for k, v in p.items() if k in known_fields}) for p in raw]
 
     @staticmethod
     def has_output_ports(config: dict) -> bool:
