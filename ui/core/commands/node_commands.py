@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 from typing import Dict, List, Optional, Tuple
 
 from PySide6.QtCore import QPointF
@@ -108,12 +110,55 @@ class DeleteNodeCommand(Command):
             self._collect_state()
             self._canvas._begin_replay()
             self._canvas.remove_node_from_canvas(self._node_name)
+
+            if self._parent_window:
+                self._cleanup_upstream_config()
+                self._cleanup_downstream_config()
+
             self._canvas._end_replay()
             return CommandResult(True)
         except Exception as e:
             self._canvas._end_replay()
             logger.error("DeleteNodeCommand 执行失败: %s", e)
             return CommandResult(False, str(e))
+
+    def _cleanup_upstream_config(self):
+        upstream_nodes = set()
+        for edge in self._edge_data:
+            if edge["source"] and edge["target"] == self._node_name:
+                upstream_nodes.add(edge["source"])
+
+        for upstream_name in upstream_nodes:
+            if upstream_name in self._parent_window.nodes_data:
+                upstream_info = self._parent_window.nodes_data[upstream_name]
+                upstream_config = upstream_info['config']
+                upstream_config['listen_upper_file'] = ""
+                config_path = os.path.join(upstream_info['path'], "config.json")
+                try:
+                    with open(config_path, 'w', encoding='utf-8') as f:
+                        json.dump(upstream_config, f, indent=2, ensure_ascii=False)
+                    logger.info("已清除上游节点 %s 的监听配置", upstream_name)
+                except Exception as e:
+                    logger.info("[FAIL] 保存配置失败: %s", e)
+
+    def _cleanup_downstream_config(self):
+        downstream_nodes = set()
+        for edge in self._edge_data:
+            if edge["target"] and edge["source"] == self._node_name:
+                downstream_nodes.add(edge["target"])
+
+        for downstream_name in downstream_nodes:
+            if downstream_name in self._parent_window.nodes_data:
+                downstream_info = self._parent_window.nodes_data[downstream_name]
+                downstream_config = downstream_info['config']
+                downstream_config['listen_upper_file'] = ""
+                config_path = os.path.join(downstream_info['path'], "config.json")
+                try:
+                    with open(config_path, 'w', encoding='utf-8') as f:
+                        json.dump(downstream_config, f, indent=2, ensure_ascii=False)
+                    logger.info("已清除下游节点 %s 的监听配置", downstream_name)
+                except Exception as e:
+                    logger.info("[FAIL] 保存配置失败: %s", e)
 
     def undo(self) -> CommandResult:
         try:
