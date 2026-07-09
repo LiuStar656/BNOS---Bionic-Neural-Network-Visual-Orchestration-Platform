@@ -40,8 +40,10 @@ class NodeInteractionHandler:
             default_output_rect = QRectF(
                 w - ANCHOR_HALF, h / 2 - ANCHOR_HALF, ANCHOR_SIZE, ANCHOR_SIZE)
             if default_output_rect.contains(pos_in_item):
-                clicked_output = self._node.anchor_manager.get_output("default")
-        if clicked_output:
+                default_output = self._node.anchor_manager.get_output("default")
+                if default_output and default_output.isVisible():
+                    clicked_output = default_output
+        if clicked_output and clicked_output.isVisible():
             port_label = (
                 clicked_output.port_name
                 if getattr(clicked_output, "port_name", None)
@@ -61,8 +63,10 @@ class NodeInteractionHandler:
                 default_rect = QRectF(
                     -ANCHOR_HALF, h / 2 - ANCHOR_HALF, ANCHOR_SIZE, ANCHOR_SIZE)
                 if default_rect.contains(pos_in_item):
-                    clicked_anchor = self._node.anchor_manager.input_anchors["default"]
-        if clicked_anchor:
+                    default_anchor = self._node.anchor_manager.input_anchors["default"]
+                    if default_anchor.isVisible():
+                        clicked_anchor = default_anchor
+        if clicked_anchor and clicked_anchor.isVisible():
             port_label = (
                 clicked_anchor.port_name
                 if getattr(clicked_anchor, "port_name", None)

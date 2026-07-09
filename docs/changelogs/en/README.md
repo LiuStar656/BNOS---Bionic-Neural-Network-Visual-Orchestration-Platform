@@ -5,6 +5,19 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-08】V2.0.25 - Node Startup Mechanism Improvement & Anchor Conditional Rendering</strong></summary>
+
+[View Full Update](./2026-07-08/README.md) | [01_Startup_Mechanism](./2026-07-08/01_Node_Startup_Mechanism_Improvement_and_Custom_Entry_Script_Support.md) | [02_Anchor_Rendering](./2026-07-08/02_Input_Output_Anchor_Conditional_Rendering_Optimization.md) | [03_Code_Cleanup](./2026-07-08/03_Parameter_Definition_and_Anchor_Manager_Code_Cleanup.md)
+
+**Main Updates:**
+- Node startup mechanism improvement: `start.json` adds `entry` field for custom startup programs, defaults to `main.py`, backward compatible
+- Input/output anchor conditional rendering: anchors not rendered when `listen_upper_file`/`output_file` fields absent in `config.json`, avoiding unnecessary anchor display
+- Parameter definition compatibility: `ParameterDef` adds `description` field support, filters unknown fields during parsing to prevent TypeError
+- Code cleanup: removed unused dead code from `AnchorManager` (`layout_for_rect`, `layout_for_dot`, etc.), simplified code structure
+
+</details>
+
+<details>
 <summary><strong>【2026-07-07】V2.0.24 - Node Name Chinese Support</strong></summary>
 
 [View Full Update](./2026-07-07/README.md) | [01_Node_Name_Chinese_Support](./2026-07-07/01_Node_Name_Chinese_Support.md)

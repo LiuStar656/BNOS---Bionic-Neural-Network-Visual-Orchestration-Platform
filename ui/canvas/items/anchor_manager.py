@@ -83,7 +83,10 @@ class AnchorManager:
     # =============================================================
 
     def ensure_default_anchors(self) -> None:
-        """确保一对 'default' 锚点存在。已存在则复用。"""
+        """确保一对 'default' 锚点存在。已存在则复用。
+        
+        默认隐藏锚点，由 build_from_config() 根据 config.json 中的字段决定是否显示。
+        """
         if "default" not in self.input_anchors:
             anchor = self._make_anchor(
                 anchor_type="input",
@@ -91,6 +94,7 @@ class AnchorManager:
                 port_type="default",
                 port_label="",
             )
+            anchor.setVisible(False)
             self.input_anchors["default"] = anchor
 
         if "default" not in self.output_anchors:
@@ -100,6 +104,7 @@ class AnchorManager:
                 port_type="default",
                 port_label="",
             )
+            anchor.setVisible(False)
             self.output_anchors["default"] = anchor
 
     def destroy_all(self) -> None:
@@ -413,51 +418,6 @@ class AnchorManager:
         return self._find_nearest(pos_in_item, self.output_anchors, max_dist)
 
     # =============================================================
-    # 布局：方框模式 / 圆点模式 / 面板模式的锚点位置计算
-    # =============================================================
-
-    def layout_for_rect(self, w: float, h: float) -> None:
-        """方框 / 圆点模式：左右各一个 default 锚点，水平居中。"""
-        # 销毁非 default 锚点（方框模式不支持多锚点）
-        self._keep_only_default()
-
-        if "default" in self.input_anchors:
-            anchor = self.input_anchors["default"]
-            anchor.setRect(0, 0, ANCHOR_SIZE, ANCHOR_SIZE)
-            anchor.setPos(-ANCHOR_HALF, h / 2 - ANCHOR_HALF)
-            anchor.setZValue(1)
-            anchor.setVisible(True)
-
-        if "default" in self.output_anchors:
-            anchor = self.output_anchors["default"]
-            anchor.setRect(0, 0, ANCHOR_SIZE, ANCHOR_SIZE)
-            anchor.setPos(w - ANCHOR_HALF, h / 2 - ANCHOR_HALF)
-            anchor.setZValue(1)
-            anchor.setVisible(True)
-
-    def layout_for_dot(self, w: float, h: float,
-                        anchor_in_size: float, anchor_in_pos: tuple[float, float],
-                        anchor_out_size: float, anchor_out_pos: tuple[float, float]) -> None:
-        """圆点模式：输入/输出锚点都覆盖圆点中心（尺寸更大便于点击）。"""
-        self._keep_only_default()
-
-        if "default" in self.input_anchors:
-            anchor = self.input_anchors["default"]
-            anchor.setRect(0, 0, anchor_in_size, anchor_in_size)
-            anchor.setPos(*anchor_in_pos)
-            anchor.setZValue(5)
-            anchor.setVisible(True)
-            anchor.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-
-        if "default" in self.output_anchors:
-            anchor = self.output_anchors["default"]
-            anchor.setRect(0, 0, anchor_out_size, anchor_out_size)
-            anchor.setPos(*anchor_out_pos)
-            anchor.setZValue(4)
-            anchor.setVisible(True)
-            anchor.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-
-    # =============================================================
     # 内部辅助
     # =============================================================
 
@@ -615,22 +575,6 @@ class AnchorManager:
                 fm = label.document().idealWidth()
                 label.setPos(node_w - ANCHOR_HALF - 6 - fm, center_y - 8)
             label_container[port.name] = label
-
-    def _layout_default_input(self, w: float, h: float) -> None:
-        if "default" in self.input_anchors:
-            anchor = self.input_anchors["default"]
-            anchor.setRect(0, 0, ANCHOR_SIZE, ANCHOR_SIZE)
-            anchor.setPos(-ANCHOR_HALF, h / 2 - ANCHOR_HALF)
-            anchor.setZValue(1)
-            anchor.setVisible(True)
-
-    def _layout_default_output(self, w: float, h: float) -> None:
-        if "default" in self.output_anchors:
-            anchor = self.output_anchors["default"]
-            anchor.setRect(0, 0, ANCHOR_SIZE, ANCHOR_SIZE)
-            anchor.setPos(w - ANCHOR_HALF, h / 2 - ANCHOR_HALF)
-            anchor.setZValue(1)
-            anchor.setVisible(True)
 
     def _find_nearest(self, pos: QPointF, container: dict,
                        max_dist: int) -> Optional[AnchorItem]:

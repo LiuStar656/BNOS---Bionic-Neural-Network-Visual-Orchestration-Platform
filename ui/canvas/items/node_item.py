@@ -92,12 +92,18 @@ class NodeItem(QGraphicsRectItem):
     # ========== 兼容层（对外 API 不变）==========
 
     @property
-    def input_anchor(self) -> AnchorItem:
-        return self.anchor_manager.get_default_input()
+    def input_anchor(self) -> AnchorItem | None:
+        anchor = self.anchor_manager.get_default_input()
+        if anchor and anchor.isVisible():
+            return anchor
+        return None
 
     @property
-    def output_anchor(self) -> AnchorItem:
-        return self.anchor_manager.get_default_output()
+    def output_anchor(self) -> AnchorItem | None:
+        anchor = self.anchor_manager.get_default_output()
+        if anchor and anchor.isVisible():
+            return anchor
+        return None
 
     def build_anchors_from_config(self, config: dict | None):
         self.anchor_manager.build_from_config(

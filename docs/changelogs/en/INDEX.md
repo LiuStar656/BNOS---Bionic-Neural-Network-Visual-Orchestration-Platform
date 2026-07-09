@@ -8,6 +8,11 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-07-08](./2026-07-08/)
+- **Node Startup Mechanism Improvement**: `start.json` adds `entry` field for custom startup programs, defaults to `main.py`, backward compatible
+- **Input/Output Anchor Conditional Rendering**: Input/output anchors not rendered when `listen_upper_file`/`output_file` fields absent in `config.json`
+- **Parameter Definition & Code Cleanup**: `ParameterDef` adds `description` field support, removes unused dead code from `AnchorManager`
+
 ### [2026-07-07](./2026-07-07/)
 - **Node Name Chinese Support**: Validation rule changed from alphanumeric-only to excluding file system reserved characters, unified with NodeNameValidator, updated error messages in both languages
 
@@ -163,4 +168,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-07-02
+**Last Updated**: 2026-07-08
