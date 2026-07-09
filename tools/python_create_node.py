@@ -54,6 +54,10 @@ def create_node():
         print("❌ 节点名称不能为空")
         sys.exit(1)
     
+    entry_script = input("请输入入口脚本名称（默认 listener.py）：").strip()
+    if not entry_script:
+        entry_script = "listener.py"
+    
     node_dir = f"python_node_{node_name}"
     full_node_dir = os.path.join(os.getcwd(), node_dir)
     full_node_dir = os.path.abspath(full_node_dir)
@@ -126,7 +130,7 @@ def create_node():
         "nodes": [
             {
                 "name": f"node_python_{node_name}",
-                "entry": "listener.py",
+                "entry": entry_script,
                 "config": {
                     "listen_upper_file": "../data/upper_data.json",
                     "output_file": "./output.json"
@@ -139,6 +143,7 @@ def create_node():
         json.dump(start_content, f, indent=2, ensure_ascii=False)
     
     print("💡 start.json 不写入绝对 path / python_exe，由 BNOS 运行时动态推断")
+    print(f"💡 入口脚本: {entry_script}（可在 start.json 中修改 entry 字段自定义）")
     
     extract_node_pack(full_node_dir)
     
