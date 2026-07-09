@@ -126,6 +126,7 @@ def create_node():
         "nodes": [
             {
                 "name": f"node_python_{node_name}",
+                "entry": "listener.py",
                 "config": {
                     "listen_upper_file": "../data/upper_data.json",
                     "output_file": "./output.json"

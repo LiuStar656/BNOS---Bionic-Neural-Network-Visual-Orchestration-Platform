@@ -176,9 +176,9 @@ def _find_node_processes(node_path):
                     except ValueError:
                         pass
         else:
-            # Linux/Mac: pgrep -f
+            # Linux/Mac: pgrep -f 匹配节点路径下的 Python 进程
             result = subprocess.run(
-                ['pgrep', '-f', f'python.*{node_path}.*listener'],
+                ['pgrep', '-f', f'{node_path}'],
                 capture_output=True, text=True, timeout=5
             )
             for line in result.stdout.strip().split('\n'):
@@ -337,10 +337,22 @@ def start_node_process(node_info):
 
     # 3. 定位虚拟环境 Python 解释器
     python_exe = _python_exe_for_node(node_path, start_config, node_name)
-    listener_py = os.path.join(node_path, "listener.py")
+    
+    # 4. 从 start.json 读取入口脚本（默认 listener.py）
+    entry_script = "listener.py"
+    if 'nodes' in start_config and isinstance(start_config['nodes'], list):
+        for n in start_config['nodes']:
+            if n.get('name') == node_name or n.get('path') == node_path:
+                if 'entry' in n and n['entry']:
+                    entry_script = n['entry']
+                    break
+    elif 'entry' in start_config:
+        entry_script = start_config['entry']
+    
+    entry_py = os.path.join(node_path, entry_script)
 
     logger.debug("Python 解释器: %s", python_exe)
-    logger.debug("Listener 脚本: %s", listener_py)
+    logger.debug("入口脚本: %s", entry_py)
 
     # 检查必要文件是否存在
     if not os.path.exists(python_exe):
@@ -348,8 +360,8 @@ def start_node_process(node_info):
         logger.error(error_msg)
         return False, error_msg
     
-    if not os.path.exists(listener_py):
-        error_msg = f"Listener 脚本不存在: {listener_py}"
+    if not os.path.exists(entry_py):
+        error_msg = f"入口脚本不存在: {entry_py}"
         logger.error(error_msg)
         return False, error_msg
     
@@ -359,11 +371,11 @@ def start_node_process(node_info):
         logger.error(venv_error)
         return False, venv_error
 
-    # 直接运行 listener.py（PID 即为实际 Python 进程）
+    # 直接运行入口脚本（PID 即为实际 Python 进程）
     try:
         if os.name == 'nt':
             process = subprocess.Popen(
-                [python_exe, listener_py],
+                [python_exe, entry_py],
                 cwd=node_path,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
                 stdout=subprocess.DEVNULL,
@@ -372,7 +384,7 @@ def start_node_process(node_info):
             )
         else:
             process = subprocess.Popen(
-                [python_exe, listener_py],
+                [python_exe, entry_py],
                 cwd=node_path, 
                 start_new_session=True,
                 stdout=subprocess.DEVNULL,
