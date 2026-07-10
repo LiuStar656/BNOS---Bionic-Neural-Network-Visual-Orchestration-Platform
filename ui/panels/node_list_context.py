@@ -348,7 +348,6 @@ class NodeListContextMixin:
         project_path = getattr(parent, 'current_project_path', None)
         if not project_path:
             return None
-        from ui.core.composite_node import CompositeNode
         canvas._composite_manager = CompositeNode(project_path, canvas, self.group_manager)
         return canvas._composite_manager
 

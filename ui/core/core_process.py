@@ -229,13 +229,16 @@ class CoreProcessApp:
                 continue
 
             config_path = os.path.join(node_path, "config.json")
-            config = {}
-            if os.path.exists(config_path):
-                try:
-                    with open(config_path, 'r', encoding='utf-8') as f:
-                        config = json.load(f)
-                except Exception as e:
-                    logger.warning("读取节点配置失败 %s: %s", node_name, e)
+            if not os.path.isfile(config_path):
+                logger.info("跳过非节点目录（无 config.json）: %s", node_name)
+                continue
+
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+            except Exception as e:
+                logger.warning("读取节点配置失败 %s: %s", node_name, e)
+                continue
 
             nodes_data[node_name] = {
                 "name": node_name,

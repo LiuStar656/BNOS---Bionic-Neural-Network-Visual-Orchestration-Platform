@@ -33,6 +33,69 @@ from ui.core.logger import logger
 from ui.canvas.drawing.draw_layer import DrawLayer
 
 
+# ── 选中代理：统一 box_selected_nodes 与 Qt 原生选择 ──
+
+class SelectedNodesList:
+    """Qt 选择的代理列表 — 读写均委托给 QGraphicsScene.selectedItems()。
+    
+    保持 list 接口兼容（append / remove / clear / in / len / [:]），
+    但底层没有独立状态，始终从 scene 实时计算。
+    """
+
+    def __init__(self, canvas):
+        self._canvas = canvas
+
+    def _sync(self):
+        """从 scene 同步选中节点名称"""
+        from ui.canvas.items.node_item import NodeItem
+        self._cache = [
+            item.node_name for item in self._canvas.scene.selectedItems()
+            if isinstance(item, NodeItem) and hasattr(item, 'node_name')
+        ]
+
+    # ── 读操作 ──
+    def __iter__(self):
+        self._sync()
+        return iter(self._cache)
+
+    def __len__(self):
+        self._sync()
+        return len(self._cache)
+
+    def __contains__(self, name):
+        self._sync()
+        return name in self._cache
+
+    def __getitem__(self, idx):
+        self._sync()
+        return self._cache[idx]
+
+    def __bool__(self):
+        self._sync()
+        return bool(self._cache)
+
+    def index(self, name):
+        self._sync()
+        return self._cache.index(name)
+
+    # ── 写操作 ──
+    def append(self, name):
+        if name in self._canvas.nodes:
+            self._canvas.nodes[name].setSelected(True)
+
+    def remove(self, name):
+        if name in self._canvas.nodes:
+            self._canvas.nodes[name].setSelected(False)
+
+    def clear(self):
+        self._canvas.scene.clearSelection()
+
+    # ── 显示 ──
+    def __repr__(self):
+        self._sync()
+        return repr(self._cache)
+
+
 class OptimizedScene(QGraphicsScene):
     """优化的场景类，实现视口裁剪和按需渲染"""
     
@@ -57,6 +120,8 @@ from ui.canvas.mixins.canvas_menus import CanvasMenu
 from ui.canvas.mixins.canvas_layout import CanvasLayout
 from ui.canvas.mixins.canvas_colors import CanvasColors
 from ui.canvas.mixins.canvas_box_select import CanvasBoxSelect
+from ui.canvas.items.composite_node_item import CompositeNodeItem
+from ui.core.composite_node import CompositeNode
 
 
 class NodeCanvas(QGraphicsView):
@@ -145,7 +210,7 @@ class NodeCanvas(QGraphicsView):
 
         # ===== 框选状态（由 CanvasBoxSelect/SelectionManager 管理）=====
         self.box_select_rect = None
-        self.box_selected_nodes = []
+        self.box_selected_nodes = SelectedNodesList(self)
         self.is_box_selecting = False
         self.box_select_start_pos = None
 
@@ -349,8 +414,6 @@ class NodeCanvas(QGraphicsView):
         S03: 防止关闭项目再打开后复合节点消失。
         """
         import os, json
-        from ui.canvas.items.composite_node_item import CompositeNodeItem
-        from ui.core.composite_node import CompositeNode
 
         pp = project_path or (self.parent_window.current_project_path
                               if self.parent_window else None)

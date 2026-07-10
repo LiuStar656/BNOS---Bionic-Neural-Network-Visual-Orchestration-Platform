@@ -28,7 +28,7 @@ class CanvasBoxSelect:
                 if hasattr(g, 'selected_handle'):
                     g.selected_handle = -1
 
-        self.canvas.box_selected_nodes = []
+        self.canvas.box_selected_nodes.clear()
         self.canvas.is_box_selecting = False
         self.canvas.box_select_start_pos = None
 

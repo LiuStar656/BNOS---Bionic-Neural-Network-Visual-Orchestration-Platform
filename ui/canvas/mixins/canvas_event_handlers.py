@@ -67,13 +67,12 @@ class EventHandlers:
             scene_rect = QRectF(top_left, bottom_right)
             self.canvas.box_select_rect.setRect(scene_rect)
 
-            self.canvas.box_selected_nodes = []
+            self.canvas.scene.clearSelection()
             for node_name, node in self.canvas.nodes.items():
                 node_rect = node.sceneBoundingRect()
                 if scene_rect.intersects(node_rect):
                     node.setPen(QPen(QColor(self.canvas.node_selected_color), 3))
                     node.setSelected(True)
-                    self.canvas.box_selected_nodes.append(node_name)
                 else:
                     node.setPen(QPen(QColor(self.canvas.node_border_color), 2))
                     node.setSelected(False)

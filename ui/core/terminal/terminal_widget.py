@@ -164,7 +164,7 @@ class TerminalWidget(QWidget):
             return
         self._is_closing = True
         logger.info("TerminalWidget: 正在关闭终端...")
-        self.process.stop()
+        self.process.dispose()
 
     def closeEvent(self, event):
         """关闭事件 - 确保子进程被终止"""

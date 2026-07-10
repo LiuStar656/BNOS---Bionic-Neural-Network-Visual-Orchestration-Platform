@@ -43,28 +43,19 @@ class SelectionManager:
 
     def on_node_selected(self, node):
         """普通单击选中节点（单选，清除之前的多选）"""
-        # 如果点击的节点已在多选列表中，只取消其他节点的Qt选中，保留此节点可拖动
-        if node.node_name in self.canvas.box_selected_nodes:
-            # 确保它是唯一被Qt选中的项，支持拖动
-            for name in self.canvas.box_selected_nodes:
-                if name in self.canvas.nodes:
-                    self.canvas.nodes[name].setSelected(name == node.node_name)
+        name = node.node_name
+
+        # 如果点击已选中的节点 → 仅保留它（Qt 已自动选中，对齐即可）
+        if name in self.canvas.box_selected_nodes:
+            self.canvas.scene.clearSelection()
+            node.setSelected(True)
             return
 
-        # 清除之前所有选中节点
-        for name in self.canvas.box_selected_nodes:
-            if name in self.canvas.nodes:
-                self.canvas.nodes[name].setPen(
-                    QPen(QColor(self.canvas.node_border_color), 2)
-                )
-                self.canvas.nodes[name].setSelected(False)
-        self.canvas.box_selected_nodes = []
-
-        # 选中当前节点
-        self.canvas.box_selected_nodes.append(node.node_name)
-        node.setPen(QPen(QColor(self.canvas.node_selected_color), 3))
+        # 清除之前所有选中 → 仅选中当前节点
+        self.canvas.scene.clearSelection()
         node.setSelected(True)
-        logger.info("选中节点: %s", node.node_name)
+        node.setPen(QPen(QColor(self.canvas.node_selected_color), 3))
+        logger.info("选中节点: %s", name)
 
     def _toggle_node_selection(self, node_name):
         """切换节点选中状态（用于 Ctrl+单击多选）"""
@@ -73,15 +64,13 @@ class SelectionManager:
 
         node = self.canvas.nodes[node_name]
 
-        if node_name in self.canvas.box_selected_nodes:
-            self.canvas.box_selected_nodes.remove(node_name)
+        if node.isSelected():
+            node.setSelected(False)
             node.setPen(QPen(QColor(self.canvas.node_border_color), 2))
-            node.setSelected(True)   # scene 随后 toggle 为 False
             logger.debug("取消选中节点: %s", node_name)
         else:
-            self.canvas.box_selected_nodes.append(node_name)
+            node.setSelected(True)
             node.setPen(QPen(QColor(self.canvas.node_selected_color), 3))
-            node.setSelected(False)  # scene 随后 toggle 为 True
             logger.info(
                 "选中节点: %s (共%d个)",
                 node_name,
@@ -90,11 +79,12 @@ class SelectionManager:
 
     def get_selected_node(self):
         """获取当前选中的节点名称（单选优先取第一个）"""
-        return self.canvas.box_selected_nodes[0] if self.canvas.box_selected_nodes else None
+        nodes = self.canvas.box_selected_nodes
+        return nodes[0] if nodes else None
 
     def clear_selection(self):
         """清除节点选择"""
-        self.canvas.clear_box_selection()
+        self.canvas.scene.clearSelection()
 
     # ── 命令录制辅助方法 ──
 

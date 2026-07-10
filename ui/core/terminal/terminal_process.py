@@ -164,9 +164,15 @@ class TerminalProcess(QObject):
         except (RuntimeError, TypeError):
             pass
 
-    def __del__(self):
-        """析构时确保子进程被终止"""
+    def dispose(self):
+        """显式清理：终止子进程并断开信号。
+        
+        调用方应在 TerminalWidget.close_terminal() 中显式调用此方法，
+        不依赖 __del__ 不确定性清理。
+        """
+        self.stop()
+        # 帮助 Qt 尽早释放 C++ 资源
         try:
-            self.stop()
+            self.process.deleteLater()
         except RuntimeError:
             pass

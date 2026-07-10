@@ -196,7 +196,7 @@ class CanvasBatchOps:
                 if node_item == edge.end_node:
                     target_name = name
                     break
-            if target_name in self.canvas.selection.box_selected_nodes:
+            if target_name in self.canvas.box_selected_nodes:
                 edges_to_remove.append(edge)
 
         for edge in edges_to_remove:

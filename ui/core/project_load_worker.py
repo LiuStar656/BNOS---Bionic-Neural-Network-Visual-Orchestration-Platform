@@ -56,21 +56,14 @@ class ProjectLoadWorker(QThread):
                     continue
 
                 config_path = os.path.join(node_path, "config.json")
-                has_config = os.path.isfile(config_path)
+                if not os.path.isfile(config_path):
+                    logger.info("跳过非节点目录（无 config.json）: %s", item)
+                    continue
 
                 try:
-                    if has_config:
-                        with open(config_path, 'r', encoding='utf-8') as f:
-                            config = json.load(f)
-                        node_name = config.get('node_name', item)
-                    else:
-                        config = {
-                            'node_name': item,
-                            'type': 'custom' if not item.startswith('node_python_') else 'python',
-                            'startup_mode': 'local'
-                        }
-                        node_name = item
-                        logger.info("节点 '%s' 无 config.json，使用默认配置", item)
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                    node_name = config.get('node_name', item)
 
                     expected_path = os.path.normpath(
                         os.path.abspath(os.path.join(self._nodes_dir, item))    
