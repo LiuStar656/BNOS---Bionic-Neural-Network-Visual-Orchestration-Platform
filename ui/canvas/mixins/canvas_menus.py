@@ -8,6 +8,7 @@ from functools import partial
 from PySide6.QtWidgets import QMenu
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
+from ui.core.utils.dialog_utils import themed_input, themed_message
 from PySide6.QtWidgets import QGraphicsItem
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
@@ -404,30 +405,23 @@ class CanvasMenu:
         if not mgr:
             return
 
-        # 弹出命名对话框
-        from PySide6.QtWidgets import QInputDialog, QMessageBox
-        name, ok = QInputDialog.getText(
-            None, "命名复合节点",
-            "复合节点名称（留空则自动生成\u540d\u79f0）：",
-            text=""
-        )
-        if not ok:
+        # 弹出命名对话框（主题统一）
+        name = themed_input(None, "命名复合节点", "复合节点名称（留空则自动生成名称）：", default="")
+        if name is None:
             return  # 用户取消
 
         ok, msg, comp_id = mgr.compress(node_names, name)
         if not ok:
-            QMessageBox.warning(None, "\u538b\u7f29\u5931\u8d25", msg)
+            themed_message(None, "压缩失败", msg, "warning")
 
     def _on_decompress_composite(self, mgr, comp_id, node_count):
         """解耦确认对话框。"""
-        from PySide6.QtWidgets import QMessageBox
-        reply = QMessageBox.question(
-            None, "\u786e\u8ba4\u89e3\u8026",
-            f"\u5c06\u590d\u5408\u8282\u70b9\u8fd8\u539f\u4e3a {node_count} \u4e2a\u72ec\u7acb\u8282\u70b9\uff0c\n\u786e\u5b9a\u8981\u7ee7\u7eed\u5417\uff1f",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+        reply = themed_message(
+            None, "确认解耦",
+            f"将复合节点还原为 {node_count} 个独立节点，\n确定要继续吗？",
+            "question"
         )
-        if reply != QMessageBox.StandardButton.Yes:
+        if not reply:
             return
         mgr.decompress(comp_id)
 

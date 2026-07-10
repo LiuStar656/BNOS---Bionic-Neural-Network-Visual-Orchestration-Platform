@@ -76,12 +76,12 @@ class SelectionManager:
         if node_name in self.canvas.box_selected_nodes:
             self.canvas.box_selected_nodes.remove(node_name)
             node.setPen(QPen(QColor(self.canvas.node_border_color), 2))
-            node.setSelected(False)
+            node.setSelected(True)   # scene 随后 toggle 为 False
             logger.debug("取消选中节点: %s", node_name)
         else:
             self.canvas.box_selected_nodes.append(node_name)
             node.setPen(QPen(QColor(self.canvas.node_selected_color), 3))
-            node.setSelected(True)
+            node.setSelected(False)  # scene 随后 toggle 为 True
             logger.info(
                 "选中节点: %s (共%d个)",
                 node_name,
