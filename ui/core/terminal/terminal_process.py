@@ -17,7 +17,7 @@ class TerminalProcess(QObject):
 
     def __init__(self, working_dir: str = None):
         super().__init__()
-        self.process = QProcess(self)  # 设置父对象，Qt 管理生命周期
+        self.process = QProcess()  # 无 parent，避免 Qt C++ 树先于 __del__ 清理时误报 Destroyed warning
         self.working_dir = working_dir
         self._stopped = False
 
