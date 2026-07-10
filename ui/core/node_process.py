@@ -4,7 +4,61 @@
 import os
 import subprocess
 import signal
+import datetime
 from ui.core.logger import logger
+
+# 单个日志文件最大字节数 (5MB)，超过后截断保留尾部
+_MAX_LOG_BYTES = 5 * 1024 * 1024
+
+
+def _rotate_log(path: str, max_bytes: int = _MAX_LOG_BYTES):
+    """若日志文件超过 max_bytes，截断保留尾部（一半），防止无限增长。"""
+    try:
+        if os.path.exists(path) and os.path.getsize(path) > max_bytes:
+            with open(path, 'rb') as f:
+                f.seek(-max_bytes // 2, os.SEEK_END)
+                tail = f.read()
+            with open(path, 'wb') as f:
+                f.write(b"[... truncated ...]\n")
+                f.write(tail)
+    except Exception:
+        pass
+
+
+def _open_node_logs(node_path: str):
+    """为节点进程打开 stdout / stderr 日志文件（自动轮转）。
+    
+    Returns:
+        tuple: (stdout_fp, stderr_fp) 两个已打开的文件对象，
+               节点退出后必须由调用方关闭。
+    """
+    stdout_path = os.path.join(node_path, "node_output.log")
+    stderr_path = os.path.join(node_path, "node_error.log")
+    # 启动前轮转旧日志
+    _rotate_log(stdout_path)
+    _rotate_log(stderr_path)
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    header = f"=== BNOS node started at {stamp} ===\n"
+    out_fp = open(stdout_path, 'w', encoding='utf-8')
+    err_fp = open(stderr_path, 'w', encoding='utf-8')
+    out_fp.write(header)
+    err_fp.write(header)
+    out_fp.flush()
+    err_fp.flush()
+    return out_fp, err_fp
+
+
+def _read_tail(path: str, lines: int = 50) -> str:
+    """读取日志文件尾部 N 行（用于启动失败时汇报）。"""
+    if not os.path.exists(path):
+        return "(log file not found)"
+    try:
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            all_lines = f.readlines()
+            tail = all_lines[-lines:] if len(all_lines) > lines else all_lines
+            return ''.join(tail).rstrip() or "(empty)"
+    except Exception:
+        return "(cannot read log)"
 
 
 def _pid_file(node_path):
@@ -371,6 +425,9 @@ def start_node_process(node_info):
         logger.error(venv_error)
         return False, venv_error
 
+    # 打开日志文件捕获子进程输出（替代 DEVNULL）
+    out_fp, err_fp = _open_node_logs(node_path)
+
     # 直接运行入口脚本（PID 即为实际 Python 进程）
     try:
         if os.name == 'nt':
@@ -378,31 +435,38 @@ def start_node_process(node_info):
                 [python_exe, entry_py],
                 cwd=node_path,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=out_fp,
+                stderr=err_fp,
                 text=True
             )
         else:
             process = subprocess.Popen(
                 [python_exe, entry_py],
-                cwd=node_path, 
+                cwd=node_path,
                 start_new_session=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=out_fp,
+                stderr=err_fp,
                 text=True
             )
 
         import time
         time.sleep(2.0)
-        
+
         exit_code = process.poll()
         if exit_code is not None:
-            stdout, stderr = process.communicate(timeout=5)
-            error_msg = f"启动失败 (exit={exit_code}): {stderr}"
+            # 读取子进程日志尾部帮助排查
+            stderr_tail = _read_tail(os.path.join(node_path, "node_error.log"))
+            stdout_tail = _read_tail(os.path.join(node_path, "node_output.log"))
+            error_msg = f"启动失败 (exit={exit_code})\n--- stderr tail ---\n{stderr_tail}\n--- stdout tail ---\n{stdout_tail}"
             logger.error("启动失败 (exit=%d): %s", exit_code, node_name)
-            logger.error("stdout: %s", stdout)
-            logger.error("stderr: %s", stderr)
+            logger.error(error_msg)
+            out_fp.close()
+            err_fp.close()
             return False, error_msg
+
+        # 子进程有自己独立的句柄副本，父进程可立即关闭
+        out_fp.close()
+        err_fp.close()
 
         node_info['process'] = process
         node_info['status'] = 'running'
@@ -411,6 +475,11 @@ def start_node_process(node_info):
         return True, None
         
     except Exception as e:
+        try:
+            out_fp.close()
+            err_fp.close()
+        except Exception:
+            pass
         error_msg = f"启动异常: {str(e)}"
         logger.error(error_msg)
         return False, error_msg
@@ -656,3 +725,21 @@ def check_running_processes(nodes_data):
             # 无 PID 文件且 status=stopped → 跳过（无扫描价值）
 
     return dead_nodes
+
+
+# ---- 日志查看 API ----
+
+def get_node_log_tail(node_path: str, lines: int = 100) -> dict:
+    """获取节点 stdout / stderr 日志尾部（供 UI 面板调用）。
+
+    Args:
+        node_path: 节点目录路径
+        lines: 读取尾部行数
+
+    Returns:
+        dict: {"stdout": str, "stderr": str}
+    """
+    return {
+        "stdout": _read_tail(os.path.join(node_path, "node_output.log"), lines),
+        "stderr": _read_tail(os.path.join(node_path, "node_error.log"), lines),
+    }

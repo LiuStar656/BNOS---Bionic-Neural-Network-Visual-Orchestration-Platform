@@ -68,34 +68,163 @@ class JsonFileConfig(IConfig):
 
 # ======================== DI 容器 ========================
 
+_Scope = str  # "singleton" | "transient"
+_Key = object   # 内部复合键: (interface_type, qualifier_name)
+
+def _make_key(interface: 'Type | str', name: Optional[str] = None) -> _Key:
+    """生成内部 lookup 键。interface 可以是 Type 或 str（名称注册）。"""
+    return (interface, name)
+
+
+_FACTORY = Callable[[], Any]
+
+
 class DIContainer:
-    """轻量级 DI 容器 — 注册接口实现并解析依赖"""
+    """依赖注入容器 — 支持接口类型注册、命名实例、作用域。
+
+    向后兼容原有 API（register_instance / register_factory / resolve / is_registered），
+    同时提供统一的 register() / resolve() 增强方法。
+
+    使用方式::
+
+        # --- 基础用法（向后兼容）---
+        container.register_instance(IConfig, config)
+        container.resolve(IConfig)
+
+        # --- 按名称注册（多实现）---
+        container.register(ILogger, FileLogger(), name="file")
+        container.register(ILogger, ConsoleLogger(), name="console")
+        container.resolve(ILogger, name="file")          # → FileLogger 实例
+        container.resolve("file")                        # 也可以用名称直接解析
+
+        # --- 瞬态作用域（每次新建）---
+        container.register(IService, ServiceImpl, scope="transient")
+        a = container.resolve(IService)
+        b = container.resolve(IService)    # a is not b
+
+        # --- 查询 ---
+        container.is_registered(IConfig)                 # True
+        container.is_registered("file")                  # True
+        container.list_registered()                      # → [(IConfig, None, "singleton"), ...]
+    """
 
     def __init__(self):
-        self._factories: Dict[Type, Callable] = {}
-        self._instances: Dict[Type, Any] = {}
+        # {_Key: {"instance": Any, "factory": Callable | None, "scope": _Scope}}
+        self._registry: Dict[_Key, dict] = {}
+
+    # ── 内部辅助 ──────────────────────────────────────────────
+
+    def _entry(self, key: _Key) -> Optional[dict]:
+        return self._registry.get(key)
+
+    def _resolve_entry(self, key: _Key) -> Any:
+        entry = self._entry(key)
+        if entry is None:
+            raise KeyError(self._not_found_msg(key))
+        if entry["factory"] is not None:
+            if entry["scope"] == "transient":
+                return entry["factory"]()
+            # singleton: 仅在未实例化时调用工厂
+            if entry["instance"] is None:
+                entry["instance"] = entry["factory"]()
+            return entry["instance"]
+        return entry["instance"]
+
+    def _not_found_msg(self, key: _Key) -> str:
+        interface, name = key
+        suffix = f" (name={name!r})" if name else ""
+        available = self.list_registered()
+        lines = []
+        for iface, n, scope in available:
+            label = f"{iface}"
+            if n:
+                label += f" [name={n!r}]"
+            label += f" scope={scope}"
+            lines.append(f"  - {label}")
+        avail = "\n".join(lines) if lines else "  (none)"
+        return f"[DI] 未注册: {interface}{suffix}\n已注册的服务:\n{avail}"
+
+    # ── 旧 API（向后兼容）─────────────────────────────────────
 
     def register_instance(self, interface: Type[T], instance: T):
-        """注册已创建的实例"""
-        self._instances[interface] = instance
+        """注册已创建的实例（singleton）。"""
+        key = _make_key(interface, None)
+        self._registry[key] = {"instance": instance, "factory": None, "scope": "singleton"}
 
     def register_factory(self, interface: Type[T], factory: Callable[[], T]):
-        """注册工厂方法（延迟创建）"""
-        self._factories[interface] = factory
+        """注册工厂方法（singleton，延迟创建）。"""
+        key = _make_key(interface, None)
+        self._registry[key] = {"instance": None, "factory": factory, "scope": "singleton"}
 
-    def resolve(self, interface: Type[T]) -> T:
-        """解析依赖"""
-        if interface in self._instances:
-            return self._instances[interface]
-        if interface in self._factories:
-            instance = self._factories[interface]()
-            self._instances[interface] = instance
-            return instance
-        raise KeyError(f"[DI] 未注册接口: {interface}")
+    def resolve(self, interface: 'Type[T] | str', name: Optional[str] = None) -> T:
+        """解析依赖。
 
-    def is_registered(self, interface: Type[T]) -> bool:
-        """检查接口是否已注册"""
-        return interface in self._instances or interface in self._factories
+        Args:
+            interface: 接口类型 或 注册名称（str）。
+            name: 可选名称，用于区分同一接口的多个实现。
+        """
+        if isinstance(interface, str):
+            # 按名称查找：在所有注册中匹配 name
+            for key, entry in self._registry.items():
+                iface, n = key
+                if n == interface:
+                    return self._resolve_entry(key)
+            raise KeyError(self._not_found_msg(_make_key(interface, interface)))
+        key = _make_key(interface, name)
+        return self._resolve_entry(key)
+
+    def is_registered(self, interface: 'Type | str', name: Optional[str] = None) -> bool:
+        """检查接口或名称是否已注册。
+
+        Args:
+            interface: 接口类型 或 注册名称（str）。
+            name: 可选名称限定。
+        """
+        if isinstance(interface, str):
+            for key in self._registry:
+                if key[1] == interface:
+                    return True
+            return False
+        key = _make_key(interface, name)
+        return key in self._registry
+
+    # ── 新 API ─────────────────────────────────────────────────
+
+    def register(self,
+                 interface: 'Type | str',
+                 instance_or_factory: Any,
+                 *,
+                 name: Optional[str] = None,
+                 scope: _Scope = "singleton"):
+        """统一注册方法。
+
+        Args:
+            interface: 接口类型（class/ABC）或字符串名称。
+            instance_or_factory: 实例对象 或 无参工厂函数。
+            name: 可选名称（多实现时用于区分）。
+            scope: "singleton"（默认，单例缓存）或 "transient"（每次 resolve 新建）。
+        """
+        if scope not in ("singleton", "transient"):
+            raise ValueError(f"scope 必须是 'singleton' 或 'transient'，实际: {scope!r}")
+        key = _make_key(interface, name)
+        if callable(instance_or_factory) and not isinstance(instance_or_factory, type):
+            # 可调用非类 → 视为工厂函数
+            self._registry[key] = {"instance": None, "factory": instance_or_factory, "scope": scope}
+        else:
+            # 实例对象
+            self._registry[key] = {"instance": instance_or_factory, "factory": None, "scope": scope}
+
+    def resolve_named(self, name: str) -> Any:
+        """按名称解析（便捷方法）。"""
+        return self.resolve(name)
+
+    def list_registered(self) -> 'list[tuple]':
+        """列出所有已注册的服务。
+
+        Returns:
+            list of (interface, name, scope)
+        """
+        return [(key[0], key[1], entry["scope"]) for key, entry in self._registry.items()]
 
 
 # 全局容器

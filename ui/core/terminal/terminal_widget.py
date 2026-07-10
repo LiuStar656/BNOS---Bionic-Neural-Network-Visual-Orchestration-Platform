@@ -81,6 +81,8 @@ class TerminalWidget(QWidget):
 
         self._setup_ui()
         self._connect_signals()
+        # 兜底：即使 closeEvent 未被调用（如父控件级联销毁），也确保子进程终止
+        self.destroyed.connect(self.close_terminal)
 
     def _setup_ui(self):
         """设置 UI"""

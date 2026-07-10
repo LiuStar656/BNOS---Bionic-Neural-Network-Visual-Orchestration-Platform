@@ -1060,7 +1060,7 @@
   - **开发团队**：阿东与守一工作室
   - **GitHub**: <https://github.com/LiuStar656/BNOS---Bionic-Neural-Network-Visual-Orchestration-Platform>
   - **邮箱**：<1240543656@qq.com>
-  - **最后更新**：2026-06-23
+  - **最后更新**：2026-07-11
 
   ***
 

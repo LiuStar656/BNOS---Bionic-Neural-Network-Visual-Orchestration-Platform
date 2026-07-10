@@ -12,7 +12,9 @@
 - **复合节点系统**：多节点压缩为虚拟节点，DAG 拓扑排序编排，支持解耦还原，画布专用渲染，节点列表集成
 - **全局防呆机制**：40 项防御覆盖进程管理、文件持久化、信号生命周期、资源清理、路径安全、线程安全、配置校验、并发控制
 - **项目文件锁**：`.bnos_project.lock` 防止多实例同时打开同一项目导致数据损坏
-- **Bug 修复**：GROUP_PREFIX AttributeError、blockSignals 双击/右键失效、clear_box_selection 方法名错误、node_list_context UnboundLocalError、status_manager C++ 对象已删除 RuntimeError、app_config 类型校验兼容
+- **架构债修复**：消除双选状态（SelectedNodesList 代理）、修复懒导入、消除 `__del__` 改用 `dispose()`、节点扫描增加 config.json 校验
+- **进程日志捕获与DI容器增强**：子进程输出从 DEVNULL 改为持久化日志文件，启动失败自动读取日志尾部；DI 容器重构为复合键存储，新增命名注册、作用域控制（singleton/transient）、服务列表查询
+- **Bug 修复**：GROUP_PREFIX AttributeError、blockSignals 双击/右键失效、clear_box_selection 方法名错误、node_list_context UnboundLocalError、status_manager C++ 对象已删除 RuntimeError、app_config 类型校验兼容、QProcess destroyed while running、无 config.json 目录被误加载为节点
 
 ### [2026-07-08](./2026-07-08/)
 - **节点启动机制改进**：`start.json` 新增 `entry` 字段支持自定义启动程序，默认值为 `main.py`，向后兼容

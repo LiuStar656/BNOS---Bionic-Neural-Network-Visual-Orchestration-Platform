@@ -5,15 +5,16 @@
 
 ---
 <details open>
-<summary><strong>【2026-07-11】V2.0.26 - 复合节点系统、全局防呆机制与项目文件锁</strong></summary>
+<summary><strong>【2026-07-11】V2.0.26 - 复合节点系统、全局防呆机制、项目文件锁与架构债修复</strong></summary>
 
-[查看完整更新](./2026-07-11/README.md) | [01_复合节点](./2026-07-11/01_复合节点系统.md) | [02_防呆机制](./2026-07-11/02_全局防呆机制.md) | [03_文件锁与修复](./2026-07-11/03_项目文件锁与Bug修复.md)
+[查看完整更新](./2026-07-11/README.md) | [01_复合节点](./2026-07-11/01_复合节点系统.md) | [02_防呆机制](./2026-07-11/02_全局防呆机制.md) | [03_文件锁与修复](./2026-07-11/03_项目文件锁与Bug修复.md) | [04_架构债修复](./2026-07-11/04_架构债修复.md)
 
 **主要更新：**
 - 复合节点系统：多节点压缩为虚拟节点，DAG 拓扑排序编排，支持解耦还原，画布虚线青绿边框 + ⊞ 图标，节点列表青绿高亮 + 🔒 锁定
 - 全局防呆机制：40 项防御覆盖进程管理、文件持久化、信号生命周期、资源清理、路径安全、线程安全、配置校验、并发控制 8 维度
 - 项目文件锁：`.bnos_project.lock` 防止多实例同时打开同一项目，Windows API 双重确认 PID 存活
-- Bug 修复：GROUP_PREFIX AttributeError、blockSignals 双击/右键失效、clear_box_selection 方法名错误、UnboundLocalError、C++ 对象已删除 RuntimeError、app_config 类型校验兼容
+- 架构债修复：消除双选状态（SelectedNodesList 代理统一 Qt 选择），修复懒导入，消除 `__del__` 改用 `dispose()`，节点扫描增加 config.json 存在性校验
+- Bug 修复：GROUP_PREFIX AttributeError、blockSignals 双击/右键失效、clear_box_selection 方法名错误、UnboundLocalError、C++ 对象已删除 RuntimeError、app_config 类型校验兼容、QProcess destroyed while running
 
 </details>
 

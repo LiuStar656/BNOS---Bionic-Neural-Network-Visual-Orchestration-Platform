@@ -12,7 +12,9 @@ Click on dates below to view detailed updates for that date:
 - **Composite Node System**: Multi-node compression into virtual nodes, DAG topological sort orchestration, decompression support, canvas-specific rendering, node list integration
 - **Global Defensive Mechanisms**: 40 defenses across process management, file persistence, signal lifecycle, resource cleanup, path security, thread safety, config validation, concurrency control
 - **Project File Lock**: `.bnos_project.lock` prevents multiple instances opening the same project, preventing data corruption
-- **Bug Fixes**: GROUP_PREFIX AttributeError, blockSignals double-click/right-click fix, clear_box_selection method name fix, node_list_context UnboundLocalError, status_manager C++ object deleted RuntimeError, app_config type check compatibility
+- **Architecture Debt Fixes**: Eliminated dual selection state (SelectedNodesList proxy), fixed lazy imports, replaced `__del__` with `dispose()`, added config.json existence check in node scanning
+- **Process Log Capture & DI Container Enhancement**: Subprocess output redirected from DEVNULL to persistent log files, auto-read log tails on startup failure; DI container refactored to composite key storage, added named registration, scope control (singleton/transient), service listing
+- **Bug Fixes**: GROUP_PREFIX AttributeError, blockSignals double-click/right-click fix, clear_box_selection method name fix, node_list_context UnboundLocalError, status_manager C++ object deleted RuntimeError, app_config type check compatibility, QProcess destroyed while running, directories without config.json loaded as nodes
 
 ### [2026-07-08](./2026-07-08/)
 - **Node Startup Mechanism Improvement**: `start.json` adds `entry` field for custom startup programs, defaults to `main.py`, backward compatible
@@ -174,4 +176,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-07-08
+**Last Updated**: 2026-07-11
