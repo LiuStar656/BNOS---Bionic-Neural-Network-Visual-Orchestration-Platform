@@ -41,10 +41,28 @@ class ShortcutManager:
     def get_qkey(self, sid: str) -> QKeySequence:
         return QKeySequence(self.get(sid))
 
-    def set(self, sid: str, keystr: str):
+    def set(self, sid: str, keystr: str) -> bool:
         if sid not in DEFAULTS:
             raise KeyError(sid)
+        # F10: 快捷键冲突检测
+        if keystr and keystr.strip():
+            existing = self._find_conflict(keystr, sid)
+            if existing:
+                logger = __import__('ui.core.logger', fromlist=['logger']).logger
+                logger.warning("快捷键 %s 与 %s 冲突，拒绝设置", keystr, existing)
+                return False
         self._overrides[sid] = keystr
+        return True
+
+    def _find_conflict(self, keystr: str, exclude_sid: str = "") -> str:
+        """查找与 keystr 冲突的快捷键 ID，无冲突返回空字符串。"""
+        for sid, (default, _) in DEFAULTS.items():
+            if sid == exclude_sid:
+                continue
+            current = self._overrides.get(sid, default)
+            if current and current.strip() == keystr:
+                return sid
+        return ""
 
     def reset(self, sid: str = None):
         if sid:

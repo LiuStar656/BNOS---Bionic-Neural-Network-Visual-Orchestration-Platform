@@ -38,7 +38,7 @@ class _Runnable(QRunnable):
                 self._signals.finished.emit(self._task_id)
 
     def _on_finished(self, task_id):
-        """在工作线程中触发回调"""
+        """在主线程中触发回调 — S10: _TaskSignals 创建于主线程，AutoConnection 确保槽在主线程执行"""
         if self._on_done:
             self._on_done()
 

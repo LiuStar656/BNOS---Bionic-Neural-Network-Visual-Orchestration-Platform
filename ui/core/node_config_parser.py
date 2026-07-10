@@ -67,17 +67,29 @@ class NodeConfigParser:
     def parse(config: dict) -> list[ParameterDef]:
         """从 config.json 字典中提取参数定义列表"""
         raw = config.get("parameters", [])
-        if not raw:
+        if not raw or not isinstance(raw, list):
             return []
         known_fields = {f.name for f in fields(ParameterDef)}
-        return [ParameterDef(**{k: v for k, v in p.items() if k in known_fields}) for p in raw]
+        result = []
+        for p in raw:
+            if not isinstance(p, dict):
+                continue
+            result.append(ParameterDef(**{k: v for k, v in p.items() if k in known_fields}))
+        return result
 
     @staticmethod
     def extract_values(config: dict) -> dict[str, Any]:
         """从 config.json 中提取参数实际值（参数名 → 当前值）"""
         result = {}
-        for p_def in (config.get("parameters") or []):
-            name = p_def["name"]
+        params = config.get("parameters")
+        if not isinstance(params, list):
+            return result
+        for p_def in params:
+            if not isinstance(p_def, dict):
+                continue
+            name = p_def.get("name")
+            if not name:
+                continue
             result[name] = config.get(name, p_def.get("default"))
         return result
 
@@ -90,10 +102,15 @@ class NodeConfigParser:
     def parse_input_ports(config: dict) -> list[InputPortDef]:
         """从 config.json 中提取输入端口定义列表"""
         raw = config.get("input_ports", [])
-        if not raw:
+        if not raw or not isinstance(raw, list):
             return []
         known_fields = {f.name for f in fields(InputPortDef)}
-        return [InputPortDef(**{k: v for k, v in p.items() if k in known_fields}) for p in raw]
+        result = []
+        for p in raw:
+            if not isinstance(p, dict):
+                continue
+            result.append(InputPortDef(**{k: v for k, v in p.items() if k in known_fields}))
+        return result
 
     @staticmethod
     def has_input_ports(config: dict) -> bool:
@@ -103,17 +120,25 @@ class NodeConfigParser:
     @staticmethod
     def get_input_port_names(config: dict) -> list[str]:
         """获取所有输入端口名称"""
-        return [p["name"] for p in (config.get("input_ports") or [])]
+        ports = config.get("input_ports")
+        if not isinstance(ports, list):
+            return []
+        return [p.get("name", "") for p in ports if isinstance(p, dict) and p.get("name")]
 
     # -- 输出端口 --
     @staticmethod
     def parse_output_ports(config: dict) -> list[OutputPortDef]:
         """从 config.json 中提取输出端口定义列表"""
         raw = config.get("output_ports", [])
-        if not raw:
+        if not raw or not isinstance(raw, list):
             return []
         known_fields = {f.name for f in fields(OutputPortDef)}
-        return [OutputPortDef(**{k: v for k, v in p.items() if k in known_fields}) for p in raw]
+        result = []
+        for p in raw:
+            if not isinstance(p, dict):
+                continue
+            result.append(OutputPortDef(**{k: v for k, v in p.items() if k in known_fields}))
+        return result
 
     @staticmethod
     def has_output_ports(config: dict) -> bool:
@@ -123,4 +148,7 @@ class NodeConfigParser:
     @staticmethod
     def get_output_port_names(config: dict) -> list[str]:
         """获取所有输出端口名称"""
-        return [p["name"] for p in (config.get("output_ports") or [])]
+        ports = config.get("output_ports")
+        if not isinstance(ports, list):
+            return []
+        return [p.get("name", "") for p in ports if isinstance(p, dict) and p.get("name")]

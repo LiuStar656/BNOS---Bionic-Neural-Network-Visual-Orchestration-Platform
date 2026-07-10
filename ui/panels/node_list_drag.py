@@ -35,7 +35,7 @@ class NodeListDragMixin:
                 if target_data and target_data.get('type') == 'node':
                     logger.debug("🔄 检测到节点拖拽到节点上，智能处理")
                     
-                    target_node = target_data['name']
+                    target_node = target_data.get('name', '')
                     
                     if target_node not in dragged_nodes:
                         target_group = self.group_manager.get_node_group(target_node)
@@ -116,7 +116,7 @@ class NodeListDragMixin:
             for item in selected_items:
                 data = item.data(0, Qt.ItemDataRole.UserRole)
                 if data and data.get('type') == 'node':
-                    nodes.append(data['name'])
+                    nodes.append(data.get('name', ''))
             return nodes if nodes else None
         except Exception as e:
             logger.warning("⚠️ 获取拖拽节点失败: %s", e)
@@ -160,7 +160,7 @@ class NodeListDragMixin:
                 if item:
                     data = item.data(0, Qt.ItemDataRole.UserRole)
                     if data and data.get('type') == 'node':
-                        moved_items.append(data['name'])
+                        moved_items.append(data.get('name', ''))
             
             if not moved_items:
                 logger.debug("⚠️ 未找到被移动的节点")
@@ -183,7 +183,7 @@ class NodeListDragMixin:
             target_data = target_item.data(0, Qt.ItemDataRole.UserRole)
             
             if target_data and target_data.get('type') == 'group':
-                target_group = target_data['name']
+                target_group = target_data.get('name', '')
                 logger.debug("✅ 移动到组 '%s'，调用 _move_nodes_to_group", target_group)
                 self._move_nodes_to_group(moved_items, target_group)
             

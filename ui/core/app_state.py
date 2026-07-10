@@ -238,17 +238,12 @@ class AppState:
 
     def _notify(self, path: str, new_value: Any, old_value: Any):
         """通知订阅者"""
-        matched_paths = []
-        
-        for subscribed_path in self._subscribers.keys():
-            if subscribed_path == path:
-                matched_paths.append(subscribed_path)
-            elif subscribed_path.endswith('.*'):
-                prefix = subscribed_path[:-2]
-                if path.startswith(prefix):
-                    matched_paths.append(subscribed_path)
-            elif subscribed_path == '*':
-                matched_paths.append(subscribed_path)
+        # R03: 在锁内获取匹配路径快照，防止迭代时字典被修改
+        with self._lock:
+            matched_paths = [sp for sp in self._subscribers.keys()
+                             if sp == path
+                             or (sp.endswith('.*') and path.startswith(sp[:-2]))
+                             or sp == '*']
         
         for matched_path in matched_paths:
             handlers = list(self._subscribers.get(matched_path, []))

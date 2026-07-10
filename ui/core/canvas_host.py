@@ -237,6 +237,8 @@ class CanvasHost(QMainWindow):
             logger.info("[CanvasHost] 调用 canvas.load_layout(%s)", project_path)
             canvas.load_layout(project_path)
             logger.info("[CanvasHost] load_layout完成，画布上有 %d 个节点", len(canvas.nodes))
+            # S03: 恢复复合节点
+            canvas.restore_composites(project_path)
 
         # 3. 用 BNOSDock 封装画布
         dock_name = name if name else f"{t('k_canvas')} {len(self._canvas_docks) + 1}"
@@ -502,6 +504,12 @@ class CanvasHost(QMainWindow):
                 dock.deleteLater()
                 if dock in self._canvas_docks:
                     self._canvas_docks.remove(dock)
+                # S20: 移除项目锁文件
+                try:
+                    from ui.core.project_manager import remove_project_lock
+                    remove_project_lock(normalized_path)
+                except Exception:
+                    pass
                 # 清理 canvas 数据映射
                 for key in list(self._canvas_data_map.keys()):
                     try:

@@ -167,12 +167,17 @@ class FloatingPanel(QDialog):
     # ==================== 生命周期 ====================
 
     def _on_close(self):
-        """关闭按钮回调（子类可覆盖添加清理逻辑）"""
+        """关闭按钮回调 — S14: 子类可覆盖添加清理逻辑（如 disconnect polling_manager 信号）"""
         self.close()
+
+    def cleanup_polling_signals(self):
+        """虚钩子: 子类可覆盖以清理 polling_manager 信号连接"""
+        pass
 
     def closeEvent(self, event):
         self._on_close()
         self.closed.emit()
+        self.cleanup_polling_signals()
         super().closeEvent(event)
 
     def showEvent(self, event):

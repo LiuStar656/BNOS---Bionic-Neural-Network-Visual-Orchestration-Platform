@@ -97,7 +97,7 @@ class NodeGroupManager:
                 backup_file = config_file + ".bak"
                 shutil.copy2(config_file, backup_file)
                 logger.info("已备份损坏的配置文件: %s", backup_file)
-            except:
+            except OSError:
                 pass
             
             self.groups.clear()
@@ -118,14 +118,21 @@ class NodeGroupManager:
                 'locked_groups': list(self._locked_groups)
             }
             
-            with open(config_file, 'w', encoding='utf-8') as f:
+            # 原子写入: tmp → rename
+            tmp_file = config_file + ".tmp"
+            with open(tmp_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
+            os.replace(tmp_file, config_file)
             
             logger.info("节点组配置已保存到: %s", config_file)
             return True
             
         except Exception as e:
             logger.error("保存节点组配置失败: %s", e)
+            try:
+                os.remove(tmp_file)
+            except OSError:
+                pass
             return False
     
     def create_group(self, group_name: str, color: str = "#4A90E2") -> bool:

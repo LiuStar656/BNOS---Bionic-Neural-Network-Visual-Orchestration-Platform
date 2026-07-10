@@ -133,19 +133,38 @@ class NodeManager:
             self.canvas._save_timer.start(500)
 
     def remove_node_with_cleanup(self, node_name):
-        """从画布删除节点并清理上下游配置"""
+        """从画布删除节点并清理上下游配置
+        
+        如果节点正在运行，先自动停止进程再删除，防止孤儿进程。
+        """
         if node_name not in self.canvas.nodes:
             return
+
+        # 检查运行状态
+        node_status = ""
+        if self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
+            node_status = self.canvas.parent_window.nodes_data[node_name].get("status", "")
+
+        confirm_msg = t("_k_canvas_remove_node_confirm").format(name=node_name)
+        if node_status in ("running", "idle", "starting"):
+            confirm_msg = (
+                f"\u8282\u70b9 '{node_name}' \u5f53\u524d\u6b63\u5728\u8fd0\u884c (\u72b6\u6001: {node_status})\u3002\n"
+                f"\u5220\u9664\u5c06\u540c\u65f6\u505c\u6b62\u8be5\u8282\u70b9\u7684\u8fdb\u7a0b\u3002\n\n{confirm_msg}"
+            )
 
         reply = themed_message(
             self.canvas,
             t("k_title_confirm_delete"),
-            t("_k_canvas_remove_node_confirm").format(name=node_name),
+            confirm_msg,
             "question",
         )
 
         if not reply:
             return
+
+        # 先停止进程
+        if node_status in ("running", "idle", "starting"):
+            self.stop_single_node(node_name)
 
         self.canvas.selection._record_delete_node(node_name)
 

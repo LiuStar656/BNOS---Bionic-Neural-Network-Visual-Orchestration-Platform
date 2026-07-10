@@ -145,9 +145,17 @@ class AppConfig:
                     loaded = json.load(f)
                 for key in loaded:
                     if key in self.config and isinstance(self.config[key], dict) and isinstance(loaded[key], dict):
+                        # S16: 验证加载值的类型与默认值一致
                         self.config[key].update(loaded[key])
-                    else:
-                        self.config[key] = loaded[key]
+                    elif key in self.config:
+                        # 标量值: 验证类型一致，否则跳过
+                        # None 是占位哨兵，接受任意类型
+                        if self.config[key] is None:
+                            self.config[key] = loaded[key]
+                        else:
+                            default_type = type(self.config[key])
+                            if isinstance(loaded[key], default_type):
+                                self.config[key] = loaded[key]
                 logger.info("配置已加载: %s", self.config_file)
             else:
                 logger.info("配置文件不存在，使用默认配置")

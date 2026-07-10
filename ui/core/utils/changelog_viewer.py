@@ -139,11 +139,17 @@ class ChangelogViewer(QDialog):
             QDesktopServices.openUrl(url)
 
     def navigate_to(self, file_path):
-        """导航到指定 .md 文件"""
+        """导航到指定 .md 文件 — S15: 边界检查防止路径穿越"""
         file_path = os.path.normpath(file_path)
         if not os.path.isabs(file_path) and self._history:
             current_dir = os.path.dirname(self._history[-1])
             file_path = os.path.normpath(os.path.join(current_dir, file_path))
+        # 禁止穿越到 _base_dir 之外
+        base_real = os.path.realpath(self._base_dir)
+        real_path = os.path.realpath(file_path) if os.path.exists(file_path) else os.path.realpath(os.path.abspath(file_path))
+        if not real_path.startswith(base_real + os.sep) and real_path != base_real:
+            logger.warning("[changelog_viewer] navigate_to 路径穿越拦截: %s", file_path)
+            return
         if not os.path.isfile(file_path):
             self._browser.setHtml(
                 "<p style='color:#d4d4d4;'>文件不存在: " + escape(file_path) + "</p>")
@@ -229,12 +235,18 @@ class ChangelogViewer(QDialog):
 
     def _absolutify_urls(self, html_body, md_file_path):
         """相对路径 → file:/// 绝对路径"""
+        # S04: 锁定边界目录，禁止路径穿越到 _base_dir 之外
+        base_real = os.path.realpath(self._base_dir)
         md_dir = os.path.dirname(md_file_path)
 
         def _make_abs(attr_val):
             if re.match(r'^(https?:|file:///|data:|#)', attr_val, re.IGNORECASE):
                 return attr_val
-            abs_path = os.path.normpath(os.path.join(md_dir, attr_val))
+            abs_path = os.path.realpath(os.path.join(md_dir, attr_val))
+            # 禁止穿越到 _base_dir 之外
+            if not abs_path.startswith(base_real + os.sep) and abs_path != base_real:
+                logger.warning("[changelog_viewer] 路径穿越拦截: %s", attr_val)
+                return ""
             return "file:///" + abs_path.replace("\\", "/")
 
         return re.sub(

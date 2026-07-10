@@ -342,6 +342,66 @@ class NodeCanvas(QGraphicsView):
     def load_layout(self, project_path=None):
         self.layout_mgr.load_layout(project_path)
 
+    def restore_composites(self, project_path=None):
+        """从 node_clusters.json 恢复复合节点到画布。
+        
+        在 load_layout 之后调用，确保原始节点已加载。
+        S03: 防止关闭项目再打开后复合节点消失。
+        """
+        import os, json
+        from ui.canvas.items.composite_node_item import CompositeNodeItem
+        from ui.core.composite_node import CompositeNode
+
+        pp = project_path or (self.parent_window.current_project_path
+                              if self.parent_window else None)
+        if not pp:
+            return
+
+        config_path = os.path.join(pp, "node_clusters.json")
+        if not os.path.exists(config_path):
+            return
+
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception:
+            return
+
+        composites = data.get("composites", {})
+        if not composites:
+            return
+
+        # 懒初始化复合管理器
+        group_manager = None
+        if hasattr(self, 'parent_window') and self.parent_window and \
+           hasattr(self.parent_window, 'node_list_panel') and self.parent_window.node_list_panel:
+            group_manager = self.parent_window.node_list_panel.group_manager
+
+        self._composite_manager = CompositeNode(pp, self, group_manager)
+
+        for comp_id, comp in composites.items():
+            node_names = comp.get("nodes", [])
+            pos = comp.get("canvas_position", {"x": 0, "y": 0})
+
+            # 隐藏被压缩的原始节点（可能已被 load_layout 恢复为 visible）
+            for n in node_names:
+                item = self.nodes.get(n)
+                if item:
+                    item.setVisible(False)
+
+            # 创建复合节点 Item
+            comp_item = CompositeNodeItem(
+                comp_id=comp_id,
+                node_count=len(node_names),
+                node_names=node_names,
+                canvas=self
+            )
+            comp_item.setPos(pos.get("x", 0), pos.get("y", 0))
+            self.scene.addItem(comp_item)
+            self.nodes[comp_id] = comp_item
+
+        logger.info("已恢复 %d 个复合节点", len(composites))
+
     def save_center_coordinates(self):
         self.layout_mgr.save_center_coordinates()
 

@@ -75,12 +75,26 @@ def project_open(main_window):
     if not project_dir:
         return
 
-    # 检查项目是否已经打开
+    # 检查项目是否已经打开（本实例内）
     if hasattr(main_window, '_canvas_host') and main_window._canvas_host:
         if main_window._canvas_host.is_project_open(project_dir):
             project_name = os.path.basename(project_dir)
             themed_message(main_window, t("k_title_info"), f"项目 '{project_name}' 已经打开，无需重复打开。", "info")
             return
+
+    # S13: 跨实例文件锁检测 — 防止两个 BNOS 同时操作同一项目导致数据损坏
+    lock_file = os.path.join(project_dir, ".bnos_project.lock")
+    if os.path.exists(lock_file):
+        try:
+            with open(lock_file, 'r') as f:
+                stale_pid = int(f.read().strip())
+            # 检查持有锁的进程是否仍然存活
+            if _is_pid_alive(stale_pid):
+                themed_message(main_window, t("k_title_warning"),
+                    f"项目已被另一个 BNOS 实例打开 (PID={stale_pid})，请先关闭后再试。", "warning")
+                return
+        except (ValueError, OSError):
+            pass  # 锁文件损坏，允许覆盖
 
     # 验证是否为有效项目（有 nodes/ 目录或 canvas_layout.json）
     nodes_dir = os.path.join(project_dir, "nodes")
@@ -138,6 +152,9 @@ def project_open(main_window):
         # 3) 创建画布Dock（必须在主线程，依赖 nodes_data 已填充）
         if hasattr(main_window, '_canvas_host'):
             main_window._canvas_host.add_canvas_dock(project_name, project_dir)
+
+        # S13: 写入项目锁文件，防止其他实例并发打开
+        _write_project_lock(project_dir)
 
         # 4) 更新面板 + 画布 UI（不调用 restore_canvas_host_state 避免用旧状态隐藏新画布 dock）
         _apply_after_refresh(main_window, running_nodes)
@@ -237,3 +254,51 @@ def _apply_after_refresh(main_window, running_nodes):
         main_window.show_toast(f"检测到 {len(running_nodes)} 个节点在后台运行", "info")
     else:
         main_window.show_toast(f"已刷新 {len(main_window.nodes_data)} 个节点", "success")
+
+
+# ─── S13: 跨实例文件锁 ──────────────────────────────────────
+
+def _is_pid_alive(pid: int) -> bool:
+    """检测指定 PID 的进程是否存活（跨平台）"""
+    try:
+        if os.name == 'nt':
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
+            handle = kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
+            if not handle:
+                return False
+            try:
+                # GetExitCodeProcess 二次确认：STILL_ACTIVE(259)=运行中
+                STILL_ACTIVE = 259
+                exit_code = ctypes.c_uint(0)
+                if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+                    return False
+                return exit_code.value == STILL_ACTIVE
+            finally:
+                kernel32.CloseHandle(handle)
+        else:
+            os.kill(pid, 0)
+            return True
+    except (OSError, ProcessLookupError):
+        return False
+
+
+def _write_project_lock(project_dir: str):
+    """写入项目锁文件"""
+    lock_file = os.path.join(project_dir, ".bnos_project.lock")
+    try:
+        with open(lock_file, 'w') as f:
+            f.write(str(os.getpid()))
+    except OSError:
+        pass
+
+
+def remove_project_lock(project_dir: str):
+    """移除项目锁文件（项目关闭时调用）"""
+    lock_file = os.path.join(project_dir, ".bnos_project.lock")
+    try:
+        if os.path.exists(lock_file):
+            os.remove(lock_file)
+    except OSError:
+        pass

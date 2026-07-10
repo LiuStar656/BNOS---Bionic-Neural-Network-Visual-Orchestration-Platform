@@ -11,7 +11,9 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QGraphicsItem
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
+from ui.canvas.items.composite_node_item import CompositeNodeItem
 from ui.canvas.items.styles import StyleRegistry
+from ui.core.composite_node import CompositeNode
 from ui.core.i18n import t
 from ui.core.actions import ActionFactory, ActionContext, ActionRegistry
 from ui.core.actions.builtin_node_actions import register_node_actions
@@ -45,6 +47,9 @@ class CanvasMenu:
             if isinstance(probe, NodeItem):
                 item = probe
                 break
+            elif isinstance(probe, CompositeNodeItem):
+                item = probe
+                break
             elif isinstance(probe, EdgeItem) and item is None:
                 item = probe
         
@@ -64,6 +69,11 @@ class CanvasMenu:
         # 多节点框选
         if len(self.canvas.box_selected_nodes) > 1:
             self._show_multi_node_menu(event)
+            return
+
+        # 复合节点
+        if isinstance(item, CompositeNodeItem):
+            self._show_composite_node_menu(event, item)
             return
 
         # 单节点
@@ -98,6 +108,27 @@ class CanvasMenu:
         a = QAction(t("_k_batch_remove_selected").replace("{count}", str(count)), menu)
         a.triggered.connect(lambda: self._dispatch("canvas.batch_remove"))
         menu.addAction(a)
+
+        menu.addSeparator()
+
+        # ── 复合节点操作 ──
+        compress_action = menu.addAction(f"\u229e \u538b\u7f29\u4e3a\u590d\u5408\u8282\u70b9 ({count} nodes)")
+        compress_action.triggered.connect(lambda: self._on_compress_to_composite(self.canvas.box_selected_nodes))
+
+        # 如果所有选中节点已在某复合节点中，显示"解耦"
+        if hasattr(self.canvas, '_composite_manager') and self.canvas._composite_manager:
+            mgr = self.canvas._composite_manager
+            comp_ids = set()
+            for n in self.canvas.box_selected_nodes:
+                cid = mgr._find_composite_of_node(n)
+                if cid:
+                    comp_ids.add(cid)
+            if comp_ids:
+                for cid in comp_ids:
+                    decompress_action = menu.addAction(f"\u293a \u89e3\u8026\u590d\u5408\u8282\u70b9 {cid}")
+                    decompress_action.triggered.connect(
+                        lambda checked, c=cid: mgr.decompress(c)
+                    )
 
         menu.addSeparator()
         ActionFactory.create_action(self.canvas, "canvas.clear_listen_config", menu=menu)
@@ -309,3 +340,95 @@ class CanvasMenu:
         if hasattr(self.canvas, '_save_timer'):
             self.canvas._save_timer.stop()
             self.canvas._save_timer.start(500)
+
+    # ---- 复合节点菜单 ----
+
+    def _show_composite_node_menu(self, event, comp_item):
+        """复合节点右键菜单。"""
+        menu = QMenu(self.canvas)
+        comp_id = comp_item.comp_id
+
+        mgr = self._ensure_composite_manager()
+        if not mgr:
+            menu.exec(event.globalPos())
+            return
+
+        # 解耦
+        decompress_action = menu.addAction("\u89e3\u8026\u4e3a\u72ec\u7acb\u8282\u70b9")
+        decompress_action.triggered.connect(lambda: self._on_decompress_composite(mgr, comp_id, comp_item.node_count))
+
+        menu.addSeparator()
+
+        # 运行时模式
+        runtime_menu = menu.addMenu("\u8fd0\u884c\u65f6\u6a21\u5f0f")
+        current_runtime = mgr.get_runtime(comp_id) or "inprocess"
+
+        proc_action = runtime_menu.addAction("\u72ec\u7acb\u8fdb\u7a0b (process)")
+        inproc_action = runtime_menu.addAction("\u5355\u8fdb\u7a0b (inprocess)")
+        proc_action.triggered.connect(lambda: mgr.set_runtime(comp_id, "process"))
+        inproc_action.triggered.connect(lambda: mgr.set_runtime(comp_id, "inprocess"))
+
+        menu.addSeparator()
+
+        start_action = menu.addAction("\u542f\u52a8\u590d\u5408\u8282\u70b9")
+        stop_action = menu.addAction("\u505c\u6b62\u590d\u5408\u8282\u70b9")
+        start_action.triggered.connect(lambda: self._composite_start(mgr, comp_id))
+        stop_action.triggered.connect(lambda: mgr.stop_composite(comp_id))
+
+        menu.exec(event.globalPos())
+
+    def _ensure_composite_manager(self):
+        """懒初始化复合节点管理器。"""
+        if hasattr(self.canvas, '_composite_manager') and self.canvas._composite_manager:
+            return self.canvas._composite_manager
+
+        if not self.canvas.parent_window:
+            return None
+
+        project_path = None
+        if hasattr(self.canvas.parent_window, 'current_project_path'):
+            project_path = self.canvas.parent_window.current_project_path
+        if not project_path:
+            return None
+
+        group_manager = None
+        if hasattr(self.canvas.parent_window, 'node_list_panel') and self.canvas.parent_window.node_list_panel:
+            group_manager = self.canvas.parent_window.node_list_panel.group_manager
+
+        self.canvas._composite_manager = CompositeNode(project_path, self.canvas, group_manager)
+        return self.canvas._composite_manager
+
+    def _on_compress_to_composite(self, node_names):
+        """多选节点 → 压缩为复合节点。"""
+        mgr = self._ensure_composite_manager()
+        if not mgr:
+            return
+
+        ok, msg, comp_id = mgr.compress(node_names)
+        if not ok:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(None, "\u538b\u7f29\u5931\u8d25", msg)
+
+    def _on_decompress_composite(self, mgr, comp_id, node_count):
+        """解耦确认对话框。"""
+        from PySide6.QtWidgets import QMessageBox
+        reply = QMessageBox.question(
+            None, "\u786e\u8ba4\u89e3\u8026",
+            f"\u5c06\u590d\u5408\u8282\u70b9\u8fd8\u539f\u4e3a {node_count} \u4e2a\u72ec\u7acb\u8282\u70b9\uff0c\n\u786e\u5b9a\u8981\u7ee7\u7eed\u5417\uff1f",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        mgr.decompress(comp_id)
+
+    def _composite_start(self, mgr, comp_id):
+        """启动复合节点。"""
+        runtime = mgr.get_runtime(comp_id) or "inprocess"
+        if runtime == "inprocess":
+            ok, msg = mgr.start_inprocess(comp_id)
+        else:
+            ok, msg = mgr.start_process_mode(comp_id)
+        if not ok:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(None, "\u542f\u52a8\u5931\u8d25", msg)

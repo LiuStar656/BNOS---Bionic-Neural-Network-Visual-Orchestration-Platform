@@ -172,7 +172,10 @@ class PropertyPanel(QWidget):
         try:
             from ui.core.node_process import start_node_process
             start_path = self.current_node_path
-            if os.path.exists(start_path):
+            # R09: 防御 start_path 为 None
+            if start_path and os.path.exists(start_path):
+                # R01: 在 if-elif-else 之前初始化，防止 UnboundLocalError
+                start_script = "<unknown>"
                 if os.path.exists(os.path.join(start_path, "start.bat")):
                     start_script = os.path.join(start_path, "start.bat")
                 elif os.path.exists(os.path.join(start_path, "start.sh")):

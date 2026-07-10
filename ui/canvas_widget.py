@@ -1,4 +1,4 @@
-﻿"""
+"""
 节点画布 - 兼容层（Facade模式）
 
 此文件保留以维持向后兼容性，实际实现已迁移到 ui.canvas 模块。
@@ -9,6 +9,6 @@
 
 # 从新模块导入所有组件，保持原有API不变
 from ui.canvas import AnchorItem, NodeItem, EdgeItem, NodeCanvas
+from ui.canvas.items.composite_node_item import CompositeNodeItem
 
-# 导出所有类，保持与原文件相同的接口
-__all__ = ['AnchorItem', 'NodeItem', 'EdgeItem', 'NodeCanvas']
+__all__ = ['AnchorItem', 'NodeItem', 'EdgeItem', 'NodeCanvas', 'CompositeNodeItem']

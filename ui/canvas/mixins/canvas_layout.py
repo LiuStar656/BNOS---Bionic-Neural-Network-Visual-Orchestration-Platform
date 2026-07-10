@@ -90,12 +90,19 @@ class CanvasLayout:
                 layout_data["edges"].append(ed)
 
         path = os.path.join(project_path, "canvas_layout.json")
+        # 原子写入: tmp → rename，防止写入中途崩溃导致文件损坏
+        tmp_path = path + ".tmp"
         try:
-            with open(path, "w", encoding="utf-8") as f:
+            with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(layout_data, f, indent=2, ensure_ascii=False)
+            os.replace(tmp_path, path)
             logger.info("画布布局已保存到: %s", path)
         except Exception as e:
             logger.info("保存布局失败: %s", e)
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
 
         self.canvas._save_color_settings()
 
@@ -145,6 +152,14 @@ class CanvasLayout:
                                 len(layout_data.get("nodes", {})), len(layout_data.get("edges", [])))
                 except (json.JSONDecodeError, IOError) as e:
                     logger.warning("[load_layout] canvas_layout.json 读取失败，使用空布局: %s", e)
+                    # F13: 备份损坏的布局文件
+                    try:
+                        import shutil
+                        backup_path = layout_file + ".bak"
+                        shutil.copy2(layout_file, backup_path)
+                        logger.info("[load_layout] 已备份损坏的布局文件: %s", backup_path)
+                    except OSError:
+                        pass
             else:
                 logger.info("[load_layout] canvas_layout.json 不存在，画布初始为空（请从节点列表面板拖入节点）")
             canvas_size = layout_data.get("canvas_size")

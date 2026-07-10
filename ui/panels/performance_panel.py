@@ -46,8 +46,10 @@ class StatsCollectorThread(QThread):
                 if self._parent_window:
                     canvas = getattr(self._parent_window, 'canvas', None)
                     if canvas and hasattr(canvas, 'nodes') and canvas.nodes:
+                        # S11: 快照 keys 防止主线程修改字典导致迭代 RuntimeError
                         nodes_data = getattr(self._parent_window, 'nodes_data', {})
-                        for name in canvas.nodes.keys():
+                        node_keys = list(canvas.nodes.keys())
+                        for name in node_keys:
                             if name in nodes_data:
                                 stats = shared_resource_collector.collect_single_node_stats(nodes_data[name], name)
                                 node_stats[name] = stats
@@ -615,9 +617,13 @@ class PerformancePanel(DockPanelBase):
         self._update_ui()
 
     def dispose(self):
-        """面板销毁时清理"""
+        """面板销毁时清理 — S07: 断开 polling_manager 信号"""
         if self._disposed:
             return
+        try:
+            polling_manager.node_status_changed.disconnect(self._on_node_status_changed)
+        except (TypeError, RuntimeError):
+            pass
         self._stop_collector_thread()
         super().dispose()
     

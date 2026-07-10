@@ -211,42 +211,46 @@ class ImportExportManager:
             
             # 解压到临时目录
             temp_dir = tempfile.mkdtemp()
-            extracted_dir = Packager.extract_package(file_path, temp_dir)
-            
-            if not extracted_dir:
-                shutil.rmtree(temp_dir)
-                themed_message(self.main_window, t("k_title_error"), 
-                              "解压节点包失败", "error")
-                return False
-            
-            # 获取节点名称
-            node_name = os.path.basename(extracted_dir)
-            
-            # 检查目标位置是否已存在
-            nodes_dir = os.path.join(self.main_window.current_project_path, "nodes")
-            target_path = os.path.join(nodes_dir, node_name)
-            
-            if os.path.exists(target_path):
-                reply = QMessageBox.question(
-                    self.main_window,
-                    t("k_title_warning"),
-                    f"节点 '{node_name}' 已存在，是否覆盖？",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-                )
-                if reply == QMessageBox.StandardButton.No:
-                    # 尝试重命名
-                    counter = 1
-                    while os.path.exists(target_path):
-                        new_name = f"{node_name}_{counter}"
-                        target_path = os.path.join(nodes_dir, new_name)
-                        counter += 1
-                    node_name = new_name
-            
-            # 移动到目标位置
-            shutil.move(extracted_dir, target_path)
-            # 只有当临时目录与解压目录不同时才删除临时目录
-            if temp_dir != extracted_dir and os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
+            try:
+                extracted_dir = Packager.extract_package(file_path, temp_dir)
+                
+                if not extracted_dir:
+                    themed_message(self.main_window, t("k_title_error"), 
+                                  "解压节点包失败", "error")
+                    return False
+                
+                # 获取节点名称
+                node_name = os.path.basename(extracted_dir)
+                
+                # 检查目标位置是否已存在
+                nodes_dir = os.path.join(self.main_window.current_project_path, "nodes")
+                target_path = os.path.join(nodes_dir, node_name)
+                
+                if os.path.exists(target_path):
+                    reply = QMessageBox.question(
+                        self.main_window,
+                        t("k_title_warning"),
+                        f"节点 '{node_name}' 已存在，是否覆盖？",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    )
+                    if reply == QMessageBox.StandardButton.No:
+                        # 尝试重命名
+                        counter = 1
+                        while os.path.exists(target_path):
+                            new_name = f"{node_name}_{counter}"
+                            target_path = os.path.join(nodes_dir, new_name)
+                            counter += 1
+                        node_name = new_name
+                
+                # 移动到目标位置
+                shutil.move(extracted_dir, target_path)
+            finally:
+                # S08: 确保临时目录被清理，即使中间步骤异常
+                if os.path.exists(temp_dir):
+                    try:
+                        shutil.rmtree(temp_dir)
+                    except OSError:
+                        pass
             
             # 修复 venv 的路径硬编码，使其在新机器上可运行
             _repair_portable_venv(target_path)

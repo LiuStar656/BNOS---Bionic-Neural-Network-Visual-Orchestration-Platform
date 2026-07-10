@@ -117,7 +117,11 @@ class CanvasConnections:
 
         if self.canvas.parent_window and target_name in self.canvas.parent_window.nodes_data:
             target_info = self.canvas.parent_window.nodes_data[target_name]
-            source_path = self.canvas.parent_window.nodes_data[source_name]['path']
+            source_data = self.canvas.parent_window.nodes_data.get(source_name, {})
+            source_path = source_data.get('path', '')
+            if not source_path:
+                logger.warning("create_edge: 源节点 %s 无 path，跳过配置更新", source_name)
+                return
             source_output_path = os.path.abspath(os.path.join(source_path, "output.json"))
 
             target_config = target_info['config']
@@ -145,9 +149,11 @@ class CanvasConnections:
                         source_config['out_connections'] = {}
                     source_config['out_connections'][source_port_name] = f"{target_name}|{target_anchor.port_name if target_anchor and hasattr(target_anchor, 'port_name') else 'default'}"
                     try:
-                        sc_path = os.path.join(source_info['path'], "config.json")
-                        with open(sc_path, 'w', encoding='utf-8') as f:
-                            json.dump(source_config, f, indent=2, ensure_ascii=False)
+                        # S18: source_info 可能为空字典，使用 .get 防御
+                        sc_path = os.path.join(source_info.get('path', ''), "config.json")
+                        if source_info.get('path'):
+                            with open(sc_path, 'w', encoding='utf-8') as f:
+                                json.dump(source_config, f, indent=2, ensure_ascii=False)
                     except Exception as e:
                         logger.error("保存上游节点出向连接配置失败: %s", e)
 

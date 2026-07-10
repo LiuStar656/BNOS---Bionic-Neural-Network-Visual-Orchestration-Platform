@@ -42,7 +42,7 @@ class CanvasBatchOps:
 
         result_msg = t("_k_batch_start_result").format(success=success_count, skip=skip_count, fail=fail_count)
         themed_message(self.canvas, t("k_title_batch_start_result"), result_msg, "info")
-        self.canvas.selection.clear_box_selection()
+        self.canvas.selection.clear_selection()
 
     def batch_stop_selected_nodes(self):
         """批量停止选中的节点（包括运行中、空闲、排队中、启动中的节点）"""
@@ -72,10 +72,13 @@ class CanvasBatchOps:
 
         result_msg = t("_k_batch_stop_result").format(success=success_count, skip=skip_count, fail=fail_count)
         themed_message(self.canvas, t("k_title_batch_stop_result"), result_msg, "info")
-        self.canvas.selection.clear_box_selection()
+        self.canvas.selection.clear_selection()
 
     def batch_remove_nodes_from_canvas(self):
-        """批量从画布移除节点（不删除文件）"""
+        """批量从画布移除节点（不删除文件）
+        
+        如果包含运行中的节点，在确认后自动停止进程。
+        """
         if not self.canvas.box_selected_nodes:
             return
 
@@ -85,12 +88,37 @@ class CanvasBatchOps:
         if count > 10:
             nodes_preview += f"\n  ... 还有 {count - 10} 个节点"
 
+        # 检查运行中的节点
+        running_nodes = []
+        if self.canvas.parent_window:
+            for node_name in self.canvas.box_selected_nodes:
+                nd = self.canvas.parent_window.nodes_data.get(node_name, {})
+                if nd.get("status") in ("running", "idle", "starting"):
+                    running_nodes.append(node_name)
+
+        confirm_msg = t("_k_batch_remove_confirm").format(count=count, nodes=nodes_preview)
+        if running_nodes:
+            confirm_msg = (
+                f"以下 {len(running_nodes)} 个节点正在运行，移除将同时停止其进程：\n"
+                + "\n".join(f"  - {n}" for n in running_nodes[:5])
+                + (f"\n  ... 还有 {len(running_nodes) - 5} 个" if len(running_nodes) > 5 else "")
+                + f"\n\n{confirm_msg}"
+            )
+
         reply = themed_message(self.canvas, t("k_title_confirm_remove_canvas"),
-            t("_k_batch_remove_confirm").format(count=count, nodes=nodes_preview),
-            "question")
+            confirm_msg, "question")
 
         if not reply:
             return
+
+        # 先停止运行中的节点进程
+        for node_name in running_nodes:
+            if self.canvas.parent_window:
+                try:
+                    self.canvas.parent_window.stop_selected_node_by_name(node_name)
+                    logger.info("批量移除前已停止节点: %s", node_name)
+                except Exception:
+                    pass
 
         removed_count = 0
         for node_name in self.canvas.box_selected_nodes[:]:
@@ -117,7 +145,7 @@ class CanvasBatchOps:
             self.canvas.connections.remove_edge(edge)
 
         logger.info("已从画布移除 %d 个节点", removed_count)
-        self.canvas.selection.clear_box_selection()
+        self.canvas.selection.clear_selection()
 
         if self.canvas.parent_window and self.canvas.parent_window.current_project_path:
             self.canvas._save_timer.stop()
@@ -177,7 +205,7 @@ class CanvasBatchOps:
         themed_message(self.canvas, t("k_title_clear_complete"),
             t("_k_config_cleared").format(count=cleared_count),
             "info")
-        self.canvas.selection.clear_box_selection()
+        self.canvas.selection.clear_selection()
 
         if self.canvas.parent_window and self.canvas.parent_window.current_project_path:
             self.canvas._save_timer.stop()

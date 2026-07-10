@@ -28,8 +28,14 @@ class NodeStatusManager:
 
     def _on_status_updated(self, node_name, cpu_percent, mem_mb):
         """状态更新回调（从资源监测面板接收）"""
-        if node_name == self._node.node_name and self._node._status_widget:
-            self._node._status_widget.update_status(cpu_percent, mem_mb)
+        # 节点已从画布删除 → C++ 对象销毁，跳过更新防止 RuntimeError
+        if node_name != self._node.node_name:
+            return
+        if not self._node._status_widget:
+            return
+        if self._node.scene() is None:
+            return
+        self._node._status_widget.update_status(cpu_percent, mem_mb)
 
     def try_initialize_start_time(self):
         """尝试从节点数据中初始化开始时间"""

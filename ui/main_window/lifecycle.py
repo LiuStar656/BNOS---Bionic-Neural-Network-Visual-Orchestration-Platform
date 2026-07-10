@@ -140,7 +140,12 @@ class MainWindowLifecycleMixin:
             else:
                 # 用户选择取消，中止关闭操作
                 logger.info("用户取消了关闭操作")
-                event.ignore()  # 忽略关闭事件，保持窗口打开
+                # F12: 重置关闭标志
+                if hasattr(self, '_canvas_host') and self._canvas_host:
+                    self._canvas_host._is_closing = False
+                    if hasattr(self._canvas_host, '_terminal_dock') and self._canvas_host._terminal_dock:
+                        self._canvas_host._terminal_dock._is_closing = False
+                event.ignore()
                 return
         
         # 通过 ShutdownOrchestrator 执行保存+停止流程

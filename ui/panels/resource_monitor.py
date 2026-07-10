@@ -289,6 +289,11 @@ class ResourceMonitor(FloatingPanel):
             self._refresh_node_table()
 
     def _on_close(self):
+        # S05: 断开 polling_manager 信号
+        try:
+            polling_manager.node_status_changed.disconnect(self._on_node_status_changed)
+        except (TypeError, RuntimeError):
+            pass
         self._update_timer.stop()
         super()._on_close()
 

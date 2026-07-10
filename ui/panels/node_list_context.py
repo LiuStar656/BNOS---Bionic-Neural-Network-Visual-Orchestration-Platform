@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt
 from ui.core.i18n import t
 from ui.core.actions import ActionFactory, ActionContext, ActionRegistry
 from ui.core.actions.builtin_node_actions import register_node_actions
+from ui.core.composite_node import CompositeNode
 
 
 class NodeListContextMixin:
@@ -41,9 +42,13 @@ class NodeListContextMixin:
 
         menu = QMenu(self)
         if data.get('type') == 'node':
-            self._show_node_context_menu(menu, data['name'])
+            self._show_node_context_menu(menu, data.get('name', ''))
         elif data.get('type') == 'group':
-            self._show_group_context_menu(menu, data['name'])
+            composite = data.get('composite', False)
+            if composite:
+                self._show_composite_group_context_menu(menu, data.get('name', ''))
+            else:
+                self._show_group_context_menu(menu, data.get('name', ''))
 
         menu.exec(self.node_tree.mapToGlobal(position))
 
@@ -239,6 +244,113 @@ class NodeListContextMixin:
         menu.addSeparator()
 
         ActionFactory.create_action(self, "group.toggle_expand", group_ctx, menu)
+
+    # ---- 复合节点组右键菜单 ----
+
+    def _show_composite_group_context_menu(self, menu, group_name):
+        """显示复合节点组专用右键菜单（不显示 rename/delete/lock 等普通组操作）"""
+        group_nodes = self.group_manager.get_group_nodes(group_name)
+
+        menu.addAction(f"\u229e \u590d\u5408\u8282\u70b9\u7ec4: {len(group_nodes)} \u4e2a\u8282\u70b9").setEnabled(False)
+        menu.addSeparator()
+
+        # 解耦
+        decompress_action = menu.addAction("\u89e3\u8026\u4e3a\u72ec\u7acb\u8282\u70b9")
+        decompress_action.triggered.connect(lambda: self._decompress_composite_group(group_name))
+
+        menu.addSeparator()
+
+        active_count = sum(1 for n in group_nodes
+                           if self.nodes_data.get(n, {}).get('status') in ('running', 'idle'))
+        stopped_count = len(group_nodes) - active_count
+
+        if stopped_count > 0:
+            action = menu.addAction(f"\u542f\u52a8\u590d\u5408\u8282\u70b9 ({stopped_count})")
+            action.triggered.connect(lambda: self._start_composite_group(group_name))
+        if active_count > 0:
+            action = menu.addAction(f"\u505c\u6b62\u590d\u5408\u8282\u70b9 ({active_count})")
+            action.triggered.connect(lambda: self._stop_composite_group(group_name))
+
+        menu.addSeparator()
+
+        ActionFactory.create_action(self, "group.toggle_expand", self._make_ctx(group_name=group_name), menu)
+
+    def _decompress_composite_group(self, group_name):
+        """从节点列表解耦复合节点。"""
+        parent = self.parent_window
+        if not parent:
+            return
+        canvas = self._get_canvas(parent)
+        if not canvas:
+            return
+        mgr = getattr(canvas, '_composite_manager', None)
+        if not mgr:
+            project_path = getattr(parent, 'current_project_path', None)
+            if not project_path:
+                return
+            group_mgr = self.group_manager
+            mgr = CompositeNode(project_path, canvas, group_mgr)
+            canvas._composite_manager = mgr
+
+        # 从组名提取 comp_id
+        comp_id = group_name[len(CompositeNode.GROUP_PREFIX):] if group_name.startswith(CompositeNode.GROUP_PREFIX) else group_name
+        mgr.decompress(comp_id)
+
+    def _start_composite_group(self, group_name):
+        """从节点列表启动复合节点。"""
+        parent = self.parent_window
+        if not parent:
+            return
+        canvas = self._get_canvas(parent)
+        if not canvas:
+            return
+        mgr = self._ensure_composite_manager(canvas)
+        if not mgr:
+            return
+        comp_id = group_name[len(CompositeNode.GROUP_PREFIX):] if group_name.startswith(CompositeNode.GROUP_PREFIX) else group_name
+        runtime = mgr.get_runtime(comp_id) or "inprocess"
+        if runtime == "inprocess":
+            mgr.start_inprocess(comp_id)
+        else:
+            mgr.start_process_mode(comp_id)
+
+    def _stop_composite_group(self, group_name):
+        """从节点列表停止复合节点。"""
+        parent = self.parent_window
+        if not parent:
+            return
+        canvas = self._get_canvas(parent)
+        if not canvas:
+            return
+        mgr = self._ensure_composite_manager(canvas)
+        if not mgr:
+            return
+        comp_id = group_name[len(CompositeNode.GROUP_PREFIX):] if group_name.startswith(CompositeNode.GROUP_PREFIX) else group_name
+        mgr.stop_composite(comp_id)
+
+    def _get_canvas(self, parent):
+        """从主窗口获取画布引用。"""
+        if hasattr(parent, 'canvas'):
+            return parent.canvas
+        if hasattr(parent, 'centralWidget'):
+            cw = parent.centralWidget()
+            if hasattr(cw, 'canvas'):
+                return cw.canvas
+        return None
+
+    def _ensure_composite_manager(self, canvas):
+        """确保复合节点管理器存在。"""
+        if hasattr(canvas, '_composite_manager') and canvas._composite_manager:
+            return canvas._composite_manager
+        parent = self.parent_window
+        if not parent:
+            return None
+        project_path = getattr(parent, 'current_project_path', None)
+        if not project_path:
+            return None
+        from ui.core.composite_node import CompositeNode
+        canvas._composite_manager = CompositeNode(project_path, canvas, self.group_manager)
+        return canvas._composite_manager
 
     # ---- 未分组类别菜单 ----
 

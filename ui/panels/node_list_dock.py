@@ -16,6 +16,7 @@ from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
 from ui.core.polling_manager import polling_manager
+from ui.core.composite_node import CompositeNode
 from ui.panels.node_list_drag import NodeListDragMixin
 from ui.panels.node_list_context import NodeListContextMixin
 from ui.panels.node_list_ops import NodeListOperationsMixin
@@ -56,6 +57,19 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
         
         # 订阅全局节点状态变化
         polling_manager.node_status_changed.connect(self._on_node_status_changed)
+        # S01: widget 销毁时断开信号
+        self.destroyed.connect(self._disconnect_signals)
+        self._is_cleaned_up = False
+    
+    def _disconnect_signals(self):
+        """断开全局信号连接，防止 stale 回调 (S01)"""
+        if self._is_cleaned_up:
+            return
+        self._is_cleaned_up = True
+        try:
+            polling_manager.node_status_changed.disconnect(self._on_node_status_changed)
+        except (TypeError, RuntimeError):
+            pass
     
     def _init_ui(self):
         """初始化UI"""
@@ -142,19 +156,38 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
         groups = self.group_manager.get_all_groups()
         
         # 添加各个组（平行关系，无嵌套）
+        self.node_tree.blockSignals(True)
         for group_name, group_info in sorted(groups.items()):
             group_item = QTreeWidgetItem(self.node_tree)
-            # 锁定的组显示 🔒 标记
-            lock_indicator = "🔒 " if self.group_manager.is_group_locked(group_name) else ""
-            group_item.setText(0, f"{lock_indicator}{group_name} ({len(group_info['nodes'])})")
-            group_item.setForeground(0, QColor(group_info.get('color', '#4A90E2')))
+            is_composite = CompositeNode.is_composite_group(group_name)
+            is_locked = self.group_manager.is_group_locked(group_name)
+
+            # 复合节点组 vs 普通组的显示区别
+            if is_composite:
+                prefix = "\u229e "
+                short_name = group_name[len(CompositeNode.GROUP_PREFIX):]
+                display_name = f"\u590d\u5408\u8282\u70b9 {short_name[:8]}"
+                color = QColor(CompositeNode.GROUP_COLOR)
+                tooltip = "\u8fd0\u884c\u65f6\u538b\u7f29\u7ec4 \u00b7 \u5df2\u9501\u5b9a"
+                lock_indicator = "\U0001f512 " if is_locked else ""
+                group_item.setText(0, f"{prefix}{lock_indicator}{display_name} ({len(group_info['nodes'])})")
+            else:
+                prefix = ""
+                color = QColor(group_info.get('color', '#4A90E2'))
+                tooltip = "\u7528\u6237\u8282\u70b9\u7ec4"
+                lock_indicator = "\U0001f512 " if is_locked else ""
+                group_item.setText(0, f"{lock_indicator}{group_name} ({len(group_info['nodes'])})")
+
+            group_item.setForeground(0, color)
             group_item.setFont(0, QFont("Arial", 10, QFont.Weight.Bold))
-            
-            # 标记为组节点（含锁定状态）
+            group_item.setToolTip(0, tooltip)
+
+            # 标记为组节点（含锁定状态和复合标记）
             group_item.setData(0, Qt.ItemDataRole.UserRole, {
                 'type': 'group',
                 'name': group_name,
-                'locked': self.group_manager.is_group_locked(group_name)
+                'locked': is_locked,
+                'composite': is_composite,
             })
             
             # 添加组内节点
@@ -179,6 +212,8 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
                     self._setup_node_item(node_item, node_name, nodes_data[node_name])
                     node_item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'node', 'name': node_name, 'level': 'root'})
         
+        self.node_tree.blockSignals(False)
+
         # 更新路径显示
         if self.parent_window and hasattr(self.parent_window, 'current_project_path') and self.parent_window.current_project_path:
             self.path_label.setText(f"{t('k_project')}: {os.path.basename(self.parent_window.current_project_path)}")

@@ -71,7 +71,7 @@ class NodeListOperationsMixin:
         for item in selected_items:
             data = item.data(0, Qt.ItemDataRole.UserRole)
             if data and data.get('type') == 'node':
-                nodes.append(data['name'])
+                nodes.append(data.get('name', ''))
         return nodes
 
     def get_selected_groups(self):
@@ -81,7 +81,7 @@ class NodeListOperationsMixin:
         for item in selected_items:
             data = item.data(0, Qt.ItemDataRole.UserRole)
             if data and data.get('type') == 'group':
-                groups.append(data['name'])
+                groups.append(data.get('name', ''))
         return groups
 
     def on_node_double_clicked(self, item, column):
@@ -89,7 +89,7 @@ class NodeListOperationsMixin:
         data = item.data(0, Qt.ItemDataRole.UserRole)
         if not data or data.get('type') != 'node':
             return
-        node_name = data['name']
+        node_name = data.get('name', '')
         if self.parent_window:
             if hasattr(self.parent_window, 'canvas') and self.parent_window.canvas and node_name in self.parent_window.canvas.nodes:
                 self.parent_window.show_toast(t("_k_node_canvas_exists").format(name=node_name), "warning")
@@ -178,9 +178,12 @@ class NodeListOperationsMixin:
         import shutil
         parent = os.path.dirname(node_path)
         temp_name = os.path.join(parent, f"_to_delete_{int(time.time())}")
+        original_name = node_path
+        renamed = False
         try:
             os.rename(node_path, temp_name)
             node_path = temp_name
+            renamed = True
         except OSError:
             pass
         try:
@@ -188,19 +191,25 @@ class NodeListOperationsMixin:
             return True, "使用 shutil.rmtree 删除成功"
         except Exception as e:
             logger.debug("shutil.rmtree 删除失败: %s", e)
-        if os.name == 'nt':
-            try:
-                result = subprocess.run(
-                    ['cmd', '/c', 'rmdir', '/s', '/q', node_path],
-                    capture_output=True, timeout=30, creationflags=subprocess.CREATE_NO_WINDOW
-                )
-                if result.returncode == 0:
-                    return True, "使用 rmdir /s /q 删除成功"
-                else:
-                    error_msg = result.stderr.decode('utf-8', errors='ignore').strip()
-                    logger.debug("rmdir 删除失败: %s", error_msg)
-            except Exception as e:
-                logger.debug("rmdir 命令执行失败: %s", e)
+            # S09: rename 成功后 rmtree 失败，尝试回滚
+            if renamed and not os.path.exists(original_name):
+                try:
+                    os.rename(temp_name, original_name)
+                except OSError:
+                    logger.error("无法回滚重命名: %s → %s", temp_name, original_name)
+            if os.name == 'nt':
+                try:
+                    result = subprocess.run(
+                        ['cmd', '/c', 'rmdir', '/s', '/q', node_path],
+                        capture_output=True, timeout=30, creationflags=subprocess.CREATE_NO_WINDOW
+                    )
+                    if result.returncode == 0:
+                        return True, "使用 rmdir /s /q 删除成功"
+                    else:
+                        error_msg = result.stderr.decode('utf-8', errors='ignore').strip()
+                        logger.debug("rmdir 删除失败: %s", error_msg)
+                except Exception as sub_e:
+                    logger.debug("rmdir 命令执行失败: %s", sub_e)
         self._force_stop_node_processes(node_path)
         time.sleep(0.5)
         try:
@@ -246,7 +255,7 @@ class NodeListOperationsMixin:
                     try:
                         process.kill()
                         process.wait()
-                    except:
+                    except Exception:
                         pass
             success, msg = self._force_delete_directory(node_path)
             if not success:
@@ -287,8 +296,17 @@ class NodeListOperationsMixin:
             if self.parent_window:
                 self.parent_window.show_toast("外部挂载节点请使用「卸载」功能，禁止删除", "warning")
             return
-        reply = themed_message(self, t("k_title_confirm_delete"), t("_k_confirm_delete_node").format(name=node_name),
-            "question")
+
+        # 检查运行状态
+        node_status = self.nodes_data[node_name].get("status", "")
+        confirm_msg = t("_k_confirm_delete_node").format(name=node_name)
+        if node_status in ("running", "idle", "starting"):
+            confirm_msg = (
+                f"\u8282\u70b9 '{node_name}' \u5f53\u524d\u6b63\u5728\u8fd0\u884c (\u72b6\u6001: {node_status})\u3002\n"
+                f"\u5220\u9664\u5c06\u540c\u65f6\u505c\u6b62\u8fdb\u7a0b\u5e76\u6e05\u9664\u8282\u70b9\u6587\u4ef6\u3002\n\n{confirm_msg}"
+            )
+
+        reply = themed_message(self, t("k_title_confirm_delete"), confirm_msg, "question")
         if not reply:
             return
         QTimer.singleShot(10, lambda: self._delete_node_async(node_name, 

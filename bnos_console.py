@@ -99,14 +99,18 @@ def main():
         
         if ret == 42:
             # 使用重启脚本，确保先完全关闭再启动新进程
-            import subprocess
-            restart_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "restart_helper.py")
-            main_script = os.path.abspath(__file__)
-            subprocess.Popen(
-                [sys.executable, restart_script, main_script] + args,
-                cwd=os.getcwd(),
-                close_fds=True
-            )
+            try:
+                import subprocess
+                restart_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "restart_helper.py")
+                main_script = os.path.abspath(__file__)
+                subprocess.Popen(
+                    [sys.executable, restart_script, main_script] + args,
+                    cwd=os.getcwd(),
+                    close_fds=True
+                )
+            except Exception as e:
+                logger.error("重启子进程启动失败: %s", e)
+                sys.exit(1)
         sys.exit(ret)
 
     except KeyboardInterrupt:

@@ -5,6 +5,19 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-11】V2.0.26 - Composite Node System, Global Defensive Mechanisms & Project File Lock</strong></summary>
+
+[View Full Update](./2026-07-11/README.md) | [01_Composite_Node](./2026-07-11/01_Composite_Node_System.md) | [02_Defensive_Mechanisms](./2026-07-11/02_Global_Defensive_Mechanisms.md) | [03_File_Lock_Fixes](./2026-07-11/03_Project_File_Lock_and_Bug_Fixes.md)
+
+**Main Updates:**
+- Composite Node System: Multi-node compression into virtual nodes, DAG topological sort orchestration, decompression support, dashed teal-green border + ⊞ icon on canvas, teal highlight + 🔒 lock in node list
+- Global Defensive Mechanisms: 40 defenses across 8 dimensions — process management, file persistence, signal lifecycle, resource cleanup, path security, thread safety, config validation, concurrency control
+- Project File Lock: `.bnos_project.lock` prevents multiple instances from opening the same project, Windows API double-confirm PID liveness
+- Bug Fixes: GROUP_PREFIX AttributeError, blockSignals breaking double-click/right-click, clear_box_selection method name error, UnboundLocalError, C++ object deleted RuntimeError, app_config type check compatibility
+
+</details>
+
+<details>
 <summary><strong>【2026-07-08】V2.0.25 - Node Startup Mechanism Improvement & Anchor Conditional Rendering</strong></summary>
 
 [View Full Update](./2026-07-08/README.md) | [01_Startup_Mechanism](./2026-07-08/01_Node_Startup_Mechanism_Improvement_and_Custom_Entry_Script_Support.md) | [02_Anchor_Rendering](./2026-07-08/02_Input_Output_Anchor_Conditional_Rendering_Optimization.md) | [03_Code_Cleanup](./2026-07-08/03_Parameter_Definition_and_Anchor_Manager_Code_Cleanup.md)

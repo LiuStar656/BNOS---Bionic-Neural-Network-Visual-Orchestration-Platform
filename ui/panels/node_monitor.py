@@ -286,6 +286,11 @@ class NodeLogSubPanel(QGroupBox):
         self._collapse_indicator.setText(">" if self._collapsed else "v")
 
     def unsubscribe_monitor(self):
+        # S06: 断开信号连接，防止 stale 回调
+        try:
+            polling_manager.log_file_changed.disconnect(self._on_external_log_change)
+        except (TypeError, RuntimeError):
+            pass
         polling_manager.unwatch_log(self.node_path, "listener.log")
         if self._resource_timer:
             self._resource_timer.stop()

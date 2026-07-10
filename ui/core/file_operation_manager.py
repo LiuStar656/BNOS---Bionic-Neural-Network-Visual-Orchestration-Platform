@@ -21,15 +21,16 @@ class FileOperationManager(QObject):
         super().__init__()
         self._is_running = False
         self._cancel_event = threading.Event()
+        self._lock = threading.Lock()  # R04: 保护 _is_running 的 check-then-act
     
     @Slot(str, str)
     def copy_file(self, source_path, dest_path):
         """复制文件或目录"""
-        if self._is_running:
-            self.operation_error.emit('copy', 'Another operation is running')
-            return
-        
-        self._is_running = True
+        with self._lock:  # R04
+            if self._is_running:
+                self.operation_error.emit('copy', 'Another operation is running')
+                return
+            self._is_running = True
         self._cancel_event.clear()
         
         def _copy():
@@ -61,7 +62,8 @@ class FileOperationManager(QObject):
                 self.operation_error.emit('copy', str(e))
                 self.operation_completed.emit('copy', False)
             finally:
-                self._is_running = False
+                with self._lock:  # R04
+                    self._is_running = False
         
         thread = threading.Thread(target=_copy)
         thread.start()
@@ -69,11 +71,11 @@ class FileOperationManager(QObject):
     @Slot(str)
     def delete_file(self, path):
         """删除文件或目录"""
-        if self._is_running:
-            self.operation_error.emit('delete', 'Another operation is running')
-            return
-        
-        self._is_running = True
+        with self._lock:  # R04
+            if self._is_running:
+                self.operation_error.emit('delete', 'Another operation is running')
+                return
+            self._is_running = True
         
         def _delete():
             try:
@@ -92,7 +94,8 @@ class FileOperationManager(QObject):
                 self.operation_error.emit('delete', str(e))
                 self.operation_completed.emit('delete', False)
             finally:
-                self._is_running = False
+                with self._lock:  # R04
+                    self._is_running = False
         
         thread = threading.Thread(target=_delete)
         thread.start()
@@ -100,11 +103,11 @@ class FileOperationManager(QObject):
     @Slot(str, str)
     def rename_file(self, old_path, new_name):
         """重命名文件或目录"""
-        if self._is_running:
-            self.operation_error.emit('rename', 'Another operation is running')
-            return
-        
-        self._is_running = True
+        with self._lock:  # R04
+            if self._is_running:
+                self.operation_error.emit('rename', 'Another operation is running')
+                return
+            self._is_running = True
         
         def _rename():
             try:
@@ -126,7 +129,8 @@ class FileOperationManager(QObject):
                 self.operation_error.emit('rename', str(e))
                 self.operation_completed.emit('rename', False)
             finally:
-                self._is_running = False
+                with self._lock:  # R04
+                    self._is_running = False
         
         thread = threading.Thread(target=_rename)
         thread.start()
@@ -134,11 +138,11 @@ class FileOperationManager(QObject):
     @Slot(str)
     def create_folder(self, parent_path, name=None):
         """创建新文件夹"""
-        if self._is_running:
-            self.operation_error.emit('create_folder', 'Another operation is running')
-            return
-        
-        self._is_running = True
+        with self._lock:  # R04
+            if self._is_running:
+                self.operation_error.emit('create_folder', 'Another operation is running')
+                return
+            self._is_running = True
         
         def _create():
             try:
@@ -165,7 +169,8 @@ class FileOperationManager(QObject):
                 self.operation_error.emit('create_folder', str(e))
                 self.operation_completed.emit('create_folder', False)
             finally:
-                self._is_running = False
+                with self._lock:  # R04
+                    self._is_running = False
         
         thread = threading.Thread(target=_create)
         thread.start()

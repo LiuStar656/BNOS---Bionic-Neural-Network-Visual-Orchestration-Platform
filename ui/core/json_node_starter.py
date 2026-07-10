@@ -324,6 +324,9 @@ def start_node_from_json(node_json: str) -> Tuple[bool, str]:
     """
     try:
         node_data = json.loads(node_json)
+        # S12: 验证解析结果为字典类型
+        if not isinstance(node_data, dict):
+            return False, f"JSON 解析结果应为对象，实际为: {type(node_data).__name__}"
         return json_node_starter.start_node(node_data)
     except json.JSONDecodeError as e:
         return False, f"JSON 解析错误: {str(e)}"

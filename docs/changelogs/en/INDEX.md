@@ -8,6 +8,12 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-07-11](./2026-07-11/)
+- **Composite Node System**: Multi-node compression into virtual nodes, DAG topological sort orchestration, decompression support, canvas-specific rendering, node list integration
+- **Global Defensive Mechanisms**: 40 defenses across process management, file persistence, signal lifecycle, resource cleanup, path security, thread safety, config validation, concurrency control
+- **Project File Lock**: `.bnos_project.lock` prevents multiple instances opening the same project, preventing data corruption
+- **Bug Fixes**: GROUP_PREFIX AttributeError, blockSignals double-click/right-click fix, clear_box_selection method name fix, node_list_context UnboundLocalError, status_manager C++ object deleted RuntimeError, app_config type check compatibility
+
 ### [2026-07-08](./2026-07-08/)
 - **Node Startup Mechanism Improvement**: `start.json` adds `entry` field for custom startup programs, defaults to `main.py`, backward compatible
 - **Input/Output Anchor Conditional Rendering**: Input/output anchors not rendered when `listen_upper_file`/`output_file` fields absent in `config.json`

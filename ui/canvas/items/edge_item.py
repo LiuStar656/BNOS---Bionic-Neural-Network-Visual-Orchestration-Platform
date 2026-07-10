@@ -706,8 +706,14 @@ class EdgeItem(QGraphicsPathItem):
         if data and "waypoints" in data:
             raw = data["waypoints"]
             if raw and isinstance(raw[0], list) and len(raw[0]) == 3:
-                # 新格式：(t, ox, oy)
-                self._waypoints = [(float(r[0]), float(r[1]), float(r[2])) for r in raw]
+                # 新格式：(t, ox, oy) — R05: 防御损坏数据中的非数字值
+                wps = []
+                for r in raw:
+                    try:
+                        wps.append((float(r[0]), float(r[1]), float(r[2])))
+                    except (ValueError, TypeError, IndexError):
+                        logger.warning("跳过无效路点数据: %s", r)
+                self._waypoints = wps
             else:
                 # 旧格式：绝对坐标 → 延迟转换，等待锚点坐标就绪
                 self._waypoints = [QPointF(x, y) for x, y in raw]

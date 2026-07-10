@@ -8,6 +8,12 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-07-11](./2026-07-11/)
+- **复合节点系统**：多节点压缩为虚拟节点，DAG 拓扑排序编排，支持解耦还原，画布专用渲染，节点列表集成
+- **全局防呆机制**：40 项防御覆盖进程管理、文件持久化、信号生命周期、资源清理、路径安全、线程安全、配置校验、并发控制
+- **项目文件锁**：`.bnos_project.lock` 防止多实例同时打开同一项目导致数据损坏
+- **Bug 修复**：GROUP_PREFIX AttributeError、blockSignals 双击/右键失效、clear_box_selection 方法名错误、node_list_context UnboundLocalError、status_manager C++ 对象已删除 RuntimeError、app_config 类型校验兼容
+
 ### [2026-07-08](./2026-07-08/)
 - **节点启动机制改进**：`start.json` 新增 `entry` 字段支持自定义启动程序，默认值为 `main.py`，向后兼容
 - **输入输出锚点条件渲染**：当 `config.json` 中不存在 `listen_upper_file`/`output_file` 字段时不渲染输入/输出锚点
@@ -174,4 +180,4 @@
 
 ---
 
-**最后更新**：2026-07-08
+**最后更新**：2026-07-11

@@ -534,7 +534,14 @@ def _read_pid(node_path):
     if os.path.exists(named_pf):
         try:
             with open(named_pf, 'r') as f:
-                return int(f.read().strip())
+                content = f.read().strip()
+                if not content:
+                    logger.warning("[F09] .pid 文件为空: %s", named_pf)
+                    return None
+                return int(content)
+        except (ValueError, TypeError):
+            logger.warning("[F09] .pid 文件内容无效: %s", named_pf)
+            return None
         except Exception:
             pass
     
@@ -543,7 +550,13 @@ def _read_pid(node_path):
     if os.path.exists(pf):
         try:
             with open(pf, 'r') as f:
-                return int(f.read().strip())
+                content = f.read().strip()
+                if not content:
+                    return None
+                return int(content)
+        except (ValueError, TypeError):
+            logger.warning("[F09] .pid 文件内容无效: %s", pf)
+            return None
         except Exception:
             pass
     

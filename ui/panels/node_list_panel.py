@@ -46,6 +46,7 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
         
         # 订阅全局节点状态变化
         polling_manager.node_status_changed.connect(self._on_node_status_changed)
+        self._is_cleaned_up = False
         
         # init_ui 使用基类的 content_layout
         self._init_ui()
@@ -106,6 +107,17 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
                 background-color: rgba(0, 102, 255, 100);
             }
         """)
+
+    def _on_close(self):
+        """断开信号连接后关闭 (S02)"""
+        if not self._is_cleaned_up:
+            self._is_cleaned_up = True
+            try:
+                polling_manager.node_status_changed.disconnect(self._on_node_status_changed)
+            except (TypeError, RuntimeError):
+                pass
+        super()._on_close()
+
         self.content_layout.addWidget(self.node_tree)
         
         # 设置初始大小
