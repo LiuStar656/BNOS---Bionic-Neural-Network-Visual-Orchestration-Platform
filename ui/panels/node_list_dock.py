@@ -166,7 +166,12 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
             if is_composite:
                 prefix = "\u229e "
                 short_name = group_name[len(CompositeNode.GROUP_PREFIX):]
-                display_name = f"\u590d\u5408\u8282\u70b9 {short_name[:8]}"
+                # 尝试获取用户命名，否则回退到自动生成名
+                custom_name = self._get_composite_display_name(short_name)
+                if custom_name:
+                    display_name = custom_name
+                else:
+                    display_name = f"\u590d\u5408\u8282\u70b9 {short_name[:8]}"
                 color = QColor(CompositeNode.GROUP_COLOR)
                 tooltip = "\u8fd0\u884c\u65f6\u538b\u7f29\u7ec4 \u00b7 \u5df2\u9501\u5b9a"
                 lock_indicator = "\U0001f512 " if is_locked else ""
@@ -220,6 +225,18 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
         else:
             self.path_label.setText(t("k_node_no_project"))
     
+    def _get_composite_display_name(self, comp_id):
+        """从复合节点管理器获取用户命名的展示名称。"""
+        try:
+            mgr = getattr(self.parent_window.canvas, '_composite_manager', None) if \
+                  hasattr(self.parent_window, 'canvas') and self.parent_window.canvas else None
+            if mgr:
+                comp = mgr._composites.get(comp_id, {})
+                return comp.get("display_name", "")
+        except Exception:
+            pass
+        return ""
+
     def refresh(self):
         """便捷刷新方法：从 parent_window.nodes_data 重新加载节点列表"""
         if self.parent_window and hasattr(self.parent_window, 'nodes_data'):

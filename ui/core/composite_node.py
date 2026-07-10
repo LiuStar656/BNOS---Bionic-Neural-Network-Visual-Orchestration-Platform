@@ -188,7 +188,7 @@ class CompositeNode:
 
     # ── 核心操作 ──
 
-    def compress(self, node_names: List[str]) -> Tuple[bool, str, Optional[str]]:
+    def compress(self, node_names: list, name: str = "") -> Tuple[bool, str, Optional[str]]:
         """
         将多个节点压缩为复合节点。
 
@@ -260,6 +260,8 @@ class CompositeNode:
         # 3. 生成 ID 和组名
         comp_id = f"composite_{uuid.uuid4().hex[:8]}"
         group_name = f"{GROUP_PREFIX}{comp_id}"
+        # 存储用户命名（留空则默认使用组名）
+        display_name = name.strip() if name and name.strip() else ""
 
         # 4. 在 NodeGroupManager 中创建同名节点组
         if self._group_manager:
@@ -280,13 +282,14 @@ class CompositeNode:
             "nodes": node_names,
             "runtime": "inprocess",
             "group_name": group_name,
+            "display_name": display_name,
             "canvas_position": {"x": cx, "y": cy},
             "original_positions": original_positions,
         }
         self.save()
 
         # 7. 画布操作
-        self._canvas_compress(comp_id, node_names, cx, cy)
+        self._canvas_compress(comp_id, node_names, cx, cy, display_name)
 
         return True, f"已压缩 {len(node_names)} 个节点为复合节点", comp_id
 
@@ -642,7 +645,7 @@ class CompositeNode:
                 except Exception:
                     pass
 
-    def _canvas_compress(self, comp_id: str, node_names: list, cx: float, cy: float):
+    def _canvas_compress(self, comp_id: str, node_names: list, cx: float, cy: float, display_name: str = ""):
         """画布操作：隐藏原始节点 → 显示复合节点。"""
         from ui.canvas.items.composite_node_item import CompositeNodeItem
 
@@ -657,6 +660,7 @@ class CompositeNode:
             comp_id=comp_id,
             node_count=len(node_names),
             node_names=node_names,
+            display_name=display_name,
             canvas=self._canvas
         )
         comp_item.setPos(cx, cy)

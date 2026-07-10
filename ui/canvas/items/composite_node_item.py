@@ -25,11 +25,12 @@ class CompositeNodeItem(QGraphicsRectItem):
     SELECTED_BORDER = QColor("#6ee9d0")
 
     def __init__(self, comp_id: str, node_count: int, node_names: list,
-                 canvas=None, parent=None):
+                 display_name: str = "", canvas=None, parent=None):
         super().__init__(parent)
         self.comp_id = comp_id
         self.node_count = node_count
         self.node_names = node_names
+        self.display_name = display_name
         self._canvas = canvas
 
         self.setRect(0, 0, self.WIDTH, self.HEIGHT)
@@ -82,9 +83,12 @@ class CompositeNodeItem(QGraphicsRectItem):
                            rect.width() - icon_rect.right() - 16, 22)
         painter.setPen(QColor("#4ec9b0"))
         painter.setFont(self._font_bold)
-        short_id = self.comp_id.replace("composite_", "")[:6]
-        painter.drawText(name_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                         f"\u590d\u5408\u8282\u70b9 {short_id}")
+        if self.display_name:
+            label = self.display_name
+        else:
+            short_id = self.comp_id.replace("composite_", "")[:6]
+            label = f"复合节点 {short_id}"
+        painter.drawText(name_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, label)
 
         # 节点数 + 运行时模式
         sub_rect = QRectF(name_rect.x(), name_rect.bottom() + 2, name_rect.width(), 20)

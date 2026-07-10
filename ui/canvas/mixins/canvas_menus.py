@@ -399,14 +399,23 @@ class CanvasMenu:
         return self.canvas._composite_manager
 
     def _on_compress_to_composite(self, node_names):
-        """多选节点 → 压缩为复合节点。"""
+        """多选节点 → 命名后压缩为复合节点。"""
         mgr = self._ensure_composite_manager()
         if not mgr:
             return
 
-        ok, msg, comp_id = mgr.compress(node_names)
+        # 弹出命名对话框
+        from PySide6.QtWidgets import QInputDialog, QMessageBox
+        name, ok = QInputDialog.getText(
+            None, "命名复合节点",
+            "复合节点名称（留空则自动生成\u540d\u79f0）：",
+            text=""
+        )
         if not ok:
-            from PySide6.QtWidgets import QMessageBox
+            return  # 用户取消
+
+        ok, msg, comp_id = mgr.compress(node_names, name)
+        if not ok:
             QMessageBox.warning(None, "\u538b\u7f29\u5931\u8d25", msg)
 
     def _on_decompress_composite(self, mgr, comp_id, node_count):

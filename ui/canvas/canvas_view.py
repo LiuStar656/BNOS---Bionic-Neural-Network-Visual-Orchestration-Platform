@@ -394,6 +394,7 @@ class NodeCanvas(QGraphicsView):
                 comp_id=comp_id,
                 node_count=len(node_names),
                 node_names=node_names,
+                display_name=comp.get("display_name", ""),
                 canvas=self
             )
             comp_item.setPos(pos.get("x", 0), pos.get("y", 0))
