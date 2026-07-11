@@ -14,10 +14,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 from ui.core.i18n import t
-from ui.core.polling_manager import polling_manager
+from ui.core.system.polling_manager import polling_manager
 from ui.core.logger import logger
 from ui.panels._shared.system_resource_collector import shared_resource_collector
-from ui.core.dock_panel_base import DockPanelBase
+from ui.core.dock.dock_panel_base import DockPanelBase
 
 
 class ResourceMonitorDock(DockPanelBase):

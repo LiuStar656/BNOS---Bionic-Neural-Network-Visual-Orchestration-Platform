@@ -14,10 +14,10 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer
 from ui.core.i18n import t
-from ui.core.polling_manager import polling_manager
+from ui.core.system.polling_manager import polling_manager
 from ui.panels._shared.system_resource_collector import SystemResourceCollector
 from ui.panels._shared.node_panel_sync_mixin import NodePanelSyncMixin
-from ui.core.dock_panel_base import DockPanelBase
+from ui.core.dock.dock_panel_base import DockPanelBase
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -153,7 +153,7 @@ class NodeLogSubPanel(QGroupBox):
     # ──── 定时器 + 资源采集（委托给 SystemResourceCollector）────
 
     def _start_resource_timer(self):
-        from ui.core.update_scheduler import update_scheduler
+        from ui.core.system.update_scheduler import update_scheduler
         update_scheduler.subscribe(self, 1000, self._update_resource_usage)
 
     def _update_resource_usage(self):
@@ -206,7 +206,7 @@ class NodeLogSubPanel(QGroupBox):
             self.setFixedHeight(120)
 
     def unsubscribe_monitor(self):
-        from ui.core.update_scheduler import update_scheduler
+        from ui.core.system.update_scheduler import update_scheduler
         update_scheduler.unsubscribe(self)
 
     # ──── 状态更新（Dock版：仅 running/stopped）────

@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QComboBox, QWidget, QVBoxLayout, QToolButton, QHBoxLayout, QTabWidget, QTabBar
 )
 from PySide6.QtCore import Qt
-from ui.core.bnos_dock import BnosDock
+from ui.core.dock.bnos_dock import BnosDock
 from ui.core.i18n import t
 from .terminal_widget import TerminalWidget
 from ui.icons.codicon import get_icon, get_icon_font

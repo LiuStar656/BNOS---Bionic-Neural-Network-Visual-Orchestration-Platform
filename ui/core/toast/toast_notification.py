@@ -16,7 +16,7 @@ from PySide6.QtGui import QGuiApplication, QColor
 
 # 尝试导入BnosDock
 try:
-    from ui.core.bnos_dock import BnosDock
+    from ui.core.dock.bnos_dock import BnosDock
     HAS_BNOS_DOCK = True
 except ImportError:
     HAS_BNOS_DOCK = False

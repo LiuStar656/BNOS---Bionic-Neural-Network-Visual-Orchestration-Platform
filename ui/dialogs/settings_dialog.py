@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                               QSpinBox, QDoubleSpinBox, QSlider)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QKeySequence
-from ui.core.floating_panel import FloatingPanel
+from ui.core.dock.floating_panel import FloatingPanel
 from ui.core.i18n import t, set_lang, get_lang
 from ui.core.utils.dialog_utils import themed_message
 
@@ -346,7 +346,7 @@ class ShortcutCaptureDialog(FloatingPanel):
         self.resize(340, 140)
         self.setStyleSheet(_SET_STYLE)
 
-        from ui.core.shortcut_manager import DEFAULTS
+        from ui.core.system.shortcut_manager import DEFAULTS
         self._sid = sid
         default = DEFAULTS.get(sid, ("",))[0]
         mgr = parent.main_window.shortcut_mgr

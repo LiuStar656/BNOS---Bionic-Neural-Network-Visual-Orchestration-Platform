@@ -170,7 +170,7 @@ class PropertyPanel(QWidget):
             return
         
         try:
-            from ui.core.node_process import start_node_process
+            from ui.core.node.node_process import start_node_process
             start_path = self.current_node_path
             # R09: 防御 start_path 为 None
             if start_path and os.path.exists(start_path):
@@ -204,7 +204,7 @@ class PropertyPanel(QWidget):
             return
         
         try:
-            from ui.core.node_process import stop_node_process
+            from ui.core.node.node_process import stop_node_process
             stop_node_process(self.parent_window.nodes_data[self.current_node_name])
             self.parent_window.nodes_data[self.current_node_name]['status'] = 'stopped'
             self.parent_window.canvas.update_node_status(self.current_node_name, 'stopped')

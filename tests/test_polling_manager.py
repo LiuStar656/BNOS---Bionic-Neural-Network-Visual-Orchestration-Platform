@@ -13,7 +13,7 @@ class TestPollingManager:
     def test_polling_manager_import(self):
         """测试轮询管理器模块导入"""
         try:
-            from ui.core.polling_manager import PollingManager
+            from ui.core.system.polling_manager import PollingManager
             assert True
         except ImportError:
             pytest.skip("Qt environment not available")
@@ -21,7 +21,7 @@ class TestPollingManager:
     def test_polling_manager_is_singleton(self):
         """测试轮询管理器是单例"""
         try:
-            from ui.core.polling_manager import PollingManager
+            from ui.core.system.polling_manager import PollingManager
             instance1 = PollingManager.instance()
             instance2 = PollingManager.instance()
             assert instance1 is instance2

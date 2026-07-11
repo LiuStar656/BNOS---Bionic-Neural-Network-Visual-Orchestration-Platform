@@ -3,7 +3,7 @@
 测试 EventBus 的发布/订阅机制
 """
 import pytest
-from ui.core.event_bus import event_bus, EventBus
+from ui.core.system.event_bus import event_bus, EventBus
 
 
 class TestEventBus:

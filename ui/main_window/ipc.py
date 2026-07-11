@@ -12,7 +12,7 @@ import os
 from PySide6.QtCore import QTimer
 from ui.core.logger import logger
 from ui.core.i18n import t
-from ui.core.ipc import A_WIN_SYNC, A_SYNC_DATA, A_UPDATE_STATUS
+from ui.core.system.ipc import A_WIN_SYNC, A_SYNC_DATA, A_UPDATE_STATUS
 
 
 class MainWindowIPCMixin:
@@ -21,7 +21,7 @@ class MainWindowIPCMixin:
     def _init_ipc(self):
         """初始化 IPC Server，接收子进程连接"""
         self._ipc_server = None
-        from ui.core.ipc import IPCServer
+        from ui.core.system.ipc import IPCServer
         self._ipc_server = IPCServer(self)
         if not self._ipc_server.start():
             logger.warning("IPC Server 启动失败，进程隔离不可用")
@@ -58,7 +58,7 @@ class MainWindowIPCMixin:
         """启动核心业务子进程（可选，默认在主进程跑）"""
         if not self._ipc_server:
             return
-        self._process_manager.register("core", "ui/core/core_process.py")
+        self._process_manager.register("core", "ui/core/services/core_process.py")
         proc = self._process_manager.get("core")
         proc.crashed.connect(lambda pid: logger.warning("核心进程 %s 崩溃，自动重启", pid))
         proc.start()

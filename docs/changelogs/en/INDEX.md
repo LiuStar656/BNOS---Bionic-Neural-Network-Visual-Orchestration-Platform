@@ -15,6 +15,7 @@ Click on dates below to view detailed updates for that date:
 - **Architecture Debt Fixes**: Eliminated dual selection state (SelectedNodesList proxy), fixed lazy imports, replaced `__del__` with `dispose()`, added config.json existence check in node scanning
 - **Process Log Capture & DI Container Enhancement**: Subprocess output redirected from DEVNULL to persistent log files, auto-read log tails on startup failure; DI container refactored to composite key storage, added named registration, scope control (singleton/transient), service listing
 - **I18n Centralized Management**: Created centralized translation key registry (translation_keys.py) with 270+ keys as class attributes, IDE autocomplete and refactoring support; added validate_all_keys() consistency check; filled in 8 missing English rendering settings translations
+- **Core Directory Reorganization**: Split 45 ui/core/ modules into 7 categorized subdirectories (node/dock/system/services/project/config/i18n), synced 150+ import paths, fixed encoding corruption and UnboundLocalError bugs introduced during the reorganization
 - **Bug Fixes**: GROUP_PREFIX AttributeError, blockSignals double-click/right-click fix, clear_box_selection method name fix, node_list_context UnboundLocalError, status_manager C++ object deleted RuntimeError, app_config type check compatibility, QProcess destroyed while running, directories without config.json loaded as nodes
 
 ### [2026-07-08](./2026-07-08/)

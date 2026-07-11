@@ -12,3 +12,4 @@
 - [04 Architecture Debt Fixes](04_Architecture_Debt_Fixes.md)
 - [05 Process Log Capture & DI Container Enhancement](05_Process_Log_Capture_and_DI_Container_Enhancement.md)
 - [06 I18n Centralized Management](06_I18n_Centralized_Management.md)
+- [07 Core Directory Reorganization](07_Core_Directory_Reorganization.md)

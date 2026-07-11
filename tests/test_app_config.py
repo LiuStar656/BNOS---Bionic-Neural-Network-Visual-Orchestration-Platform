@@ -6,7 +6,7 @@ import os
 import pytest
 import tempfile
 import json
-from ui.core.app_config import AppConfig
+from ui.core.config.app_config import AppConfig
 
 
 class TestAppConfig:

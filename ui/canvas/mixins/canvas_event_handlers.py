@@ -19,9 +19,10 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPen, QColor
 
 from ui.core.logger import logger
-from ui.core.app_config import AppConfig
+from ui.core.config.app_config import AppConfig
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
+from ui.canvas.items.anchor_item import AnchorItem
 
 
 class EventHandlers:
@@ -128,9 +129,6 @@ class EventHandlers:
             for probe in self.canvas.items(event.position().toPoint()):
                 if probe is self.canvas.temp_edge:
                     continue
-                # 优先识别锚点（AnchorItem 通常挂在 NodeItem 下）
-                from ui.canvas.items.anchor_item import AnchorItem
-
                 if isinstance(probe, AnchorItem):
                     clicked_anchor = probe
                     parent = probe.parentItem()

@@ -7,7 +7,7 @@ def register(main_window):
     """注册 IDE 打开 action"""
 
     def execute_node_open_vscode(ctx: ActionContext) -> bool:
-        from ui.core.ide_scanner import ide_scanner
+        from ui.core.node.ide_scanner import ide_scanner
         node_name = (ctx.extra or {}).get('node_name', ctx.node_name or '')
         node_path = (ctx.extra or {}).get('node_path', '')
         if node_name and node_path:
@@ -19,7 +19,7 @@ def register(main_window):
         execute_fn=execute_node_open_vscode, requires_node=True))
 
     def execute_node_open_trae(ctx: ActionContext) -> bool:
-        from ui.core.ide_scanner import ide_scanner
+        from ui.core.node.ide_scanner import ide_scanner
         node_path = (ctx.extra or {}).get('node_path', '')
         if node_path:
             return ide_scanner.open_in_trae(node_path)

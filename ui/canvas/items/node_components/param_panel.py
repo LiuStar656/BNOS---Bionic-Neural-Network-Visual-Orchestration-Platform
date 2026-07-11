@@ -43,7 +43,7 @@ class NodeParamPanel:
         param_defs = []
         has_content = False
         if config:
-            from ui.core.node_config_parser import NodeConfigParser, ParameterDef
+            from ui.core.node.node_config_parser import NodeConfigParser, ParameterDef
             input_port_defs = NodeConfigParser.parse_input_ports(config) or []
             input_port_defs = [p for p in input_port_defs
                                if getattr(p, "source", "") == "node"]

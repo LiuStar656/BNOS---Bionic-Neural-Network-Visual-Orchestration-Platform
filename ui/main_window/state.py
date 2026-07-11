@@ -9,7 +9,7 @@ BNOS 主窗口状态管理模块
 import os
 from ui.core.logger import logger
 from ui.core.i18n import t
-from ui.core.window_state_manager import save_state, restore_state
+from ui.core.system.window_state_manager import save_state, restore_state
 
 
 class MainWindowStateMixin:
@@ -241,7 +241,7 @@ class MainWindowStateMixin:
             self._canvas_host.remove_canvas_dock_by_path(project_dir)
 
         # —— Worker：在后台线程做磁盘扫描 + JSON 解析 ——
-        from ui.core.project_load_worker import ProjectLoadWorker
+        from ui.core.project.project_load_worker import ProjectLoadWorker
         worker = ProjectLoadWorker(project_dir, parent=self)
 
         def _on_progress(pct, msg):
@@ -276,7 +276,7 @@ class MainWindowStateMixin:
                 self._canvas_host.add_canvas_dock(project_name, project_dir)
 
                 # 3) 统一 UI 更新（面板、运行状态同步等——不调用 restore_canvas_host_state 避免用旧状态隐藏新画布 dock）
-                from ui.core.project_manager import _apply_after_refresh
+                from ui.core.project.project_manager import _apply_after_refresh
                 _apply_after_refresh(self, running_nodes)
 
             # 5) 保存项目到配置

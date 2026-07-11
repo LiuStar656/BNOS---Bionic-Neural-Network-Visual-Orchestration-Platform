@@ -328,7 +328,7 @@ class PresetLibraryDialog(QWidget):
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
 
-            from ui.core.import_export_manager import _repair_portable_venv
+            from ui.core.project.import_export_manager import _repair_portable_venv
             _repair_portable_venv(target_path)
 
             main_window.refresh_nodes()

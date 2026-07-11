@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QGraphicsScene
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.core.logger import logger
-from ui.core.connection_inferrer import ConnectionInferrer
+from ui.core.node.connection_inferrer import ConnectionInferrer
 from ui.core.i18n import t
 
 

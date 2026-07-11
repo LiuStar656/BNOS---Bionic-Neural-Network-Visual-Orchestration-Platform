@@ -13,18 +13,18 @@ class TestTranslationKeys:
 
     def test_import(self):
         """TK 可以正常导入"""
-        from ui.core.translation_keys import TranslationKeys, TK
+        from ui.core.i18n.translation_keys import TranslationKeys, TK
         assert TK is TranslationKeys
 
     def test_count_keys(self):
         """key 总数大于 200"""
-        from ui.core.translation_keys import TranslationKeys
+        from ui.core.i18n.translation_keys import TranslationKeys
         count = TranslationKeys.count()
         assert count > 200, f"Expected >200 keys, got {count}"
 
     def test_all_keys_returns_list(self):
         """all_keys() 返回 list[str]"""
-        from ui.core.translation_keys import TranslationKeys
+        from ui.core.i18n.translation_keys import TranslationKeys
         keys = TranslationKeys.all_keys()
         assert isinstance(keys, list)
         assert len(keys) > 200
@@ -32,7 +32,7 @@ class TestTranslationKeys:
 
     def test_common_keys_exist(self):
         """常用 key 存在"""
-        from ui.core.translation_keys import TranslationKeys as TK
+        from ui.core.i18n.translation_keys import TranslationKeys as TK
         assert TK.PROJECT == "k_project"
         assert TK.PROJECT_NEW == "k_project_new"
         assert TK.NODE_CREATE == "k_node_create"
@@ -47,7 +47,7 @@ class TestTranslationKeys:
 
     def test_underscore_keys_exist(self):
         """带 _ 前缀的 key 存在且正确"""
-        from ui.core.translation_keys import TranslationKeys as TK
+        from ui.core.i18n.translation_keys import TranslationKeys as TK
         assert TK.START == "k_start"  # 非 _ 属性
         assert TK._START_FAILED == "_k_start_failed"
         assert TK._NODE_STARTED == "_k_node_started"
@@ -55,7 +55,7 @@ class TestTranslationKeys:
 
     def test_all_keys_include_underscore(self):
         """all_keys() 同时包含 k_ 和 _k_ 前缀的 key"""
-        from ui.core.translation_keys import TranslationKeys as TK
+        from ui.core.i18n.translation_keys import TranslationKeys as TK
         keys = TK.all_keys()
         has_k = any(k.startswith("k_") for k in keys)
         has_uk = any(k.startswith("_k_") for k in keys)
@@ -64,13 +64,13 @@ class TestTranslationKeys:
 
     def test_validate_passes(self):
         """validate() 应该通过（所有定义的 key 都在 JSON 中）"""
-        from ui.core.translation_keys import TranslationKeys as TK
+        from ui.core.i18n.translation_keys import TranslationKeys as TK
         result = TK.validate()
         assert result["ok"], f"Validation failed: {result}"
 
     def test_key_values_are_unique(self):
         """没有重复的 key 值"""
-        from ui.core.translation_keys import TranslationKeys as TK
+        from ui.core.i18n.translation_keys import TranslationKeys as TK
         # 获取所有 key/value 对
         pairs = []
         for k, v in vars(TK).items():
@@ -86,11 +86,11 @@ class TestTranslationKeys:
         """所有 k_ 开头的 JSON key 都应该在 TK 中有对应属性"""
         import json
         _here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        _path = os.path.join(_here, "ui", "core", "strings_cn.json")
+        _path = os.path.join(_here, "ui", "core", "i18n", "strings_cn.json")
         with open(_path, "r", encoding="utf-8") as f:
             json_keys = set(json.load(f).keys())
 
-        from ui.core.translation_keys import TranslationKeys as TK
+        from ui.core.i18n.translation_keys import TranslationKeys as TK
         defined_keys = set(TK.all_keys())
 
         # JSON 中有但 TK 中没有的
@@ -115,7 +115,7 @@ class TestI18nIntegration:
     def test_t_with_tk(self):
         """t(TK.PROJECT) 与 t("k_project") 等效"""
         from ui.core.i18n import init_i18n, t
-        from ui.core.translation_keys import TranslationKeys as TK
+        from ui.core.i18n.translation_keys import TranslationKeys as TK
 
         init_i18n("cn")
         assert t(TK.PROJECT) == t("k_project")

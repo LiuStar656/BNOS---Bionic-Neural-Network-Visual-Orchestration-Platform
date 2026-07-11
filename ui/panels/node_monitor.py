@@ -18,9 +18,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
 from ui.core.i18n import t
-from ui.core.floating_panel import FloatingPanel
+from ui.core.dock.floating_panel import FloatingPanel
 from ui.core.utils.dialog_utils import themed_message
-from ui.core.polling_manager import polling_manager
+from ui.core.system.polling_manager import polling_manager
 from ui.panels._shared.system_resource_collector import SystemResourceCollector
 from ui.panels._shared.node_panel_sync_mixin import NodePanelSyncMixin
 

@@ -4,7 +4,7 @@
 """
 import pytest
 import os
-from ui.core.validators import NodeNameValidator, PathValidator
+from ui.core.config.validators import NodeNameValidator, PathValidator
 
 
 class TestNodeNameValidator:

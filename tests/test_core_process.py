@@ -10,12 +10,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 if __name__ == "__main__":
     from PySide6.QtCore import QCoreApplication
-    from ui.core.process_manager import ProcessManager
+    from ui.core.services.process_manager import ProcessManager
 
     app = QCoreApplication.instance() or QCoreApplication(sys.argv)
 
     pm = ProcessManager()
-    pm.register("core", "ui/core/core_process.py")
+    pm.register("core", "ui/core/services/core_process.py")
     proc = pm.get("core")
     proc.crashed.connect(lambda pid: print("[崩溃] core 退出，自动重启中..."))
     proc.started.connect(lambda pid: print(f"[启动] core PID={proc.process.pid}"))

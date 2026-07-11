@@ -11,9 +11,9 @@ from typing import Dict
 from PySide6.QtCore import QTimer, QThread, Signal
 from ui.core.logger import logger
 from ui.core.i18n import t
-from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node
-from ui.core.node_control_service import NodeStatus, node_control_service
-from ui.core.node_startup_queue import startup_queue, QueueStatus
+from ui.core.node.node_process import start_node_process, stop_node_process, resolve_selected_node
+from ui.core.node.node_control_service import NodeStatus, node_control_service
+from ui.core.node.node_startup_queue import startup_queue, QueueStatus
 
 
 class MainWindowNodeControlMixin:
@@ -49,7 +49,7 @@ class MainWindowNodeControlMixin:
         self._start_async_node_creation(node_name, lang_key, language)
 
     def _start_async_node_creation(self, node_name, lang_key, display_language):
-        from ui.core.node_creation_worker import start_async_node_creation
+        from ui.core.node.node_creation_worker import start_async_node_creation
         start_async_node_creation(self, node_name, lang_key, display_language)
 
     def start_selected_node(self):
@@ -307,26 +307,26 @@ class NodeStopWorker(QThread):
                 return
             node_name = selected
 
-        from ui.core.import_export_manager import ImportExportManager
+        from ui.core.project.import_export_manager import ImportExportManager
         manager = ImportExportManager(self)
         manager.export_node(node_name)
 
     def export_project(self):
         """导出整个项目"""
-        from ui.core.import_export_manager import ImportExportManager
+        from ui.core.project.import_export_manager import ImportExportManager
         manager = ImportExportManager(self)
         manager.export_project()
 
     def import_node(self):
         """导入节点"""
-        from ui.core.import_export_manager import ImportExportManager
+        from ui.core.project.import_export_manager import ImportExportManager
         manager = ImportExportManager(self)
         manager.import_node()
 
     def mount_external_node(self):
-        from ui.core.external_node_manager import mount_node
+        from ui.core.node.external_node_manager import mount_node
         mount_node(self)
 
     def unmount_external_node(self, node_name: str):
-        from ui.core.external_node_manager import unmount_node as _unmount_node
+        from ui.core.node.external_node_manager import unmount_node as _unmount_node
         _unmount_node(self, node_name)

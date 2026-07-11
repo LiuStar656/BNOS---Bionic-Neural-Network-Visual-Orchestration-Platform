@@ -290,7 +290,7 @@ def register_canvas_actions(main_window):
     ))
 
     def execute_workspace_open_vscode(ctx: ActionContext) -> bool:
-        from ui.core.ide_scanner import ide_scanner
+        from ui.core.node.ide_scanner import ide_scanner
         workspace_path = (ctx.extra or {}).get('workspace_path', '')
         if workspace_path:
             return ide_scanner.open_in_vscode(workspace_path)
@@ -304,7 +304,7 @@ def register_canvas_actions(main_window):
     ))
 
     def execute_workspace_open_trae(ctx: ActionContext) -> bool:
-        from ui.core.ide_scanner import ide_scanner
+        from ui.core.node.ide_scanner import ide_scanner
         workspace_path = (ctx.extra or {}).get('workspace_path', '')
         if workspace_path:
             return ide_scanner.open_in_trae(workspace_path)

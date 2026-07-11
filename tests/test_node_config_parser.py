@@ -3,7 +3,7 @@ test_node_config_parser.py — NodeConfigParser 单元测试
 覆盖: node_config_parser.py (ParameterDef, InputPortDef, OutputPortDef, NodeConfigParser)
 """
 import pytest
-from ui.core.node_config_parser import (
+from ui.core.node.node_config_parser import (
     NodeConfigParser, ParameterDef, InputPortDef, OutputPortDef
 )
 

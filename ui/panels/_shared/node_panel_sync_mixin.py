@@ -13,7 +13,7 @@ NodeMonitor 面板节点同步 Mixin — 消除 node_monitor.py 与 node_monitor
   - self._panel_layout: QVBoxLayout（用于 insertWidget）
   - 可选: _create_sub_panel(node_name, node_path, status) 工厂方法
 """
-from ui.core.polling_manager import polling_manager
+from ui.core.system.polling_manager import polling_manager
 
 
 class NodePanelSyncMixin:

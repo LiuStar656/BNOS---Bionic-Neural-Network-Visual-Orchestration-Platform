@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QDir, QModelIndex
 from PySide6.QtGui import QIcon, QFileSystemModel, QAction
-from ui.core.floating_panel import FloatingPanel
+from ui.core.dock.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.logger import logger
 

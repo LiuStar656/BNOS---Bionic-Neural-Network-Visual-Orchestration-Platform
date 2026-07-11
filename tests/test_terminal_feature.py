@@ -44,7 +44,7 @@ except Exception as e:
     sys.exit(1)
 
 try:
-    from ui.core.app_config import AppConfig
+    from ui.core.config.app_config import AppConfig
     print("\n✅ 导入 AppConfig 成功")
     config = AppConfig()
     print(f"  panel_visibility 中有 terminal_dock: {'terminal_dock' in config.get('panel_visibility', {})}")

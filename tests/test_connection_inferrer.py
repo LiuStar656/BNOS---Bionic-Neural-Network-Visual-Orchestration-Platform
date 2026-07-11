@@ -3,7 +3,7 @@ test_connection_inferrer.py — ConnectionInferrer 单元测试
 覆盖: connection_inferrer.py (_extract_node_name_from_path, infer_all_edges, compare_with_existing, get_node_upstream/downstreams, diagnose)
 """
 import pytest
-from ui.core.connection_inferrer import ConnectionInferrer
+from ui.core.node.connection_inferrer import ConnectionInferrer
 
 
 # ═══════════════════ 测试数据构造 ═══════════════════

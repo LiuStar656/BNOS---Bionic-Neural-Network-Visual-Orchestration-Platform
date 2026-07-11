@@ -42,7 +42,7 @@ def main():
                 break
 
         # ---- 加载语言 ----
-        from ui.core.app_config import AppConfig
+        from ui.core.config.app_config import AppConfig
         saved_lang = AppConfig().get("language", "cn")
         init_i18n(saved_lang)
         if progress_file:
@@ -67,7 +67,7 @@ def main():
         codicon.init()
 
         # 初始化应用上下文
-        from ui.core.application_context import ApplicationContext
+        from ui.core.services.application_context import ApplicationContext
         app_context = ApplicationContext()
         app_context.initialize()
 

@@ -15,6 +15,7 @@
 - **架构债修复**：消除双选状态（SelectedNodesList 代理）、修复懒导入、消除 `__del__` 改用 `dispose()`、节点扫描增加 config.json 校验
 - **进程日志捕获与DI容器增强**：子进程输出从 DEVNULL 改为持久化日志文件，启动失败自动读取日志尾部；DI 容器重构为复合键存储，新增命名注册、作用域控制（singleton/transient）、服务列表查询
 - **国际化集中管理**：创建翻译 key 集中注册表（translation_keys.py），270+ key 以类属性暴露，提供 IDE 自动补全和重构支持；新增 validate_all_keys() 一致性检查；补全 8 个英文渲染设置翻译
+- **Core目录组件分类重组**：ui/core/ 45 个模块按功能拆分为 node/dock/system/services/project/config/i18n 七个子目录，150+ 处 import 路径同步更新，修复重组过程中引入的编码损坏和 UnboundLocalError
 - **Bug 修复**：GROUP_PREFIX AttributeError、blockSignals 双击/右键失效、clear_box_selection 方法名错误、node_list_context UnboundLocalError、status_manager C++ 对象已删除 RuntimeError、app_config 类型校验兼容、QProcess destroyed while running、无 config.json 目录被误加载为节点
 
 ### [2026-07-08](./2026-07-08/)

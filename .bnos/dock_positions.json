@@ -92,10 +92,10 @@
   "bnos_dock_widget_资源监测": {
     "docked_area": 1,
     "floating": {
-      "x": 277,
-      "y": 736,
+      "x": 205,
+      "y": 937,
       "width": 382,
-      "height": 588
+      "height": 525
     }
   },
   "bnos_dock_widget_节点监测": {

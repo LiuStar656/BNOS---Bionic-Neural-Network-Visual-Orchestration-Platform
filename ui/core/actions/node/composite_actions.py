@@ -22,7 +22,7 @@ def _register_compress(main_window):
         if not node_list or len(node_list) < 2:
             return False
 
-        from ui.core.composite_node import CompositeNode
+        from ui.core.node.composite_node import CompositeNode
         from ui.core.utils.dialog_utils import themed_message
         from ui.core.i18n import t
 

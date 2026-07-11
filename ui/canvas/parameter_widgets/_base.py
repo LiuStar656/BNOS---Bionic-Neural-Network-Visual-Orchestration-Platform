@@ -4,7 +4,7 @@
 from PySide6.QtWidgets import QWidget, QLabel
 from PySide6.QtCore import Qt, Signal
 
-from ui.core.node_config_parser import ParameterDef
+from ui.core.node.node_config_parser import ParameterDef
 
 
 # ========== 统一视觉常量（单一间距来源，便于维护） ==========

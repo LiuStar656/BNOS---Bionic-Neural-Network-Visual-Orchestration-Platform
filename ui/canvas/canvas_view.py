@@ -121,7 +121,7 @@ from ui.canvas.mixins.canvas_layout import CanvasLayout
 from ui.canvas.mixins.canvas_colors import CanvasColors
 from ui.canvas.mixins.canvas_box_select import CanvasBoxSelect
 from ui.canvas.items.composite_node_item import CompositeNodeItem
-from ui.core.composite_node import CompositeNode
+from ui.core.node.composite_node import CompositeNode
 
 
 class NodeCanvas(QGraphicsView):
@@ -142,7 +142,7 @@ class NodeCanvas(QGraphicsView):
 
         # ===== 画布场景尺寸（从配置读取）=====
         try:
-            from ui.core.app_config import AppConfig
+            from ui.core.config.app_config import AppConfig
             cfg = AppConfig().get("rendering", {})
             self.canvas_width = cfg.get("canvas_width", 5000)
             self.canvas_height = cfg.get("canvas_height", 5000)

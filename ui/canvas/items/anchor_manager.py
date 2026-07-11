@@ -193,7 +193,7 @@ class AnchorManager:
         # —— 4. 解析 config 的 input_ports 信息 ——
         config_ports = {}
         try:
-            from ui.core.node_config_parser import NodeConfigParser
+            from ui.core.node.node_config_parser import NodeConfigParser
             if config:
                 for p in NodeConfigParser.parse_input_ports(config):
                     config_ports[p.name] = p

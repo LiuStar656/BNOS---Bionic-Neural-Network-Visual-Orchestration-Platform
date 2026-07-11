@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt
 from ui.core.i18n import t
 from ui.core.actions import ActionFactory, ActionContext, ActionRegistry
 from ui.core.actions.builtin_node_actions import register_node_actions
-from ui.core.composite_node import CompositeNode
+from ui.core.node.composite_node import CompositeNode
 
 
 class NodeListContextMixin:

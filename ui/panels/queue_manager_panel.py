@@ -10,7 +10,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor
 
 from ui.core.logger import logger
-from ui.core.node_startup_queue import startup_queue, QueueStatus
+from ui.core.node.node_startup_queue import startup_queue, QueueStatus
 
 
 class QueueManagerPanel(QWidget):

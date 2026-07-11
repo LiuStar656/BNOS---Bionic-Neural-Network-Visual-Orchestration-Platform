@@ -30,24 +30,24 @@ from ui.creators.node_creator_manager import NodeCreatorManager
 from ui.menu.menu_manager import MenuManager
 from ui.core.toast.toast_notification import ToastNotification
 from ui.core.toast.toast_queue_manager import ToastQueueManager
-from ui.core.node_process import start_node_process, stop_node_process, resolve_selected_node, check_running_processes, detect_running_nodes
-from ui.core.polling_manager import polling_manager
-from ui.core.project_manager import project_new, project_open, project_refresh, _canvas_call
-from ui.core.external_node_manager import mount_node, unmount_node as _unmount_node
-from ui.core.window_state_manager import save_state, restore_state
-from ui.core.node_creation_worker import start_async_node_creation
-from ui.core.node_registry import NodeRegistry
-from ui.core.app_config import AppConfig
-from ui.core.theme import DARK_QSS
-from ui.core.process_manager import ProcessManager
-from ui.core.canvas_host import CanvasHost
+from ui.core.node.node_process import start_node_process, stop_node_process, resolve_selected_node, check_running_processes, detect_running_nodes
+from ui.core.system.polling_manager import polling_manager
+from ui.core.project.project_manager import project_new, project_open, project_refresh, _canvas_call
+from ui.core.node.external_node_manager import mount_node, unmount_node as _unmount_node
+from ui.core.system.window_state_manager import save_state, restore_state
+from ui.core.node.node_creation_worker import start_async_node_creation
+from ui.core.node.node_registry import NodeRegistry
+from ui.core.config.app_config import AppConfig
+from ui.core.config.theme import DARK_QSS
+from ui.core.services.process_manager import ProcessManager
+from ui.core.dock.canvas_host import CanvasHost
 
 # ===== 解耦基础设施（Step 1-7） =====
-from ui.core.event_bus import event_bus
-from ui.core.di import container, IConfig
-from ui.core.panel_manager import PanelManager
-from ui.core.node_control_service import node_control_service, NodeStatus
-from ui.core.shutdown_orchestrator import ShutdownOrchestrator
+from ui.core.system.event_bus import event_bus
+from ui.core.system.di import container, IConfig
+from ui.core.dock.panel_manager import PanelManager
+from ui.core.node.node_control_service import node_control_service, NodeStatus
+from ui.core.services.shutdown_orchestrator import ShutdownOrchestrator
 from ui.main_window.state import MainWindowStateMixin
 from ui.main_window.lifecycle import MainWindowLifecycleMixin
 from ui.main_window.actions import MainWindowActionsMixin
@@ -73,7 +73,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         
         # 应用配置
         self.app_config = AppConfig()
-        from ui.core.shortcut_manager import ShortcutManager
+        from ui.core.system.shortcut_manager import ShortcutManager
         self.shortcut_mgr = ShortcutManager(self.app_config)
         
         # 项目状态
@@ -124,7 +124,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         )
 
         # IDE 扫描器 - 自动检测并缓存 VSCode/Trae IDE 路径
-        from ui.core.ide_scanner import ide_scanner
+        from ui.core.node.ide_scanner import ide_scanner
         ide_scanner._app_config = self.app_config
 
         # 节点控制服务 - 注册所有项目节点
@@ -203,7 +203,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         history_manager.can_redo_changed.connect(self._on_can_redo_changed)
 
         # 注入 EventBus（延迟绑定，避免循环导入）
-        from ui.core.event_bus import event_bus
+        from ui.core.system.event_bus import event_bus
         history_manager.set_event_bus(event_bus)
         
         # 标题栏：标题 + 菜单 + 按钮同行
@@ -225,7 +225,7 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
         
         # ========== 停靠管理器（主窗口面板专用）==========
         # 面板只能停靠在左右两侧，不能进入中心CanvasHost区域
-        from ui.core.dock_manager import DockManager
+        from ui.core.dock.dock_manager import DockManager
         self._dock_manager = DockManager(self)
         # 连接Dock面板关闭信号
         self._dock_manager.panel_closed.connect(self._on_dock_panel_closed)
@@ -395,19 +395,19 @@ class BNOSMainWindow(QMainWindow, MainWindowStateMixin, MainWindowLifecycleMixin
                 return
             node_name = selected
         
-        from ui.core.import_export_manager import ImportExportManager
+        from ui.core.project.import_export_manager import ImportExportManager
         manager = ImportExportManager(self)
         manager.export_node(node_name)
     
     def export_project(self):
         """导出整个项目"""
-        from ui.core.import_export_manager import ImportExportManager
+        from ui.core.project.import_export_manager import ImportExportManager
         manager = ImportExportManager(self)
         manager.export_project()
     
     def import_node(self):
         """导入节点"""
-        from ui.core.import_export_manager import ImportExportManager
+        from ui.core.project.import_export_manager import ImportExportManager
         manager = ImportExportManager(self)
         manager.import_node()
     

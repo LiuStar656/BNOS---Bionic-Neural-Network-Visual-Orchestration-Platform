@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QApplication
 from ui.core.i18n import t
 from ui.core.logger import logger
 from ui.panels._shared.system_resource_collector import shared_resource_collector
-from ui.core.dock_panel_base import DockPanelBase
+from ui.core.dock.dock_panel_base import DockPanelBase
 import time
 
 
@@ -608,7 +608,7 @@ class PerformancePanel(DockPanelBase):
 
     def _on_drag_start(self):
         """拖动开始：暂停所有更新"""
-        from ui.core.update_scheduler import update_scheduler
+        from ui.core.system.update_scheduler import update_scheduler
         update_scheduler.unsubscribe(self)
 
     def _on_drag_end(self):

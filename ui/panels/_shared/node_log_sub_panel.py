@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
 from ui.core.i18n import t
-from ui.core.polling_manager import polling_manager
+from ui.core.system.polling_manager import polling_manager
 from ui.core.utils.dialog_utils import themed_message
 from ui.panels._shared.system_resource_collector import SystemResourceCollector
 from ui.core.logger import logger
@@ -91,7 +91,7 @@ class BaseNodeLogSubPanel(QGroupBox):
 
     def _start_resource_timer(self):
         """启动资源监测定时器（使用统一调度器）"""
-        from ui.core.update_scheduler import update_scheduler
+        from ui.core.system.update_scheduler import update_scheduler
         update_scheduler.subscribe(self, 1000, self._update_resource_usage)
 
     def _update_resource_usage(self):
@@ -180,7 +180,7 @@ class BaseNodeLogSubPanel(QGroupBox):
     def unsubscribe_monitor(self):
         """取消订阅 polling_manager（面板移除时调用）"""
         polling_manager.unwatch_log(self.node_path, "listener.log")
-        from ui.core.update_scheduler import update_scheduler
+        from ui.core.system.update_scheduler import update_scheduler
         update_scheduler.unsubscribe(self)
 
     # ──── 可选的扩展功能（子类按需覆盖）────

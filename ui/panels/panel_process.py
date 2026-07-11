@@ -12,7 +12,7 @@ if _proj_root not in sys.path:
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
-from ui.core.ipc import IPCClient
+from ui.core.system.ipc import IPCClient
 from ui.core.logger import logger
 from ui.core.i18n import init_i18n
 

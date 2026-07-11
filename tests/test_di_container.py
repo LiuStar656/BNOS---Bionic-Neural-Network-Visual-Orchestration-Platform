@@ -3,7 +3,7 @@
 测试 DIContainer 的服务注册和解析功能（含旧 API 兼容 + 新 API）
 """
 import pytest
-from ui.core.di import DIContainer
+from ui.core.system.di import DIContainer
 
 
 # ======================== 原有测试（向后兼容验证）========================

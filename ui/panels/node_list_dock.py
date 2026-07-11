@@ -15,8 +15,8 @@ from PySide6.QtGui import QColor, QFont
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
-from ui.core.polling_manager import polling_manager
-from ui.core.composite_node import CompositeNode
+from ui.core.system.polling_manager import polling_manager
+from ui.core.node.composite_node import CompositeNode
 from ui.panels.node_list_drag import NodeListDragMixin
 from ui.panels.node_list_context import NodeListContextMixin
 from ui.panels.node_list_ops import NodeListOperationsMixin

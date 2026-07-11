@@ -9,7 +9,7 @@ BNOS 主窗口交互模块
 from PySide6.QtCore import Qt, QEvent
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QMainWindow
-from ui.core.theme import DARK_QSS
+from ui.core.config.theme import DARK_QSS
 
 
 class MainWindowInteractionMixin:

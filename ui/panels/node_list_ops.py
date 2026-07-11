@@ -12,7 +12,7 @@ from PySide6.QtGui import QColor
 from ui.core.logger import logger
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
-from ui.core.node_startup_queue import startup_queue
+from ui.core.node.node_startup_queue import startup_queue
 
 
 class NodeListOperationsMixin:
@@ -270,7 +270,7 @@ class NodeListOperationsMixin:
             del self.nodes_data[node_name]
             try:
                 if self.parent_window and hasattr(self.parent_window, 'current_project_path') and self.parent_window.current_project_path:
-                    from ui.core.node_registry import NodeRegistry
+                    from ui.core.node.node_registry import NodeRegistry
                     registry = NodeRegistry(self.parent_window.current_project_path)
                     registry.load()
                     registry.unregister_node(node_name)
@@ -350,7 +350,7 @@ class NodeListOperationsMixin:
 
     def create_node_group(self):
         """创建新的节点组"""
-        from ui.core.floating_panel import themed_input_dialog
+        from ui.core.dock.floating_panel import themed_input_dialog
         group_name = themed_input_dialog(self, t("k_group_create_group"), t("k_node_input_new_group_name"))
         if not group_name:
             return
@@ -446,7 +446,7 @@ class NodeListOperationsMixin:
             if self.parent_window:
                 self.parent_window.show_toast("挂载组禁止重命名", "warning")
             return
-        from ui.core.floating_panel import themed_input_dialog
+        from ui.core.dock.floating_panel import themed_input_dialog
         new_name = themed_input_dialog(self, t("k_group_rename"), t("k_group_input_new_name"), group_name)
         if not new_name:
             return

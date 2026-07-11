@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFormL
     QPushButton, QGroupBox, QScrollArea, QColorDialog, QSlider, QSpinBox)
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont, QColor
-from ui.core.floating_panel import FloatingPanel
+from ui.core.dock.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
 
@@ -449,8 +449,8 @@ class ColorSettingsDialog(FloatingPanel):
 
     def _apply_global_settings(self, settings):
         """应用全局设置（当没有画布时）"""
-        from ui.core.bnos_dock import set_dock_floating_colors as set_bnos_dock_colors
-        from ui.core.dock_manager import set_dock_floating_colors as set_mgr_dock_colors
+        from ui.core.dock.bnos_dock import set_dock_floating_colors as set_bnos_dock_colors
+        from ui.core.dock.dock_manager import set_dock_floating_colors as set_mgr_dock_colors
         from ui.core.toast.toast_notification import set_toast_config
         
         dock_active = settings.get('dock_floating_border_color', '#007acc')

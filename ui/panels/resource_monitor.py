@@ -12,9 +12,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor
-from ui.core.floating_panel import FloatingPanel
+from ui.core.dock.floating_panel import FloatingPanel
 from ui.core.i18n import t
-from ui.core.polling_manager import polling_manager
+from ui.core.system.polling_manager import polling_manager
 from ui.core.logger import logger
 from ui.panels._shared.system_resource_collector import shared_resource_collector
 

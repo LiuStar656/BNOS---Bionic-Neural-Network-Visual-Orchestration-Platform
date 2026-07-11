@@ -14,8 +14,9 @@ from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.composite_node_item import CompositeNodeItem
 from ui.canvas.items.styles import StyleRegistry
-from ui.core.composite_node import CompositeNode
+from ui.core.node.composite_node import CompositeNode
 from ui.core.i18n import t
+from ui.core.i18n.translation_keys import TK
 from ui.core.actions import ActionFactory, ActionContext, ActionRegistry
 from ui.core.actions.builtin_node_actions import register_node_actions
 from ui.core.actions.builtin_canvas_actions import register_canvas_actions
@@ -406,19 +407,29 @@ class CanvasMenu:
             return
 
         # 弹出命名对话框（主题统一）
-        name = themed_input(None, "命名复合节点", "复合节点名称（留空则自动生成名称）：", default="")
+        name = themed_input(None, t(TK.COMPOSITE_NAME_DIALOG_TITLE), t(TK.COMPOSITE_NAME_PROMPT), default="")
         if name is None:
             return  # 用户取消
 
+        # 确认对话框
+        n = len(node_names)
+        confirm = themed_message(
+            None, t(TK.COMPOSITE_CONFIRM_TITLE),
+            t(TK.COMPOSITE_CONFIRM_TEXT).format(n=n),
+            "question"
+        )
+        if not confirm:
+            return
+
         ok, msg, comp_id = mgr.compress(node_names, name)
         if not ok:
-            themed_message(None, "压缩失败", msg, "warning")
+            themed_message(None, t(TK.COMPOSITE_COMPRESS_FAILED), msg, "warning")
 
     def _on_decompress_composite(self, mgr, comp_id, node_count):
         """解耦确认对话框。"""
         reply = themed_message(
-            None, "确认解耦",
-            f"将复合节点还原为 {node_count} 个独立节点，\n确定要继续吗？",
+            None, t(TK.COMPOSITE_DECOMPRESS_CONFIRM_TITLE),
+            t(TK.COMPOSITE_DECOMPRESS_CONFIRM_TEXT).format(n=node_count),
             "question"
         )
         if not reply:

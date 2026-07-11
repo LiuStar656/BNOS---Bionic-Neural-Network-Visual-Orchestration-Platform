@@ -20,7 +20,7 @@ from ui.canvas.drawing.tools import (
 from ui.canvas.drawing.components import DrawPropertyPanel
 from ui.canvas.drawing.styles import apply_preset, PRESETS
 from ui.core.logger import logger
-from ui.core.app_config import AppConfig
+from ui.core.config.app_config import AppConfig
 
 
 class DrawLayer:

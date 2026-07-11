@@ -21,7 +21,7 @@ def _register_save_as_preset(main_window):
             return False
 
         from ui.core.i18n import t
-        from ui.core.floating_panel import themed_input_dialog
+        from ui.core.dock.floating_panel import themed_input_dialog
         from ui.core.utils.dialog_utils import themed_message
         from ui.core.packager import Packager
 

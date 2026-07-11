@@ -10,9 +10,9 @@ from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QColor, QFont
 from ui.core.logger import logger
 from ui.core.i18n import t
-from ui.core.floating_panel import FloatingPanel
+from ui.core.dock.floating_panel import FloatingPanel
 from ui.core.utils.dialog_utils import themed_message
-from ui.core.polling_manager import polling_manager
+from ui.core.system.polling_manager import polling_manager
 from ui.panels.node_list_drag import NodeListDragMixin
 from ui.panels.node_list_context import NodeListContextMixin
 from ui.panels.node_list_ops import NodeListOperationsMixin
@@ -205,7 +205,7 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
         if old_name not in self.nodes_data:
             return
         
-        from ui.core.floating_panel import themed_input_dialog
+        from ui.core.dock.floating_panel import themed_input_dialog
         new_name = themed_input_dialog(self, t("k_node_rename"), t("k_node_input_new_name"), old_name)
         if not new_name:
             return
@@ -422,7 +422,7 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
                 self.parent_window.show_toast("没有未分组的节点", "warning")
             return
         
-        from ui.core.floating_panel import themed_input_dialog
+        from ui.core.dock.floating_panel import themed_input_dialog
         group_name = themed_input_dialog(self, t("k_group_create_new"), f"将为 {len(ungrouped_nodes)} 个未分组节点创建新组\n请输入组名称:")
         if not group_name:
             return

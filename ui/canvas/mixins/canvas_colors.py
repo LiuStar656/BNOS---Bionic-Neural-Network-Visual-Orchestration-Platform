@@ -166,8 +166,8 @@ class CanvasColors:
         self.canvas.dock_floating_border_color = dock_active
         self.canvas.dock_floating_border_inactive = dock_inactive
 
-        from ui.core.bnos_dock import set_dock_floating_colors as set_bnos_dock_colors
-        from ui.core.dock_manager import set_dock_floating_colors as set_mgr_dock_colors
+        from ui.core.dock.bnos_dock import set_dock_floating_colors as set_bnos_dock_colors
+        from ui.core.dock.dock_manager import set_dock_floating_colors as set_mgr_dock_colors
         set_bnos_dock_colors(dock_active, dock_inactive)
         set_mgr_dock_colors(dock_active, dock_inactive)
 
