@@ -56,10 +56,10 @@
   "bnos_dock_widget_性能分析面板": {
     "docked_area": 2,
     "floating": {
-      "x": 830,
-      "y": 430,
+      "x": 1282,
+      "y": 508,
       "width": 602,
-      "height": 479
+      "height": 484
     }
   },
   "bnos_dock_widget_调试面板": {
@@ -74,8 +74,8 @@
   "bnos_dock_widget_预设节点库": {
     "docked_area": 2,
     "floating": {
-      "x": 840,
-      "y": 409,
+      "x": 1224,
+      "y": 240,
       "width": 602,
       "height": 479
     }
@@ -126,6 +126,24 @@
       "y": 65,
       "width": 1008,
       "height": 854
+    }
+  },
+  "bnos_dock_widget_Preset Node Library": {
+    "docked_area": 2,
+    "floating": {
+      "x": 1310,
+      "y": 381,
+      "width": 602,
+      "height": 484
+    }
+  },
+  "bnos_dock_widget_Performance Panel": {
+    "docked_area": 2,
+    "floating": {
+      "x": 1254,
+      "y": 461,
+      "width": 602,
+      "height": 479
     }
   }
 }
