@@ -1,11 +1,16 @@
 """多行文本输入控件"""
-from PySide6.QtWidgets import QPlainTextEdit, QHBoxLayout
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
-from ._base import ParameterWidget, _make_label, ROW_HEIGHT, LAYOUT_SPACING
+from PySide6.QtWidgets import QHBoxLayout, QPlainTextEdit
+
+from ._base import LAYOUT_SPACING, ROW_HEIGHT, ParameterWidget, _make_label
 
 
 class TextWidget(ParameterWidget):
     """多行文本 — 紧凑模式：标签 + 小尺寸编辑框（根据 rows 扩展高度）"""
+
     def __init__(self, param, current_value):
         super().__init__(param, current_value)
         rows = max(1, int(param.rows)) if param.rows else 1

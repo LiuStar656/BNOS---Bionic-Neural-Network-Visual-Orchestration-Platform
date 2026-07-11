@@ -1,9 +1,13 @@
 """
 面板模式节点样式 — ComfyUI 风格画布直显
 """
-from PySide6.QtWidgets import QGraphicsItem
-from PySide6.QtGui import QBrush, QPen, QColor
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QBrush, QColor, QPen
+from PySide6.QtWidgets import QGraphicsItem
+
 from ._base import NodeStyle
 
 
@@ -22,6 +26,7 @@ class DetailedNodeStyle(NodeStyle):
       2. 节点宽度 = 最长标签 + 最长控件 + 左右边距 + 锚点预留
       3. 节点高度 = 标题高度 + Σ(行高) + 底部留白
     """
+
     style_key: str = "detailed"
     style_name: str = "k_node_style_detailed"
     is_dot: bool = False
@@ -69,9 +74,9 @@ class DetailedNodeStyle(NodeStyle):
         """
         # 从 canvas 读取颜色设置
         if node_item.canvas:
-            self.body_bg = getattr(node_item.canvas, 'node_bg_color', '#2d2d30')
-            self.body_border = getattr(node_item.canvas, 'node_border_color', '#454545')
-            self.body_text_color = getattr(node_item.canvas, 'node_text_color', '#cccccc')
+            self.body_bg = getattr(node_item.canvas, "node_bg_color", "#2d2d30")
+            self.body_border = getattr(node_item.canvas, "node_border_color", "#454545")
+            self.body_text_color = getattr(node_item.canvas, "node_text_color", "#cccccc")
 
         # 关闭缓存模式（详细版中有 proxy widgets，缓存会导致视觉错误）
         node_item.setCacheMode(QGraphicsItem.CacheMode.NoCache)
@@ -81,7 +86,7 @@ class DetailedNodeStyle(NodeStyle):
         node_item.setPen(QPen(Qt.PenStyle.NoPen))
 
         # 隐藏节点本体（若存在）
-        if hasattr(node_item, '_body') and node_item._body:
+        if hasattr(node_item, "_body") and node_item._body:
             node_item._body.setVisible(False)
         # 隐藏 IN/OUT 标签
         if hasattr(node_item, "_in_label") and node_item._in_label:
@@ -96,6 +101,7 @@ class DetailedNodeStyle(NodeStyle):
         # 先创建状态控件（_build_detailed_view 会用它设置 CPU/MEM 位置）
         if not hasattr(node_item, "_status_widget") or node_item._status_widget is None:
             from ui.canvas.items.node_status_widget import NodeStatusWidget
+
             node_item._status_widget = NodeStatusWidget(node_item)
         node_item._status_widget.set_compact(True)
         node_item._status_widget.set_visible(True)
@@ -119,7 +125,7 @@ class DetailedNodeStyle(NodeStyle):
 
     def apply_status(self, node_item, status):
         """根据 status 更新指示灯颜色"""
-        if not hasattr(node_item, 'status_indicator') or not node_item.status_indicator:
+        if not hasattr(node_item, "status_indicator") or not node_item.status_indicator:
             return
         if status == "running":
             c = QColor(self.status_running)

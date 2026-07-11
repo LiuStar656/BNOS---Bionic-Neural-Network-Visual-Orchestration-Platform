@@ -1,11 +1,22 @@
 """
 标注属性面板 — 选中图形时显示，支持实时修改属性
 """
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QSpinBox,
-    QLineEdit, QPushButton, QFrame, QGridLayout, QTextEdit,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSlider,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
 )
 
 from ui.canvas.drawing.styles import PRESETS, apply_preset
@@ -14,6 +25,7 @@ from ui.core.i18n import t
 
 class ColorButton(QPushButton):
     """颜色选择按钮"""
+
     color_changed = Signal(str)
 
     def __init__(self, color="#00AAFF", parent=None):
@@ -35,6 +47,7 @@ class ColorButton(QPushButton):
 
     def _pick_color(self):
         from PySide6.QtWidgets import QColorDialog
+
         c = QColorDialog.getColor(QColor(self._color), self)
         if c.isValid():
             self._color = c.name()

@@ -1,10 +1,12 @@
 """
 启动动画 — ASCII 字符拼成的 BNOS + 左下角日志 + 进度条
 """
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel,
-                               QProgressBar, QTextEdit, QApplication)
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QApplication, QLabel, QProgressBar, QTextEdit, QVBoxLayout, QWidget
 
 ASCII_BNOS = [
     " █████╗     ███╗  ██╗     █████╗     ██████╗ ",
@@ -22,18 +24,10 @@ class SplashScreen(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.SplashScreen
+            Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.SplashScreen
         )
         self.setFixedSize(620, 346)
-        self.setStyleSheet(
-            "SplashScreen {"
-            "  background-color: #1e1e1e;"
-            "  border: 3px solid #777;"
-            "  border-radius: 8px;"
-            "}"
-        )
+        self.setStyleSheet("SplashScreen {  background-color: #1e1e1e;  border: 3px solid #777;  border-radius: 8px;}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 12, 20, 12)
@@ -53,6 +47,7 @@ class SplashScreen(QWidget):
         layout.addWidget(cs)
 
         from ui.core.i18n import t
+
         sub = QLabel(t("_k_splash_subtitle"))
         sub.setFont(QFont("Consolas", 9))
         sub.setStyleSheet("color: #aaa; background: transparent; border: none;")
@@ -65,8 +60,8 @@ class SplashScreen(QWidget):
         self.log_edit.setReadOnly(True)
         self.log_edit.setMaximumHeight(80)
         self.log_edit.setStyleSheet(
-            "QTextEdit { background: transparent; color: #aaa; border: none;"
-            " font-family: Consolas; font-size: 10px; }")
+            "QTextEdit { background: transparent; color: #aaa; border: none; font-family: Consolas; font-size: 10px; }"
+        )
         self.log_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.log_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         layout.addWidget(self.log_edit)
@@ -77,7 +72,8 @@ class SplashScreen(QWidget):
         self.progress.setTextVisible(False)
         self.progress.setStyleSheet(
             "QProgressBar { background: #2a2a2a; border: none; border-radius: 2px; height: 8px; }"
-            "QProgressBar::chunk { background: #777; border-radius: 1px; }")
+            "QProgressBar::chunk { background: #777; border-radius: 1px; }"
+        )
         layout.addWidget(self.progress)
 
         self._hint = QLabel("Loading...")
@@ -91,10 +87,7 @@ class SplashScreen(QWidget):
         screen = QApplication.primaryScreen()
         if screen:
             geo = screen.availableGeometry()
-            self.move(
-                geo.center().x() - self.width() // 2,
-                geo.center().y() - self.height() // 2
-            )
+            self.move(geo.center().x() - self.width() // 2, geo.center().y() - self.height() // 2)
 
     def append_log(self, text: str):
         # 注意：QTextEdit.append 会自动触发 repaint，无需手动 processEvents

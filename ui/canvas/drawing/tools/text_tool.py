@@ -1,11 +1,15 @@
 """
 文本工具 — 创建文本、双击编辑
 """
-from PySide6.QtCore import Qt, QPointF
 
-from .tool_base import ToolBase, ToolResult
+from __future__ import annotations
+
+from PySide6.QtCore import QPointF, Qt
+
 from ui.canvas.drawing.graphic_items import TextGraphic
 from ui.core.i18n import t
+
+from .tool_base import ToolBase, ToolResult
 
 
 class TextTool(ToolBase):
@@ -31,6 +35,7 @@ class TextTool(ToolBase):
 
         # 创建新文本
         from ui.core.utils.dialog_utils import themed_input
+
         text = themed_input(self.canvas, t("_k_draw_text_title"), t("_k_draw_text_input"))
         if not text or not text.strip():
             return ToolResult.IGNORED

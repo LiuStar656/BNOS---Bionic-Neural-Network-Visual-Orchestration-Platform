@@ -1,15 +1,20 @@
 """
 绘图工具基类 — 所有绘图工具的抽象接口
 """
+
+from __future__ import annotations
+
 from enum import Enum, auto
-from PySide6.QtCore import Qt, QPointF
+
+from PySide6.QtCore import QPointF
 
 
 class ToolResult(Enum):
     """工具处理结果"""
-    HANDLED = auto()    # 已处理，不继续传递事件
-    IGNORED = auto()    # 未处理，继续传递
-    FINISHED = auto()   # 操作完成，重置工具状态
+
+    HANDLED = auto()  # 已处理，不继续传递事件
+    IGNORED = auto()  # 未处理，继续传递
+    FINISHED = auto()  # 操作完成，重置工具状态
 
 
 class ToolBase:
@@ -71,5 +76,6 @@ class ToolBase:
 
     def _record_command(self, command):
         from ui.core.commands.history_manager import HistoryManager
+
         history = HistoryManager()
         history.execute_command(command)

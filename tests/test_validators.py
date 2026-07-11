@@ -2,8 +2,9 @@
 验证器模块测试
 测试 NodeNameValidator 和 PathValidator 的功能
 """
-import pytest
-import os
+
+from __future__ import annotations
+
 from ui.core.config.validators import NodeNameValidator, PathValidator
 
 
@@ -35,7 +36,7 @@ class TestNodeNameValidator:
 
     def test_name_with_special_chars(self):
         """测试包含特殊字符的名称"""
-        special_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|']
+        special_chars = ["/", "\\", ":", "*", "?", '"', "<", ">", "|"]
         for char in special_chars:
             valid, msg = NodeNameValidator.validate(f"node{char}name")
             assert valid is False

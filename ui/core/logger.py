@@ -17,6 +17,9 @@ BNOS 全局日志配置模块
     set_debug_mode(True)   # 开启全模块 DEBUG 输出
     set_debug_mode(False)  # 回到生产模式
 """
+
+from __future__ import annotations
+
 import logging
 import logging.handlers
 import sys
@@ -31,9 +34,11 @@ class SafeStreamHandler(logging.StreamHandler):
         try:
             super().emit(record)
         except UnicodeEncodeError:
-            msg = record.getMessage().encode(
-                sys.stdout.encoding or 'gbk', errors='replace'
-            ).decode(sys.stdout.encoding or 'gbk', errors='replace')
+            msg = (
+                record.getMessage()
+                .encode(sys.stdout.encoding or "gbk", errors="replace")
+                .decode(sys.stdout.encoding or "gbk", errors="replace")
+            )
             record = logging.makeLogRecord(record.__dict__)
             record.msg = msg
             try:
@@ -60,32 +65,26 @@ class FrequencyFilter(logging.Filter):
         if record.levelno >= logging.ERROR:
             return True
 
-        key = (record.levelno, record.getMessage(), getattr(record, 'filename', ''))
+        key = (record.levelno, record.getMessage(), getattr(record, "filename", ""))
         now = time.time()
 
         # 清理过期记录
-        self._counters = {
-            k: v for k, v in self._counters.items()
-            if now - v['first'] < self.time_window
-        }
+        self._counters = {k: v for k, v in self._counters.items() if now - v["first"] < self.time_window}
 
         if key not in self._counters:
-            self._counters[key] = {'count': 1, 'first': now}
+            self._counters[key] = {"count": 1, "first": now}
             return True
 
         counter = self._counters[key]
-        counter['count'] += 1
+        counter["count"] += 1
 
-        if counter['count'] <= self.max_count:
+        if counter["count"] <= self.max_count:
             return True
 
         # 首次超频：输出汇总
-        if counter['count'] == self.max_count + 1:
+        if counter["count"] == self.max_count + 1:
             suppressed = key[1][:80]
-            record.msg = (
-                f"[FREQ] 日志过于频繁(>={self.max_count}次/{self.time_window}s)"
-                f"，后续抑制: {suppressed}"
-            )
+            record.msg = f"[FREQ] 日志过于频繁(>={self.max_count}次/{self.time_window}s)，后续抑制: {suppressed}"
             record.args = ()
             record.levelno = logging.WARNING
             return True
@@ -100,8 +99,12 @@ class DebugLevelManager(logging.Filter):
     """
 
     DEFAULT_QUIET_MODULES = {
-        'canvas_view', 'canvas_layout', 'edge_item', 'node_item',
-        'anchor_item', 'polling_manager',
+        "canvas_view",
+        "canvas_layout",
+        "edge_item",
+        "node_item",
+        "anchor_item",
+        "polling_manager",
     }
 
     def __init__(self):
@@ -113,8 +116,8 @@ class DebugLevelManager(logging.Filter):
         if self._debug_mode:
             return True
         if record.levelno <= logging.DEBUG:
-            filename = getattr(record, 'filename', '')
-            if filename.replace('.py', '') in self._quiet_modules:
+            filename = getattr(record, "filename", "")
+            if filename.replace(".py", "") in self._quiet_modules:
                 return False
         return True
 
@@ -123,6 +126,7 @@ class DebugLevelManager(logging.Filter):
 
 
 # ──── 日志文件清理 ────
+
 
 def _cleanup_old_logs(log_dir: Path, keep_days: int = 7):
     """启动时清理超过 keep_days 天的旧日志"""
@@ -139,12 +143,12 @@ def _cleanup_old_logs(log_dir: Path, keep_days: int = 7):
 # ──── 日志配置 ────
 
 _LOG_FMT_DETAIL = logging.Formatter(
-    '[%(asctime)s] %(levelname)-5s (%(filename)s:%(lineno)d): %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
+    "[%(asctime)s] %(levelname)-5s (%(filename)s:%(lineno)d): %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 _LOG_FMT_CONSOLE = logging.Formatter(
-    '[%(asctime)s] %(levelname)-5s (%(filename)s): %(message)s',
-    datefmt='%H:%M:%S',
+    "[%(asctime)s] %(levelname)-5s (%(filename)s): %(message)s",
+    datefmt="%H:%M:%S",
 )
 
 
@@ -174,10 +178,10 @@ def setup_logger(name: str = "BNOS") -> logging.Logger:
     # ── 日常日志：INFO+，按天轮转，保留 7 天 ──
     daily = logging.handlers.TimedRotatingFileHandler(
         log_dir / "bnos.log",
-        when='midnight',
+        when="midnight",
         interval=1,
         backupCount=7,
-        encoding='utf-8',
+        encoding="utf-8",
     )
     daily.suffix = "%Y-%m-%d"
     daily.setLevel(logging.INFO)
@@ -188,8 +192,8 @@ def setup_logger(name: str = "BNOS") -> logging.Logger:
     error = logging.handlers.RotatingFileHandler(
         log_dir / "bnos_error.log",
         maxBytes=1 * 1024 * 1024,  # 1MB
-        backupCount=5,             # 最多保留 5 个备份 = 6MB
-        encoding='utf-8',
+        backupCount=5,  # 最多保留 5 个备份 = 6MB
+        encoding="utf-8",
     )
     error.setLevel(logging.ERROR)
     error.setFormatter(_LOG_FMT_DETAIL)
@@ -203,6 +207,7 @@ logger = setup_logger()
 
 
 # ──── 运行时 API ────
+
 
 def set_debug_mode(enabled: bool = True):
     """切换调试模式"""

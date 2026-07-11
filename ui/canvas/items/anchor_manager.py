@@ -21,19 +21,19 @@
     node.output_anchor →  @property 锚点容器返回 anchor_manager.get_default_output()
     所有旧代码（hasattr(node, 'input_anchor')）继续工作。
 """
+
 from __future__ import annotations
 
-from typing import Optional
-
-from PySide6.QtCore import Qt, QPointF, QRectF
+from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QGraphicsTextItem
 
 from ui.canvas.items.anchor_item import (
-    AnchorItem, ANCHOR_SIZE, ANCHOR_HALF,
-    ANCHOR_SIZE_SMALL, ANCHOR_HALF_SMALL,
+    ANCHOR_HALF,
+    ANCHOR_SIZE,
+    ANCHOR_SIZE_SMALL,
+    AnchorItem,
 )
-from ui.core.logger import logger
 
 
 # ---------------------------------------------------------------------------
@@ -42,10 +42,10 @@ from ui.core.logger import logger
 class PortSource:
     """端口数据来源枚举——控制该端口是否在画布上生成锚点"""
 
-    NODE = "node"      # 需要从上游节点连入数据 → 生成锚点
-    EDIT = "edit"      # 用户手动输入（文本框 / 参数面板） → 不生成锚点
-    PARAM = "param"    # 可选参数（文本框 / 下拉框，有 default） → 不生成锚点
-    FILE = "file"      # 外部文件（预留扩展）→ 不生成锚点
+    NODE = "node"  # 需要从上游节点连入数据 → 生成锚点
+    EDIT = "edit"  # 用户手动输入（文本框 / 参数面板） → 不生成锚点
+    PARAM = "param"  # 可选参数（文本框 / 下拉框，有 default） → 不生成锚点
+    FILE = "file"  # 外部文件（预留扩展）→ 不生成锚点
 
     @classmethod
     def needs_anchor(cls, source: str | None) -> bool:
@@ -84,7 +84,7 @@ class AnchorManager:
 
     def ensure_default_anchors(self) -> None:
         """确保一对 'default' 锚点存在。已存在则复用。
-        
+
         默认隐藏锚点，由 build_from_config() 根据 config.json 中的字段决定是否显示。
         """
         if "default" not in self.input_anchors:
@@ -118,9 +118,13 @@ class AnchorManager:
     # 根据 config.json 动态构建（多锚点系统核心）
     # =============================================================
 
-    def build_from_config(self, config: Optional[dict],
-                          row_positions: Optional[dict[str, tuple[float, float, int]]] = None,
-                          node_w: float = 0, node_h: float = 0) -> None:
+    def build_from_config(
+        self,
+        config: dict | None,
+        row_positions: dict[str, tuple[float, float, int]] | None = None,
+        node_w: float = 0,
+        node_h: float = 0,
+    ) -> None:
         """ComfyUI 风格：从 config.json 动态生成锚点布局。
 
         锚点生成规则（由 config.json 字段驱动，不再硬编码）：
@@ -164,18 +168,14 @@ class AnchorManager:
                         pn = ea.port_name
                         # 只有在旧字典里能找到的 port_name 才加入兜底；
                         # 没在旧字典里的（例如 __output__/default）按锚点对象归属
-                        if pn in self.input_anchors or (
-                            hasattr(ea, "anchor_type") and ea.anchor_type == "input"
-                        ):
+                        if pn in self.input_anchors or (hasattr(ea, "anchor_type") and ea.anchor_type == "input"):
                             canvas_edges_extra.append(("input", pn, edge))
                 # 输出端 edge
                 if hasattr(edge, "start_anchor") and edge.start_anchor is not None:
                     sa = edge.start_anchor
                     if getattr(sa, "parentItem", None) is node and hasattr(sa, "port_name"):
                         pn = sa.port_name
-                        if pn in self.output_anchors or (
-                            hasattr(sa, "anchor_type") and sa.anchor_type == "output"
-                        ):
+                        if pn in self.output_anchors or (hasattr(sa, "anchor_type") and sa.anchor_type == "output"):
                             canvas_edges_extra.append(("output", pn, edge))
 
         # —— 2. 销毁旧锚点 ——
@@ -185,8 +185,7 @@ class AnchorManager:
         self._remove_container(self.output_labels)
 
         # —— 3. 读取位置信息 ——
-        positions = row_positions if row_positions is not None else getattr(
-            self.node, "_param_row_positions", {})
+        positions = row_positions if row_positions is not None else getattr(self.node, "_param_row_positions", {})
         nw = node_w or (self.node.rect().width() if hasattr(self.node, "rect") else 0)
         nh = node_h or (self.node.rect().height() if hasattr(self.node, "rect") else 0)
 
@@ -194,6 +193,7 @@ class AnchorManager:
         config_ports = {}
         try:
             from ui.core.node.node_config_parser import NodeConfigParser
+
             if config:
                 for p in NodeConfigParser.parse_input_ports(config):
                     config_ports[p.name] = p
@@ -303,7 +303,7 @@ class AnchorManager:
             for edge in edges:
                 try:
                     # 优先用 edge 自带的期望端口名（样式切换时不会丢失）
-                    desired_port = getattr(edge, '_desired_target_port_name', None)
+                    desired_port = getattr(edge, "_desired_target_port_name", None)
                     new_anchor = self.input_anchors.get(desired_port) if desired_port else None
                     if new_anchor is None:
                         new_anchor = self.input_anchors.get(_port_name)
@@ -324,7 +324,7 @@ class AnchorManager:
         for _, edges in old_output_edges:
             for edge in edges:
                 try:
-                    desired_port = getattr(edge, '_desired_source_port_name', None)
+                    desired_port = getattr(edge, "_desired_source_port_name", None)
                     new_anchor = self.output_anchors.get(desired_port) if desired_port else None
                     if new_anchor is None:
                         new_anchor = self.output_anchors.get("default")
@@ -346,21 +346,25 @@ class AnchorManager:
             try:
                 if kind == "input":
                     # 优先用 edge 自带的期望端口名
-                    desired_port = getattr(edge, '_desired_target_port_name', None)
-                    new_anchor = (self.input_anchors.get(desired_port) if desired_port else None) \
-                                 or self.input_anchors.get(port_name) \
-                                 or self.input_anchors.get("default") \
-                                 or (next(iter(self.input_anchors.values())) if self.input_anchors else None)
+                    desired_port = getattr(edge, "_desired_target_port_name", None)
+                    new_anchor = (
+                        (self.input_anchors.get(desired_port) if desired_port else None)
+                        or self.input_anchors.get(port_name)
+                        or self.input_anchors.get("default")
+                        or (next(iter(self.input_anchors.values())) if self.input_anchors else None)
+                    )
                     if new_anchor is None:
                         continue
                     edge.end_anchor = new_anchor
                     new_anchor.add_edge(edge)
                     edge.update_path()
                 else:
-                    desired_port = getattr(edge, '_desired_source_port_name', None)
-                    new_anchor = (self.output_anchors.get(desired_port) if desired_port else None) \
-                                 or self.output_anchors.get("default") \
-                                 or (next(iter(self.output_anchors.values())) if self.output_anchors else None)
+                    desired_port = getattr(edge, "_desired_source_port_name", None)
+                    new_anchor = (
+                        (self.output_anchors.get(desired_port) if desired_port else None)
+                        or self.output_anchors.get("default")
+                        or (next(iter(self.output_anchors.values())) if self.output_anchors else None)
+                    )
                     if new_anchor is None:
                         continue
                     edge.start_anchor = new_anchor
@@ -369,12 +373,11 @@ class AnchorManager:
             except Exception:
                 pass
 
-
     # =============================================================
     # 对外查询 API（样式 / 点击检测 / 连线绑定都走这里）
     # =============================================================
 
-    def get_input(self, port_name: str | None = None) -> Optional[AnchorItem]:
+    def get_input(self, port_name: str | None = None) -> AnchorItem | None:
         """获取指定输入锚点；None → 返回 default。找不到返回 None。"""
         if port_name is None or port_name == "default":
             if "default" in self.input_anchors:
@@ -383,7 +386,7 @@ class AnchorManager:
             return next(iter(self.input_anchors.values())) if self.input_anchors else None
         return self.input_anchors.get(port_name)
 
-    def get_output(self, port_name: str | None = None) -> Optional[AnchorItem]:
+    def get_output(self, port_name: str | None = None) -> AnchorItem | None:
         """获取指定输出锚点；None → 返回 default。找不到返回 None。"""
         if port_name is None or port_name == "default":
             if "default" in self.output_anchors:
@@ -392,10 +395,10 @@ class AnchorManager:
         return self.output_anchors.get(port_name)
 
     # -- 兼容别名（旧代码通过 @property node.input_anchor / output_anchor 调用） --
-    def get_default_input(self) -> Optional[AnchorItem]:
+    def get_default_input(self) -> AnchorItem | None:
         return self.get_input(None)
 
-    def get_default_output(self) -> Optional[AnchorItem]:
+    def get_default_output(self) -> AnchorItem | None:
         return self.get_output(None)
 
     # -- 遍历接口 --
@@ -409,28 +412,27 @@ class AnchorManager:
     # 点击检测：给定节点坐标系内的点击点，返回最近的锚点
     # =============================================================
 
-    def find_nearest_input(self, pos_in_item: QPointF,
-                            max_dist: int = CLICK_TOLERANCE) -> Optional[AnchorItem]:
+    def find_nearest_input(self, pos_in_item: QPointF, max_dist: int = CLICK_TOLERANCE) -> AnchorItem | None:
         return self._find_nearest(pos_in_item, self.input_anchors, max_dist)
 
-    def find_nearest_output(self, pos_in_item: QPointF,
-                             max_dist: int = CLICK_TOLERANCE) -> Optional[AnchorItem]:
+    def find_nearest_output(self, pos_in_item: QPointF, max_dist: int = CLICK_TOLERANCE) -> AnchorItem | None:
         return self._find_nearest(pos_in_item, self.output_anchors, max_dist)
 
     # =============================================================
     # 内部辅助
     # =============================================================
 
-    def _make_anchor(self, *, anchor_type: str, port_name: str,
-                     port_type: str, port_label: str,
-                     size: int = ANCHOR_SIZE) -> AnchorItem:
+    def _make_anchor(
+        self, *, anchor_type: str, port_name: str, port_type: str, port_label: str, size: int = ANCHOR_SIZE
+    ) -> AnchorItem:
         """工厂方法：创建一个 AnchorItem 并挂到节点下。
 
         参数：
             size: 锚点直径（像素）。主锚点 16px，小锚点 10px。
         """
         anchor = AnchorItem(
-            -size / 2, -size / 2,  # 初始位置（相对于 anchor 自身；setPos 会覆盖）
+            -size / 2,
+            -size / 2,  # 初始位置（相对于 anchor 自身；setPos 会覆盖）
             anchor_type=anchor_type,
             parent=self.node,
             port_name=port_name,
@@ -521,9 +523,16 @@ class AnchorManager:
                 except Exception:
                     pass
 
-    def _layout_anchors(self, *, ports: list, anchor_type: str,
-                         node_w: float, node_h: float,
-                         anchor_container: dict, label_container: dict) -> None:
+    def _layout_anchors(
+        self,
+        *,
+        ports: list,
+        anchor_type: str,
+        node_w: float,
+        node_h: float,
+        anchor_container: dict,
+        label_container: dict,
+    ) -> None:
         """通用：把一组端口沿左侧或右侧垂直均匀分布。"""
         if not ports:
             return
@@ -576,8 +585,7 @@ class AnchorManager:
                 label.setPos(node_w - ANCHOR_HALF - 6 - fm, center_y - 8)
             label_container[port.name] = label
 
-    def _find_nearest(self, pos: QPointF, container: dict,
-                       max_dist: int) -> Optional[AnchorItem]:
+    def _find_nearest(self, pos: QPointF, container: dict, max_dist: int) -> AnchorItem | None:
         if not container:
             return None
         best = None
@@ -600,6 +608,7 @@ class AnchorManager:
     def _get_label_font():
         """端口标签字体（与 NodeItem 现有字体保持一致）。"""
         from PySide6.QtGui import QFont
+
         f = QFont()
         f.setPointSize(8)
         f.setWeight(QFont.Weight.Light)

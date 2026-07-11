@@ -2,13 +2,13 @@
 test_node_config_parser.py — NodeConfigParser 单元测试
 覆盖: node_config_parser.py (ParameterDef, InputPortDef, OutputPortDef, NodeConfigParser)
 """
-import pytest
-from ui.core.node.node_config_parser import (
-    NodeConfigParser, ParameterDef, InputPortDef, OutputPortDef
-)
 
+from __future__ import annotations
+
+from ui.core.node.node_config_parser import InputPortDef, NodeConfigParser, OutputPortDef, ParameterDef
 
 # ═══════════════════ ParameterDef ═══════════════════
+
 
 class TestParameterDef:
     def test_basic_creation(self):
@@ -43,8 +43,7 @@ class TestParameterDef:
 
     def test_dynamic_options(self):
         p = ParameterDef(
-            name="node_list", type="enum", label="Node",
-            dynamic_options={"source": "nodes_data", "key": "name"}
+            name="node_list", type="enum", label="Node", dynamic_options={"source": "nodes_data", "key": "name"}
         )
         assert p.dynamic_options == {"source": "nodes_data", "key": "name"}
 
@@ -55,6 +54,7 @@ class TestParameterDef:
 
 
 # ═══════════════════ InputPortDef ═══════════════════
+
 
 class TestInputPortDef:
     def test_basic_node_port(self):
@@ -78,6 +78,7 @@ class TestInputPortDef:
 
 # ═══════════════════ OutputPortDef ═══════════════════
 
+
 class TestOutputPortDef:
     def test_basic_output(self):
         p = OutputPortDef(name="result", label="Result", type="json")
@@ -93,6 +94,7 @@ class TestOutputPortDef:
 
 # ═══════════════════ NodeConfigParser ═══════════════════
 
+
 class TestNodeConfigParser:
     # ── parse ──
     def test_parse_empty_parameters(self):
@@ -107,10 +109,12 @@ class TestNodeConfigParser:
         assert result[0].type == "int"
 
     def test_parse_multiple_parameters(self):
-        config = {"parameters": [
-            {"name": "a", "type": "int", "label": "A"},
-            {"name": "b", "type": "float", "label": "B", "default": 0.0},
-        ]}
+        config = {
+            "parameters": [
+                {"name": "a", "type": "int", "label": "A"},
+                {"name": "b", "type": "float", "label": "B", "default": 0.0},
+            ]
+        }
         result = NodeConfigParser.parse(config)
         assert len(result) == 2
         assert result[0].name == "a"
@@ -125,7 +129,7 @@ class TestNodeConfigParser:
     def test_extract_values_configured(self):
         config = {
             "parameters": [{"name": "model", "type": "enum", "label": "Model", "default": "gpt4"}],
-            "model": "gpt35"
+            "model": "gpt35",
         }
         result = NodeConfigParser.extract_values(config)
         assert result["model"] == "gpt35"
@@ -169,11 +173,7 @@ class TestNodeConfigParser:
 
     # ── get_input_port_names ──
     def test_get_input_port_names(self):
-        config = {
-            "input_ports": [
-                {"name": "a"}, {"name": "b"}, {"name": "c"}
-            ]
-        }
+        config = {"input_ports": [{"name": "a"}, {"name": "b"}, {"name": "c"}]}
         assert NodeConfigParser.get_input_port_names(config) == ["a", "b", "c"]
         assert NodeConfigParser.get_input_port_names({}) == []
 

@@ -1,14 +1,18 @@
 """
 节点创建异步工作线程 — 后台创建节点 + 浮动进度窗口
 """
+
+from __future__ import annotations
+
 import os
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
-from PySide6.QtCore import Qt, Signal, QThread
-from ui.core.logger import logger
+
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 
 class NodeCreationWorker(QThread):
     """后台工作线程：负责创建节点"""
+
     progress_signal = Signal(str)
     finished_signal = Signal(bool, str)
 
@@ -33,6 +37,7 @@ class NodeCreationWorker(QThread):
                 self.progress_signal.emit(f"开始创建 {self.display_language} 节点...")
 
                 from ui.creators.node_creator_manager import NodeCreatorManager
+
                 manager = NodeCreatorManager.get_instance()
                 success = manager.create_node(self.lang_key, self.node_name)
 
@@ -45,6 +50,7 @@ class NodeCreationWorker(QThread):
         except Exception as e:
             self.finished_signal.emit(False, f"创建节点异常: {str(e)}")
             import traceback
+
             traceback.print_exc()
 
 
@@ -62,6 +68,7 @@ class ProgressFloatingWindow(QWidget):
         layout.setContentsMargins(15, 10, 15, 10)
 
         from ui.core.i18n.i18n import t
+
         self.title_label = QLabel(t("k_node_creating"))
         self.title_label.setStyleSheet("""
             QLabel { color: white; font-size: 14px; font-weight: bold; padding: 5px; }
@@ -83,12 +90,12 @@ class ProgressFloatingWindow(QWidget):
         """更新位置：与Toast通知对齐，放在CanvasHost内部右上角"""
         if self.parent():
             parent_window = self.parent()
-            
+
             # 查找CanvasHost
             canvas_host = None
-            if hasattr(parent_window, '_canvas_host'):
+            if hasattr(parent_window, "_canvas_host"):
                 canvas_host = parent_window._canvas_host
-            
+
             if canvas_host:
                 # 使用CanvasHost的位置和大小（画布区域）
                 host_geo = canvas_host.geometry()
@@ -105,9 +112,7 @@ class ProgressFloatingWindow(QWidget):
 
 def start_async_node_creation(main_window, node_name, lang_key, display_language):
     """启动异步节点创建流程"""
-    worker = NodeCreationWorker(
-        main_window.current_project_path, node_name, lang_key, display_language
-    )
+    worker = NodeCreationWorker(main_window.current_project_path, node_name, lang_key, display_language)
     worker.setParent(main_window)
     main_window.node_creation_worker = worker
 

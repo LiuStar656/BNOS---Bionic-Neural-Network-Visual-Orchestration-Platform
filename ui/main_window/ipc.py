@@ -7,12 +7,14 @@ BNOS 主窗口IPC通信模块
 - 应用重启功能
 - 画布同步（嵌入/远程通用）
 """
-import sys
-import os
+
+from __future__ import annotations
+
 from PySide6.QtCore import QTimer
-from ui.core.logger import logger
+
 from ui.core.i18n import t
-from ui.core.system.ipc import A_WIN_SYNC, A_SYNC_DATA, A_UPDATE_STATUS
+from ui.core.logger import logger
+from ui.core.system.ipc import A_SYNC_DATA, A_UPDATE_STATUS, A_WIN_SYNC
 
 
 class MainWindowIPCMixin:
@@ -22,6 +24,7 @@ class MainWindowIPCMixin:
         """初始化 IPC Server，接收子进程连接"""
         self._ipc_server = None
         from ui.core.system.ipc import IPCServer
+
         self._ipc_server = IPCServer(self)
         if not self._ipc_server.start():
             logger.warning("IPC Server 启动失败，进程隔离不可用")
@@ -72,7 +75,7 @@ class MainWindowIPCMixin:
     def _on_ipc_message(self, client_id, msg):
         """处理子进程发来的事件"""
         action = msg.get("action")
-        params = msg.get("params", {})
+        msg.get("params", {})
         logger.debug("IPC 收到: %s ← %s", action, client_id)
 
     def _start_canvas_and_load(self, project_path):
@@ -86,10 +89,15 @@ class MainWindowIPCMixin:
         if not self._ipc_server:
             return
         g = self.geometry()
-        self._ipc_server.broadcast(A_WIN_SYNC, {
-            "x": g.x(), "y": g.y() + 40,
-            "w": g.width(), "h": g.height() - 40,
-        })
+        self._ipc_server.broadcast(
+            A_WIN_SYNC,
+            {
+                "x": g.x(),
+                "y": g.y() + 40,
+                "w": g.width(),
+                "h": g.height() - 40,
+            },
+        )
 
     def _canvas_ipc_sync(self):
         """同步 nodes_data 到画布（嵌入式绕过IPC直接用canvas）"""
@@ -108,17 +116,17 @@ class MainWindowIPCMixin:
         """重启应用程序"""
         logger.info("正在重启应用...")
 
-        if hasattr(self, '_canvas_host') and self._canvas_host:
+        if hasattr(self, "_canvas_host") and self._canvas_host:
             self._canvas_host._is_closing = True
-            if hasattr(self._canvas_host, '_terminal_dock') and self._canvas_host._terminal_dock:
+            if hasattr(self._canvas_host, "_terminal_dock") and self._canvas_host._terminal_dock:
                 self._canvas_host._terminal_dock._is_closing = True
                 logger.info("[LOCK] 设置 TerminalDock._is_closing = True (重启)")
 
         running_nodes = []
         for node_name, node_info in self.nodes_data.items():
-            status = node_info.get('status', 'unknown')
-            process = node_info.get('process', None)
-            if status == 'running' and process:
+            status = node_info.get("status", "unknown")
+            process = node_info.get("process", None)
+            if status == "running" and process:
                 running_nodes.append(node_name)
 
         logger.info("检测到 %d 个运行中的节点: %s", len(running_nodes), running_nodes)
@@ -128,12 +136,13 @@ class MainWindowIPCMixin:
             if len(running_nodes) > 10:
                 nodes_list += f"\n... 还有 {len(running_nodes) - 10} 个节点"
 
-            from ui.core.utils.dialog_utils import MSG_ACCEPT, MSG_REJECT, MSG_CANCEL
-            from ui.core.utils.dialog_utils import themed_message
+            from ui.core.utils.dialog_utils import MSG_ACCEPT, MSG_REJECT, themed_message
+
             reply = themed_message(
-                self, t("k_title_detect_running"),
+                self,
+                t("k_title_detect_running"),
                 t("_k_close_running_nodes").format(count=len(running_nodes), nodes=nodes_list),
-                "question3"
+                "question3",
             )
 
             if reply == MSG_ACCEPT:
@@ -158,4 +167,5 @@ class MainWindowIPCMixin:
 
         logger.info("[RESTART] 准备重启应用...")
         from PySide6.QtWidgets import QApplication
+
         QApplication.instance().exit(42)

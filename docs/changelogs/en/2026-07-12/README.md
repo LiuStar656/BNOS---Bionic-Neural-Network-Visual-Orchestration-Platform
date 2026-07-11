@@ -11,6 +11,7 @@
 - [03 Single-Entry DAG Validation](#03-single-entry-dag-validation)
 - [04 Validation i18n](#04-validation-i18n)
 - [05 Composite Node UI Interaction & Edge System Round 2 Fixes](#05-composite-node-ui-interaction--edge-system-round-2-fixes)
+- [06 Code Standardization Overhaul](#06-code-standardization-overhaul)
 
 ---
 
@@ -188,6 +189,34 @@ Modified files:
 | `ui/canvas/mixins/canvas_menus.py` | Modified |
 | `ui/canvas/mixins/canvas_event_handlers.py` | Modified |
 | `docs/design/复合节点开发方案.md` | Updated |
+
+---
+
+## 06 Code Standardization Overhaul
+
+See full details in [06_Code_Standardization.md](./06_Code_Standardization.md).
+
+### Summary
+
+- **Toolchain**: Ruff + Pre-commit + EditorConfig + Pylance (greenfield)
+- **8 real bugs fixed**: `NameError`, `ImportError`, closure capture, dead code, etc.
+- **Logger unified**: 4 styles → 1 (`from ui.core.logger import logger`)
+- **`print()` migrated**: → `logger.info()`
+- **`from __future__ import annotations`**: 219 files
+- **`# type: ignore` eliminated**: 8 → 0
+- **`os.path` → `pathlib.Path`**: 691 → 156 (-77%)
+- **Dead code removed**: `if/else: pass`, empty exception handlers
+- **Runtime fixes**: `_morphed_edges` serialization, `config_file` Path compat
+
+### Final Pass
+
+```
+ruff check    → All checks passed!
+pytest        → 172 passed, 0 failed
+py_compile    → 227 files, 0 errors
+Pylance       → 0 diagnostics
+pre-commit    → Installed
+```
 
 ---
 

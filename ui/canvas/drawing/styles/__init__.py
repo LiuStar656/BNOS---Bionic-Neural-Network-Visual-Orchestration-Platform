@@ -1,3 +1,5 @@
-from .presets import StylePreset, PRESETS, apply_preset, get_preset_names
+from __future__ import annotations
+
+from .presets import PRESETS, StylePreset, apply_preset, get_preset_names
 
 __all__ = ["StylePreset", "PRESETS", "apply_preset", "get_preset_names"]

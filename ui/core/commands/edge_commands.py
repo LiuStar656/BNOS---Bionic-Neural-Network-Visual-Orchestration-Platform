@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from ui.core.commands.base import Command, CommandResult, CommandType
 from ui.core.logger import logger
 
@@ -42,7 +40,7 @@ class CreateEdgeCommand(Command):
 
             self._canvas._begin_replay()
             for edge in list(self._canvas.edges):
-                if (edge.start_node == src and edge.end_node == tgt):
+                if edge.start_node == src and edge.end_node == tgt:
                     self._canvas.remove_edge(edge)
                     break
             self._canvas._end_replay()
@@ -54,10 +52,12 @@ class CreateEdgeCommand(Command):
 
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data.update({
-            "source_name": self._source_name,
-            "target_name": self._target_name,
-        })
+        data.update(
+            {
+                "source_name": self._source_name,
+                "target_name": self._target_name,
+            }
+        )
         return data
 
     @classmethod
@@ -73,11 +73,15 @@ class CreateEdgeCommand(Command):
 class DeleteEdgeCommand(Command):
     """删除连线命令"""
 
-    def __init__(self, source_name: str, target_name: str,
-                 target_port_name: Optional[str],
-                 source_port_name: Optional[str],
-                 target_anchor_name: Optional[str],
-                 canvas):
+    def __init__(
+        self,
+        source_name: str,
+        target_name: str,
+        target_port_name: str | None,
+        source_port_name: str | None,
+        target_anchor_name: str | None,
+        canvas,
+    ):
         super().__init__(f"断开连线: {source_name} → {target_name}")
         self.command_type = CommandType.DELETE_EDGE
         self._source_name = source_name
@@ -121,9 +125,7 @@ class DeleteEdgeCommand(Command):
             source_anchor = self._resolve_anchor(src, self._source_port_name, is_input=False)
 
             self._canvas._begin_replay()
-            self._canvas.create_edge(src, tgt,
-                                     target_anchor=target_anchor,
-                                     source_anchor=source_anchor)
+            self._canvas.create_edge(src, tgt, target_anchor=target_anchor, source_anchor=source_anchor)
             self._canvas._end_replay()
             return CommandResult(True)
         except Exception as e:
@@ -141,14 +143,16 @@ class DeleteEdgeCommand(Command):
 
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data.update({
-            "source_name": self._source_name,
-            "target_name": self._target_name,
-            "target_port_name": self._target_port_name,
-            "source_port_name": self._source_port_name,
-            "target_anchor_name": self._target_anchor_name,
-            "removed": self._removed,
-        })
+        data.update(
+            {
+                "source_name": self._source_name,
+                "target_name": self._target_name,
+                "target_port_name": self._target_port_name,
+                "source_port_name": self._source_port_name,
+                "target_anchor_name": self._target_anchor_name,
+                "removed": self._removed,
+            }
+        )
         return data
 
     @classmethod
@@ -158,8 +162,7 @@ class DeleteEdgeCommand(Command):
         target_port_name = data.get("target_port_name")
         source_port_name = data.get("source_port_name")
         target_anchor_name = data.get("target_anchor_name")
-        cmd = cls(source_name, target_name, target_port_name,
-                  source_port_name, target_anchor_name, canvas)
+        cmd = cls(source_name, target_name, target_port_name, source_port_name, target_anchor_name, canvas)
         cmd.timestamp = data.get("timestamp", 0.0)
         cmd.executed = data.get("executed", False)
         cmd._removed = data.get("removed", False)

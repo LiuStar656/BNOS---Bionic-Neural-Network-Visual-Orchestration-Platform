@@ -10,11 +10,15 @@
     from ui.core.system.thread_pool import thread_pool
     thread_pool.run_task(lambda: blocking_work(), on_done=lambda: update_ui())
 """
-from PySide6.QtCore import QObject, QThreadPool, QRunnable, Signal, QMutex
+
+from __future__ import annotations
+
+from PySide6.QtCore import QMutex, QObject, QRunnable, QThreadPool, Signal
 
 
 class _TaskSignals(QObject):
     """任务完成信号（跨线程安全）"""
+
     finished = Signal(object)  # 携带任务 ID
 
 
@@ -90,10 +94,7 @@ class ThreadPool(QObject):
         """
         task_id = id(fn)  # 简单 ID（后续可改为 UUID）
         self._active_tasks.add(task_id)
-        runnable = _Runnable(
-            task_id, fn,
-            on_done=lambda: self._on_task_done(task_id, on_done)
-        )
+        runnable = _Runnable(task_id, fn, on_done=lambda: self._on_task_done(task_id, on_done))
         self._pool.start(runnable)
         return task_id
 
@@ -118,12 +119,13 @@ class ThreadPool(QObject):
 
     def shutdown(self, timeout_ms: int = 8000):
         """关闭线程池（应用退出时调用）
-        
+
         1. 禁止新任务提交
         2. 等待所有任务完成
         3. 超时后强制释放
         """
         from ui.core.logger import logger
+
         self._pool.clear()
         remaining = self.active_task_count()
         if remaining > 0:

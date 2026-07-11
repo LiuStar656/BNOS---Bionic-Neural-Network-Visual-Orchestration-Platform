@@ -4,18 +4,21 @@
 性能优化：磁盘扫描与 JSON 解析等耗时操作通过 ProjectLoadWorker
 在后台线程完成，主线程仅负责创建画布与 UI 更新。
 """
+
+from __future__ import annotations
+
 import os
-import json
-from PySide6.QtWidgets import QMessageBox
-from ui.core.logger import logger
-from ui.core.i18n.i18n import t
+from pathlib import Path
+
+from ui.core.i18n import t
 from ui.core.project.project_load_worker import ProjectLoadWorker
 from ui.core.utils.dialog_utils import pick_folder, themed_input, themed_message
 
 
 def _canvas(mw):
     """安全访问 canvas，进程模式返回 None"""
-    return getattr(mw, 'canvas', None)
+    return getattr(mw, "canvas", None)
+
 
 def _canvas_call(mw, method, *args, **kwargs):
     c = _canvas(mw)
@@ -36,34 +39,36 @@ def project_new(main_window):
         return
 
     # 3. 创建项目文件夹
-    project_dir = os.path.join(parent_dir, proj_name.strip())
-    if os.path.exists(project_dir):
+    project_dir = str(Path(parent_dir) / proj_name.strip())
+    if Path(project_dir).exists():
         themed_message(main_window, t("k_title_warning"), f"文件夹已存在: {project_dir}", "warning")
         return
-    
+
     # 检查项目是否已经打开（通过CanvasHost）
-    if hasattr(main_window, '_canvas_host') and main_window._canvas_host:
+    if hasattr(main_window, "_canvas_host") and main_window._canvas_host:
         if main_window._canvas_host.is_project_open(project_dir):
-            themed_message(main_window, t("k_title_info"), f"项目 '{proj_name.strip()}' 已经打开，无需重复创建。", "info")
+            themed_message(
+                main_window, t("k_title_info"), f"项目 '{proj_name.strip()}' 已经打开，无需重复创建。", "info"
+            )
             return
-    
-    os.makedirs(project_dir)
-    nodes_dir = os.path.join(project_dir, "nodes")
-    os.makedirs(nodes_dir, exist_ok=True)
+
+    Path(project_dir).mkdir(parents=True)
+    nodes_dir = str(Path(project_dir) / "nodes")
+    Path(nodes_dir).mkdir(parents=True, exist_ok=True)
 
     # 更新项目状态
     main_window.current_project_path = project_dir
     main_window.nodes_data.clear()
     main_window.connections.clear()
-    _canvas_call(main_window, 'clear_canvas')
+    _canvas_call(main_window, "clear_canvas")
     project_refresh(main_window)
-    
+
     # 4. 创建新画布Dock，使用项目名作为标签名（通过CanvasHost）
-    if hasattr(main_window, '_canvas_host'):
+    if hasattr(main_window, "_canvas_host"):
         main_window._canvas_host.add_canvas_dock(proj_name.strip(), project_dir)
-    
+
     main_window.show_toast(f"已创建项目: {proj_name.strip()}", "success")
-    
+
     # 保存项目到配置文件
     main_window.app_config.set("last_project", main_window.current_project_path)
     main_window.app_config.save()
@@ -76,41 +81,49 @@ def project_open(main_window):
         return
 
     # 检查项目是否已经打开（本实例内）
-    if hasattr(main_window, '_canvas_host') and main_window._canvas_host:
+    if hasattr(main_window, "_canvas_host") and main_window._canvas_host:
         if main_window._canvas_host.is_project_open(project_dir):
-            project_name = os.path.basename(project_dir)
+            project_name = Path(project_dir).name
             themed_message(main_window, t("k_title_info"), f"项目 '{project_name}' 已经打开，无需重复打开。", "info")
             return
 
     # S13: 跨实例文件锁检测 — 防止两个 BNOS 同时操作同一项目导致数据损坏
-    lock_file = os.path.join(project_dir, ".bnos_project.lock")
-    if os.path.exists(lock_file):
+    lock_file = str(Path(project_dir) / ".bnos_project.lock")
+    if Path(lock_file).exists():
         try:
-            with open(lock_file, 'r') as f:
+            with Path(lock_file).open() as f:
                 stale_pid = int(f.read().strip())
             # 检查持有锁的进程是否仍然存活
             if _is_pid_alive(stale_pid):
-                themed_message(main_window, t("k_title_warning"),
-                    f"项目已被另一个 BNOS 实例打开 (PID={stale_pid})，请先关闭后再试。", "warning")
+                themed_message(
+                    main_window,
+                    t("k_title_warning"),
+                    f"项目已被另一个 BNOS 实例打开 (PID={stale_pid})，请先关闭后再试。",
+                    "warning",
+                )
                 return
         except (ValueError, OSError):
             pass  # 锁文件损坏，允许覆盖
 
     # 验证是否为有效项目（有 nodes/ 目录或 canvas_layout.json）
-    nodes_dir = os.path.join(project_dir, "nodes")
-    has_nodes = os.path.isdir(nodes_dir)
-    has_layout = os.path.isfile(os.path.join(project_dir, "canvas_layout.json"))
+    nodes_dir = str(Path(project_dir) / "nodes")
+    has_nodes = Path(nodes_dir).is_dir()
+    has_layout = (Path(project_dir) / "canvas_layout.json").is_file()
 
     if not has_nodes and not has_layout:
-        themed_message(main_window, t("k_title_warning"), f"未识别为有效项目目录：\n{project_dir}\n\n"
-                            f"项目中需包含 nodes/ 文件夹 或 canvas_layout.json", "warning")
+        themed_message(
+            main_window,
+            t("k_title_warning"),
+            f"未识别为有效项目目录：\n{project_dir}\n\n项目中需包含 nodes/ 文件夹 或 canvas_layout.json",
+            "warning",
+        )
         return
 
     # 确保 nodes/ 存在（旧项目可能只有 layout）
     if not has_nodes:
-        os.makedirs(nodes_dir, exist_ok=True)
+        Path(nodes_dir).mkdir(parents=True, exist_ok=True)
 
-    project_name = os.path.basename(project_dir)
+    project_name = Path(project_dir).name
 
     # 立即显示提示（Toast 不阻塞事件循环），然后在后台线程扫描磁盘
     main_window.show_toast(f"正在打开项目: {project_name}...", "info")
@@ -138,19 +151,19 @@ def project_open(main_window):
 
         # 2) 处理挂载节点的锁定组 UI（Dock版）
         for m in mounted_nodes:
-            m_mount_root = m['mount_root']
+            m_mount_root = m["mount_root"]
             _panels_to_update = []
-            if hasattr(main_window, 'node_list_panel') and main_window.node_list_panel:
+            if hasattr(main_window, "node_list_panel") and main_window.node_list_panel:
                 _panels_to_update.append(main_window.node_list_panel)
             for panel in _panels_to_update:
                 gm = panel.group_manager
                 if not gm.groups.get(m_mount_root):
                     gm.create_group(m_mount_root, "#E67E22")
-                gm.add_nodes_to_group(m_mount_root, [m['name']])
+                gm.add_nodes_to_group(m_mount_root, [m["name"]])
                 gm.lock_group(m_mount_root)
 
         # 3) 创建画布Dock（必须在主线程，依赖 nodes_data 已填充）
-        if hasattr(main_window, '_canvas_host'):
+        if hasattr(main_window, "_canvas_host"):
             main_window._canvas_host.add_canvas_dock(project_name, project_dir)
 
         # S13: 写入项目锁文件，防止其他实例并发打开
@@ -184,10 +197,10 @@ def project_refresh(main_window, async_mode=True):
         main_window.show_toast(t("k_project_no_project"), "warning")
         return
 
-    project_path = os.path.abspath(main_window.current_project_path)
-    nodes_dir = os.path.join(project_path, "nodes")
+    project_path = str(Path(main_window.current_project_path).resolve())
+    nodes_dir = str(Path(project_path) / "nodes")
 
-    if not os.path.exists(nodes_dir):
+    if not Path(nodes_dir).exists():
         main_window.show_toast(t("k_project_nodes_not_exist"), "warning")
         return
 
@@ -208,15 +221,15 @@ def project_refresh(main_window, async_mode=True):
 
         # 挂载节点锁定组 UI（Dock版 + 浮动版）
         for m in mounted_nodes:
-            m_mount_root = m['mount_root']
+            m_mount_root = m["mount_root"]
             _panels_to_update = []
-            if hasattr(main_window, 'node_list_panel') and main_window.node_list_panel:
+            if hasattr(main_window, "node_list_panel") and main_window.node_list_panel:
                 _panels_to_update.append(main_window.node_list_panel)
             for panel in _panels_to_update:
                 gm = panel.group_manager
                 if not gm.groups.get(m_mount_root):
                     gm.create_group(m_mount_root, "#E67E22")
-                gm.add_nodes_to_group(m_mount_root, [m['name']])
+                gm.add_nodes_to_group(m_mount_root, [m["name"]])
                 gm.lock_group(m_mount_root)
 
         # 统一 UI 更新
@@ -235,22 +248,22 @@ def _apply_after_refresh(main_window, running_nodes):
     """刷新完成后在主线程统一更新面板与画布
 
     参数:
-        running_nodes: [(name, pid), ...] （由 Worker 传回的后台运行节点列表）  
+        running_nodes: [(name, pid), ...] （由 Worker 传回的后台运行节点列表）
     """
     # 1) 更新节点列表面板（Dock 版）
-    if hasattr(main_window, 'node_list_panel') and main_window.node_list_panel:
+    if hasattr(main_window, "node_list_panel") and main_window.node_list_panel:
         main_window.node_list_panel.set_project_path(main_window.current_project_path)
         main_window.node_list_panel.update_node_list(main_window.nodes_data)
 
     # 2) 画布：同步所有节点的显示状态
-    _canvas_call(main_window, 'sync_all_nodes_display')
+    _canvas_call(main_window, "sync_all_nodes_display")
 
     # 3) 运行状态刷新
     if running_nodes:
-        for name, pid in running_nodes:
-            if hasattr(main_window, 'node_list_panel') and main_window.node_list_panel:
-                main_window.node_list_panel.update_node_status(name, 'running')
-            _canvas_call(main_window, 'update_node_status', name, 'running')
+        for name, _pid in running_nodes:
+            if hasattr(main_window, "node_list_panel") and main_window.node_list_panel:
+                main_window.node_list_panel.update_node_status(name, "running")
+            _canvas_call(main_window, "update_node_status", name, "running")
         main_window.show_toast(f"检测到 {len(running_nodes)} 个节点在后台运行", "info")
     else:
         main_window.show_toast(f"已刷新 {len(main_window.nodes_data)} 个节点", "success")
@@ -258,11 +271,13 @@ def _apply_after_refresh(main_window, running_nodes):
 
 # ─── S13: 跨实例文件锁 ──────────────────────────────────────
 
+
 def _is_pid_alive(pid: int) -> bool:
     """检测指定 PID 的进程是否存活（跨平台）"""
     try:
-        if os.name == 'nt':
+        if os.name == "nt":
             import ctypes
+
             kernel32 = ctypes.windll.kernel32
             # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
             handle = kernel32.OpenProcess(0x0400 | 0x0010, False, pid)
@@ -286,9 +301,9 @@ def _is_pid_alive(pid: int) -> bool:
 
 def _write_project_lock(project_dir: str):
     """写入项目锁文件"""
-    lock_file = os.path.join(project_dir, ".bnos_project.lock")
+    lock_file = str(Path(project_dir) / ".bnos_project.lock")
     try:
-        with open(lock_file, 'w') as f:
+        with Path(lock_file).open("w") as f:
             f.write(str(os.getpid()))
     except OSError:
         pass
@@ -296,9 +311,9 @@ def _write_project_lock(project_dir: str):
 
 def remove_project_lock(project_dir: str):
     """移除项目锁文件（项目关闭时调用）"""
-    lock_file = os.path.join(project_dir, ".bnos_project.lock")
+    lock_file = str(Path(project_dir) / ".bnos_project.lock")
     try:
-        if os.path.exists(lock_file):
-            os.remove(lock_file)
+        if Path(lock_file).exists():
+            Path(lock_file).unlink()
     except OSError:
         pass

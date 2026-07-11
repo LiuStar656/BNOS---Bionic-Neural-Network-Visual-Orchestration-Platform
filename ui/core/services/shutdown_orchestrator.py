@@ -1,13 +1,18 @@
 """
 关闭序列编排器 — 声明式定义关闭步骤及其依赖顺序
 """
-from typing import List, Callable
+
+from __future__ import annotations
+
+from collections.abc import Callable
+
 from ui.core.logger import logger
 
 
 class ShutdownStep:
     """单个关闭步骤"""
-    def __init__(self, name: str, action: Callable, depends_on: List[str] = None):
+
+    def __init__(self, name: str, action: Callable, depends_on: list[str] = None):
         self.name = name
         self.action = action
         self.depends_on = depends_on or []
@@ -17,9 +22,9 @@ class ShutdownOrchestrator:
     """关闭编排器 — 按依赖顺序执行关闭步骤"""
 
     def __init__(self):
-        self._steps: List[ShutdownStep] = []
+        self._steps: list[ShutdownStep] = []
 
-    def add_step(self, name: str, action: Callable, depends_on: List[str] = None):
+    def add_step(self, name: str, action: Callable, depends_on: list[str] = None):
         self._steps.append(ShutdownStep(name, action, depends_on))
 
     def execute(self):

@@ -1,7 +1,11 @@
 """
 日志查看工具 — 统一日志对话框，消除 node_list_panel 中 view_node_log 和 batch_view_node_logs 的重复代码
 """
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton
+
+from __future__ import annotations
+
+from PySide6.QtWidgets import QDialog, QPushButton, QTextEdit, QVBoxLayout
+
 from ui.core.i18n import t
 
 

@@ -3,11 +3,17 @@ ui/canvas/items/composite_group_frame.py
 Dashed bounding frame for expanded composite nodes.
 Supports right-click context menu to collapse back.
 """
-from PySide6.QtCore import Qt, QRectF
-from PySide6.QtGui import QColor, QPen, QBrush, QPainter, QFont
+
+from __future__ import annotations
+
+from PySide6.QtCore import QRectF, Qt
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
-    QGraphicsRectItem, QGraphicsItem, QStyleOptionGraphicsItem, QWidget,
-    QMenu, QApplication,
+    QGraphicsItem,
+    QGraphicsRectItem,
+    QMenu,
+    QStyleOptionGraphicsItem,
+    QWidget,
 )
 
 
@@ -23,8 +29,7 @@ class CompositeGroupFrame(QGraphicsRectItem):
     COLLAPSE_BTN_W = 80
     COLLAPSE_BTN_H = 22
 
-    def __init__(self, comp_id: str, display_name: str, child_items: list,
-                 composite_manager=None, parent=None):
+    def __init__(self, comp_id: str, display_name: str, child_items: list, composite_manager=None, parent=None):
         super().__init__(parent)
         self._comp_id = comp_id
         self._display_name = display_name
@@ -50,8 +55,8 @@ class CompositeGroupFrame(QGraphicsRectItem):
             self.setRect(0, 0, 200, 100)
             return
 
-        min_x = min_y = float('inf')
-        max_x = max_y = float('-inf')
+        min_x = min_y = float("inf")
+        max_x = max_y = float("-inf")
         for item in self._child_items:
             if not item.isVisible():
                 continue
@@ -61,7 +66,7 @@ class CompositeGroupFrame(QGraphicsRectItem):
             max_x = max(max_x, r.right())
             max_y = max(max_y, r.bottom())
 
-        if min_x == float('inf'):
+        if min_x == float("inf"):
             self.setRect(0, 0, 200, 100)
             return
 
@@ -69,17 +74,15 @@ class CompositeGroupFrame(QGraphicsRectItem):
             min_x - self.PADDING,
             min_y - self.PADDING - 25,
             max_x - min_x + self.PADDING * 2,
-            max_y - min_y + self.PADDING * 2 + 25
+            max_y - min_y + self.PADDING * 2 + 25,
         )
 
     def _collapse_btn_rect(self) -> QRectF:
         """Button rect in top-right corner of the frame."""
         r = self.rect()
-        return QRectF(r.right() - self.COLLAPSE_BTN_W - 10, r.y() + 3,
-                      self.COLLAPSE_BTN_W, self.COLLAPSE_BTN_H)
+        return QRectF(r.right() - self.COLLAPSE_BTN_W - 10, r.y() + 3, self.COLLAPSE_BTN_W, self.COLLAPSE_BTN_H)
 
-    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem,
-              widget: QWidget = None):
+    def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget = None):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = self.rect()
 
@@ -89,13 +92,11 @@ class CompositeGroupFrame(QGraphicsRectItem):
         painter.drawRoundedRect(rect, 6, 6)
 
         # Top-left label
-        label_rect = QRectF(rect.x() + 10, rect.y() + 4,
-                            rect.width() - self.COLLAPSE_BTN_W - 30, 20)
+        label_rect = QRectF(rect.x() + 10, rect.y() + 4, rect.width() - self.COLLAPSE_BTN_W - 30, 20)
         painter.setPen(QColor("#4ec9b0"))
         painter.setFont(self._label_font)
         label_text = f"[Composite] {self._display_name or self._comp_id[:12]}"
-        painter.drawText(label_rect, Qt.AlignmentFlag.AlignLeft |
-                         Qt.AlignmentFlag.AlignVCenter, label_text)
+        painter.drawText(label_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, label_text)
 
         # Collapse button (top-right)
         btn_rect = self._collapse_btn_rect()
@@ -117,6 +118,7 @@ class CompositeGroupFrame(QGraphicsRectItem):
         """Only the collapse button area is interactive.
         Clicks elsewhere pass through to items behind the frame."""
         from PySide6.QtGui import QPainterPath
+
         path = QPainterPath()
         path.addRect(self._collapse_btn_rect())
         return path

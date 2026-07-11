@@ -24,20 +24,24 @@
 - 渲染缓存：节点使用 DeviceCoordinateCache 模式
 - 视图优化：启用 DontSavePainterState 和 DontAdjustForAntialiasing
 """
+
+from __future__ import annotations
+
 import os
-from PySide6.QtWidgets import QGraphicsView, QGraphicsScene
-from PySide6.QtCore import QTimer, QRectF, Qt
+
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPainter
+from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 
-from ui.core.logger import logger
 from ui.canvas.drawing.draw_layer import DrawLayer
-
+from ui.core.logger import logger
 
 # ── 选中代理：统一 box_selected_nodes 与 Qt 原生选择 ──
 
+
 class SelectedNodesList:
     """Qt 选择的代理列表 — 读写均委托给 QGraphicsScene.selectedItems()。
-    
+
     保持 list 接口兼容（append / remove / clear / in / len / [:]），
     但底层没有独立状态，始终从 scene 实时计算。
     """
@@ -48,9 +52,11 @@ class SelectedNodesList:
     def _sync(self):
         """从 scene 同步选中节点名称"""
         from ui.canvas.items.node_item import NodeItem
+
         self._cache = [
-            item.node_name for item in self._canvas.scene.selectedItems()
-            if isinstance(item, NodeItem) and hasattr(item, 'node_name')
+            item.node_name
+            for item in self._canvas.scene.selectedItems()
+            if isinstance(item, NodeItem) and hasattr(item, "node_name")
         ]
 
     # ── 读操作 ──
@@ -98,29 +104,31 @@ class SelectedNodesList:
 
 class OptimizedScene(QGraphicsScene):
     """优化的场景类，实现视口裁剪和按需渲染"""
-    
+
     def __init__(self, x, y, w, h, parent=None):
         super().__init__(x, y, w, h, parent)
         self._viewport_margin = 100
-    
+
     def setViewportMargin(self, margin):
         self._viewport_margin = margin
 
+
 # 4 个原有的组合层模块
-from ui.canvas.mixins.canvas_selection import SelectionManager
+from ui.canvas.items.composite_node_item import CompositeNodeItem
+from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.mixins.canvas_background_renderer import BackgroundRenderer
-from ui.canvas.mixins.canvas_node_manager import NodeManager
-from ui.canvas.mixins.canvas_event_handlers import EventHandlers
+from ui.canvas.mixins.canvas_batch_ops import CanvasBatchOps
+from ui.canvas.mixins.canvas_box_select import CanvasBoxSelect
+from ui.canvas.mixins.canvas_colors import CanvasColors
 
 # 6 个原 mixin 已重构为组合类
 # (NodeCanvas.__init__ 中实例化，不再通过继承混入)
 from ui.canvas.mixins.canvas_connections import CanvasConnections
-from ui.canvas.mixins.canvas_batch_ops import CanvasBatchOps
-from ui.canvas.mixins.canvas_menus import CanvasMenu
+from ui.canvas.mixins.canvas_event_handlers import EventHandlers
 from ui.canvas.mixins.canvas_layout import CanvasLayout
-from ui.canvas.mixins.canvas_colors import CanvasColors
-from ui.canvas.mixins.canvas_box_select import CanvasBoxSelect
-from ui.canvas.items.composite_node_item import CompositeNodeItem
+from ui.canvas.mixins.canvas_menus import CanvasMenu
+from ui.canvas.mixins.canvas_node_manager import NodeManager
+from ui.canvas.mixins.canvas_selection import SelectionManager
 from ui.core.node.composite_node import CompositeNode
 
 
@@ -143,6 +151,7 @@ class NodeCanvas(QGraphicsView):
         # ===== 画布场景尺寸（从配置读取）=====
         try:
             from ui.core.config.app_config import AppConfig
+
             cfg = AppConfig().get("rendering", {})
             self.canvas_width = cfg.get("canvas_width", 5000)
             self.canvas_height = cfg.get("canvas_height", 5000)
@@ -163,10 +172,8 @@ class NodeCanvas(QGraphicsView):
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.MinimalViewportUpdate)
-        
-        self.setOptimizationFlags(
-            QGraphicsView.OptimizationFlag.DontSavePainterState
-        )
+
+        self.setOptimizationFlags(QGraphicsView.OptimizationFlag.DontSavePainterState)
 
         # ===== 颜色配置（供各组合层读取） =====
         self.canvas_bg_color = "#1e1e1e"
@@ -185,6 +192,7 @@ class NodeCanvas(QGraphicsView):
 
         # 应用背景色
         from PySide6.QtGui import QColor
+
         self.setBackgroundBrush(QColor(self.canvas_bg_color))
         self.resetCachedContent()
         vp = self.viewport()
@@ -193,8 +201,8 @@ class NodeCanvas(QGraphicsView):
         vp.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
 
         # ===== 数据存储层 =====
-        self.nodes = {}   # name -> NodeItem（QGraphicsItem）
-        self.edges = []   # EdgeItem 列表
+        self.nodes = {}  # name -> NodeItem（QGraphicsItem）
+        self.edges = []  # EdgeItem 列表
 
         # ===== 绘图层（独立子系统） =====
         self.draw_layer = DrawLayer(self)
@@ -409,14 +417,13 @@ class NodeCanvas(QGraphicsView):
 
     def restore_composites(self, project_path=None):
         """从 node_clusters.json 恢复复合节点到画布。
-        
+
         在 load_layout 之后调用，确保原始节点已加载。
         S03: 防止关闭项目再打开后复合节点消失。
         """
-        import os, json
+        import json
 
-        pp = project_path or (self.parent_window.current_project_path
-                              if self.parent_window else None)
+        pp = project_path or (self.parent_window.current_project_path if self.parent_window else None)
         if not pp:
             return
 
@@ -425,7 +432,7 @@ class NodeCanvas(QGraphicsView):
             return
 
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception:
             return
@@ -436,8 +443,12 @@ class NodeCanvas(QGraphicsView):
 
         # 懒初始化复合管理器
         group_manager = None
-        if hasattr(self, 'parent_window') and self.parent_window and \
-           hasattr(self.parent_window, 'node_list_panel') and self.parent_window.node_list_panel:
+        if (
+            hasattr(self, "parent_window")
+            and self.parent_window
+            and hasattr(self.parent_window, "node_list_panel")
+            and self.parent_window.node_list_panel
+        ):
             group_manager = self.parent_window.node_list_panel.group_manager
 
         self._composite_manager = CompositeNode(pp, self, group_manager)
@@ -467,6 +478,89 @@ class NodeCanvas(QGraphicsView):
             self.nodes[comp_id] = comp_item
 
         logger.info("已恢复 %d 个复合节点", len(composites))
+
+        # ── 隐藏折叠态复合节点的内部连线 ──
+        for _comp_id, comp in composites.items():
+            node_names = set(comp.get("nodes", []))
+            for edge in self.edges:
+                sn = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else None
+                tn = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else None
+                if sn in node_names and tn in node_names:
+                    edge.setVisible(False)
+
+        # ── 恢复涉及复合节点的连线（load_layout 时复合节点尚不存在）──
+        try:
+            layout_path = os.path.join(pp, "canvas_layout.json")
+            if os.path.exists(layout_path):
+                with open(layout_path, encoding="utf-8") as f:
+                    layout_data = json.load(f)
+
+                # 建立已有连线去重集合
+                node_by_ref = {node: name for name, node in self.nodes.items()}
+                existing = set()
+                for e in self.edges:
+                    sn = node_by_ref.get(e.start_node)
+                    tn = node_by_ref.get(e.end_node)
+                    tp = None
+                    if hasattr(e, "end_anchor") and e.end_anchor and hasattr(e.end_anchor, "port_name"):
+                        tp = e.end_anchor.port_name
+                        if tp == "default":
+                            tp = None
+                    if sn and tn:
+                        existing.add((sn, tn, tp))
+
+                comp_ids = set(composites.keys())
+                restored_edges = 0
+                for ed in layout_data.get("edges", []):
+                    sn, tn = ed.get("source"), ed.get("target")
+                    # 只处理涉及复合节点的连线
+                    if sn not in comp_ids and tn not in comp_ids:
+                        continue
+                    tp = ed.get("target_port")
+                    if tp == "default":
+                        tp = None
+                    if (sn, tn, tp) in existing:
+                        continue
+                    if sn not in self.nodes or tn not in self.nodes:
+                        continue
+
+                    source_node = self.nodes[sn]
+                    target_node = self.nodes[tn]
+
+                    src_port = ed.get("source_port")
+                    tgt_port = ed.get("target_port")
+                    src_anchor = None
+                    tgt_anchor = None
+                    if src_port and hasattr(source_node, "anchor_manager"):
+                        src_anchor = source_node.anchor_manager.get_output(src_port)
+                    if tgt_port and hasattr(target_node, "anchor_manager"):
+                        tgt_anchor = target_node.anchor_manager.get_input(tgt_port)
+
+                    if tgt_port and tgt_port != "default" and tgt_anchor is None:
+                        continue
+                    if src_port and src_port != "default" and src_anchor is None:
+                        continue
+
+                    edge = EdgeItem(
+                        source_node,
+                        target_node,
+                        self,
+                        target_anchor=tgt_anchor,
+                        source_anchor=src_anchor,
+                        target_port_name=tgt_port,
+                        source_port_name=src_port,
+                    )
+                    if hasattr(edge, "from_dict"):
+                        edge.from_dict(ed, defer_sync=True)
+                    self.scene.addItem(edge)
+                    self.edges.append(edge)
+                    edge.update_path()
+                    restored_edges += 1
+
+                if restored_edges:
+                    logger.info("已恢复 %d 条复合节点连线", restored_edges)
+        except Exception as e:
+            logger.warning("恢复复合节点连线失败: %s", e)
 
     def save_center_coordinates(self):
         self.layout_mgr.save_center_coordinates()
@@ -521,11 +615,8 @@ class NodeCanvas(QGraphicsView):
     def _record_create_edge(self, src_name: str, tgt_name: str):
         self.selection._record_create_edge(src_name, tgt_name)
 
-    def _record_delete_edge(self, src_name: str, tgt_name: str,
-                            target_port_name=None, source_port_name=None):
-        self.selection._record_delete_edge(
-            src_name, tgt_name, target_port_name, source_port_name
-        )
+    def _record_delete_edge(self, src_name: str, tgt_name: str, target_port_name=None, source_port_name=None):
+        self.selection._record_delete_edge(src_name, tgt_name, target_port_name, source_port_name)
 
     # ── 视图与绘图工具栏（转发给 EventHandlers） ──
 
@@ -547,20 +638,20 @@ class NodeCanvas(QGraphicsView):
 
     def get_node_dependencies(self, node_name: str) -> list:
         """获取节点的上游依赖节点列表
-        
+
         如果节点 A 的输出连接到节点 B 的输入，则 B 依赖 A
         返回 B 需要等待启动的上游节点名称列表
         """
         dependencies = []
         for edge in self.edges:
-            if hasattr(edge, 'target_node') and edge.target_node == node_name:
-                if hasattr(edge, 'source_node') and edge.source_node not in dependencies:
+            if hasattr(edge, "target_node") and edge.target_node == node_name:
+                if hasattr(edge, "source_node") and edge.source_node not in dependencies:
                     dependencies.append(edge.source_node)
         return dependencies
 
     def sort_nodes_by_dependency(self, node_names: list) -> list:
         """按依赖顺序排序节点列表
-        
+
         使用拓扑排序，确保依赖节点先启动
         """
         if not node_names:
@@ -570,7 +661,7 @@ class NodeCanvas(QGraphicsView):
         adjacency = {name: [] for name in node_names}
 
         for edge in self.edges:
-            if hasattr(edge, 'source_node') and hasattr(edge, 'target_node'):
+            if hasattr(edge, "source_node") and hasattr(edge, "target_node"):
                 src = edge.source_node
                 tgt = edge.target_node
                 if src in node_names and tgt in node_names:
@@ -578,6 +669,7 @@ class NodeCanvas(QGraphicsView):
                     in_degree[tgt] += 1
 
         from collections import deque
+
         queue = deque([name for name in node_names if in_degree[name] == 0])
         result = []
 

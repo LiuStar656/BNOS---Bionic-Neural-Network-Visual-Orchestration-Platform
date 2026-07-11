@@ -1,7 +1,11 @@
 """
 框选状态管理（组合类）— 负责清除框选状态（含节点选中与绘图图形）
 """
-from PySide6.QtGui import QPen, QColor
+
+from __future__ import annotations
+
+from PySide6.QtGui import QColor, QPen
+
 from ui.core.logger import logger
 
 
@@ -17,15 +21,15 @@ class CanvasBoxSelect:
             self.canvas.scene.removeItem(self.canvas.box_select_rect)
             self.canvas.box_select_rect = None
 
-        for node_name, node in self.canvas.nodes.items():
+        for _node_name, node in self.canvas.nodes.items():
             node.setPen(QPen(QColor(self.canvas.node_border_color), 2))
             node.setSelected(False)
 
         # 同时清除绘图图形的选中状态
-        if hasattr(self.canvas, 'draw_layer') and hasattr(self.canvas.draw_layer, 'graphics'):
+        if hasattr(self.canvas, "draw_layer") and hasattr(self.canvas.draw_layer, "graphics"):
             for g in self.canvas.draw_layer.graphics:
                 g.setSelected(False)
-                if hasattr(g, 'selected_handle'):
+                if hasattr(g, "selected_handle"):
                     g.selected_handle = -1
 
         self.canvas.box_selected_nodes.clear()

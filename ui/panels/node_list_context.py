@@ -2,13 +2,17 @@
 节点列表右键菜单系统 Mixin — 统一使用 ActionRegistry + ActionFactory
 所有操作通过 Action 系统分发，菜单与菜单栏共用同一套功能注册表
 """
-from PySide6.QtWidgets import QMenu
-from ui.core.utils.dialog_utils import themed_message
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
-from ui.core.i18n import t
-from ui.core.actions import ActionFactory, ActionContext, ActionRegistry
+from PySide6.QtWidgets import QMenu
+
+from ui.core.actions import ActionContext, ActionFactory, ActionRegistry
 from ui.core.actions.builtin_node_actions import register_node_actions
+from ui.core.i18n import t
 from ui.core.node.composite_node import CompositeNode
+from ui.core.utils.dialog_utils import themed_message
 
 
 class NodeListContextMixin:
@@ -18,7 +22,7 @@ class NodeListContextMixin:
 
     def _make_ctx(self, **kwargs):
         """构建 ActionContext，自动注入 panel 引用"""
-        return ActionContext(**(kwargs | {'extra': {'panel': self}}))
+        return ActionContext(**(kwargs | {"extra": {"panel": self}}))
 
     def _dispatch(self, action_id, **kwargs):
         """通过 ActionRegistry 分发操作"""
@@ -41,14 +45,14 @@ class NodeListContextMixin:
             register_node_actions(self.parent_window)
 
         menu = QMenu(self)
-        if data.get('type') == 'node':
-            self._show_node_context_menu(menu, data.get('name', ''))
-        elif data.get('type') == 'group':
-            composite = data.get('composite', False)
+        if data.get("type") == "node":
+            self._show_node_context_menu(menu, data.get("name", ""))
+        elif data.get("type") == "group":
+            composite = data.get("composite", False)
             if composite:
-                self._show_composite_group_context_menu(menu, data.get('name', ''))
+                self._show_composite_group_context_menu(menu, data.get("name", ""))
             else:
-                self._show_group_context_menu(menu, data.get('name', ''))
+                self._show_group_context_menu(menu, data.get("name", ""))
 
         menu.exec(self.node_tree.mapToGlobal(position))
 
@@ -84,8 +88,7 @@ class NodeListContextMixin:
     def _show_single_node_menu(self, menu, node_name, ctx):
         """单个节点右键菜单"""
         # 添加到画布
-        ActionFactory.create_action(self, "node.add_to_canvas",
-                                     self._make_ctx(node_name=node_name), menu)
+        ActionFactory.create_action(self, "node.add_to_canvas", self._make_ctx(node_name=node_name), menu)
         menu.addSeparator()
 
         # 移动到组子菜单
@@ -95,24 +98,22 @@ class NodeListContextMixin:
             for gn in sorted(groups.keys()):
                 action = move_menu.addAction(gn)
                 action.triggered.connect(
-                    lambda checked, gn=gn: self._dispatch("group.move_to",
-                                                          node_name=node_name, group_name=gn))
+                    lambda checked, gn=gn: self._dispatch("group.move_to", node_name=node_name, group_name=gn)
+                )
         else:
             move_menu.addAction(t("k_group_no_available")).setEnabled(False)
 
         # 从组中移除
         current_group = self.group_manager.get_node_group(node_name)
         if current_group:
-            action = menu.addAction(
-                t("_k_group_remove_from").format(group=current_group))
-            action.triggered.connect(
-                lambda: self._dispatch("group.remove_from", node_name=node_name))
+            action = menu.addAction(t("_k_group_remove_from").format(group=current_group))
+            action.triggered.connect(lambda: self._dispatch("group.remove_from", node_name=node_name))
 
         menu.addSeparator()
 
         # 启动 / 停止
         node_info = self.nodes_data.get(node_name, {})
-        if node_info.get('status') in ('running', 'idle'):
+        if node_info.get("status") in ("running", "idle"):
             ActionFactory.create_action(self, "node.stop", ctx, menu)
         else:
             ActionFactory.create_action(self, "node.start", ctx, menu)
@@ -120,8 +121,7 @@ class NodeListContextMixin:
         menu.addSeparator()
 
         # 重命名
-        ActionFactory.create_action(self, "node.rename",
-                                     self._make_ctx(node_name=node_name), menu)
+        ActionFactory.create_action(self, "node.rename", self._make_ctx(node_name=node_name), menu)
         menu.addSeparator()
 
         # 打开文件夹 / 查看日志 / 编辑配置
@@ -133,9 +133,9 @@ class NodeListContextMixin:
 
         # 挂载 / 卸载 / 删除
         node_info = self.nodes_data.get(node_name, {})
-        if node_info.get('mounted'):
+        if node_info.get("mounted"):
             ActionFactory.create_action(self, "node.unmount", node_ctx, menu)
-        if not node_info.get('mounted'):
+        if not node_info.get("mounted"):
             ActionFactory.create_action(self, "node.delete", node_ctx, menu)
 
         menu.addSeparator()
@@ -162,20 +162,15 @@ class NodeListContextMixin:
         if groups:
             for gn in sorted(groups.keys()):
                 action = move_menu.addAction(gn)
-                action.triggered.connect(
-                    lambda checked, gn=gn: self._dispatch("group.batch_move_to",
-                                                          group_name=gn))
+                action.triggered.connect(lambda checked, gn=gn: self._dispatch("group.batch_move_to", group_name=gn))
         else:
             move_menu.addAction(t("k_group_no_available")).setEnabled(False)
 
         # 从共同组中批量移除
         common_group = self._get_common_group(selected_nodes)
         if common_group:
-            action = menu.addAction(
-                t("_k_group_remove_from").format(group=common_group))
-            action.triggered.connect(
-                lambda: self._dispatch("group.batch_remove_from",
-                                       group_name=common_group))
+            action = menu.addAction(t("_k_group_remove_from").format(group=common_group))
+            action.triggered.connect(lambda: self._dispatch("group.batch_remove_from", group_name=common_group))
 
         menu.addSeparator()
 
@@ -206,7 +201,7 @@ class NodeListContextMixin:
 
     def export_single_node(self, node_name):
         """导出单个节点（委托给主窗口）"""
-        if self.parent_window and hasattr(self.parent_window, 'export_node'):
+        if self.parent_window and hasattr(self.parent_window, "export_node"):
             self.parent_window.export_node(node_name)
 
     # ---- 组右键菜单 ----
@@ -221,8 +216,7 @@ class NodeListContextMixin:
         menu.addAction(t("_k_group_node_count").format(count=len(group_nodes))).setEnabled(False)
         menu.addSeparator()
 
-        active_count = sum(1 for n in group_nodes
-                           if self.nodes_data.get(n, {}).get('status') in ('running', 'idle'))
+        active_count = sum(1 for n in group_nodes if self.nodes_data.get(n, {}).get("status") in ("running", "idle"))
         stopped_count = len(group_nodes) - active_count
 
         # 启动 / 停止组节点（动态名称，手动创建但走 Registry）
@@ -251,7 +245,9 @@ class NodeListContextMixin:
         """显示复合节点组专用右键菜单（不显示 rename/delete/lock 等普通组操作）"""
         group_nodes = self.group_manager.get_group_nodes(group_name)
 
-        menu.addAction(f"\u229e \u590d\u5408\u8282\u70b9\u7ec4: {len(group_nodes)} \u4e2a\u8282\u70b9").setEnabled(False)
+        menu.addAction(f"\u229e \u590d\u5408\u8282\u70b9\u7ec4: {len(group_nodes)} \u4e2a\u8282\u70b9").setEnabled(
+            False
+        )
         menu.addSeparator()
 
         # 解耦
@@ -260,8 +256,7 @@ class NodeListContextMixin:
 
         menu.addSeparator()
 
-        active_count = sum(1 for n in group_nodes
-                           if self.nodes_data.get(n, {}).get('status') in ('running', 'idle'))
+        active_count = sum(1 for n in group_nodes if self.nodes_data.get(n, {}).get("status") in ("running", "idle"))
         stopped_count = len(group_nodes) - active_count
 
         if stopped_count > 0:
@@ -283,9 +278,9 @@ class NodeListContextMixin:
         canvas = self._get_canvas(parent)
         if not canvas:
             return
-        mgr = getattr(canvas, '_composite_manager', None)
+        mgr = getattr(canvas, "_composite_manager", None)
         if not mgr:
-            project_path = getattr(parent, 'current_project_path', None)
+            project_path = getattr(parent, "current_project_path", None)
             if not project_path:
                 return
             group_mgr = self.group_manager
@@ -293,7 +288,11 @@ class NodeListContextMixin:
             canvas._composite_manager = mgr
 
         # 从组名提取 comp_id
-        comp_id = group_name[len(CompositeNode.GROUP_PREFIX):] if group_name.startswith(CompositeNode.GROUP_PREFIX) else group_name
+        comp_id = (
+            group_name[len(CompositeNode.GROUP_PREFIX) :]
+            if group_name.startswith(CompositeNode.GROUP_PREFIX)
+            else group_name
+        )
         mgr.decompress(comp_id)
 
     def _start_composite_group(self, group_name):
@@ -307,7 +306,11 @@ class NodeListContextMixin:
         mgr = self._ensure_composite_manager(canvas)
         if not mgr:
             return
-        comp_id = group_name[len(CompositeNode.GROUP_PREFIX):] if group_name.startswith(CompositeNode.GROUP_PREFIX) else group_name
+        comp_id = (
+            group_name[len(CompositeNode.GROUP_PREFIX) :]
+            if group_name.startswith(CompositeNode.GROUP_PREFIX)
+            else group_name
+        )
         runtime = mgr.get_runtime(comp_id) or "inprocess"
         if runtime == "inprocess":
             mgr.start_inprocess(comp_id)
@@ -325,27 +328,31 @@ class NodeListContextMixin:
         mgr = self._ensure_composite_manager(canvas)
         if not mgr:
             return
-        comp_id = group_name[len(CompositeNode.GROUP_PREFIX):] if group_name.startswith(CompositeNode.GROUP_PREFIX) else group_name
+        comp_id = (
+            group_name[len(CompositeNode.GROUP_PREFIX) :]
+            if group_name.startswith(CompositeNode.GROUP_PREFIX)
+            else group_name
+        )
         mgr.stop_composite(comp_id)
 
     def _get_canvas(self, parent):
         """从主窗口获取画布引用。"""
-        if hasattr(parent, 'canvas'):
+        if hasattr(parent, "canvas"):
             return parent.canvas
-        if hasattr(parent, 'centralWidget'):
+        if hasattr(parent, "centralWidget"):
             cw = parent.centralWidget()
-            if hasattr(cw, 'canvas'):
+            if hasattr(cw, "canvas"):
                 return cw.canvas
         return None
 
     def _ensure_composite_manager(self, canvas):
         """确保复合节点管理器存在。"""
-        if hasattr(canvas, '_composite_manager') and canvas._composite_manager:
+        if hasattr(canvas, "_composite_manager") and canvas._composite_manager:
             return canvas._composite_manager
         parent = self.parent_window
         if not parent:
             return None
-        project_path = getattr(parent, 'current_project_path', None)
+        project_path = getattr(parent, "current_project_path", None)
         if not project_path:
             return None
         canvas._composite_manager = CompositeNode(project_path, canvas, self.group_manager)
@@ -362,14 +369,14 @@ class NodeListContextMixin:
         menu.addAction(t("_k_ungrouped_count").format(count=len(ungrouped_nodes))).setEnabled(False)
         menu.addSeparator()
 
-        stopped_count = sum(1 for n in ungrouped_nodes
-                            if self.nodes_data.get(n, {}).get('status') == 'stopped')
+        stopped_count = sum(1 for n in ungrouped_nodes if self.nodes_data.get(n, {}).get("status") == "stopped")
         if stopped_count > 0:
             action = menu.addAction(t("_k_start_ungrouped").format(count=stopped_count))
             action.triggered.connect(lambda: self._dispatch("ungrouped.start"))
 
-        active_count = sum(1 for n in ungrouped_nodes
-                           if self.nodes_data.get(n, {}).get('status') in ('running', 'idle'))
+        active_count = sum(
+            1 for n in ungrouped_nodes if self.nodes_data.get(n, {}).get("status") in ("running", "idle")
+        )
         if active_count > 0:
             action = menu.addAction(t("_k_stop_ungrouped").format(count=active_count))
             action.triggered.connect(lambda: self._dispatch("ungrouped.stop"))
@@ -383,8 +390,9 @@ class NodeListContextMixin:
 
     def _unmount_node(self, node_name):
         """卸载外部挂载节点（委托给主窗口）"""
-        if self.parent_window and hasattr(self.parent_window, 'unmount_external_node'):
-            reply = themed_message(self, t("k_title_confirm_unmount"),
-                t("_k_confirm_unmount").format(name=node_name), "question")
+        if self.parent_window and hasattr(self.parent_window, "unmount_external_node"):
+            reply = themed_message(
+                self, t("k_title_confirm_unmount"), t("_k_confirm_unmount").format(name=node_name), "question"
+            )
             if reply:
                 self.parent_window.unmount_external_node(node_name)

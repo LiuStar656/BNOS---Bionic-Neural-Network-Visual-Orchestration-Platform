@@ -4,22 +4,31 @@
 主进程通过 QLocalSocket 发送命令，本进程回传事件。
 作为子进程运行时，需确保项目根目录在 sys.path 中。
 """
-import sys
+
+from __future__ import annotations
+
 import os
+import sys
 
 # 确保项目根目录在 sys.path（子进程启动时 cwd 不一定包含）
 _proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _proj_root not in sys.path:
     sys.path.insert(0, _proj_root)
 
-import json
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QTimer, Qt
-from ui.core.system.ipc import IPCClient, A_ADD_NODE, A_REMOVE_NODE, A_UPDATE_STATUS
-from ui.core.system.ipc import A_CREATE_EDGE, A_REMOVE_EDGE, A_SYNC_DATA, A_CLEAR_ALL, A_WIN_SYNC
-from ui.core.system.ipc import E_NODE_SELECTED, E_NODE_DBLCLICKED, E_EDGE_CREATED, E_EDGE_REMOVED
-from ui.core.logger import logger
+
 from ui.core.i18n import init_i18n
+from ui.core.logger import logger
+from ui.core.system.ipc import (
+    A_ADD_NODE,
+    A_CLEAR_ALL,
+    A_REMOVE_NODE,
+    A_SYNC_DATA,
+    A_UPDATE_STATUS,
+    A_WIN_SYNC,
+    IPCClient,
+)
 
 
 class CanvasProcessApp:
@@ -53,6 +62,7 @@ class CanvasProcessApp:
 
     def _setup_canvas(self):
         from ui.canvas.canvas_view import NodeCanvas
+
         self.canvas = NodeCanvas(None)
         self.canvas.setWindowFlags(self.canvas.windowFlags() | Qt.WindowType.FramelessWindowHint)
         self.canvas.setWindowTitle("BNOS Canvas")
@@ -77,7 +87,7 @@ class CanvasProcessApp:
 
         if action == A_ADD_NODE:
             node_name = params.get("node_name")
-            if node_name and hasattr(self, '_main_data'):
+            if node_name and hasattr(self, "_main_data"):
                 info = self._main_data.get(node_name)
                 if info:
                     self.canvas.add_node_to_canvas(node_name, info)

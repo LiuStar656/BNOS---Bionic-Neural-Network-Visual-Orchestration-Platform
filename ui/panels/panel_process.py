@@ -3,18 +3,22 @@
 
 主进程通过 QLocalSocket 同步数据、接收用户操作事件。
 """
-import sys
+
+from __future__ import annotations
+
 import os
+import sys
 
 _proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _proj_root not in sys.path:
     sys.path.insert(0, _proj_root)
 
-from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
-from ui.core.system.ipc import IPCClient
-from ui.core.logger import logger
+from PySide6.QtWidgets import QApplication
+
 from ui.core.i18n import init_i18n
+from ui.core.logger import logger
+from ui.core.system.ipc import IPCClient
 
 
 class PanelProcessApp:

@@ -1,5 +1,8 @@
 """节点右键菜单操作 — add_to_canvas / open_folder / view_log / edit_config / rename / delete / unmount"""
-from ..action_definition import ActionDefinition, ActionCategory, ActionContext
+
+from __future__ import annotations
+
+from ..action_definition import ActionCategory, ActionContext, ActionDefinition
 from ..action_registry import ActionRegistry
 
 
@@ -17,12 +20,14 @@ def register(main_window):
 
 def _register_panel_action(action_id: str, name_i18n: str, method: str):
     def execute(ctx: ActionContext) -> bool:
-        panel = (ctx.extra or {}).get('panel')
+        panel = (ctx.extra or {}).get("panel")
         if panel and ctx.node_name:
             getattr(panel, method)(ctx.node_name)
             return True
         return False
 
-    ActionRegistry.register(ActionDefinition(
-        id=action_id, name_i18n=name_i18n, category=ActionCategory.NODE,
-        execute_fn=execute, requires_node=True))
+    ActionRegistry.register(
+        ActionDefinition(
+            id=action_id, name_i18n=name_i18n, category=ActionCategory.NODE, execute_fn=execute, requires_node=True
+        )
+    )

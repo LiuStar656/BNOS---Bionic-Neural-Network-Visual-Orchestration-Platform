@@ -2,19 +2,26 @@
 依赖注入容器 — 解耦全局配置与具体实现
 设计原则：面向接口编程，运行时可替换实现
 """
-from abc import ABC, abstractmethod
-from typing import TypeVar, Type, Dict, Any, Callable, Optional
-from pathlib import Path
-from ui.core.logger import logger
-import json
 
-T = TypeVar('T')
+from __future__ import annotations
+
+import json
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any, TypeVar
+
+from ui.core.logger import logger
+
+T = TypeVar("T")
 
 
 # ======================== 配置接口抽象 ========================
 
+
 class IConfig(ABC):
     """配置接口 — 不依赖任何具体存储方式"""
+
     @abstractmethod
     def get(self, key: str, default=None): ...
     @abstractmethod
@@ -25,15 +32,16 @@ class IConfig(ABC):
 
 class JsonFileConfig(IConfig):
     """JSON 文件配置实现（向后兼容 AppConfig）"""
+
     def __init__(self, config_path: Path):
         self.config_path = config_path
-        self._data: Dict[str, Any] = {}
+        self._data: dict[str, Any] = {}
         self.load()
 
     def load(self):
         try:
             if self.config_path.exists():
-                self._data = json.loads(self.config_path.read_text(encoding='utf-8'))
+                self._data = json.loads(self.config_path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.warning("[DI] 配置加载失败: %s", e)
             self._data = {}
@@ -41,15 +49,12 @@ class JsonFileConfig(IConfig):
     def save(self):
         try:
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
-            self.config_path.write_text(
-                json.dumps(self._data, ensure_ascii=False, indent=2),
-                encoding='utf-8'
-            )
+            self.config_path.write_text(json.dumps(self._data, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception as e:
             logger.warning("[DI] 配置保存失败: %s", e)
 
     def get(self, key: str, default=None):
-        keys = key.split('.')
+        keys = key.split(".")
         value = self._data
         for k in keys:
             if isinstance(value, dict) and k in value:
@@ -59,7 +64,7 @@ class JsonFileConfig(IConfig):
         return value
 
     def set(self, key: str, value):
-        keys = key.split('.')
+        keys = key.split(".")
         data = self._data
         for k in keys[:-1]:
             data = data.setdefault(k, {})
@@ -69,9 +74,10 @@ class JsonFileConfig(IConfig):
 # ======================== DI 容器 ========================
 
 _Scope = str  # "singleton" | "transient"
-_Key = object   # 内部复合键: (interface_type, qualifier_name)
+_Key = object  # 内部复合键: (interface_type, qualifier_name)
 
-def _make_key(interface: 'Type | str', name: Optional[str] = None) -> _Key:
+
+def _make_key(interface: type | str, name: str | None = None) -> _Key:
     """生成内部 lookup 键。interface 可以是 Type 或 str（名称注册）。"""
     return (interface, name)
 
@@ -94,27 +100,27 @@ class DIContainer:
         # --- 按名称注册（多实现）---
         container.register(ILogger, FileLogger(), name="file")
         container.register(ILogger, ConsoleLogger(), name="console")
-        container.resolve(ILogger, name="file")          # → FileLogger 实例
-        container.resolve("file")                        # 也可以用名称直接解析
+        container.resolve(ILogger, name="file")  # → FileLogger 实例
+        container.resolve("file")  # 也可以用名称直接解析
 
         # --- 瞬态作用域（每次新建）---
         container.register(IService, ServiceImpl, scope="transient")
         a = container.resolve(IService)
-        b = container.resolve(IService)    # a is not b
+        b = container.resolve(IService)  # a is not b
 
         # --- 查询 ---
-        container.is_registered(IConfig)                 # True
-        container.is_registered("file")                  # True
-        container.list_registered()                      # → [(IConfig, None, "singleton"), ...]
+        container.is_registered(IConfig)  # True
+        container.is_registered("file")  # True
+        container.list_registered()  # → [(IConfig, None, "singleton"), ...]
     """
 
     def __init__(self):
         # {_Key: {"instance": Any, "factory": Callable | None, "scope": _Scope}}
-        self._registry: Dict[_Key, dict] = {}
+        self._registry: dict[_Key, dict] = {}
 
     # ── 内部辅助 ──────────────────────────────────────────────
 
-    def _entry(self, key: _Key) -> Optional[dict]:
+    def _entry(self, key: _Key) -> dict | None:
         return self._registry.get(key)
 
     def _resolve_entry(self, key: _Key) -> Any:
@@ -146,17 +152,17 @@ class DIContainer:
 
     # ── 旧 API（向后兼容）─────────────────────────────────────
 
-    def register_instance(self, interface: Type[T], instance: T):
+    def register_instance(self, interface: type[T], instance: T):
         """注册已创建的实例（singleton）。"""
         key = _make_key(interface, None)
         self._registry[key] = {"instance": instance, "factory": None, "scope": "singleton"}
 
-    def register_factory(self, interface: Type[T], factory: Callable[[], T]):
+    def register_factory(self, interface: type[T], factory: Callable[[], T]):
         """注册工厂方法（singleton，延迟创建）。"""
         key = _make_key(interface, None)
         self._registry[key] = {"instance": None, "factory": factory, "scope": "singleton"}
 
-    def resolve(self, interface: 'Type[T] | str', name: Optional[str] = None) -> T:
+    def resolve(self, interface: type[T] | str, name: str | None = None) -> T:
         """解析依赖。
 
         Args:
@@ -165,7 +171,7 @@ class DIContainer:
         """
         if isinstance(interface, str):
             # 按名称查找：在所有注册中匹配 name
-            for key, entry in self._registry.items():
+            for key, _entry in self._registry.items():
                 iface, n = key
                 if n == interface:
                     return self._resolve_entry(key)
@@ -173,7 +179,7 @@ class DIContainer:
         key = _make_key(interface, name)
         return self._resolve_entry(key)
 
-    def is_registered(self, interface: 'Type | str', name: Optional[str] = None) -> bool:
+    def is_registered(self, interface: type | str, name: str | None = None) -> bool:
         """检查接口或名称是否已注册。
 
         Args:
@@ -190,12 +196,9 @@ class DIContainer:
 
     # ── 新 API ─────────────────────────────────────────────────
 
-    def register(self,
-                 interface: 'Type | str',
-                 instance_or_factory: Any,
-                 *,
-                 name: Optional[str] = None,
-                 scope: _Scope = "singleton"):
+    def register(
+        self, interface: type | str, instance_or_factory: Any, *, name: str | None = None, scope: _Scope = "singleton"
+    ):
         """统一注册方法。
 
         Args:
@@ -218,7 +221,7 @@ class DIContainer:
         """按名称解析（便捷方法）。"""
         return self.resolve(name)
 
-    def list_registered(self) -> 'list[tuple]':
+    def list_registered(self) -> list[tuple]:
         """列出所有已注册的服务。
 
         Returns:

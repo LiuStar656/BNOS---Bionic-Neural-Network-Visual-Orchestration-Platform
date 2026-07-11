@@ -1,12 +1,19 @@
 """
 形状工具组 — 矩形、圆角矩形、椭圆、多边形、箭头
 """
-from PySide6.QtCore import Qt, QPointF
+
+from __future__ import annotations
+
+from PySide6.QtCore import QPointF, Qt
+
+from ui.canvas.drawing.graphic_items import (
+    ArrowGraphic,
+    PolygonGraphic,
+    RectGraphic,
+    RoundRectGraphic,
+)
 
 from .tool_base import ToolBase, ToolResult
-from ui.canvas.drawing.graphic_items import (
-    RectGraphic, RoundRectGraphic, PolygonGraphic, ArrowGraphic,
-)
 
 
 class _ShapeCreateTool(ToolBase):
@@ -62,6 +69,7 @@ class RoundRectTool(_ShapeCreateTool):
 
 class EllipseTool(_ShapeCreateTool):
     """椭圆工具（使用 RoundRectGraphic 实现，rx=ry=宽/2）"""
+
     def __init__(self, draw_layer):
         super().__init__(draw_layer, "ellipse", RoundRectGraphic)
 
@@ -104,7 +112,7 @@ class PolygonTool(ToolBase):
             self._current = g
         else:
             self._current._points[-1] = (scene_pos.x(), scene_pos.y())  # 固定临时点
-            self._current.add_point(scene_pos.x(), scene_pos.y())        # 新的临时点
+            self._current.add_point(scene_pos.x(), scene_pos.y())  # 新的临时点
             self._current.prepareGeometryChange()
         return ToolResult.HANDLED
 

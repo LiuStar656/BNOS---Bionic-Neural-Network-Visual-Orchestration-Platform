@@ -6,15 +6,19 @@ BNOS 主窗口交互模块
 - 最大化/最小化切换
 - 快捷键处理
 """
-from PySide6.QtCore import Qt, QEvent
+
+from __future__ import annotations
+
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QMainWindow
+
 from ui.core.config.theme import DARK_QSS
 
 
 class MainWindowInteractionMixin:
     """窗口交互Mixin - 处理窗口控制
-    
+
     注意：nativeEvent 不能放在 Mixin 中——Python MRO 中 QMainWindow 排在所有
     Mixin 之前，Mixin 中的 nativeEvent 会被 QMainWindow.nativeEvent 遮蔽。
     因此 nativeEvent 直接写在 BNOSMainWindow.__main__.py 主类中。
@@ -25,31 +29,39 @@ class MainWindowInteractionMixin:
             self.showNormal()
         else:
             self.showMaximized()
-        if hasattr(self, '_title_bar'):
+        if hasattr(self, "_title_bar"):
             self._title_bar.set_maximized_state(self.isMaximized())
 
     def changeEvent(self, event):
         QMainWindow.changeEvent(self, event)
-        if event.type() == QEvent.Type.WindowStateChange and hasattr(self, '_title_bar'):
+        if event.type() == QEvent.Type.WindowStateChange and hasattr(self, "_title_bar"):
             self._title_bar.set_maximized_state(self.isMaximized())
 
     def setWindowTitle(self, title: str):
         QMainWindow.setWindowTitle(self, title)
-        if hasattr(self, '_title_bar'):
+        if hasattr(self, "_title_bar"):
             self._title_bar.set_title(title)
 
     def _get_resize_region(self, pos):
         x, y = pos.x(), pos.y()
         w, h, m = self.width(), self.height(), self._RESIZE_MARGIN
         t, b, l, r = y <= m, y >= h - m, x <= m, x >= w - m
-        if t and l: return Qt.CursorShape.SizeFDiagCursor, "top-left"
-        if t and r: return Qt.CursorShape.SizeBDiagCursor, "top-right"
-        if b and l: return Qt.CursorShape.SizeBDiagCursor, "bottom-left"
-        if b and r: return Qt.CursorShape.SizeFDiagCursor, "bottom-right"
-        if t:      return Qt.CursorShape.SizeVerCursor, "top"
-        if b:      return Qt.CursorShape.SizeVerCursor, "bottom"
-        if l:      return Qt.CursorShape.SizeHorCursor, "left"
-        if r:      return Qt.CursorShape.SizeHorCursor, "right"
+        if t and l:
+            return Qt.CursorShape.SizeFDiagCursor, "top-left"
+        if t and r:
+            return Qt.CursorShape.SizeBDiagCursor, "top-right"
+        if b and l:
+            return Qt.CursorShape.SizeBDiagCursor, "bottom-left"
+        if b and r:
+            return Qt.CursorShape.SizeFDiagCursor, "bottom-right"
+        if t:
+            return Qt.CursorShape.SizeVerCursor, "top"
+        if b:
+            return Qt.CursorShape.SizeVerCursor, "bottom"
+        if l:
+            return Qt.CursorShape.SizeHorCursor, "left"
+        if r:
+            return Qt.CursorShape.SizeHorCursor, "right"
         return None, None
 
     def mousePressEvent(self, event: QMouseEvent):
@@ -64,24 +76,24 @@ class MainWindowInteractionMixin:
         QMainWindow.mousePressEvent(self, event)
 
     def mouseMoveEvent(self, event: QMouseEvent):
-        if hasattr(self, '_resize_direction') and self._resize_direction:
+        if hasattr(self, "_resize_direction") and self._resize_direction and self._resize_start_pos is not None:
             delta = event.globalPosition().toPoint() - self._resize_start_pos
             new_geo = self._resize_original_geometry
 
-            if 'left' in self._resize_direction:
+            if "left" in self._resize_direction:
                 new_width = max(self.minimumWidth(), new_geo.width() - delta.x())
                 new_geo.setX(new_geo.x() + (new_geo.width() - new_width))
                 new_geo.setWidth(new_width)
 
-            if 'right' in self._resize_direction:
+            if "right" in self._resize_direction:
                 new_geo.setWidth(max(self.minimumWidth(), self._resize_original_geometry.width() + delta.x()))
 
-            if 'top' in self._resize_direction:
+            if "top" in self._resize_direction:
                 new_height = max(self.minimumHeight(), new_geo.height() - delta.y())
                 new_geo.setY(new_geo.y() + (new_geo.height() - new_height))
                 new_geo.setHeight(new_height)
 
-            if 'bottom' in self._resize_direction:
+            if "bottom" in self._resize_direction:
                 new_geo.setHeight(max(self.minimumHeight(), self._resize_original_geometry.height() + delta.y()))
 
             self.setGeometry(new_geo)
@@ -95,7 +107,7 @@ class MainWindowInteractionMixin:
         QMainWindow.mouseMoveEvent(self, event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        if hasattr(self, '_resize_direction') and self._resize_direction:
+        if hasattr(self, "_resize_direction") and self._resize_direction:
             self._resize_direction = None
             self._resize_start_pos = None
             self._resize_original_geometry = None
@@ -113,6 +125,7 @@ class MainWindowInteractionMixin:
         if self.node_list_panel and self.node_list_panel.isVisible():
             try:
                 from PySide6.QtWidgets import QApplication
+
                 fw = QApplication.focusWidget()
                 if fw and self.node_list_panel.isAncestorOf(fw):
                     sel = self.node_list_panel.get_selected_nodes()
@@ -137,16 +150,18 @@ class MainWindowInteractionMixin:
     def show_about(self):
         """显示关于对话框 — 加载根目录 README"""
         from ui.core.utils.changelog_viewer import show_about_readme
+
         show_about_readme(self)
 
     def show_changelog(self):
         """显示更新日志对话框"""
         from ui.core.utils.changelog_viewer import show_changelog
+
         show_changelog(self)
 
     def _on_node_service_status(self, name: str, status):
         """接收节点控制服务的状态变化通知（解耦回调）"""
-        if hasattr(self, 'node_list_panel') and self.node_list_panel:
+        if hasattr(self, "node_list_panel") and self.node_list_panel:
             self.node_list_panel.update_node_status(name, status.value)
         if self.canvas:
             self.canvas.sync_all_nodes_display()

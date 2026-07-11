@@ -1,16 +1,26 @@
 """
 队列管理面板 - 提供节点启动队列的可视化管理界面
 """
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
-    QPushButton, QLabel, QProgressBar, QGroupBox, QToolButton,
-    QMenu, QAction
-)
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor
+from PySide6.QtWidgets import (
+    QAction,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMenu,
+    QProgressBar,
+    QPushButton,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 
-from ui.core.logger import logger
-from ui.core.node.node_startup_queue import startup_queue, QueueStatus
+from ui.core.node.node_startup_queue import QueueStatus, startup_queue
 
 
 class QueueManagerPanel(QWidget):
@@ -76,10 +86,10 @@ class QueueManagerPanel(QWidget):
         layout.addWidget(self._progress_bar)
 
     def _setup_event_handlers(self):
-        startup_queue.on('queue_updated', self._on_queue_updated)
-        startup_queue.on('node_enqueued', self._on_node_enqueued)
-        startup_queue.on('node_dequeued', self._on_node_dequeued)
-        startup_queue.on('queue_empty', self._on_queue_empty)
+        startup_queue.on("queue_updated", self._on_queue_updated)
+        startup_queue.on("node_enqueued", self._on_node_enqueued)
+        startup_queue.on("node_dequeued", self._on_node_dequeued)
+        startup_queue.on("queue_empty", self._on_queue_empty)
 
     def _on_queue_updated(self, queue_info=None, blocked_info=None):
         self._refresh_queue_display()
@@ -97,16 +107,14 @@ class QueueManagerPanel(QWidget):
         self._queue_list.clear()
 
         queue_status = startup_queue.get_queue_status()
-        total = queue_status.get('total', 0)
-        queued = queue_status.get('queued', 0)
-        blocked = queue_status.get('blocked', 0)
-        starting = queue_status.get('starting', 0)
-        success = queue_status.get('success', 0)
-        failed = queue_status.get('failed', 0)
+        total = queue_status.get("total", 0)
+        queued = queue_status.get("queued", 0)
+        blocked = queue_status.get("blocked", 0)
+        starting = queue_status.get("starting", 0)
+        success = queue_status.get("success", 0)
+        failed = queue_status.get("failed", 0)
 
-        self._stats_label.setText(
-            f"总计: {total} | 排队: {queued} | 阻塞: {blocked} | 启动中: {starting}"
-        )
+        self._stats_label.setText(f"总计: {total} | 排队: {queued} | 阻塞: {blocked} | 启动中: {starting}")
 
         if total > 0:
             completed = success + failed
@@ -118,7 +126,7 @@ class QueueManagerPanel(QWidget):
             self._progress_bar.setFormat("无任务")
 
         queued_items = startup_queue._queue
-        for i, item in enumerate(queued_items):
+        for _i, item in enumerate(queued_items):
             list_item = QListWidgetItem()
 
             status_icon = ""
@@ -213,8 +221,8 @@ class QueueManagerPanel(QWidget):
 
     def closeEvent(self, event):
         self._update_timer.stop()
-        startup_queue.off('queue_updated', self._on_queue_updated)
-        startup_queue.off('node_enqueued', self._on_node_enqueued)
-        startup_queue.off('node_dequeued', self._on_node_dequeued)
-        startup_queue.off('queue_empty', self._on_queue_empty)
+        startup_queue.off("queue_updated", self._on_queue_updated)
+        startup_queue.off("node_enqueued", self._on_node_enqueued)
+        startup_queue.off("node_dequeued", self._on_node_dequeued)
+        startup_queue.off("queue_empty", self._on_queue_empty)
         super().closeEvent(event)

@@ -5,19 +5,22 @@ ui/core/composite_orchestrator.py
 生成独立的 Python 脚本（orchestrator_{comp_id}.py），
 在拓扑 DAG 顺序下串联执行子节点。
 """
+
+from __future__ import annotations
+
 import json as _json
 
 
-def render_orchestrator_script(comp_id: str, node_modules: list, dag: list,
-                                external_ports: dict) -> str:
+def render_orchestrator_script(comp_id: str, node_modules: list, dag: list, external_ports: dict) -> str:
     """生成 orchestrator.py 源代码字符串。"""
     return f'''"""
 自动生成的复合节点编排器 — {comp_id}
 """
 import sys, os, json, importlib, traceback
+from pathlib import Path
 
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, PROJECT_ROOT)
+PROJECT_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 NODES = {_json.dumps(node_modules, ensure_ascii=False)}
 DAG = {_json.dumps(dag, ensure_ascii=False)}
@@ -91,29 +94,27 @@ class DagRunner:
     def _write_output(self, node_name, output):
         for n in NODES:
             if n["name"] == node_name:
-                path = os.path.join(PROJECT_ROOT, n["path"], "output.json")
-                os.makedirs(os.path.dirname(path), exist_ok=True)
+                path = PROJECT_ROOT / n["path"] / "output.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
                 if not isinstance(output, dict): output = {{"data": output}}
                 if "code" not in output: output["code"] = 0
                 output["run_id"] = self._run_id
                 output["timestamp"] = self._run_ts
-                with open(path, "w", encoding="utf-8") as f:
-                    json.dump(output, f, ensure_ascii=False, indent=2)
+                path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
                 break
 
 if __name__ == "__main__":
     pid = os.getpid()
-    pid_path = os.path.join(PROJECT_ROOT, ".pid")
-    with open(pid_path, "w") as f: f.write(str(pid))
+    pid_path = PROJECT_ROOT / ".pid"
+    pid_path.write_text(str(pid))
     print(f"[{comp_id}] PID={{pid}} 就绪")
 
     # ── 从 _port_routing 读取外部输入 ──
     external_input = None
-    clusters_path = os.path.join(PROJECT_ROOT, "node_clusters.json")
-    if os.path.exists(clusters_path):
+    clusters_path = PROJECT_ROOT / "node_clusters.json"
+    if clusters_path.exists():
         try:
-            with open(clusters_path, "r", encoding="utf-8") as f:
-                clusters = json.load(f)
+            clusters = json.loads(clusters_path.read_text(encoding="utf-8"))
             comp_data = clusters.get("composites", {{}}).get("{comp_id}", {{}})
             routing = comp_data.get("_port_routing", {{}})
             input_routes = routing.get("input", {{}})
@@ -121,10 +122,9 @@ if __name__ == "__main__":
                 external_input = {{}}
                 for port_name, route in input_routes.items():
                     src_path = route.get("source_output_path", "")
-                    if src_path and os.path.exists(src_path):
+                    if src_path and Path(src_path).exists():
                         try:
-                            with open(src_path, "r", encoding="utf-8") as f:
-                                src_data = json.load(f)
+                            src_data = json.loads(Path(src_path).read_text(encoding="utf-8"))
                             # 提取 data 字段作为输入
                             src_payload = src_data.get("data", src_data)
                             external_input[port_name] = src_payload
@@ -137,6 +137,6 @@ if __name__ == "__main__":
     runner = DagRunner()
     result = runner.run(external_input=external_input)
     print(f"[{comp_id}] 完成")
-    try: os.remove(pid_path)
+    try: pid_path.unlink()
     except OSError: pass
 '''

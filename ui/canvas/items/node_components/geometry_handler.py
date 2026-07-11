@@ -3,9 +3,10 @@
 
 从 node_item.py 拆分出来。
 """
-from PySide6.QtCore import QPointF
+
+from __future__ import annotations
+
 from PySide6.QtWidgets import QGraphicsItem
-from ui.core.logger import logger
 
 
 class NodeGeometryHandler:
@@ -25,7 +26,7 @@ class NodeGeometryHandler:
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             if self._node.canvas:
                 # 批量更新模式下跳过逐节点连线刷新（由调用方统一处理）
-                if getattr(self._node.canvas, '_batch_updating', False):
+                if getattr(self._node.canvas, "_batch_updating", False):
                     return super(self._node.__class__, self._node).itemChange(change, value)
 
                 # 1. 遍历所有锚点（包括多端口场景），更新所有连线
@@ -48,7 +49,7 @@ class NodeGeometryHandler:
                     edge.update_path()
 
                 # 2. 自动保存布局（防抖500ms）
-                if hasattr(self._node.canvas, '_save_timer'):
+                if hasattr(self._node.canvas, "_save_timer"):
                     self._node.canvas._save_timer.stop()
                     self._node.canvas._save_timer.start(500)
 

@@ -1,11 +1,15 @@
 """
 批量操作 Mixin — 框选节点的批量启动/停止/移除/清除配置
 """
-import os
+
+from __future__ import annotations
+
 import json
-from ui.core.utils.dialog_utils import themed_message
-from ui.core.logger import logger
+import os
+
 from ui.core.i18n import t
+from ui.core.logger import logger
+from ui.core.utils.dialog_utils import themed_message
 
 
 class CanvasBatchOps:
@@ -35,13 +39,12 @@ class CanvasBatchOps:
             return True, "node_not_found"
 
         node_info = self.canvas.parent_window.nodes_data[node_name]
-        if node_info['status'] in skip_statuses:
+        if node_info["status"] in skip_statuses:
             return True, "invalid_status"
 
         return False, None
 
-    def _execute_batch_operation(self, operation_name, operation_func, skip_statuses,
-                                 operation_label=None):
+    def _execute_batch_operation(self, operation_name, operation_func, skip_statuses, operation_label=None):
         """执行批量操作的通用模板方法
 
         Args:
@@ -103,8 +106,8 @@ class CanvasBatchOps:
         self._execute_batch_operation(
             operation_name="start",
             operation_func=self.canvas.parent_window.start_selected_node_by_name,
-            skip_statuses=('running', 'idle'),
-            operation_label="启动"
+            skip_statuses=("running", "idle"),
+            operation_label="启动",
         )
 
     def batch_stop_selected_nodes(self):
@@ -112,8 +115,8 @@ class CanvasBatchOps:
         self._execute_batch_operation(
             operation_name="stop",
             operation_func=self.canvas.parent_window.stop_selected_node_by_name,
-            skip_statuses=('stopped',),
-            operation_label="停止"
+            skip_statuses=("stopped",),
+            operation_label="停止",
         )
 
     # ------------------------------------------------------------------
@@ -178,12 +181,7 @@ class CanvasBatchOps:
             bool: 用户是否确认移除
         """
         confirm_msg = self._build_remove_confirm_message(node_names, running_nodes)
-        reply = themed_message(
-            self.canvas,
-            t("k_title_confirm_remove_canvas"),
-            confirm_msg,
-            "question"
-        )
+        reply = themed_message(self.canvas, t("k_title_confirm_remove_canvas"), confirm_msg, "question")
         return reply
 
     def _stop_running_nodes(self, running_nodes):
@@ -286,30 +284,30 @@ class CanvasBatchOps:
         for node_name in self.canvas.box_selected_nodes[:]:
             if self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
                 node_info = self.canvas.parent_window.nodes_data[node_name]
-                config = node_info['config']
+                config = node_info["config"]
                 need_save = False
 
-                if config.get('listen_upper_file'):
-                    config['listen_upper_file'] = ""
+                if config.get("listen_upper_file"):
+                    config["listen_upper_file"] = ""
                     need_save = True
                     cleared_count += 1
 
                 # 同时清除所有小锚点（input_port）的连接映射
-                if config.get('port_mappings'):
-                    config['port_mappings'] = {}
+                if config.get("port_mappings"):
+                    config["port_mappings"] = {}
                     need_save = True
                     cleared_count += 1
 
                 # 同时清除指向其他节点的 out_connections
-                if config.get('out_connections'):
-                    config['out_connections'] = {}
+                if config.get("out_connections"):
+                    config["out_connections"] = {}
                     need_save = True
                     cleared_count += 1
 
                 if need_save:
-                    config_path = os.path.join(node_info['path'], "config.json")
+                    config_path = os.path.join(node_info["path"], "config.json")
                     try:
-                        with open(config_path, 'w', encoding='utf-8') as f:
+                        with open(config_path, "w", encoding="utf-8") as f:
                             json.dump(config, f, indent=2, ensure_ascii=False)
                         logger.info("已清除节点 %s 的监听配置及端口映射", node_name)
                     except Exception as e:
@@ -328,9 +326,9 @@ class CanvasBatchOps:
         for edge in edges_to_remove:
             self.canvas.connections.remove_edge(edge)
 
-        themed_message(self.canvas, t("k_title_clear_complete"),
-            t("_k_config_cleared").format(count=cleared_count),
-            "info")
+        themed_message(
+            self.canvas, t("k_title_clear_complete"), t("_k_config_cleared").format(count=cleared_count), "info"
+        )
         self.canvas.selection.clear_selection()
 
         self._trigger_project_save()

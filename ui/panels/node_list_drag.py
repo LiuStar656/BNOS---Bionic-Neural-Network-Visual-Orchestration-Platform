@@ -1,9 +1,12 @@
 """
 节点列表拖放系统 Mixin — 处理节点在组之间、组与根级别之间的拖拽移动
 """
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
+
 from ui.core.logger import logger
-from ui.core.i18n import t
 
 
 class NodeListDragMixin:
@@ -11,13 +14,13 @@ class NodeListDragMixin:
 
     def _intercept_drop_event(self, event, original_drop_event):
         """拦截拖放事件，智能处理节点拖拽
-        
+
         规则：
         - 允许：节点 → 组（正常移动到指定组）
         - 允许：节点 → 根级别（移出组，成为独立节点）
         - 智能转换：节点 → 组内节点（直接融入该节点所在的组）
         - 智能转换：节点 → 根级别节点（创建新组包含两个节点）
-        
+
         注意：所有拖拽操作都在这里处理，不依赖 rowsMoved 信号
         """
         try:
@@ -26,20 +29,20 @@ class NodeListDragMixin:
                 logger.debug("⚠️ 未获取到被拖拽的节点")
                 original_drop_event(event)
                 return
-            
+
             target_item = self.node_tree.itemAt(event.position().toPoint())
-            
+
             if target_item:
                 target_data = target_item.data(0, Qt.ItemDataRole.UserRole)
-                
-                if target_data and target_data.get('type') == 'node':
+
+                if target_data and target_data.get("type") == "node":
                     logger.debug("🔄 检测到节点拖拽到节点上，智能处理")
-                    
-                    target_node = target_data.get('name', '')
-                    
+
+                    target_node = target_data.get("name", "")
+
                     if target_node not in dragged_nodes:
                         target_group = self.group_manager.get_node_group(target_node)
-                        
+
                         # 锁定组边界检查
                         dragged_locked_roots = set()
                         for n in dragged_nodes:
@@ -66,15 +69,14 @@ class NodeListDragMixin:
                             self.update_node_list(self.nodes_data)
                             event.accept()
                             return
-                        
+
                         if target_group:
                             logger.debug("✅ 目标节点 '%s' 在组 '%s' 中，直接融入", target_node, target_group)
                             self.group_manager.add_nodes_to_group(target_group, dragged_nodes)
                             self.update_node_list(self.nodes_data)
                             if self.parent_window:
                                 self.parent_window.show_toast(
-                                    f"✅ 已将 {len(dragged_nodes)} 个节点加入组 '{target_group}'", 
-                                    "success"
+                                    f"✅ 已将 {len(dragged_nodes)} 个节点加入组 '{target_group}'", "success"
                                 )
                             event.accept()
                             return
@@ -84,7 +86,7 @@ class NodeListDragMixin:
                             self._create_group_for_dragged_nodes(all_nodes)
                             event.accept()
                             return
-            
+
             elif not target_item:
                 # 拖到根级别（空白处）
                 for n in dragged_nodes:
@@ -99,12 +101,13 @@ class NodeListDragMixin:
                 self._move_nodes_to_ungrouped(dragged_nodes)
                 event.accept()
                 return
-            
+
             original_drop_event(event)
-            
+
         except Exception as e:
             logger.warning("⚠️ 拦截拖放事件失败: %s", e)
             import traceback
+
             traceback.print_exc()
             original_drop_event(event)
 
@@ -115,8 +118,8 @@ class NodeListDragMixin:
             nodes = []
             for item in selected_items:
                 data = item.data(0, Qt.ItemDataRole.UserRole)
-                if data and data.get('type') == 'node':
-                    nodes.append(data.get('name', ''))
+                if data and data.get("type") == "node":
+                    nodes.append(data.get("name", ""))
             return nodes if nodes else None
         except Exception as e:
             logger.warning("⚠️ 获取拖拽节点失败: %s", e)
@@ -126,29 +129,27 @@ class NodeListDragMixin:
         """为拖拽涉及的节点创建新组"""
         if not node_names or len(node_names) < 2:
             return
-        
+
         groups = self.group_manager.get_all_groups()
-        
+
         base_name = f"Group_{len(groups) + 1}"
         new_group_name = base_name
         counter = 1
         while new_group_name in groups:
             new_group_name = f"{base_name}_{counter}"
             counter += 1
-        
+
         import random
+
         color = f"#{random.randint(0x400000, 0xFFFFFF):06X}"
         self.group_manager.create_group(new_group_name, color)
         self.group_manager.add_nodes_to_group(new_group_name, node_names)
-        
+
         self.update_node_list(self.nodes_data)
-        
+
         if self.parent_window:
-            self.parent_window.show_toast(
-                f"✅ 已创建组 '{new_group_name}'，包含 {len(node_names)} 个节点", 
-                "success"
-            )
-        
+            self.parent_window.show_toast(f"✅ 已创建组 '{new_group_name}'，包含 {len(node_names)} 个节点", "success")
+
         logger.info("✅ 自动创建节点组: %s (包含 %s)", new_group_name, ", ".join(node_names))
 
     def on_nodes_moved(self, parent_index, start, end, destination_index, row):
@@ -156,43 +157,48 @@ class NodeListDragMixin:
         try:
             moved_items = []
             for i in range(start, end + 1):
-                item = self.node_tree.topLevelItem(parent_index.row()).child(i) if parent_index.isValid() else self.node_tree.topLevelItem(i)
+                item = (
+                    self.node_tree.topLevelItem(parent_index.row()).child(i)
+                    if parent_index.isValid()
+                    else self.node_tree.topLevelItem(i)
+                )
                 if item:
                     data = item.data(0, Qt.ItemDataRole.UserRole)
-                    if data and data.get('type') == 'node':
-                        moved_items.append(data.get('name', ''))
-            
+                    if data and data.get("type") == "node":
+                        moved_items.append(data.get("name", ""))
+
             if not moved_items:
                 logger.debug("⚠️ 未找到被移动的节点")
                 return
-            
+
             logger.debug("📦 检测到节点移动: %s", moved_items)
-            
+
             target_item = None
             if destination_index.isValid():
                 target_item = self.node_tree.itemFromIndex(destination_index)
                 if target_item:
                     target_data = target_item.data(0, Qt.ItemDataRole.UserRole)
-                    logger.debug("🎯 目标类型: %s", target_data.get('type') if target_data else 'None')
-            
+                    logger.debug("🎯 目标类型: %s", target_data.get("type") if target_data else "None")
+
             if not target_item:
                 logger.debug("✅ 移动到根级别，调用 _move_nodes_to_ungrouped")
                 self._move_nodes_to_ungrouped(moved_items)
                 return
-            
+
             target_data = target_item.data(0, Qt.ItemDataRole.UserRole)
-            
-            if target_data and target_data.get('type') == 'group':
-                target_group = target_data.get('name', '')
+
+            if target_data and target_data.get("type") == "group":
+                target_group = target_data.get("name", "")
                 logger.debug("✅ 移动到组 '%s'，调用 _move_nodes_to_group", target_group)
                 self._move_nodes_to_group(moved_items, target_group)
-            
-            elif target_data and target_data.get('type') == 'node':
+
+            elif target_data and target_data.get("type") == "node":
                 logger.debug("⚠️ 检测到节点到节点的移动（不应该到达这里）")
-        
+
         except Exception as e:
             logger.warning("⚠️ 处理节点移动失败: %s", e)
             import traceback
+
             traceback.print_exc()
 
     def _move_nodes_to_group(self, node_names, group_name):
@@ -206,7 +212,7 @@ class NodeListDragMixin:
                         self.parent_window.show_toast("禁止将节点移入挂载组", "warning")
                     self.update_node_list(self.nodes_data)
                     return
-        
+
         dragged_locked_groups = set()
         for node_name in node_names:
             g = self.group_manager.get_node_group(node_name)
@@ -219,7 +225,7 @@ class NodeListDragMixin:
                         self.parent_window.show_toast(f"挂载组'{locked_g}'内的节点禁止移入其他组", "warning")
                     self.update_node_list(self.nodes_data)
                     return
-        
+
         if self.group_manager.add_nodes_to_group(group_name, node_names):
             self._cleanup_empty_groups(refresh=False)
             self.update_node_list(self.nodes_data)
@@ -238,22 +244,22 @@ class NodeListDragMixin:
                     self.parent_window.show_toast("挂载组内的节点禁止移出组", "warning")
                 self.update_node_list(self.nodes_data)
                 return
-        
+
         removed_count = 0
         for node_name in node_names:
             current_group = self.group_manager.get_node_group(node_name)
             if current_group:
                 self.group_manager.remove_nodes_from_group(current_group, [node_name])
                 removed_count += 1
-        
+
         empty_groups_deleted = self._cleanup_empty_groups(refresh=True)
-        
+
         if removed_count > 0 and not empty_groups_deleted:
-             self.update_node_list(self.nodes_data)
+            self.update_node_list(self.nodes_data)
         elif removed_count == 0:
-             # 节点未在任何组中，但 Qt 拖拽可能已损坏树视图 → 强制刷新
-             self.update_node_list(self.nodes_data)
-        
+            # 节点未在任何组中，但 Qt 拖拽可能已损坏树视图 → 强制刷新
+            self.update_node_list(self.nodes_data)
+
         if self.parent_window:
             if removed_count > 0:
                 self.parent_window.show_toast(f"已将 {removed_count} 个节点移出组", "success")

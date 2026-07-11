@@ -12,28 +12,41 @@
   - 双击折叠点删除
   - 鼠标靠近线段中点时自动高亮手柄
 """
+
+from __future__ import annotations
+
 import math
-from PySide6.QtWidgets import (
-    QGraphicsPathItem, QGraphicsPolygonItem, QStyle, QGraphicsItem, QApplication,
-)
-from PySide6.QtCore import Qt, QPointF, QLineF, QTimer
+
+from PySide6.QtCore import QLineF, QPointF, Qt, QTimer
 from PySide6.QtGui import (
-    QPen, QColor, QPainterPath, QPolygonF, QPainterPathStroker, QBrush,
+    QBrush,
+    QColor,
     QPainter,
+    QPainterPath,
+    QPainterPathStroker,
+    QPen,
+    QPolygonF,
 )
+from PySide6.QtWidgets import (
+    QApplication,
+    QGraphicsPathItem,
+    QGraphicsPolygonItem,
+    QStyle,
+)
+
 from ui.core.logger import logger
 
 
 class EdgeArrowItem(QGraphicsPolygonItem):
     """带抗锯齿的箭头项—— 使用填充多边形渲染，任意缩放平滑"""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         # 禁用缓存：确保任意缩放都重新计算矢量路径
         self.setCacheMode(QGraphicsPolygonItem.CacheMode.NoCache)
         # 不描边，只填充：抗锯齿效果最佳（与三角形填充一致）
         self.setPen(QPen(Qt.PenStyle.NoPen))
-    
+
     def paint(self, painter, option, widget=None):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
@@ -42,17 +55,17 @@ class EdgeArrowItem(QGraphicsPolygonItem):
 
 class TempEdgeItem(QGraphicsPathItem):
     """带抗锯齿的临时连线（拖拽时显示）—— 使用矢量轮廓填充渲染"""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         # 禁用缓存：确保任意缩放都重新计算矢量路径，避免缓存拉伸产生锯齿
         self.setCacheMode(QGraphicsPathItem.CacheMode.NoCache)
-    
+
     def paint(self, painter, option, widget=None):
         # 抗锯齿 + 平滑变换
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-        
+
         # 使用 QPainterPathStroker 填充法（与箭头/正式连线同样的渲染方式）
         pen = self.pen()
         if pen.style() != Qt.PenStyle.NoPen and pen.widthF() > 0:
@@ -71,12 +84,20 @@ class EdgeItem(QGraphicsPathItem):
     SHAPE_HIT_WIDTH = 8
     HANDLE_RADIUS = 6
     HANDLE_HIT_RADIUS = 15
-    WAYPOINT_RADIUS = 6        # 已有折叠点渲染半径
-    WAYPOINT_HIT_RADIUS = 14   # 已有折叠点拖拽判定半径
+    WAYPOINT_RADIUS = 6  # 已有折叠点渲染半径
+    WAYPOINT_HIT_RADIUS = 14  # 已有折叠点拖拽判定半径
     LONG_PRESS_MS = 250
 
-    def __init__(self, start_node, end_node, canvas=None, target_anchor=None, source_anchor=None,
-                 target_port_name=None, source_port_name=None):
+    def __init__(
+        self,
+        start_node,
+        end_node,
+        canvas=None,
+        target_anchor=None,
+        source_anchor=None,
+        target_port_name=None,
+        source_port_name=None,
+    ):
         super().__init__()
         self.start_node = start_node
         self.end_node = end_node
@@ -85,7 +106,7 @@ class EdgeItem(QGraphicsPathItem):
         self._source_anchor = source_anchor  # 显式指定的源锚点
         self._desired_target_port_name = target_port_name  # 期望绑定的目标端口名（如"prompt"/"context"等）
         self._desired_source_port_name = source_port_name  # 期望绑定的源端口名
-        
+
         # 获取设备像素比，确保高DPI屏幕上显示正常
         self._device_pixel_ratio = self._get_device_pixel_ratio()
         self._base_width = 2.5 * self._device_pixel_ratio
@@ -94,10 +115,10 @@ class EdgeItem(QGraphicsPathItem):
         self._waypoints: list = []
 
         # 拖拽状态
-        self._drag_wp_index = None   # 正在拖拽的折叠点索引（None = 未拖拽）
-        self._drag_is_new = False    # True=新折叠点（从手柄创建）, False=拖已有折叠点
+        self._drag_wp_index = None  # 正在拖拽的折叠点索引（None = 未拖拽）
+        self._drag_is_new = False  # True=新折叠点（从手柄创建）, False=拖已有折叠点
         self._press_pos = None
-        self._press_on_handle = -1   # 按下的手柄索引（-1 = 按在线身上）
+        self._press_on_handle = -1  # 按下的手柄索引（-1 = 按在线身上）
         self._long_press_fired = False
 
         self._long_press_timer = QTimer(QApplication.instance())
@@ -114,27 +135,26 @@ class EdgeItem(QGraphicsPathItem):
 
         self.setFlag(QGraphicsPathItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setAcceptHoverEvents(True)
-        self.setAcceptedMouseButtons(
-            Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton
-        )
+        self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton)
         self.arrow_item = None
-        
+
         # 锚点引用（双向绑定核心）
         self.start_anchor = None
         self.end_anchor = None
-        
+
         # 建立双向绑定
         self._setup_anchor_binding()
-    
+
     def _get_device_pixel_ratio(self):
         """获取设备像素比，用于高DPI屏幕适配"""
         try:
-            if self.canvas and hasattr(self.canvas, 'viewport'):
+            if self.canvas and hasattr(self.canvas, "viewport"):
                 return self.canvas.viewport().devicePixelRatio()
         except Exception:
             pass
         try:
             from PySide6.QtWidgets import QApplication
+
             app = QApplication.instance()
             if app:
                 screen = app.primaryScreen()
@@ -143,7 +163,7 @@ class EdgeItem(QGraphicsPathItem):
         except Exception:
             pass
         return 1.0
-    
+
     def _setup_anchor_binding(self):
         """建立与锚点的双向绑定（支持多输入/输出端口）
 
@@ -155,17 +175,17 @@ class EdgeItem(QGraphicsPathItem):
         # 输出端绑定
         if self._source_anchor:
             self.start_anchor = self._source_anchor
-        elif self._desired_source_port_name and hasattr(self.start_node, 'anchor_manager'):
+        elif self._desired_source_port_name and hasattr(self.start_node, "anchor_manager"):
             self.start_anchor = self.start_node.anchor_manager.get_output(self._desired_source_port_name)
-        elif hasattr(self.start_node, 'output_anchor'):
+        elif hasattr(self.start_node, "output_anchor"):
             self.start_anchor = self.start_node.output_anchor
 
         # 输入端绑定
         if self._target_anchor:
             self.end_anchor = self._target_anchor
-        elif self._desired_target_port_name and hasattr(self.end_node, 'anchor_manager'):
+        elif self._desired_target_port_name and hasattr(self.end_node, "anchor_manager"):
             self.end_anchor = self.end_node.anchor_manager.get_input(self._desired_target_port_name)
-        elif hasattr(self.end_node, 'input_anchor'):
+        elif hasattr(self.end_node, "input_anchor"):
             # 只有在未指定特定端口名时才允许 fallback 到 default
             if not self._desired_target_port_name:
                 self.end_anchor = self.end_node.input_anchor
@@ -173,8 +193,8 @@ class EdgeItem(QGraphicsPathItem):
                 logger.warning(
                     "[EdgeItem] 指定端口 '%s' 但找不到对应锚点，不绑定到默认锚点: %s → %s",
                     self._desired_target_port_name,
-                    getattr(self.start_node, 'node_name', '?'),
-                    getattr(self.end_node, 'node_name', '?')
+                    getattr(self.start_node, "node_name", "?"),
+                    getattr(self.end_node, "node_name", "?"),
                 )
 
         logger.debug(
@@ -182,8 +202,8 @@ class EdgeItem(QGraphicsPathItem):
             "end_anchor.port_name=%s, start_anchor.port_name=%s",
             self._desired_target_port_name,
             self.end_anchor is not None,
-            getattr(self.end_anchor, 'port_name', None) if self.end_anchor else None,
-            getattr(self.start_anchor, 'port_name', None) if self.start_anchor else None
+            getattr(self.end_anchor, "port_name", None) if self.end_anchor else None,
+            getattr(self.start_anchor, "port_name", None) if self.start_anchor else None,
         )
 
         # 双向绑定：将连线注册到锚点
@@ -207,6 +227,7 @@ class EdgeItem(QGraphicsPathItem):
 
     def change_edge_color(self):
         from PySide6.QtWidgets import QColorDialog
+
         color = QColorDialog.getColor(self._edge_color, None, "选择连线颜色")
         if color.isValid():
             self._edge_color = color
@@ -224,6 +245,7 @@ class EdgeItem(QGraphicsPathItem):
 
     def _endpoints(self):
         """获取连线端点的场景坐标 - 使用 mapToScene 确保坐标正确跟随节点移动"""
+
         # 安全检查：确保锚点存在且已添加到场景；否则回退到节点上现存的锚点
         def _resolve_anchor(node, prefer_attr: str, fallback_attr: str):
             anchor = getattr(self, prefer_attr, None)
@@ -319,20 +341,19 @@ class EdgeItem(QGraphicsPathItem):
         if not isinstance(self._waypoints[0], tuple):
             src, dst = self._endpoints()
             self._waypoints = [
-                self._encode_rel(src, dst, QPointF(p) if not isinstance(p, QPointF) else p)
-                for p in self._waypoints
+                self._encode_rel(src, dst, QPointF(p) if not isinstance(p, QPointF) else p) for p in self._waypoints
             ]
 
     def _all_points(self):
         """完整点序列（相对参数解码为绝对坐标）"""
         src, dst = self._endpoints()
-        
+
         # 如果还没有转换为相对坐标，且锚点已就绪，立即转换
         if self._waypoints and not isinstance(self._waypoints[0], tuple):
             # 检查锚点是否已添加到场景
             if self.start_anchor and self.start_anchor.scene() and self.end_anchor and self.end_anchor.scene():
                 self._sync_abs_to_rel()
-        
+
         # 如果是相对坐标格式，使用相对坐标解码（跟随节点移动）
         if self._waypoints and isinstance(self._waypoints[0], tuple):
             pts = [src]
@@ -340,12 +361,12 @@ class EdgeItem(QGraphicsPathItem):
                 pts.append(self._decode_rel(src, dst, rel))
             pts.append(dst)
             return pts
-        
+
         # 旧格式（绝对坐标）：保留原始绝对坐标
         # 注意：在锚点就绪后第一次节点移动时会转换为相对坐标
         if self._waypoints:
             return [src] + [QPointF(p) if not isinstance(p, QPointF) else p for p in self._waypoints] + [dst]
-        
+
         # 没有折叠点的情况
         return [src, dst]
 
@@ -401,7 +422,7 @@ class EdgeItem(QGraphicsPathItem):
         # 动态计算当前缩放倍数下的合适线条宽度（确保放大后仍有清晰平滑的边缘）
         # 通过 painter.transform 的 m11 获取当前 x 方向缩放比例
         transform = painter.transform()
-        current_scale = max(abs(transform.m11()), abs(transform.m22()), 1.0)
+        max(abs(transform.m11()), abs(transform.m22()), 1.0)
         # 基础宽度 + 根据缩放调整：1x 显示 3px，放大后保持矢量平滑
         base_w = max(3.0, self._base_width)
 
@@ -480,7 +501,7 @@ class EdgeItem(QGraphicsPathItem):
 
     def _nearest_handle(self, pos: QPointF):
         pts = self._all_points()
-        best_seg, best_dist = -1, float('inf')
+        best_seg, best_dist = -1, float("inf")
         for i in range(len(pts) - 1):
             mid = (pts[i] + pts[i + 1]) / 2.0
             dist = QLineF(QPointF(mid), pos).length()
@@ -496,7 +517,7 @@ class EdgeItem(QGraphicsPathItem):
 
     def _nearest_waypoint(self, pos: QPointF):
         """返回 (index, distance) — index 是 _waypoints 中的位置"""
-        best_i, best_d = -1, float('inf')
+        best_i, best_d = -1, float("inf")
         src, dst = self._endpoints()
         for i, wp in enumerate(self._waypoints):
             wp_abs = self._decode_rel(src, dst, wp) if isinstance(wp, tuple) else QPointF(wp)
@@ -667,10 +688,7 @@ class EdgeItem(QGraphicsPathItem):
 
     def set_waypoints(self, points):
         src, dst = self._endpoints()
-        self._waypoints = [
-            self._encode_rel(src, dst, QPointF(p) if not isinstance(p, QPointF) else p)
-            for p in points
-        ]
+        self._waypoints = [self._encode_rel(src, dst, QPointF(p) if not isinstance(p, QPointF) else p) for p in points]
         self.update_path()
 
     def clear_waypoints(self):
@@ -698,7 +716,7 @@ class EdgeItem(QGraphicsPathItem):
 
     def from_dict(self, data: dict, defer_sync=False):
         """从字典恢复（兼容旧绝对坐标和新相对坐标）
-        
+
         Args:
             data: 连线数据字典
             defer_sync: 是否延迟同步相对坐标（用于布局加载时避免锚点坐标未就绪）
@@ -729,25 +747,25 @@ class EdgeItem(QGraphicsPathItem):
         """从场景移除连线，并解除与锚点的双向绑定"""
         # 停止定时器
         self._long_press_timer.stop()
-        
+
         # 解除与锚点的双向绑定（关键：防止内存泄漏和引用残留）
         if self.start_anchor:
             self.start_anchor.remove_edge(self)
         if self.end_anchor:
             self.end_anchor.remove_edge(self)
-        
+
         # 移除箭头
         if self.arrow_item:
             scene = self.arrow_item.scene()
             if scene:
                 scene.removeItem(self.arrow_item)
             self.arrow_item = None
-        
+
         # 从场景移除
         scene = self.scene()
         if scene:
             scene.removeItem(self)
-        
+
         # 断开所有引用
         self.start_node = None
         self.end_node = None

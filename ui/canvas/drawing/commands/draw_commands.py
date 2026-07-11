@@ -1,11 +1,15 @@
 """
 绘图层命令系统 — 接入 HistoryManager 的精细化撤销重做
 """
+
+from __future__ import annotations
+
 from ui.core.commands.base import Command
 
 
 class DrawCommand(Command):
     """绘图层操作基类"""
+
     pass
 
 
@@ -68,12 +72,12 @@ class MoveGraphicCommand(DrawCommand):
         self._executed = False
 
     def execute(self):
-        for g, (dx, dy) in zip(self.graphics, self.deltas):
+        for g, (dx, dy) in zip(self.graphics, self.deltas, strict=False):
             g.moveBy(dx, dy)
         self._executed = True
 
     def undo(self):
-        for g, (dx, dy) in zip(self.graphics, self.deltas):
+        for g, (dx, dy) in zip(self.graphics, self.deltas, strict=False):
             g.moveBy(-dx, -dy)
         self._executed = False
 
@@ -91,12 +95,12 @@ class StyleChangeCommand(DrawCommand):
         self._executed = False
 
     def execute(self):
-        for g, style in zip(self.graphics, self.new_styles):
+        for g, style in zip(self.graphics, self.new_styles, strict=False):
             g.set_style(**style)
         self._executed = True
 
     def undo(self):
-        for g, style in zip(self.graphics, self.old_styles):
+        for g, style in zip(self.graphics, self.old_styles, strict=False):
             g.set_style(**style)
         self._executed = False
 

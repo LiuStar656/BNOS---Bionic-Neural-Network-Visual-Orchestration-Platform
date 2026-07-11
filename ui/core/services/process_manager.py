@@ -3,10 +3,15 @@
 
 管理所有子进程（画布、面板、核心业务）的生命周期。
 """
+
+from __future__ import annotations
+
 import os
-import sys
 import subprocess
+import sys
+
 from PySide6.QtCore import QObject, QTimer, Signal
+
 from ui.core.logger import logger
 
 # 项目根目录（从 process_manager.py: ui/core/ → 项目根）
@@ -16,7 +21,8 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(_THIS_DIR))
 
 class ManagedProcess(QObject):
     """受管理的子进程"""
-    crashed = Signal(str)       # process_id
+
+    crashed = Signal(str)  # process_id
     started = Signal(str)
     stopped = Signal(str)
 
@@ -40,7 +46,7 @@ class ManagedProcess(QObject):
             self.process = subprocess.Popen(
                 [python, self.script],
                 cwd=_PROJECT_ROOT,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
             )
             self._health_timer.start()
             self.started.emit(self.id)
@@ -55,9 +61,13 @@ class ManagedProcess(QObject):
         self._health_timer.stop()
         if self.process:
             try:
-                if os.name == 'nt':
-                    subprocess.run(['taskkill', '/F', '/T', '/PID', str(self.process.pid)],
-                                   capture_output=True, timeout=5, creationflags=subprocess.CREATE_NO_WINDOW)
+                if os.name == "nt":
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(self.process.pid)],
+                        capture_output=True,
+                        timeout=5,
+                        creationflags=subprocess.CREATE_NO_WINDOW,
+                    )
                 else:
                     self.process.terminate()
                     self.process.wait(timeout=5)
@@ -85,8 +95,7 @@ class ManagedProcess(QObject):
             logger.warning("子进程 %s 已退出 (exit=%d)", self.id, exit_code)
             if self._restart_on_crash and self._restart_count < self._max_restarts:
                 self._restart_count += 1
-                logger.info("正在重启子进程 %s (第 %d/%d 次)",
-                            self.id, self._restart_count, self._max_restarts)
+                logger.info("正在重启子进程 %s (第 %d/%d 次)", self.id, self._restart_count, self._max_restarts)
                 self.start()
             else:
                 logger.error("子进程 %s 已达到最大重启次数，停止重试", self.id)
@@ -97,7 +106,7 @@ class ProcessManager(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._processes = {}   # process_id → ManagedProcess
+        self._processes = {}  # process_id → ManagedProcess
 
     def register(self, process_id: str, script_path: str):
         proc = ManagedProcess(process_id, script_path, self)

@@ -1,24 +1,27 @@
 """
 标注样式预设系统 — 为节点标注场景提供一键样式切换
 """
+
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Optional, Dict, List
 
 
 @dataclass
 class StylePreset:
     """样式预设定义"""
-    name: str                # 显示名称
-    key: str                 # 唯一标识
-    stroke_color: str        # 描边颜色
-    stroke_width: float      # 描边宽度
-    fill_color: str          # 填充颜色
-    text_color: str          # 文字颜色
-    dash_pattern: Optional[List[int]] = None  # 虚线模式
+
+    name: str  # 显示名称
+    key: str  # 唯一标识
+    stroke_color: str  # 描边颜色
+    stroke_width: float  # 描边宽度
+    fill_color: str  # 填充颜色
+    text_color: str  # 文字颜色
+    dash_pattern: list[int] | None = None  # 虚线模式
 
 
 # 预设定义
-PRESETS: Dict[str, StylePreset] = {
+PRESETS: dict[str, StylePreset] = {
     "error": StylePreset(
         name="错误",
         key="error",
@@ -71,12 +74,12 @@ PRESETS: Dict[str, StylePreset] = {
 }
 
 
-def get_preset_names() -> List[str]:
+def get_preset_names() -> list[str]:
     """获取所有预设名称列表"""
     return [p.name for p in PRESETS.values()]
 
 
-def get_preset_keys() -> List[str]:
+def get_preset_keys() -> list[str]:
     """获取所有预设 key 列表"""
     return list(PRESETS.keys())
 
@@ -102,6 +105,7 @@ def apply_preset(graphic, preset_key: str):
         graphic.set_text_color(preset.text_color)
     elif hasattr(graphic, "_text_item"):
         from PySide6.QtGui import QColor
+
         graphic._text_color = QColor(preset.text_color)
         graphic._text_item.setDefaultTextColor(graphic._text_color)
         graphic.update()

@@ -17,8 +17,11 @@
 - _grid_item: QGraphicsPathItem 网格项
 - draw_grid: 是否绘制网格（由 __init__ 设置 True）
 """
-from PySide6.QtGui import QPainter, QPen, QColor, QBrush, QPainterPath
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QBrush, QColor, QPainterPath, QPen
 
 
 class BackgroundRenderer:
@@ -78,7 +81,7 @@ class BackgroundRenderer:
             self.canvas.canvas_width,
             self.canvas.canvas_height,
         )
-        if not need_create and getattr(self._grid_item, '_cache_key', None) == cache_key:
+        if not need_create and getattr(self._grid_item, "_cache_key", None) == cache_key:
             return
 
         cw, ch = self.canvas.canvas_width, self.canvas.canvas_height
@@ -86,11 +89,7 @@ class BackgroundRenderer:
         grid = 20
 
         # DPR 感知线宽：高 DPR 下保证物理像素 1px 锐利网格线
-        dpr = (
-            self.canvas.devicePixelRatioF()
-            if hasattr(self.canvas, 'devicePixelRatioF')
-            else 1.0
-        )
+        dpr = self.canvas.devicePixelRatioF() if hasattr(self.canvas, "devicePixelRatioF") else 1.0
         line_width = 1.0 / dpr
 
         # 像素对齐的网格路径

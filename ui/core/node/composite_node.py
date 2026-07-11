@@ -9,25 +9,28 @@ ui/core/composite_node.py
   - 压缩 → 自动创建节点组 + 锁定（防止用户手动移出节点）
   - 解耦 → 自动解锁 + 删除节点组
 """
-import os
+
+from __future__ import annotations
+
 import json
-import uuid
+import os
 import subprocess
 import sys
-from typing import Dict, List, Optional, Tuple
+import uuid
+from pathlib import Path
 
-from PySide6.QtCore import QPointF, QThread, Signal
+from PySide6.QtCore import QPointF, QThread
 
-from ui.core.logger import logger
 from ui.core.i18n.i18n import t
 from ui.core.i18n.translation_keys import TK
-from ui.core.node.composite_orchestrator import render_orchestrator_script
+from ui.core.logger import logger
 from ui.core.node.composite_env import (
     comp_venv_path,
     get_python_exe,
     merge_requirements,
     remove_comp_env,
 )
+from ui.core.node.composite_orchestrator import render_orchestrator_script
 from ui.core.node.language_detector import LanguageDetector
 
 # ── 与 NodeGroupManager 的绑定规则 ──
@@ -69,20 +72,20 @@ class CompositeNode:
         self._project_path = project_path
         self._canvas = canvas
         self._group_manager = group_manager
-        self._composites: Dict[str, dict] = {}
-        self._config_path = os.path.join(project_path, "node_clusters.json")
-        self._active_processes: Dict[str, subprocess.Popen] = {}
+        self._composites: dict[str, dict] = {}
+        self._config_path = Path(project_path) / "node_clusters.json"
+        self._active_processes: dict[str, subprocess.Popen] = {}
         self.load()
 
     # ── 持久化 ──
 
     def load(self):
-        if os.path.exists(self._config_path):
+        if self._config_path.exists():
             try:
-                with open(self._config_path, 'r', encoding='utf-8') as f:
+                with self._config_path.open(encoding="utf-8") as f:
                     self._composites = json.load(f).get("composites", {})
                 # Auto-collapse any expanded composites from previous session
-                for comp_id, comp in list(self._composites.items()):
+                for _comp_id, comp in list(self._composites.items()):
                     if comp.get("_expanded"):
                         comp["_expanded"] = False
                         if "_drag_anchor_positions" in comp:
@@ -94,24 +97,29 @@ class CompositeNode:
     def save(self):
         """Atomic write to node_clusters.json (immediate, not debounced).
         Uses retry logic to handle transient file locks (antivirus, indexing)."""
-        if getattr(self, '_saving', False):
+        if getattr(self, "_saving", False):
             return  # Concurrent save already in progress
 
         import time
+
         self._saving = True
         try:
-            data = {"composites": self._composites}
-            tmp_path = self._config_path + ".tmp"
+            # Strip non-serializable runtime fields (_morphed_edges contains EdgeItem Qt objects)
+            cleaned = {}
+            for comp_id, comp in self._composites.items():
+                cleaned[comp_id] = {k: v for k, v in comp.items() if k != "_morphed_edges"}
+            data = {"composites": cleaned}
+            tmp_path = Path(str(self._config_path) + ".tmp")
 
             # Write to temp file
-            with open(tmp_path, 'w', encoding='utf-8') as f:
+            with tmp_path.open("w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
 
             # Atomic replace with retry for Windows file lock issues
             max_retries = 3
             for attempt in range(max_retries):
                 try:
-                    os.replace(tmp_path, self._config_path)
+                    tmp_path.replace(self._config_path)
                     break
                 except PermissionError:
                     if attempt < max_retries - 1:
@@ -119,11 +127,10 @@ class CompositeNode:
                     else:
                         # Last resort: delete target then rename
                         try:
-                            os.remove(self._config_path)
-                            os.replace(tmp_path, self._config_path)
+                            self._config_path.unlink()
+                            tmp_path.replace(self._config_path)
                         except Exception:
-                            logger.error("save: cannot write %s after %d retries",
-                                         self._config_path, max_retries)
+                            logger.error("save: cannot write %s after %d retries", self._config_path, max_retries)
                 except OSError as e:
                     logger.error("save: OS error on %s: %s", self._config_path, e)
                     break
@@ -166,14 +173,12 @@ class CompositeNode:
         if not comp:
             return
         self._ensure_port_routing(comp_id)
-        comp["_port_routing"]["input"][port_name] = {
-            "source_output_path": source_output_path
-        }
+        comp["_port_routing"]["input"][port_name] = {"source_output_path": source_output_path}
         self.save_debounced()
 
-    def set_output_routing(self, comp_id: str, port_name: str,
-                           target_composite: str | None,
-                           target_node: str, target_port: str):
+    def set_output_routing(
+        self, comp_id: str, port_name: str, target_composite: str | None, target_node: str, target_port: str
+    ):
         """记录输出端口的路由：本复合节点的输出 → 下游节点。"""
         comp = self._composites.get(comp_id)
         if not comp:
@@ -208,7 +213,8 @@ class CompositeNode:
         """Debounced version: delays write until no further calls for 500ms.
         Used by itemChange during drag to avoid disk I/O spam (60fps)."""
         from PySide6.QtCore import QTimer
-        if not hasattr(self, '_save_timer'):
+
+        if not hasattr(self, "_save_timer"):
             self._save_timer = QTimer()
             self._save_timer.setSingleShot(True)
             self._save_timer.timeout.connect(self.save)
@@ -217,8 +223,7 @@ class CompositeNode:
 
     # ── Port Identification ──
 
-    def _identify_ports(self, node_names: list, edges_list: list,
-                         nodes_data: dict) -> dict:
+    def _identify_ports(self, node_names: list, edges_list: list, nodes_data: dict) -> dict:
         """Identify input and output ports for a composite node.
 
         Input port (exactly one): the node whose listen_upper_file is empty
@@ -244,35 +249,38 @@ class CompositeNode:
         for n in node_names:
             if in_degree[n] == 0:
                 nd = nodes_data.get(n, {})
-                config = nd.get('config', {})
-                listen = config.get('listen_upper_file', '')
+                config = nd.get("config", {})
+                listen = config.get("listen_upper_file", "")
                 if not listen:
-                    input_ports.append({
-                        "internal_node": n,
-                        "type": "input",
-                        "port_name": f"{n}_in",
-                        "display_name": n,
-                    })
+                    input_ports.append(
+                        {
+                            "internal_node": n,
+                            "type": "input",
+                            "port_name": f"{n}_in",
+                            "display_name": n,
+                        }
+                    )
                     break  # Only one input port
 
         # Output ports: all DAG leaf nodes (out_degree 0)
         output_ports = []
         for n in node_names:
             if out_degree[n] == 0:
-                output_ports.append({
-                    "internal_node": n,
-                    "type": "output",
-                    "port_name": f"{n}_out",
-                    "display_name": n,
-                })
+                output_ports.append(
+                    {
+                        "internal_node": n,
+                        "type": "output",
+                        "port_name": f"{n}_out",
+                        "display_name": n,
+                    }
+                )
 
         return {
             "input_ports": input_ports,
             "output_ports": output_ports,
         }
 
-    def _validate_dag_single_entry(self, node_names: list, edges_list: list,
-                                    nodes_data: dict) -> Tuple[bool, str]:
+    def _validate_dag_single_entry(self, node_names: list, edges_list: list, nodes_data: dict) -> tuple[bool, str]:
         """Validate DAG has exactly one entry node (in_degree==0, empty listen_upper_file).
 
         防错机制：复合节点必须为单入口 DAG（A→B→C 或 A→B 同时 A→C）。
@@ -290,15 +298,14 @@ class CompositeNode:
         for n in node_names:
             if in_degree[n] == 0:
                 nd = nodes_data.get(n, {})
-                config = nd.get('config', {})
-                if not config.get('listen_upper_file', ''):
+                config = nd.get("config", {})
+                if not config.get("listen_upper_file", ""):
                     candidates.append(n)
 
         if len(candidates) == 0:
             return False, t(TK._COMPOSITE_NO_ENTRY)
         if len(candidates) > 1:
-            return False, t(TK._COMPOSITE_MULTI_ENTRY).format(
-                count=len(candidates), nodes=", ".join(candidates))
+            return False, t(TK._COMPOSITE_MULTI_ENTRY).format(count=len(candidates), nodes=", ".join(candidates))
         return True, ""
 
     def get_ports(self, comp_id: str) -> dict:
@@ -394,10 +401,7 @@ class CompositeNode:
                 item = self._canvas.nodes.get(n)
                 if item:
                     pos = positions.get(n, {"x": 0, "y": 0})
-                    item.setPos(
-                        comp_pos.get("x", 0) + pos.get("x", 0),
-                        comp_pos.get("y", 0) + pos.get("y", 0)
-                    )
+                    item.setPos(comp_pos.get("x", 0) + pos.get("x", 0), comp_pos.get("y", 0) + pos.get("y", 0))
                     item.setVisible(True)
                     child_items.append(item)
         finally:
@@ -409,14 +413,15 @@ class CompositeNode:
         # Restore internal edges that were hidden during compression
         for info in comp.get("_internal_edges", []):
             for edge in self._canvas.edges:
-                src_name = edge.start_node.node_name if hasattr(edge.start_node, 'node_name') else ''
-                tgt_name = edge.end_node.node_name if hasattr(edge.end_node, 'node_name') else ''
+                src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
+                tgt_name = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else ""
                 if src_name == info["src"] and tgt_name == info["tgt"]:
                     edge.setVisible(True)
                     edge.update_path()
                     break
 
         from ui.canvas.items.composite_group_frame import CompositeGroupFrame
+
         frame = CompositeGroupFrame(
             comp_id=comp_id,
             display_name=comp.get("display_name", ""),
@@ -445,19 +450,16 @@ class CompositeNode:
         node_set = set(node_names)
         edges_list = []
         for edge_item in self._canvas.edges:
-            src = edge_item.start_node.node_name if hasattr(edge_item.start_node, 'node_name') else ''
-            tgt = edge_item.end_node.node_name if hasattr(edge_item.end_node, 'node_name') else ''
+            src = edge_item.start_node.node_name if hasattr(edge_item.start_node, "node_name") else ""
+            tgt = edge_item.end_node.node_name if hasattr(edge_item.end_node, "node_name") else ""
             if src in node_set and tgt in node_set:
                 edges_list.append({"from": src, "to": tgt})
         nodes_data = self._canvas.parent_window.nodes_data if self._canvas.parent_window else {}
         is_valid, err_msg = self._validate_dag_single_entry(node_names, edges_list, nodes_data)
         if not is_valid:
             from PySide6.QtWidgets import QMessageBox
-            QMessageBox.warning(
-                None,
-                t(TK.COMPOSITE_COLLAPSE_BLOCKED_TITLE),
-                err_msg
-            )
+
+            QMessageBox.warning(None, t(TK.COMPOSITE_COLLAPSE_BLOCKED_TITLE), err_msg)
             logger.warning("collapse blocked for %s: %s", comp_id, err_msg)
             return
 
@@ -468,7 +470,7 @@ class CompositeNode:
             if item and item.isVisible():
                 comp["original_positions"][n] = {
                     "x": item.pos().x() - comp_pos.get("x", 0),
-                    "y": item.pos().y() - comp_pos.get("y", 0)
+                    "y": item.pos().y() - comp_pos.get("y", 0),
                 }
                 item.setVisible(False)
 
@@ -476,16 +478,18 @@ class CompositeNode:
         node_set = set(node_names)
         internal_edge_info = []
         for edge in self._canvas.edges:
-            src_name = edge.start_node.node_name if hasattr(edge.start_node, 'node_name') else ''
-            tgt_name = edge.end_node.node_name if hasattr(edge.end_node, 'node_name') else ''
+            src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
+            tgt_name = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else ""
             if src_name in node_set and tgt_name in node_set:
                 if edge.isVisible():
-                    internal_edge_info.append({
-                        "src": src_name,
-                        "tgt": tgt_name,
-                        "src_port": getattr(edge, 'source_port_name', ''),
-                        "tgt_port": getattr(edge, 'target_port_name', ''),
-                    })
+                    internal_edge_info.append(
+                        {
+                            "src": src_name,
+                            "tgt": tgt_name,
+                            "src_port": getattr(edge, "source_port_name", ""),
+                            "tgt_port": getattr(edge, "target_port_name", ""),
+                        }
+                    )
                 edge.setVisible(False)
         comp["_internal_edges"] = internal_edge_info
 
@@ -518,8 +522,8 @@ class CompositeNode:
         node_set = set(node_names)
         edges_list = []
         for edge_item in self._canvas.edges:
-            src = edge_item.start_node.node_name if hasattr(edge_item.start_node, 'node_name') else ''
-            tgt = edge_item.end_node.node_name if hasattr(edge_item.end_node, 'node_name') else ''
+            src = edge_item.start_node.node_name if hasattr(edge_item.start_node, "node_name") else ""
+            tgt = edge_item.end_node.node_name if hasattr(edge_item.end_node, "node_name") else ""
             if src in node_set and tgt in node_set:
                 edges_list.append({"from": src, "to": tgt})
 
@@ -527,10 +531,10 @@ class CompositeNode:
         saved_edges = []
         for edge in list(self._canvas.edges):
             if edge.start_node is comp_item:
-                port_name = getattr(getattr(edge, '_source_anchor', None), 'port_name', '')
+                port_name = getattr(getattr(edge, "_source_anchor", None), "port_name", "")
                 saved_edges.append({"edge": edge, "direction": "output", "port_name": port_name})
             elif edge.end_node is comp_item:
-                port_name = getattr(getattr(edge, '_target_anchor', None), 'port_name', '')
+                port_name = getattr(getattr(edge, "_target_anchor", None), "port_name", "")
                 saved_edges.append({"edge": edge, "direction": "input", "port_name": port_name})
 
         nodes_data = self._canvas.parent_window.nodes_data if self._canvas.parent_window else {}
@@ -541,10 +545,7 @@ class CompositeNode:
             comp["input_ports"] = new_ports.get("input_ports", [])
             comp["output_ports"] = new_ports.get("output_ports", [])
 
-        comp_item.update_ports(
-            new_ports.get("input_ports", []),
-            new_ports.get("output_ports", [])
-        )
+        comp_item.update_ports(new_ports.get("input_ports", []), new_ports.get("output_ports", []))
 
         # Re-bind saved edges to new anchors (or remove if port no longer exists)
         for info in saved_edges:
@@ -560,8 +561,11 @@ class CompositeNode:
                         self._canvas.edges.remove(edge)
                     if edge.scene():
                         edge.scene().removeItem(edge)
-                    logger.info("collapse: removed stale output edge %s (port %s gone)",
-                                getattr(edge, 'edge_id', ''), info["port_name"])
+                    logger.info(
+                        "collapse: removed stale output edge %s (port %s gone)",
+                        getattr(edge, "edge_id", ""),
+                        info["port_name"],
+                    )
             else:
                 new_anchor = comp_item.find_anchor_by_port(info["port_name"], "input")
                 if new_anchor:
@@ -572,8 +576,11 @@ class CompositeNode:
                         self._canvas.edges.remove(edge)
                     if edge.scene():
                         edge.scene().removeItem(edge)
-                    logger.info("collapse: removed stale input edge %s (port %s gone)",
-                                getattr(edge, 'edge_id', ''), info["port_name"])
+                    logger.info(
+                        "collapse: removed stale input edge %s (port %s gone)",
+                        getattr(edge, "edge_id", ""),
+                        info["port_name"],
+                    )
 
         # ── Clean up stale _port_routing entries ──
         # When internal node changes (e.g. receiver replaced), old port names
@@ -597,8 +604,8 @@ class CompositeNode:
         for edge in self._canvas.edges:
             if edge in updated:
                 continue
-            src_name = edge.start_node.node_name if hasattr(edge.start_node, 'node_name') else ''
-            tgt_name = edge.end_node.node_name if hasattr(edge.end_node, 'node_name') else ''
+            src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
+            tgt_name = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else ""
             if src_name in node_set or tgt_name in node_set:
                 if edge._waypoints and not isinstance(edge._waypoints[0], tuple):
                     edge._sync_abs_to_rel()
@@ -608,6 +615,7 @@ class CompositeNode:
     def _hide_composite_edges(self, comp_id: str):
         """Hide all edges connected to a composite node item."""
         from PySide6.QtCore import Qt
+
         comp_item = self._canvas.nodes.get(comp_id) if self._canvas else None
         if not comp_item:
             return
@@ -619,19 +627,19 @@ class CompositeNode:
     def _show_composite_edges(self, comp_id: str):
         """Restore visibility of edges connected to a composite node item."""
         from PySide6.QtCore import Qt
+
         comp_item = self._canvas.nodes.get(comp_id) if self._canvas else None
         if not comp_item:
             return
         for edge in self._canvas.edges:
             if edge.start_node is comp_item or edge.end_node is comp_item:
                 edge.setVisible(True)
-                edge.setAcceptedMouseButtons(
-                    Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton
-                )
+                edge.setAcceptedMouseButtons(Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton)
 
     def _hide_internal_external_edges(self, comp_id: str, node_names: list):
         """Hide edges where one endpoint is internal and the other is external."""
         from PySide6.QtCore import Qt
+
         if not self._canvas:
             return
         node_set = set(node_names)
@@ -639,18 +647,20 @@ class CompositeNode:
         self._composites.setdefault(comp_id, {})["_hidden_external_edges"] = []
         hidden = self._composites[comp_id]["_hidden_external_edges"]
         for edge in self._canvas.edges:
-            src_name = edge.start_node.node_name if hasattr(edge.start_node, 'node_name') else ''
-            tgt_name = edge.end_node.node_name if hasattr(edge.end_node, 'node_name') else ''
+            src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
+            tgt_name = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else ""
             src_in = src_name in node_set
             tgt_in = tgt_name in node_set
             if src_in != tgt_in:  # One inside, one outside
                 # Store edge info for restoration
-                hidden.append({
-                    "src": src_name,
-                    "tgt": tgt_name,
-                    "src_port": getattr(edge, 'source_port_name', ''),
-                    "tgt_port": getattr(edge, 'target_port_name', ''),
-                })
+                hidden.append(
+                    {
+                        "src": src_name,
+                        "tgt": tgt_name,
+                        "src_port": getattr(edge, "source_port_name", ""),
+                        "tgt_port": getattr(edge, "target_port_name", ""),
+                    }
+                )
                 edge.setVisible(False)
                 edge.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
 
@@ -658,6 +668,7 @@ class CompositeNode:
         """Restore visibility of internal↔external edges.
         Skips edges where the external endpoint belongs to another currently-expanded composite."""
         from PySide6.QtCore import Qt
+
         if not self._canvas:
             return
         comp = self._composites.get(comp_id, {})
@@ -679,20 +690,17 @@ class CompositeNode:
             if external_name in other_protected:
                 continue
             for edge in self._canvas.edges:
-                src_name = edge.start_node.node_name if hasattr(edge.start_node, 'node_name') else ''
-                tgt_name = edge.end_node.node_name if hasattr(edge.end_node, 'node_name') else ''
+                src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
+                tgt_name = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else ""
                 if src_name == info["src"] and tgt_name == info["tgt"]:
                     edge.setVisible(True)
-                    edge.setAcceptedMouseButtons(
-                        Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton
-                    )
+                    edge.setAcceptedMouseButtons(Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton)
                     break
         comp["_hidden_external_edges"] = []
 
     # ── Edge morphing (expand ↔ collapse) ──
 
-    def _morph_composite_to_internal_edges(self, comp_id: str, comp_item,
-                                           node_names: list):
+    def _morph_composite_to_internal_edges(self, comp_id: str, comp_item, node_names: list):
         """During expand: turn composite↔external edges into internal_node↔external edges.
 
         For each output port "node_b_out" → internal "node_b":
@@ -704,6 +712,7 @@ class CompositeNode:
             edge [internal_node_item("node_a") → external]
         """
         from PySide6.QtCore import Qt
+
         from ui.canvas.items.edge_item import EdgeItem
 
         comp = self._composites.get(comp_id, {})
@@ -718,8 +727,8 @@ class CompositeNode:
         for edge in list(self._canvas.edges):
             # External node → composite input anchor
             if edge.end_node is comp_item:
-                tgt_anchor = getattr(edge, '_target_anchor', None)
-                port_name = getattr(tgt_anchor, 'port_name', '')
+                tgt_anchor = getattr(edge, "_target_anchor", None)
+                port_name = getattr(tgt_anchor, "port_name", "")
                 internal_name = port_to_internal.get(port_name)
                 if internal_name:
                     internal_item = self._canvas.nodes.get(internal_name)
@@ -727,9 +736,11 @@ class CompositeNode:
                         edge.setVisible(False)
                         edge.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
                         temp = EdgeItem(
-                            edge.start_node, internal_item, self._canvas,
+                            edge.start_node,
+                            internal_item,
+                            self._canvas,
                             target_anchor=internal_item.input_anchor,
-                            source_anchor=getattr(edge, '_source_anchor', None),
+                            source_anchor=getattr(edge, "_source_anchor", None),
                         )
                         self._canvas.scene.addItem(temp)
                         self._canvas.edges.append(temp)
@@ -738,8 +749,8 @@ class CompositeNode:
 
             # Composite output anchor → external node
             elif edge.start_node is comp_item:
-                src_anchor = getattr(edge, '_source_anchor', None)
-                port_name = getattr(src_anchor, 'port_name', '')
+                src_anchor = getattr(edge, "_source_anchor", None)
+                port_name = getattr(src_anchor, "port_name", "")
                 internal_name = port_to_internal.get(port_name)
                 if internal_name:
                     internal_item = self._canvas.nodes.get(internal_name)
@@ -747,8 +758,10 @@ class CompositeNode:
                         edge.setVisible(False)
                         edge.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
                         temp = EdgeItem(
-                            internal_item, edge.end_node, self._canvas,
-                            target_anchor=getattr(edge, '_target_anchor', None),
+                            internal_item,
+                            edge.end_node,
+                            self._canvas,
+                            target_anchor=getattr(edge, "_target_anchor", None),
                             source_anchor=internal_item.output_anchor,
                         )
                         self._canvas.scene.addItem(temp)
@@ -761,11 +774,11 @@ class CompositeNode:
         # ── Sync config.json for expanded state ──
         self._sync_configs_for_expand(comp_id, node_names, port_to_internal)
 
-    def _morph_internal_to_composite_edges(self, comp_id: str, comp_item,
-                                           node_names: list):
+    def _morph_internal_to_composite_edges(self, comp_id: str, comp_item, node_names: list):
         """During collapse: remove temporary internal-node edges and show
         original composite-connected edges. Handles new edges added while expanded."""
         from PySide6.QtCore import Qt
+
         comp = self._composites.get(comp_id, {})
         morphed = comp.get("_morphed_edges", [])
 
@@ -784,15 +797,14 @@ class CompositeNode:
                 temp.scene().removeItem(temp)
             # Show original composite edge
             original.setVisible(True)
-            original.setAcceptedMouseButtons(
-                Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton)
+            original.setAcceptedMouseButtons(Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton)
             original.update_path()
 
         # Hide any NEW internal↔external edges added while expanded
         # (these will be captured as ports by _refresh_ports_on_collapse)
         for edge in self._canvas.edges:
-            src_name = edge.start_node.node_name if hasattr(edge.start_node, 'node_name') else ''
-            tgt_name = edge.end_node.node_name if hasattr(edge.end_node, 'node_name') else ''
+            src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
+            tgt_name = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else ""
             if (src_name in node_set) != (tgt_name in node_set):
                 if edge.isVisible():
                     edge.setVisible(False)
@@ -818,14 +830,15 @@ class CompositeNode:
           add out_connections entry → external target
         """
         import json as _json
+
         node_set = set(node_names)
-        nodes_dir = os.path.join(self._project_path, "nodes")
+        nodes_dir = Path(self._project_path) / "nodes"
         if not self._canvas:
             return
 
         # Build map: internal_name → external_infos
-        in_conns: Dict[str, list] = {}  # internal_name → [{source_name, source_path, port_name}]
-        out_conns: Dict[str, list] = {}  # internal_name → [{target_name, target_port, port_name}]
+        in_conns: dict[str, list] = {}  # internal_name → [{source_name, source_path, port_name}]
+        out_conns: dict[str, list] = {}  # internal_name → [{target_name, target_port, port_name}]
 
         for edge in self._canvas.edges:
             if not edge.isVisible():
@@ -834,30 +847,34 @@ class CompositeNode:
             tgt = edge.end_node
             if src is None or tgt is None:
                 continue
-            src_name = src.node_name if hasattr(src, 'node_name') else ''
-            tgt_name = tgt.node_name if hasattr(tgt, 'node_name') else ''
+            src_name = src.node_name if hasattr(src, "node_name") else ""
+            tgt_name = tgt.node_name if hasattr(tgt, "node_name") else ""
             if not src_name or not tgt_name:
                 continue
 
             # External → internal (input direction)
             if src_name not in node_set and tgt_name in node_set:
-                port_name = getattr(getattr(edge, '_target_anchor', None), 'port_name', '') or 'default'
-                src_path = os.path.abspath(os.path.join(nodes_dir, src_name, "output.json"))
-                in_conns.setdefault(tgt_name, []).append({
-                    "source_name": src_name,
-                    "source_path": src_path,
-                    "port_name": port_name,
-                })
+                port_name = getattr(getattr(edge, "_target_anchor", None), "port_name", "") or "default"
+                src_path = str((nodes_dir / src_name / "output.json").resolve())
+                in_conns.setdefault(tgt_name, []).append(
+                    {
+                        "source_name": src_name,
+                        "source_path": src_path,
+                        "port_name": port_name,
+                    }
+                )
 
             # Internal → external (output direction)
             if src_name in node_set and tgt_name not in node_set:
-                port_name = getattr(getattr(edge, '_source_anchor', None), 'port_name', '') or 'default'
-                tgt_port = getattr(getattr(edge, '_target_anchor', None), 'port_name', '') or 'default'
-                out_conns.setdefault(src_name, []).append({
-                    "target_name": tgt_name,
-                    "target_port": tgt_port,
-                    "port_name": port_name,
-                })
+                port_name = getattr(getattr(edge, "_source_anchor", None), "port_name", "") or "default"
+                tgt_port = getattr(getattr(edge, "_target_anchor", None), "port_name", "") or "default"
+                out_conns.setdefault(src_name, []).append(
+                    {
+                        "target_name": tgt_name,
+                        "target_port": tgt_port,
+                        "port_name": port_name,
+                    }
+                )
 
         # ── Phase 2: also read from _port_routing ──
         routing = self._get_port_routing(comp_id)
@@ -866,56 +883,60 @@ class CompositeNode:
             if internal_name and internal_name in node_set:
                 src_path = route.get("source_output_path", "")
                 if src_path:
-                    in_conns.setdefault(internal_name, []).append({
-                        "source_name": self._extract_node_from_path(src_path) or "external",
-                        "source_path": src_path,
-                        "port_name": port_name,
-                    })
+                    in_conns.setdefault(internal_name, []).append(
+                        {
+                            "source_name": self._extract_node_from_path(src_path) or "external",
+                            "source_path": src_path,
+                            "port_name": port_name,
+                        }
+                    )
         for port_name, route in routing.get("output", {}).items():
             internal_name = port_to_internal.get(port_name)
             if internal_name and internal_name in node_set:
                 tgt_node = route.get("target_node", "")
                 tgt_port = route.get("target_port", "default")
                 if tgt_node:
-                    out_conns.setdefault(internal_name, []).append({
-                        "target_name": tgt_node,
-                        "target_port": tgt_port,
-                        "port_name": port_name,
-                    })
+                    out_conns.setdefault(internal_name, []).append(
+                        {
+                            "target_name": tgt_node,
+                            "target_port": tgt_port,
+                            "port_name": port_name,
+                        }
+                    )
 
         # Apply input connections
         for internal_name, entries in in_conns.items():
-            config_path = os.path.join(nodes_dir, internal_name, "config.json")
+            config_path = nodes_dir / internal_name / "config.json"
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with config_path.open(encoding="utf-8") as f:
                     cfg = _json.load(f)
             except Exception:
                 cfg = {}
-            cfg['listen_upper_file'] = entries[0]["source_path"]
+            cfg["listen_upper_file"] = entries[0]["source_path"]
             try:
-                with open(config_path, 'w', encoding='utf-8') as f:
+                with config_path.open("w", encoding="utf-8") as f:
                     _json.dump(cfg, f, indent=2, ensure_ascii=False)
-                logger.info("expand sync: %s listen_upper_file → %s",
-                            internal_name, entries[0]["source_path"])
+                logger.info("expand sync: %s listen_upper_file → %s", internal_name, entries[0]["source_path"])
             except Exception as e:
                 logger.error("expand sync %s: %s", internal_name, e)
 
         # Apply output connections
         for internal_name, entries in out_conns.items():
-            config_path = os.path.join(nodes_dir, internal_name, "config.json")
+            config_path = nodes_dir / internal_name / "config.json"
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with config_path.open(encoding="utf-8") as f:
                     cfg = _json.load(f)
             except Exception:
                 cfg = {}
-            cfg.setdefault('out_connections', {})
+            cfg.setdefault("out_connections", {})
             for entry in entries:
-                cfg['out_connections'][entry["port_name"]] = f"{entry['target_name']}|{entry['target_port']}"
+                cfg["out_connections"][entry["port_name"]] = f"{entry['target_name']}|{entry['target_port']}"
             try:
-                with open(config_path, 'w', encoding='utf-8') as f:
+                with config_path.open("w", encoding="utf-8") as f:
                     _json.dump(cfg, f, indent=2, ensure_ascii=False)
-                logger.info("expand sync: %s out_connections updated: %s",
-                            internal_name, list(cfg['out_connections'].keys()))
+                logger.info(
+                    "expand sync: %s out_connections updated: %s", internal_name, list(cfg["out_connections"].keys())
+                )
             except Exception as e:
                 logger.error("expand sync %s: %s", internal_name, e)
 
@@ -926,8 +947,9 @@ class CompositeNode:
         Phase 2: Clear listen_upper_file / out_connections pointing outside the composite
         """
         import json as _json
+
         node_set = set(node_names)
-        nodes_dir = os.path.join(self._project_path, "nodes")
+        nodes_dir = Path(self._project_path) / "nodes"
 
         # Build reverse mapping: internal_node → (port_name, port_type)
         comp = self._composites.get(comp_id, {})
@@ -940,42 +962,48 @@ class CompositeNode:
 
         # ── Phase 1: sync external refs back to _port_routing ──
         for node_name in node_names:
-            config_path = os.path.join(nodes_dir, node_name, "config.json")
+            config_path = nodes_dir / node_name / "config.json"
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with config_path.open(encoding="utf-8") as f:
                     cfg = _json.load(f)
             except Exception:
                 continue
 
             # Input direction: listen_upper_file pointing externally
-            listen = cfg.get('listen_upper_file', '')
+            listen = cfg.get("listen_upper_file", "")
             if listen:
                 upstream = self._extract_node_from_path(listen)
                 if upstream and upstream not in node_set:
                     port_name = internal_to_input_port.get(node_name, "")
                     if port_name:
                         self.set_input_routing(comp_id, port_name, listen)
-                        logger.info("collapse sync: _port_routing input[%s] ← %s (from %s)",
-                                    port_name, listen, node_name)
+                        logger.info(
+                            "collapse sync: _port_routing input[%s] ← %s (from %s)", port_name, listen, node_name
+                        )
 
             # Output direction: out_connections pointing externally
-            out_conns = cfg.get('out_connections', {})
-            for port_key, target in out_conns.items():
+            out_conns = cfg.get("out_connections", {})
+            for _port_key, target in out_conns.items():
                 if isinstance(target, str) and target:
-                    ext_node = target.split('|')[0]
+                    ext_node = target.split("|")[0]
                     if ext_node and ext_node not in node_set:
-                        tgt_port = target.split('|')[1] if '|' in target else 'default'
+                        tgt_port = target.split("|")[1] if "|" in target else "default"
                         port_name = internal_to_output_port.get(node_name, "")
                         if port_name:
                             self.set_output_routing(comp_id, port_name, None, ext_node, tgt_port)
-                            logger.info("collapse sync: _port_routing output[%s] → %s|%s (from %s)",
-                                        port_name, ext_node, tgt_port, node_name)
+                            logger.info(
+                                "collapse sync: _port_routing output[%s] → %s|%s (from %s)",
+                                port_name,
+                                ext_node,
+                                tgt_port,
+                                node_name,
+                            )
 
         # ── Phase 2: clear external refs from internal configs ──
         for node_name in node_names:
-            config_path = os.path.join(nodes_dir, node_name, "config.json")
+            config_path = nodes_dir / node_name / "config.json"
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with config_path.open(encoding="utf-8") as f:
                     cfg = _json.load(f)
             except Exception:
                 continue
@@ -983,19 +1011,19 @@ class CompositeNode:
             changed = False
 
             # Clear listen_upper_file if it points externally
-            listen = cfg.get('listen_upper_file', '')
+            listen = cfg.get("listen_upper_file", "")
             if listen:
                 upstream = self._extract_node_from_path(listen)
                 if upstream and upstream not in node_set:
-                    cfg['listen_upper_file'] = ''
+                    cfg["listen_upper_file"] = ""
                     changed = True
                     logger.info("collapse sync: %s listen_upper_file cleared (was → %s)", node_name, upstream)
 
             # Remove out_connections entries pointing externally
-            out_conns = cfg.get('out_connections', {})
+            out_conns = cfg.get("out_connections", {})
             to_remove = []
             for port_key, target in list(out_conns.items()):
-                ext_node = target.split('|')[0] if isinstance(target, str) else ''
+                ext_node = target.split("|")[0] if isinstance(target, str) else ""
                 if ext_node and ext_node not in node_set:
                     to_remove.append(port_key)
             for port_key in to_remove:
@@ -1005,29 +1033,30 @@ class CompositeNode:
 
             if changed:
                 try:
-                    with open(config_path, 'w', encoding='utf-8') as f:
+                    with config_path.open("w", encoding="utf-8") as f:
                         _json.dump(cfg, f, indent=2, ensure_ascii=False)
                 except Exception as e:
                     logger.error("collapse sync %s: %s", node_name, e)
 
     @staticmethod
-    def _extract_node_from_path(file_path: str) -> Optional[str]:
+    def _extract_node_from_path(file_path: str) -> str | None:
         """Extract a node name from a file path like .../nodes/<name>/output.json."""
         if not file_path:
             return None
         import re
-        normalized = file_path.replace('\\', '/')
-        m = re.search(r'/nodes/([^/]+)', normalized)
+
+        normalized = file_path.replace("\\", "/")
+        m = re.search(r"/nodes/([^/]+)", normalized)
         if m:
             return m.group(1)
-        m = re.search(r'\.\./([^/]+)/output\.json', normalized)
+        m = re.search(r"\.\./([^/]+)/output\.json", normalized)
         if m:
             return m.group(1)
         return None
 
     # ── 核心操作 ──
 
-    def compress(self, node_names: list, name: str = "") -> Tuple[bool, str, Optional[str]]:
+    def compress(self, node_names: list, name: str = "") -> tuple[bool, str, str | None]:
         """
         将多个节点压缩为复合节点。
 
@@ -1058,17 +1087,17 @@ class CompositeNode:
                 return False, t(TK._COMPOSITE_NOT_ON_CANVAS).format(name=n), None
             if self._canvas.parent_window:
                 node_data = self._canvas.parent_window.nodes_data.get(n, {})
-                status = node_data.get('status', '')
-                if status in ('running', 'idle', 'starting', 'stopping'):
+                status = node_data.get("status", "")
+                if status in ("running", "idle", "starting", "stopping"):
                     return False, t(TK._COMPOSITE_RUNNING).format(name=n, status=status), None
 
         # Language compatibility check
         node_paths_map = {}
         for n in node_names:
             node_data = self._canvas.parent_window.nodes_data.get(n, {}) if self._canvas.parent_window else {}
-            node_path = node_data.get('path', '')
+            node_path = node_data.get("path", "")
             if not node_path:
-                node_path = os.path.join(self._project_path, "nodes", n)
+                node_path = str(Path(self._project_path) / "nodes" / n)
             node_paths_map[n] = node_path
         common_lang = LanguageDetector.detect_multi(list(node_paths_map.values()))
         if common_lang == "Unknown":
@@ -1086,8 +1115,8 @@ class CompositeNode:
         node_set = set(node_names)
         edges_list = []
         for edge_item in self._canvas.edges:
-            src = edge_item.start_node.node_name if hasattr(edge_item.start_node, 'node_name') else ''
-            tgt = edge_item.end_node.node_name if hasattr(edge_item.end_node, 'node_name') else ''
+            src = edge_item.start_node.node_name if hasattr(edge_item.start_node, "node_name") else ""
+            tgt = edge_item.end_node.node_name if hasattr(edge_item.end_node, "node_name") else ""
             if src in node_set and tgt in node_set:
                 edges_list.append({"from": src, "to": tgt})
         cycle_nodes = self._has_cycle(node_set, edges_list)
@@ -1160,11 +1189,8 @@ class CompositeNode:
 
         if not ok:
             from PySide6.QtWidgets import QMessageBox
-            QMessageBox.warning(
-                None,
-                "Composite Env Failed",
-                f"Failed to set up composite environment:\n{msg}"
-            )
+
+            QMessageBox.warning(None, "Composite Env Failed", f"Failed to set up composite environment:\n{msg}")
             return
 
         # Phase 3: Canvas operations (must run on main thread — Qt rule)
@@ -1202,7 +1228,7 @@ class CompositeNode:
         # Canvas
         self._canvas_compress(comp_id, node_names, cx, cy, display_name, ports)
 
-    def decompress(self, comp_id: str) -> Tuple[bool, str]:
+    def decompress(self, comp_id: str) -> tuple[bool, str]:
         """
         解耦复合节点为独立节点。
 
@@ -1248,18 +1274,17 @@ class CompositeNode:
         self.save()
 
         # 清理 orchestrator 和复合节点 venv
-        orch_path = os.path.join(self._project_path, f"orchestrator_{comp_id}.py")
+        orch_path = Path(self._project_path) / f"orchestrator_{comp_id}.py"
         try:
-            os.remove(orch_path)
+            orch_path.unlink()
         except OSError:
             pass
 
-        remove_comp_env(self._project_path, comp_id,
-                        comp.get("display_name", ""), logger)
+        remove_comp_env(self._project_path, comp_id, comp.get("display_name", ""), logger)
 
         return True, t(TK._COMPOSITE_DECOMPRESSED).format(n=len(node_names))
 
-    def set_runtime(self, comp_id: str, mode: str) -> Tuple[bool, str]:
+    def set_runtime(self, comp_id: str, mode: str) -> tuple[bool, str]:
         """切换运行时模式。"""
         if comp_id not in self._composites:
             return False, t(TK.COMPOSITE_NOT_FOUND)
@@ -1272,15 +1297,15 @@ class CompositeNode:
         self.save()
         return True, t(TK._COMPOSITE_MODE_SET).format(mode=mode)
 
-    def get_runtime(self, comp_id: str) -> Optional[str]:
+    def get_runtime(self, comp_id: str) -> str | None:
         c = self._composites.get(comp_id)
         return c.get("runtime") if c else None
 
-    def get_nodes(self, comp_id: str) -> List[str]:
+    def get_nodes(self, comp_id: str) -> list[str]:
         c = self._composites.get(comp_id)
         return list(c["nodes"]) if c else []
 
-    def get_all_composites(self) -> Dict[str, dict]:
+    def get_all_composites(self) -> dict[str, dict]:
         return dict(self._composites)
 
     def get_node_count(self, comp_id: str) -> int:
@@ -1288,25 +1313,27 @@ class CompositeNode:
 
     # ── DAG ──
 
-    def get_dag(self, comp_id: str) -> List[dict]:
+    def get_dag(self, comp_id: str) -> list[dict]:
         """推导复合节点内部的 DAG（原画布连线）。"""
         node_set = set(self.get_nodes(comp_id))
         if not self._canvas:
             return []
         edges_list = []
         for edge_item in self._canvas.edges:
-            src = edge_item.start_node.node_name if hasattr(edge_item.start_node, 'node_name') else ''
-            tgt = edge_item.end_node.node_name if hasattr(edge_item.end_node, 'node_name') else ''
+            src = edge_item.start_node.node_name if hasattr(edge_item.start_node, "node_name") else ""
+            tgt = edge_item.end_node.node_name if hasattr(edge_item.end_node, "node_name") else ""
             if src in node_set and tgt in node_set:
-                edges_list.append({
-                    "from": src,
-                    "to": tgt,
-                    "source_port": getattr(edge_item, 'source_port_name', '') or '',
-                    "target_port": getattr(edge_item, 'target_port_name', '') or ''
-                })
+                edges_list.append(
+                    {
+                        "from": src,
+                        "to": tgt,
+                        "source_port": getattr(edge_item, "source_port_name", "") or "",
+                        "target_port": getattr(edge_item, "target_port_name", "") or "",
+                    }
+                )
         return edges_list
 
-    def _topo_sort_nodes(self, comp_id: str) -> List[str]:
+    def _topo_sort_nodes(self, comp_id: str) -> list[str]:
         """拓扑排序节点列表。"""
         dag = self.get_dag(comp_id)
         nodes_set = set(self.get_nodes(comp_id))
@@ -1329,7 +1356,7 @@ class CompositeNode:
                     q.append(nb)
         return result
 
-    def _has_cycle(self, node_set: set, edges_list: List[dict]) -> list:
+    def _has_cycle(self, node_set: set, edges_list: list[dict]) -> list:
         """检测 DAG 中是否存在环。返回环中节点列表或空列表（BFS 拓扑排序）。"""
         if not edges_list:
             return []
@@ -1368,25 +1395,29 @@ class CompositeNode:
 
         inputs, outputs = [], []
         for edge_item in self._canvas.edges:
-            src = edge_item.start_node.node_name if hasattr(edge_item.start_node, 'node_name') else ''
-            tgt = edge_item.end_node.node_name if hasattr(edge_item.end_node, 'node_name') else ''
+            src = edge_item.start_node.node_name if hasattr(edge_item.start_node, "node_name") else ""
+            tgt = edge_item.end_node.node_name if hasattr(edge_item.end_node, "node_name") else ""
             src_in = src in node_set
             tgt_in = tgt in node_set
 
             if src_in and not tgt_in:
-                outputs.append({
-                    "name": f"{src}_to_{tgt}",
-                    "internal_node": src,
-                    "external_node": tgt,
-                    "port": getattr(edge_item, 'source_port_name', '') or "output"
-                })
+                outputs.append(
+                    {
+                        "name": f"{src}_to_{tgt}",
+                        "internal_node": src,
+                        "external_node": tgt,
+                        "port": getattr(edge_item, "source_port_name", "") or "output",
+                    }
+                )
             elif not src_in and tgt_in:
-                inputs.append({
-                    "name": f"{src}_to_{tgt}",
-                    "external_node": src,
-                    "internal_node": tgt,
-                    "port": getattr(edge_item, 'target_port_name', '') or "input"
-                })
+                inputs.append(
+                    {
+                        "name": f"{src}_to_{tgt}",
+                        "external_node": src,
+                        "internal_node": tgt,
+                        "port": getattr(edge_item, "target_port_name", "") or "input",
+                    }
+                )
 
         return {"inputs": inputs, "outputs": outputs}
 
@@ -1400,27 +1431,18 @@ class CompositeNode:
 
         node_modules = []
         for name in nodes_list:
-            node_modules.append({
-                "name": name,
-                "module": f"nodes.{name}.main",
-                "path": f"./nodes/{name}"
-            })
+            node_modules.append({"name": name, "module": f"nodes.{name}.main", "path": f"./nodes/{name}"})
 
-        code = render_orchestrator_script(
-            comp_id=comp_id,
-            node_modules=node_modules,
-            dag=dag,
-            external_ports=ports
-        )
-        orch_path = os.path.join(self._project_path, f"orchestrator_{comp_id}.py")
-        with open(orch_path, 'w', encoding='utf-8') as f:
+        code = render_orchestrator_script(comp_id=comp_id, node_modules=node_modules, dag=dag, external_ports=ports)
+        orch_path = Path(self._project_path) / f"orchestrator_{comp_id}.py"
+        with orch_path.open("w", encoding="utf-8") as f:
             f.write(code)
 
-        self._composites[comp_id]["orchestrator_path"] = orch_path
+        self._composites[comp_id]["orchestrator_path"] = str(orch_path)
         self.save()
-        return orch_path
+        return str(orch_path)
 
-    def start_inprocess(self, comp_id: str) -> Tuple[bool, str]:
+    def start_inprocess(self, comp_id: str) -> tuple[bool, str]:
         """启动 inprocess 模式复合节点。"""
         orch_path = self.generate_orchestrator(comp_id)
         virtual_name = f"__composite_{comp_id}"
@@ -1437,13 +1459,13 @@ class CompositeNode:
         python_exe = get_python_exe(comp_dir) or ""
 
         # 回退: 项目级 venv
-        if not python_exe or not os.path.exists(python_exe):
-            if os.name == 'nt':
-                python_exe = os.path.join(project_root, "venv", "Scripts", "python.exe")
+        if not python_exe or not Path(python_exe).exists():
+            if os.name == "nt":
+                python_exe = str(Path(project_root) / "venv" / "Scripts" / "python.exe")
             else:
-                python_exe = os.path.join(project_root, "venv", "bin", "python3")
+                python_exe = str(Path(project_root) / "venv" / "bin" / "python3")
         # 最终回退: 当前 Python
-        if not os.path.exists(python_exe):
+        if not Path(python_exe).exists():
             python_exe = sys.executable
 
         proc = None
@@ -1453,27 +1475,28 @@ class CompositeNode:
                 cwd=project_root,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
             )
             self._active_processes[virtual_name] = proc
             logger.info("[%s] 复合节点已启动 PID=%d", comp_id, proc.pid)
 
             # 启动后健康检查 — 检测进程是否立刻 crash
             import time
+
             time.sleep(0.3)
             ret = proc.poll()
             if ret is not None:
                 stderr_output = ""
                 try:
-                    stderr_output = proc.stderr.read().decode('utf-8', errors='replace') if proc.stderr else ''
+                    stderr_output = proc.stderr.read().decode("utf-8", errors="replace") if proc.stderr else ""
                 except Exception:
                     pass
                 self._active_processes.pop(virtual_name, None)
                 return False, t(TK._COMPOSITE_CRASH).format(code=ret) + f"\n{stderr_output[:500]}"
 
             # 写入 PID 文件供 BNOS 检测
-            pid_file = os.path.join(project_root, f"__composite_{comp_id}.pid")
-            with open(pid_file, 'w') as f:
+            pid_file = Path(project_root) / f"__composite_{comp_id}.pid"
+            with pid_file.open("w") as f:
                 f.write(str(proc.pid))
 
             return True, t(TK._COMPOSITE_STARTED).format(pid=proc.pid)
@@ -1489,15 +1512,16 @@ class CompositeNode:
             logger.error("[%s] 启动失败: %s", comp_id, e)
             return False, str(e)
 
-    def start_process_mode(self, comp_id: str) -> Tuple[bool, str]:
+    def start_process_mode(self, comp_id: str) -> tuple[bool, str]:
         """启动 process 模式复合节点（各节点独立启动）。"""
         from ui.core.node.node_control_service import node_control_service
+
         node_names = self.get_nodes(comp_id)
         for n in node_names:
             node_control_service.start_node(n)
         return True, t(TK._COMPOSITE_STARTED_N).format(n=len(node_names))
 
-    def stop_composite(self, comp_id: str) -> Tuple[bool, str]:
+    def stop_composite(self, comp_id: str) -> tuple[bool, str]:
         """停止复合节点。"""
         virtual_name = f"__composite_{comp_id}"
         proc = self._active_processes.get(virtual_name)
@@ -1514,9 +1538,9 @@ class CompositeNode:
             logger.info("[%s] 复合节点已停止", comp_id)
 
         # 清理 PID 文件
-        pid_file = os.path.join(self._project_path, f"__composite_{comp_id}.pid")
+        pid_file = Path(self._project_path) / f"__composite_{comp_id}.pid"
         try:
-            os.remove(pid_file)
+            pid_file.unlink()
         except OSError:
             pass
 
@@ -1530,14 +1554,13 @@ class CompositeNode:
 
     # ── 辅助 ──
 
-    def _find_composite_of_node(self, node_name: str) -> Optional[str]:
+    def _find_composite_of_node(self, node_name: str) -> str | None:
         for cid, c in self._composites.items():
             if node_name in c.get("nodes", []):
                 return cid
         return None
 
-    def _find_internal_by_port(self, comp_id: str, port_name: str,
-                                port_type: str = "output") -> Optional[str]:
+    def _find_internal_by_port(self, comp_id: str, port_name: str, port_type: str = "output") -> str | None:
         """Given a composite's port name, return the internal node it maps to.
 
         Args:
@@ -1558,7 +1581,7 @@ class CompositeNode:
     def is_node_in_composite(self, node_name: str) -> bool:
         return self._find_composite_of_node(node_name) is not None
 
-    def _detach_from_user_groups(self, node_names: List[str]):
+    def _detach_from_user_groups(self, node_names: list[str]):
         """将节点从用户手动创建的节点组中移出。"""
         if not self._group_manager:
             return
@@ -1588,14 +1611,16 @@ class CompositeNode:
             self.stop_composite(comp_id)
         elif runtime == "process":
             from ui.core.node.node_control_service import node_control_service
+
             for n in self.get_nodes(comp_id):
                 try:
                     node_control_service.stop_node(n)
                 except Exception:
                     pass
 
-    def _canvas_compress(self, comp_id: str, node_names: list, cx: float, cy: float,
-                         display_name: str = "", ports: dict = None):
+    def _canvas_compress(
+        self, comp_id: str, node_names: list, cx: float, cy: float, display_name: str = "", ports: dict = None
+    ):
         """Canvas operation: hide original nodes, show composite node with port anchors."""
         from ui.canvas.items.composite_node_item import CompositeNodeItem
 
@@ -1612,24 +1637,30 @@ class CompositeNode:
         internal_edge_info = []
         external_edge_info = []
         for edge in list(self._canvas.edges):
-            src_name = edge.start_node.node_name if hasattr(edge.start_node, 'node_name') else ''
-            tgt_name = edge.end_node.node_name if hasattr(edge.end_node, 'node_name') else ''
+            src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
+            tgt_name = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else ""
             src_in = src_name in node_set
             tgt_in = tgt_name in node_set
             if src_in and tgt_in:
-                internal_edge_info.append({
-                    "src": src_name, "tgt": tgt_name,
-                    "src_port": getattr(edge, 'source_port_name', ''),
-                    "tgt_port": getattr(edge, 'target_port_name', ''),
-                })
+                internal_edge_info.append(
+                    {
+                        "src": src_name,
+                        "tgt": tgt_name,
+                        "src_port": getattr(edge, "source_port_name", ""),
+                        "tgt_port": getattr(edge, "target_port_name", ""),
+                    }
+                )
                 edge.setVisible(False)
             elif src_in != tgt_in:
                 # One endpoint internal, one external
-                external_edge_info.append({
-                    "src": src_name, "tgt": tgt_name,
-                    "src_port": getattr(edge, 'source_port_name', ''),
-                    "tgt_port": getattr(edge, 'target_port_name', ''),
-                })
+                external_edge_info.append(
+                    {
+                        "src": src_name,
+                        "tgt": tgt_name,
+                        "src_port": getattr(edge, "source_port_name", ""),
+                        "tgt_port": getattr(edge, "target_port_name", ""),
+                    }
+                )
                 edge.setVisible(False)
         self._composites.setdefault(comp_id, {})["_internal_edges"] = internal_edge_info
         self._composites[comp_id]["_external_edges"] = external_edge_info
@@ -1653,7 +1684,7 @@ class CompositeNode:
 
     def _canvas_decompress(self, comp_id: str, node_names: list, positions: dict):
         """Canvas: remove composite node, restore original nodes and internal edges."""
-        node_set = set(node_names)
+        set(node_names)
 
         # 移除复合节点
         comp_item = self._canvas.nodes.pop(comp_id, None)
@@ -1672,16 +1703,16 @@ class CompositeNode:
         comp = self._composites.get(comp_id, {})
         for info in comp.get("_internal_edges", []):
             for edge in self._canvas.edges:
-                src_name = edge.start_node.node_name if hasattr(edge.start_node, 'node_name') else ''
-                tgt_name = edge.end_node.node_name if hasattr(edge.end_node, 'node_name') else ''
+                src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
+                tgt_name = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else ""
                 if src_name == info["src"] and tgt_name == info["tgt"]:
                     edge.setVisible(True)
                     break
         # Restore external edges (hidden during compression)
         for info in comp.get("_external_edges", []):
             for edge in self._canvas.edges:
-                src_name = edge.start_node.node_name if hasattr(edge.start_node, 'node_name') else ''
-                tgt_name = edge.end_node.node_name if hasattr(edge.end_node, 'node_name') else ''
+                src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
+                tgt_name = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else ""
                 if src_name == info["src"] and tgt_name == info["tgt"]:
                     edge.setVisible(True)
                     break
@@ -1689,11 +1720,13 @@ class CompositeNode:
 
 # ── Background worker for compress I/O ──
 
+
 class _CompressWorker(QThread):
     """Runs merge_requirements in a background thread to avoid UI freeze."""
 
-    def __init__(self, project_path: str, comp_id: str, display_name: str,
-                 node_names: list, nodes_data: dict, parent=None):
+    def __init__(
+        self, project_path: str, comp_id: str, display_name: str, node_names: list, nodes_data: dict, parent=None
+    ):
         super().__init__(parent)
         self._project_path = project_path
         self._comp_id = comp_id

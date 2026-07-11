@@ -1,6 +1,9 @@
 """
 节点样式注册表 — 统一入口，只保留面板模式(detailed)
 """
+
+from __future__ import annotations
+
 from ._base import NodeStyle
 from .detailed import DetailedNodeStyle
 

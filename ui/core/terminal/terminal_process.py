@@ -1,9 +1,14 @@
 """
 终端进程 - 封装 QProcess 管理子进程
 """
+
+from __future__ import annotations
+
 import platform
 import re
-from PySide6.QtCore import QProcess, QObject, Signal
+
+from PySide6.QtCore import QObject, QProcess, Signal
+
 from ui.core.logger import logger
 
 
@@ -29,11 +34,11 @@ class TerminalProcess(QObject):
 
         if working_dir:
             self.process.setWorkingDirectory(working_dir)
-    
+
     def _strip_ansi(self, text: str) -> str:
         """去除 ANSI 转义序列"""
-        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[.*?[a-zA-Z])')
-        return ansi_escape.sub('', text)
+        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[.*?[a-zA-Z])")
+        return ansi_escape.sub("", text)
 
     def start(self, terminal_type: str = "powershell"):
         """启动终端"""
@@ -58,19 +63,19 @@ class TerminalProcess(QObject):
 
     def write(self, command: str):
         """写入命令到终端"""
-        self.process.write((command + "\n").encode('utf-8'))
+        self.process.write((command + "\n").encode("utf-8"))
 
     def _on_stdout(self):
         """处理标准输出"""
         data_bytes = self.process.readAllStandardOutput().data()
         try:
-            data = data_bytes.decode('utf-8')
+            data = data_bytes.decode("utf-8")
         except UnicodeDecodeError:
             try:
-                data = data_bytes.decode('gbk')
+                data = data_bytes.decode("gbk")
             except Exception:
-                data = data_bytes.decode('utf-8', errors='replace')
-        
+                data = data_bytes.decode("utf-8", errors="replace")
+
         data = self._strip_ansi(data)
         self.output_received.emit(data)
 
@@ -78,13 +83,13 @@ class TerminalProcess(QObject):
         """处理标准错误"""
         data_bytes = self.process.readAllStandardError().data()
         try:
-            data = data_bytes.decode('utf-8')
+            data = data_bytes.decode("utf-8")
         except UnicodeDecodeError:
             try:
-                data = data_bytes.decode('gbk')
+                data = data_bytes.decode("gbk")
             except Exception:
-                data = data_bytes.decode('utf-8', errors='replace')
-        
+                data = data_bytes.decode("utf-8", errors="replace")
+
         data = self._strip_ansi(data)
         self.error_received.emit(data)
 
@@ -131,16 +136,19 @@ class TerminalProcess(QObject):
         if not pid or pid <= 0:
             return
         try:
-            import subprocess
             import os
-            if os.name == 'nt':
+            import subprocess
+
+            if os.name == "nt":
                 subprocess.run(
-                    ['taskkill', '/F', '/T', '/PID', str(pid)],
-                    capture_output=True, timeout=5,
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
+                    capture_output=True,
+                    timeout=5,
                     creationflags=subprocess.CREATE_NO_WINDOW,
                 )
             else:
                 import signal
+
                 os.kill(pid, signal.SIGKILL)
         except Exception as e:
             logger.warning("TerminalProcess: OS kill 失败: %s", e)
@@ -166,7 +174,7 @@ class TerminalProcess(QObject):
 
     def dispose(self):
         """显式清理：终止子进程并断开信号。
-        
+
         调用方应在 TerminalWidget.close_terminal() 中显式调用此方法，
         不依赖 __del__ 不确定性清理。
         """

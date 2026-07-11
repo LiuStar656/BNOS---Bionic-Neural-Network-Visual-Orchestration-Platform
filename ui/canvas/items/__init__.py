@@ -7,8 +7,10 @@
 - EdgeItem: 连线条（贝塞尔曲线）
 """
 
-from ui.canvas.items.anchor_item import AnchorItem
-from ui.canvas.items.node_item import NodeItem
-from ui.canvas.items.edge_item import EdgeItem
+from __future__ import annotations
 
-__all__ = ['AnchorItem', 'NodeItem', 'EdgeItem']
+from ui.canvas.items.anchor_item import AnchorItem
+from ui.canvas.items.edge_item import EdgeItem
+from ui.canvas.items.node_item import NodeItem
+
+__all__ = ["AnchorItem", "NodeItem", "EdgeItem"]

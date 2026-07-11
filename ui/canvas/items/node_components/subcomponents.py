@@ -1,10 +1,11 @@
 """
 节点子组件构造模块 — 集中管理文本标签、状态灯、展开按钮等子控件
 """
+
+from __future__ import annotations
+
 from PySide6.QtCore import QRectF
-from PySide6.QtGui import QColor, QPen, QFont
-from PySide6.QtWidgets import (QGraphicsRectItem, QGraphicsTextItem,
-                                 QGraphicsEllipseItem)
+from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem, QGraphicsTextItem
 
 
 class NodeSubComponents:

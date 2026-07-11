@@ -4,26 +4,26 @@
 
 v2 — 拆分后：主类仅保留生命周期编排，具体实现委托给 node_components/ 子模块。
 """
-from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsItem
-from PySide6.QtCore import Qt, QPointF, QRectF
-from PySide6.QtGui import QPen, QColor
 
-from ui.core.logger import logger
+from __future__ import annotations
 
-from ui.canvas.items.anchor_item import AnchorItem, ANCHOR_SIZE, ANCHOR_HALF
+from PySide6.QtCore import QPointF, QRectF
+from PySide6.QtWidgets import QGraphicsItem, QGraphicsRectItem
+
+from ui.canvas.items.anchor_item import AnchorItem
 from ui.canvas.items.anchor_manager import AnchorManager
-from ui.canvas.items.styles import DetailedNodeStyle
-from ui.canvas.items.node_status_widget import NodeStatusWidget
-
-# ── 子组件模块 ──
-from ui.canvas.items.node_components.rendering import NodeRendering
-from ui.canvas.items.node_components.subcomponents import NodeSubComponents
-from ui.canvas.items.node_components.status_manager import NodeStatusManager
 from ui.canvas.items.node_components.config_manager import NodeConfigManager
 from ui.canvas.items.node_components.geometry_handler import NodeGeometryHandler
 from ui.canvas.items.node_components.interaction_handler import NodeInteractionHandler
-from ui.canvas.items.node_components.style_manager import NodeStyleManager
 from ui.canvas.items.node_components.param_panel import NodeParamPanel
+
+# ── 子组件模块 ──
+from ui.canvas.items.node_components.rendering import NodeRendering
+from ui.canvas.items.node_components.status_manager import NodeStatusManager
+from ui.canvas.items.node_components.style_manager import NodeStyleManager
+from ui.canvas.items.node_components.subcomponents import NodeSubComponents
+from ui.canvas.items.node_status_widget import NodeStatusWidget
+from ui.canvas.items.styles import DetailedNodeStyle
 
 
 class NodeItem(QGraphicsRectItem):
@@ -31,8 +31,7 @@ class NodeItem(QGraphicsRectItem):
 
     on_expand_requested = None
 
-    def __init__(self, node_name, language="Python", status="stopped",
-                 x=0, y=0, w=140, h=80, canvas=None, style=None):
+    def __init__(self, node_name, language="Python", status="stopped", x=0, y=0, w=140, h=80, canvas=None, style=None):
         super().__init__(x, y, w, h, None)
         self.node_name = node_name
         self.language = language

@@ -3,11 +3,18 @@ ui/canvas/items/composite_node_item.py
 Composite node canvas element.
 Appearance: dashed border + teal color + node count + ⊞ icon + anchor ports.
 """
-from PySide6.QtCore import Qt, QRectF, QPointF
-from PySide6.QtGui import QColor, QPen, QBrush, QPainter, QFont
+
+from __future__ import annotations
+
+from PySide6.QtCore import QRectF, Qt
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
-    QGraphicsRectItem, QGraphicsItem, QStyleOptionGraphicsItem, QWidget,
-    QMenu, QMessageBox,
+    QGraphicsItem,
+    QGraphicsRectItem,
+    QMenu,
+    QMessageBox,
+    QStyleOptionGraphicsItem,
+    QWidget,
 )
 
 from ui.canvas.items.anchor_item import AnchorItem
@@ -28,9 +35,17 @@ class CompositeNodeItem(QGraphicsRectItem):
     INPUT_ANCHOR_COLOR = QColor("#4fc34f")
     OUTPUT_ANCHOR_COLOR = QColor("#f06060")
 
-    def __init__(self, comp_id: str, node_count: int, node_names: list,
-                 display_name: str = "", canvas=None, parent=None,
-                 input_ports: list = None, output_ports: list = None):
+    def __init__(
+        self,
+        comp_id: str,
+        node_count: int,
+        node_names: list,
+        display_name: str = "",
+        canvas=None,
+        parent=None,
+        input_ports: list = None,
+        output_ports: list = None,
+    ):
         super().__init__(parent)
         self.comp_id = comp_id
         self.node_count = node_count
@@ -74,7 +89,8 @@ class CompositeNodeItem(QGraphicsRectItem):
         for i in range(in_count):
             y = PADDING_TOP + i * ANCHOR_SPACING
             anchor = AnchorItem(
-                0, y,
+                0,
+                y,
                 anchor_type="input",
                 port_name=self._input_ports[i]["port_name"],
                 port_type="input",
@@ -89,7 +105,8 @@ class CompositeNodeItem(QGraphicsRectItem):
         for i in range(out_count):
             y = PADDING_TOP + i * ANCHOR_SPACING
             anchor = AnchorItem(
-                BASE_WIDTH, y,
+                BASE_WIDTH,
+                y,
                 anchor_type="output",
                 port_name=self._output_ports[i]["port_name"],
                 port_type="output",
@@ -110,7 +127,7 @@ class CompositeNodeItem(QGraphicsRectItem):
     def find_anchor_by_port(self, port_name: str, port_type: str):
         """Find an anchor by port_name and type ('input' or 'output')."""
         for a in self._anchors:
-            if getattr(a, 'port_name', '') == port_name and getattr(a, 'port_type', '') == port_type:
+            if getattr(a, "port_name", "") == port_name and getattr(a, "port_type", "") == port_type:
                 return a
         return None
 
@@ -125,7 +142,7 @@ class CompositeNodeItem(QGraphicsRectItem):
     def input_anchor(self):
         """Return first visible input anchor (for connection system)."""
         for a in self._anchors:
-            if getattr(a, 'port_type', '') == 'input' and a.isVisible():
+            if getattr(a, "port_type", "") == "input" and a.isVisible():
                 return a
         return None
 
@@ -133,7 +150,7 @@ class CompositeNodeItem(QGraphicsRectItem):
     def output_anchor(self):
         """Return first visible output anchor (for connection system)."""
         for a in self._anchors:
-            if getattr(a, 'port_type', '') == 'output' and a.isVisible():
+            if getattr(a, "port_type", "") == "output" and a.isVisible():
                 return a
         return None
 
@@ -142,7 +159,7 @@ class CompositeNodeItem(QGraphicsRectItem):
         best = None
         best_dist = max_dist
         for a in self._anchors:
-            if getattr(a, 'port_type', '') == 'input':
+            if getattr(a, "port_type", "") == "input":
                 d = (a.pos() - local_pos).manhattanLength()
                 if d < best_dist:
                     best_dist = d
@@ -154,7 +171,7 @@ class CompositeNodeItem(QGraphicsRectItem):
         best = None
         best_dist = max_dist
         for a in self._anchors:
-            if getattr(a, 'port_type', '') == 'output':
+            if getattr(a, "port_type", "") == "output":
                 d = (a.pos() - local_pos).manhattanLength()
                 if d < best_dist:
                     best_dist = d
@@ -179,7 +196,7 @@ class CompositeNodeItem(QGraphicsRectItem):
                 for edge in self._canvas.edges:
                     if edge.start_node is self or edge.end_node is self:
                         edge.update_path()
-                if hasattr(self._canvas, '_composite_manager'):
+                if hasattr(self._canvas, "_composite_manager"):
                     mgr = self._canvas._composite_manager
                     comp = mgr._composites.get(self.comp_id)
                     if comp:
@@ -210,8 +227,7 @@ class CompositeNodeItem(QGraphicsRectItem):
         painter.drawText(icon_rect, Qt.AlignmentFlag.AlignCenter, "\u229e")
 
         # Name
-        name_rect = QRectF(icon_rect.right() + 6, rect.y() + 7,
-                           rect.width() - icon_rect.right() - 16, 20)
+        name_rect = QRectF(icon_rect.right() + 6, rect.y() + 7, rect.width() - icon_rect.right() - 16, 20)
         painter.setPen(QColor("#4ec9b0"))
         painter.setFont(self._font_bold)
         if self.display_name:
@@ -219,7 +235,6 @@ class CompositeNodeItem(QGraphicsRectItem):
         else:
             short_id = self.comp_id.replace("composite_", "")[:6]
             label = f"Composite {short_id}"
-        elided = self._font_bold
         painter.drawText(name_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, label)
 
         # Node count
@@ -228,30 +243,27 @@ class CompositeNodeItem(QGraphicsRectItem):
         painter.setFont(self._font_small)
 
         runtime = "inprocess"
-        if self._canvas and hasattr(self._canvas, '_composite_manager'):
+        if self._canvas and hasattr(self._canvas, "_composite_manager"):
             runtime = self._canvas._composite_manager.get_runtime(self.comp_id) or "inprocess"
 
-        painter.drawText(sub_rect, Qt.AlignmentFlag.AlignLeft,
-                         f"{self.node_count} nodes  {runtime}")
+        painter.drawText(sub_rect, Qt.AlignmentFlag.AlignLeft, f"{self.node_count} nodes  {runtime}")
 
         # Port labels
         painter.setFont(QFont("Segoe UI", 7))
-        in_count = len(self._input_ports)
-        out_count = len(self._output_ports)
+        len(self._input_ports)
+        len(self._output_ports)
 
         for i, port in enumerate(self._input_ports):
             y = PADDING_TOP + i * ANCHOR_SPACING + 4
             painter.setPen(QColor("#4fc34f"))
-            painter.drawText(QRectF(6, y - 3, 70, 12),
-                             Qt.AlignmentFlag.AlignLeft,
-                             port.get("display_name", "")[:10])
+            painter.drawText(QRectF(6, y - 3, 70, 12), Qt.AlignmentFlag.AlignLeft, port.get("display_name", "")[:10])
 
         for i, port in enumerate(self._output_ports):
             y = PADDING_TOP + i * ANCHOR_SPACING + 4
             painter.setPen(QColor("#f06060"))
-            painter.drawText(QRectF(BASE_WIDTH - 76, y - 3, 70, 12),
-                             Qt.AlignmentFlag.AlignRight,
-                             port.get("display_name", "")[:10])
+            painter.drawText(
+                QRectF(BASE_WIDTH - 76, y - 3, 70, 12), Qt.AlignmentFlag.AlignRight, port.get("display_name", "")[:10]
+            )
 
     # ── Mouse events ──
 
@@ -267,9 +279,7 @@ class CompositeNodeItem(QGraphicsRectItem):
             if comp:
                 is_expanded = comp.get("_expanded", False)
 
-        expand_action = menu.addAction(
-            "Collapse" if is_expanded else "Expand"
-        )
+        expand_action = menu.addAction("Collapse" if is_expanded else "Expand")
         expand_action.triggered.connect(self._toggle_expand)
 
         decompress_action = menu.addAction("Decompress")
@@ -302,22 +312,23 @@ class CompositeNodeItem(QGraphicsRectItem):
         menu.exec(event.screenPos())
 
     def _toggle_expand(self):
-        if self._canvas and hasattr(self._canvas, '_composite_manager'):
+        if self._canvas and hasattr(self._canvas, "_composite_manager"):
             mgr = self._canvas._composite_manager
-            if hasattr(mgr, 'toggle_expand'):
+            if hasattr(mgr, "toggle_expand"):
                 mgr.toggle_expand(self.comp_id)
 
     def _get_manager(self):
-        if self._canvas and hasattr(self._canvas, '_composite_manager'):
+        if self._canvas and hasattr(self._canvas, "_composite_manager"):
             return self._canvas._composite_manager
         return None
 
     def _decompress(self):
         reply = QMessageBox.question(
-            None, "Decompress",
+            None,
+            "Decompress",
             f"Restore to {self.node_count} independent nodes?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
             return

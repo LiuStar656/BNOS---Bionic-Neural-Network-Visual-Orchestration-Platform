@@ -3,8 +3,11 @@
 
 从 node_item.py 拆分出来，负责视觉渲染。
 """
+
+from __future__ import annotations
+
 from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QPen, QBrush, QPainter, QPainterPath
+from PySide6.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen
 
 
 class NodeRendering:

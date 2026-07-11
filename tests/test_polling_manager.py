@@ -4,6 +4,9 @@
 
 注意：此测试需要 Qt 应用环境，建议在 GUI 测试框架中运行
 """
+
+from __future__ import annotations
+
 import pytest
 
 
@@ -14,6 +17,7 @@ class TestPollingManager:
         """测试轮询管理器模块导入"""
         try:
             from ui.core.system.polling_manager import PollingManager
+
             assert True
         except ImportError:
             pytest.skip("Qt environment not available")
@@ -22,6 +26,7 @@ class TestPollingManager:
         """测试轮询管理器是单例"""
         try:
             from ui.core.system.polling_manager import PollingManager
+
             instance1 = PollingManager.instance()
             instance2 = PollingManager.instance()
             assert instance1 is instance2

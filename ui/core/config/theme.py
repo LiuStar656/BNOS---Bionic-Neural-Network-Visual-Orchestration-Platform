@@ -1,6 +1,9 @@
 """
 BNOS 深色主题 — VSCode 风格全局样式表
 """
+
+from __future__ import annotations
+
 DARK_QSS = """
 QMainWindow { background-color: #1e1e1e; border: 2px solid #1e1e1e; }
 QWidget#centralWidget { background-color: #1e1e1e; border: none; }

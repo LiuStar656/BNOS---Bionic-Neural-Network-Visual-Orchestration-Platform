@@ -1,33 +1,36 @@
 """
 绘图工具栏 — PS 风格左侧竖式，匹配菜单栏深色主题
 """
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QScrollArea,
-                              QColorDialog, QLabel)
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from ui.core.i18n import t
-from ui.icons import codicon, get_icon, get_icon_font
+from PySide6.QtWidgets import QColorDialog, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
-TOOL_W = 56          # 工具栏宽度（适配放大后的按钮）
-BTN_H  = 44          # 按钮高度（放大后）
-FONT   = get_icon_font(18) or QFont("Segoe MDL2 Assets", 18)
+from ui.core.i18n import t
+from ui.icons import get_icon, get_icon_font
+
+TOOL_W = 56  # 工具栏宽度（适配放大后的按钮）
+BTN_H = 44  # 按钮高度（放大后）
+FONT = get_icon_font(18) or QFont("Segoe MDL2 Assets", 18)
 
 # 配色：与菜单栏/标题栏统一
-BG_TOOLBAR   = "#1e1e1e"
-BG_BTN       = "#2d2d30"      # 与主UI按钮一致
-FG_BTN       = "#cccccc"
-BG_BTN_ON    = "#007acc"
-FG_BTN_ON    = "#ffffff"
-BG_DANGER    = "#c03030"
-BORDER       = "#3e3e42"
-SEPARATOR    = "#454545"
+BG_TOOLBAR = "#1e1e1e"
+BG_BTN = "#2d2d30"  # 与主UI按钮一致
+FG_BTN = "#cccccc"
+BG_BTN_ON = "#007acc"
+FG_BTN_ON = "#ffffff"
+BG_DANGER = "#c03030"
+BORDER = "#3e3e42"
+SEPARATOR = "#454545"
 
 TOOLS = [
-    ("rect",       get_icon("layout-panel"),     "_k_draw_rect"),       # 矩形 - 面板图标
-    ("round_rect", get_icon("circle"),           "_k_draw_round_rect"), # 圆角矩形 - 圆形图标
-    ("polygon",    get_icon("triangle-up"),      "_k_draw_polygon"),    # 多边形 - 三角形图标
-    ("arrow",      get_icon("arrow-right"),      "_k_draw_arrow"),      # 箭头 - 箭头图标
-    ("text",       get_icon("text-size"),        "_k_draw_text"),       # 文本 - 文本文件图标
+    ("rect", get_icon("layout-panel"), "_k_draw_rect"),  # 矩形 - 面板图标
+    ("round_rect", get_icon("circle"), "_k_draw_round_rect"),  # 圆角矩形 - 圆形图标
+    ("polygon", get_icon("triangle-up"), "_k_draw_polygon"),  # 多边形 - 三角形图标
+    ("arrow", get_icon("arrow-right"), "_k_draw_arrow"),  # 箭头 - 箭头图标
+    ("text", get_icon("text-size"), "_k_draw_text"),  # 文本 - 文本文件图标
 ]
 
 BTN_BASE = f"""
@@ -35,7 +38,7 @@ QPushButton {{
     background: {BG_BTN}; color: {FG_BTN};
     border: none; border-left: 3px solid transparent;
     font-size: 18px; font-weight: bold;
-    min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
+    min-height: {BTN_H - 4}px; max-height: {BTN_H - 4}px;
     padding: 0px 4px;
 }}
 QPushButton:hover {{ background: #3e3e42; }}
@@ -46,7 +49,7 @@ QPushButton {{
     background: {BG_BTN}; color: {FG_BTN_ON};
     border: none; border-left: 3px solid {BG_BTN_ON};
     font-size: 18px; font-weight: bold;
-    min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
+    min-height: {BTN_H - 4}px; max-height: {BTN_H - 4}px;
     padding: 0px 4px;
 }}
 """
@@ -55,14 +58,14 @@ QPushButton {{
 class DrawToolbar(QWidget):
     """绘图工具条"""
 
-    tool_changed   = Signal(str)
-    style_changed  = Signal(str, object)
-    layer_locked   = Signal(bool)
-    layer_visible  = Signal(bool)
+    tool_changed = Signal(str)
+    style_changed = Signal(str, object)
+    layer_locked = Signal(bool)
+    layer_visible = Signal(bool)
     undo_requested = Signal()
     redo_requested = Signal()
     delete_requested = Signal()
-    clear_requested  = Signal()
+    clear_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -76,12 +79,14 @@ class DrawToolbar(QWidget):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(f"QScrollArea {{ border: none; }} QScrollBar:vertical {{ width: 3px; background: {BG_TOOLBAR}; }}")
+        scroll.setStyleSheet(
+            f"QScrollArea {{ border: none; }} QScrollBar:vertical {{ width: 3px; background: {BG_TOOLBAR}; }}"
+        )
         main_layout.addWidget(scroll, 1)
         self._scroll = scroll
 
         container = QWidget()
-        container.setStyleSheet(f"background-color: transparent;")
+        container.setStyleSheet("background-color: transparent;")
         layout = QVBoxLayout(container)
         layout.setContentsMargins(3, 4, 3, 4)
         layout.setSpacing(2)
@@ -115,8 +120,12 @@ class DrawToolbar(QWidget):
 
         self._sep(layout)
 
-        self._mk_btn(get_icon("chevron-left"), t("_k_draw_undo"), layout).clicked.connect(lambda: self.undo_requested.emit())
-        self._mk_btn(get_icon("chevron-right"), t("_k_draw_redo"), layout).clicked.connect(lambda: self.redo_requested.emit())
+        self._mk_btn(get_icon("chevron-left"), t("_k_draw_undo"), layout).clicked.connect(
+            lambda: self.undo_requested.emit()
+        )
+        self._mk_btn(get_icon("chevron-right"), t("_k_draw_redo"), layout).clicked.connect(
+            lambda: self.redo_requested.emit()
+        )
 
         self._sep(layout)
 
@@ -176,7 +185,7 @@ class DrawToolbar(QWidget):
                 QPushButton {{ background: {BG_BTN}; color: #555555;
                     border: none; border-left: 3px solid transparent;
                     font-size: 18px; font-weight: bold;
-                    min-height: {BTN_H-4}px; max-height: {BTN_H-4}px;
+                    min-height: {BTN_H - 4}px; max-height: {BTN_H - 4}px;
                     padding: 0px 4px; }}
             """)
         else:

@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, List, Optional, Tuple
-
-from PySide6.QtCore import QPointF
 
 from ui.core.commands.base import Command, CommandResult, CommandType
 from ui.core.logger import logger
@@ -45,9 +42,11 @@ class CreateNodeCommand(Command):
 
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data.update({
-            "node_name": self._node_name,
-        })
+        data.update(
+            {
+                "node_name": self._node_name,
+            }
+        )
         return data
 
     @classmethod
@@ -72,9 +71,9 @@ class DeleteNodeCommand(Command):
         self._canvas = canvas
         self._parent_window = parent_window
 
-        self._position: Optional[Tuple[float, float]] = None
-        self._edge_data: List[dict] = []
-        self._node_data: Optional[dict] = None
+        self._position: tuple[float, float] | None = None
+        self._edge_data: list[dict] = []
+        self._node_data: dict | None = None
         self._collected: bool = False
 
     def _collect_state(self):
@@ -92,15 +91,17 @@ class DeleteNodeCommand(Command):
             src = edge.start_node.node_name if edge.start_node else None
             tgt = edge.end_node.node_name if edge.end_node else None
             if src == self._node_name or tgt == self._node_name:
-                self._edge_data.append({
-                    "source": src,
-                    "target": tgt,
-                    "target_port": edge.target_port_name,
-                    "source_port": edge.source_port_name,
-                    "target_anchor_name": edge.target_anchor.name if edge.target_anchor else None,
-                })
+                self._edge_data.append(
+                    {
+                        "source": src,
+                        "target": tgt,
+                        "target_port": edge.target_port_name,
+                        "source_port": edge.source_port_name,
+                        "target_anchor_name": edge.target_anchor.name if edge.target_anchor else None,
+                    }
+                )
 
-        if self._parent_window and hasattr(self._parent_window, 'nodes_data'):
+        if self._parent_window and hasattr(self._parent_window, "nodes_data"):
             data = self._parent_window.nodes_data.get(self._node_name)
             if data:
                 self._node_data = dict(data)
@@ -131,11 +132,11 @@ class DeleteNodeCommand(Command):
         for upstream_name in upstream_nodes:
             if upstream_name in self._parent_window.nodes_data:
                 upstream_info = self._parent_window.nodes_data[upstream_name]
-                upstream_config = upstream_info['config']
-                upstream_config['listen_upper_file'] = ""
-                config_path = os.path.join(upstream_info['path'], "config.json")
+                upstream_config = upstream_info["config"]
+                upstream_config["listen_upper_file"] = ""
+                config_path = os.path.join(upstream_info["path"], "config.json")
                 try:
-                    with open(config_path, 'w', encoding='utf-8') as f:
+                    with open(config_path, "w", encoding="utf-8") as f:
                         json.dump(upstream_config, f, indent=2, ensure_ascii=False)
                     logger.info("已清除上游节点 %s 的监听配置", upstream_name)
                 except Exception as e:
@@ -150,11 +151,11 @@ class DeleteNodeCommand(Command):
         for downstream_name in downstream_nodes:
             if downstream_name in self._parent_window.nodes_data:
                 downstream_info = self._parent_window.nodes_data[downstream_name]
-                downstream_config = downstream_info['config']
-                downstream_config['listen_upper_file'] = ""
-                config_path = os.path.join(downstream_info['path'], "config.json")
+                downstream_config = downstream_info["config"]
+                downstream_config["listen_upper_file"] = ""
+                config_path = os.path.join(downstream_info["path"], "config.json")
                 try:
-                    with open(config_path, 'w', encoding='utf-8') as f:
+                    with open(config_path, "w", encoding="utf-8") as f:
                         json.dump(downstream_config, f, indent=2, ensure_ascii=False)
                     logger.info("已清除下游节点 %s 的监听配置", downstream_name)
                 except Exception as e:
@@ -162,7 +163,7 @@ class DeleteNodeCommand(Command):
 
     def undo(self) -> CommandResult:
         try:
-            if self._node_data and self._parent_window and hasattr(self._parent_window, 'nodes_data'):
+            if self._node_data and self._parent_window and hasattr(self._parent_window, "nodes_data"):
                 self._parent_window.nodes_data[self._node_name] = self._node_data
 
             self._canvas._begin_replay()
@@ -188,13 +189,15 @@ class DeleteNodeCommand(Command):
 
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data.update({
-            "node_name": self._node_name,
-            "position": self._position,
-            "edge_data": self._edge_data,
-            "node_data": self._node_data,
-            "collected": self._collected,
-        })
+        data.update(
+            {
+                "node_name": self._node_name,
+                "position": self._position,
+                "edge_data": self._edge_data,
+                "node_data": self._node_data,
+                "collected": self._collected,
+            }
+        )
         return data
 
     @classmethod
@@ -217,8 +220,7 @@ class MoveNodeCommand(Command):
     在拖拽结束时创建。execute 应用新位置，undo 恢复旧位置。
     """
 
-    def __init__(self, node_positions: Dict[str, Tuple[float, float, float, float]],
-                 canvas):
+    def __init__(self, node_positions: dict[str, tuple[float, float, float, float]], canvas):
         """
         Args:
             node_positions: {node_name: (old_x, old_y, new_x, new_y)}
@@ -262,9 +264,11 @@ class MoveNodeCommand(Command):
 
     def to_dict(self) -> dict:
         data = super().to_dict()
-        data.update({
-            "node_positions": self._node_positions,
-        })
+        data.update(
+            {
+                "node_positions": self._node_positions,
+            }
+        )
         return data
 
     @classmethod

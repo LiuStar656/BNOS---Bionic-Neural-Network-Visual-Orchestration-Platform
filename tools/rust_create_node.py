@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 BNOS Rust 节点一键生成脚本（增强版）
 用于快速创建新的 Rust 节点项目模板，包含完整的自愈机制和环境管理
@@ -7,7 +6,7 @@ BNOS Rust 节点一键生成脚本（增强版）
 使用方法:
     python generate_node.py <node_name>
     python generate_node.py --repair-only <node_dir>
-    
+
 参数:
     node_name: 节点名称（必填），将自动生成 node_rust_<node_name> 目录
     --repair-only: 修复模式，仅检测并修复指定节点的编译产物
@@ -18,23 +17,19 @@ BNOS Rust 节点一键生成脚本（增强版）
     python generate_node.py --repair-only ./node_rust_my_node
 """
 
-import os
-import sys
+from __future__ import annotations
+
 import json
-import subprocess
+import os
 import shutil
-from pathlib import Path
+import subprocess
+import sys
 
 
 def check_rust_installed() -> bool:
     """检查 Rust 工具链是否已安装"""
     try:
-        result = subprocess.run(
-            ["rustc", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        result = subprocess.run(["rustc", "--version"], capture_output=True, text=True, timeout=5)
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
@@ -43,12 +38,7 @@ def check_rust_installed() -> bool:
 def check_cargo_installed() -> bool:
     """检查 Cargo 是否已安装"""
     try:
-        result = subprocess.run(
-            ["cargo", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        result = subprocess.run(["cargo", "--version"], capture_output=True, text=True, timeout=5)
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
@@ -56,28 +46,22 @@ def check_cargo_installed() -> bool:
 
 def build_project(node_dir: str) -> bool:
     """构建 Rust 项目"""
-    print("[BUILD] 开始构建项目（release 模式）...")
     try:
         result = subprocess.run(
             ["cargo", "build", "--release"],
             cwd=node_dir,
             capture_output=True,
             text=True,
-            timeout=300  # 5分钟超时
+            timeout=300,  # 5分钟超时
         )
-        
+
         if result.returncode == 0:
-            print("[SUCCESS] 项目构建成功")
             return True
         else:
-            print(f"[ERROR] 项目构建失败:")
-            print(result.stderr)
             return False
     except subprocess.TimeoutExpired:
-        print("[ERROR] 构建超时（超过5分钟）")
         return False
-    except Exception as e:
-        print(f"[ERROR] 构建异常: {e}")
+    except Exception:
         return False
 
 
@@ -89,20 +73,18 @@ def auto_repair_build(node_dir: str) -> bool:
     # 读取配置获取节点名称
     config_path = os.path.join(node_dir, "config.json")
     if not os.path.exists(config_path):
-        print("[ERROR] 配置文件不存在")
         return False
-    
-    with open(config_path, 'r', encoding='utf-8') as f:
+
+    with open(config_path, encoding="utf-8") as f:
         config = json.load(f)
-    
+
     node_name = config.get("node_name", os.path.basename(node_dir))
-    
+
     # 检测1: target/release 目录是否存在
     release_dir = os.path.join(node_dir, "target", "release")
     if not os.path.exists(release_dir):
-        print("[WARN] 检测到编译产物缺失，开始自动重建...")
         return build_project(node_dir)
-    
+
     # 检测2: 主程序二进制文件是否存在
     if os.name == "nt":
         main_exe = os.path.join(release_dir, f"{node_name}.exe")
@@ -110,31 +92,24 @@ def auto_repair_build(node_dir: str) -> bool:
     else:
         main_exe = os.path.join(release_dir, node_name)
         listener_exe = os.path.join(release_dir, f"{node_name}_listener")
-    
+
     if not os.path.exists(main_exe) or not os.path.exists(listener_exe):
-        print("[WARN] 检测到二进制文件缺失，开始自动重建...")
         return build_project(node_dir)
-    
+
     # 检测3: 尝试运行二进制文件，检查是否真正可用
     try:
-        result = subprocess.run(
+        subprocess.run(
             [main_exe, "--help"] if os.name != "nt" else [main_exe],
             capture_output=True,
             text=True,
             timeout=5,
-            cwd=node_dir
+            cwd=node_dir,
         )
         # 即使返回非0，只要能运行就说明文件没损坏
-        print("[OK] 编译产物检测通过")
         return True
-    except Exception:
-        print("[WARN] 检测到编译产物损坏，开始自动重建...")
+    except OSError:
         # 清理损坏的编译产物
-        try:
-            shutil.rmtree(release_dir, ignore_errors=True)
-            print("[OK] 已清理损坏的编译产物")
-        except Exception as e:
-            print(f"[WARN] 清理失败: {e}")
+        shutil.rmtree(release_dir, ignore_errors=True)
         return build_project(node_dir)
 
 
@@ -170,81 +145,81 @@ strip = true
 
 def create_main_rs(node_name: str) -> str:
     """生成 src/main.rs 文件内容"""
-    return f'''mod packet;
+    return """mod packet;
 
 use std::env;
 use std::fs;
 use packet::OutputPacket;
 
-fn main() {{
+fn main() {
     // 获取当前可执行文件所在目录
     let exe_path = env::current_exe().expect("Failed to get executable path");
     let node_dir = exe_path.parent().expect("Failed to get parent directory");
-    
+
     // 尝试在多个位置查找配置文件
     let config_paths = vec![
         node_dir.join("config.json"),                              // 与可执行文件同目录 (target/release/)
         node_dir.parent().unwrap_or(node_dir).join("config.json"), // 父目录 (target/)
         node_dir.parent().and_then(|p| p.parent()).unwrap_or(node_dir).join("config.json"), // 祖父目录 (项目根目录)
     ];
-    
+
     let mut config_str = None;
-    
-    for config_path in &config_paths {{
-        if let Ok(s) = fs::read_to_string(config_path) {{
+
+    for config_path in &config_paths {
+        if let Ok(s) = fs::read_to_string(config_path) {
             config_str = Some(s);
             break;
-        }}
-    }}
-    
-    let config_str = config_str.unwrap_or_else(|| {{
+        }
+    }
+
+    let config_str = config_str.unwrap_or_else(|| {
         eprintln!("Failed to read config file from any of the expected locations");
         std::process::exit(1);
-    }});
-    
+    });
+
     let config: serde_json::Value = serde_json::from_str(&config_str)
-        .unwrap_or_else(|e| {{
-            eprintln!("Failed to parse config: {{}}", e);
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to parse config: {}", e);
             std::process::exit(1);
-        }});
+        });
 
     // 从命令行参数获取输入数据
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {{
+    if args.len() < 2 {
         let error_packet = OutputPacket::error("no input");
-        println!("{{}}", serde_json::to_string(&error_packet).unwrap());
+        println!("{}", serde_json::to_string(&error_packet).unwrap());
         std::process::exit(1);
-    }}
+    }
 
     let input_str = &args[1];
-    
+
     // 解析输入数据
-    let input_data: serde_json::Value = match serde_json::from_str(input_str) {{
+    let input_data: serde_json::Value = match serde_json::from_str(input_str) {
         Ok(data) => data,
-        Err(e) => {{
-            let error_packet = OutputPacket::error(&format!("Invalid JSON input: {{}}", e));
-            println!("{{}}", serde_json::to_string(&error_packet).unwrap());
+        Err(e) => {
+            let error_packet = OutputPacket::error(&format!("Invalid JSON input: {}", e));
+            println!("{}", serde_json::to_string(&error_packet).unwrap());
             std::process::exit(1);
-        }}
-    }};
+        }
+    };
 
     // 调用处理函数
     let result = process(&input_data);
 
     // 构建输出数据包
     let output_type = config["output_type"].as_str().unwrap_or("");
-    
+
     // 如果需要添加 type 字段
-    if !output_type.is_empty() {{
+    if !output_type.is_empty() {
         let mut output_json = serde_json::to_value(OutputPacket::success(result)).unwrap();
-        if let Some(obj) = output_json.as_object_mut() {{
+        if let Some(obj) = output_json.as_object_mut() {
             obj.insert("type".to_string(), serde_json::Value::String(output_type.to_string()));
-        }}
-        println!("{{}}", serde_json::to_string(&output_json).unwrap());
-    }} else {{
-        println!("{{}}", serde_json::to_string(&OutputPacket::success(result)).unwrap());
-    }}
-}}
+        }
+        println!("{}", serde_json::to_string(&output_json).unwrap());
+    } else {
+        println!("{}", serde_json::to_string(&OutputPacket::success(result)).unwrap());
+    }
+}
 
 /// 节点核心处理逻辑
 /// 
@@ -257,7 +232,7 @@ fn main() {{
 /// # 示例
 /// ```rust
 /// // 在此实现你的业务逻辑
-/// fn process(data: &serde_json::Value) -> Option<serde_json::Value> {{
+/// fn process(data: &serde_json::Value) -> Option<serde_json::Value> {
 ///     // 提取数据字段
 ///     let input = data.get("data")?;
 ///     
@@ -265,19 +240,19 @@ fn main() {{
 ///     // 例如：数据转换、计算、API 调用等
 ///     
 ///     Some(processed_result)
-/// }}
+/// }
 /// ```
-fn process(data: &serde_json::Value) -> Option<serde_json::Value> {{
+fn process(data: &serde_json::Value) -> Option<serde_json::Value> {
     // TODO: 在此实现你的业务逻辑
     // 默认返回输入数据中的 data 字段
     data.get("data").cloned()
-}}
-'''
+}
+"""
 
 
 def create_listener_rs(node_name: str) -> str:
     """生成 src/listener.rs 文件内容（增强版自愈逻辑）"""
-    return '''use std::env;
+    return """use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -287,16 +262,16 @@ use chrono::Local;
 
 fn main() {
     println!("Starting {} listener...", env!("CARGO_PKG_NAME"));
-    
+
     // 自愈机制：检查环境
     if !check_and_fix_environment() {
         eprintln!("Environment check failed!");
         std::process::exit(1);
     }
-    
+
     // 读取配置
     let config = read_config();
-    
+
     // 监听并处理数据（循环监听）
     listen_loop(&config);
 }
@@ -304,26 +279,26 @@ fn main() {
 /// 检查并修复环境
 fn check_and_fix_environment() -> bool {
     println!("Checking environment...");
-    
+
     // 检查 Rust 工具链
     if !check_rust_installed() {
         eprintln!("Error: Rust is not installed. Please install Rust from https://rustup.rs/");
         return false;
     }
-    
+
     // 检查 Cargo
     if !check_cargo_installed() {
         eprintln!("Error: Cargo is not installed.");
         return false;
     }
-    
+
     // 检查编译产物
     let exe_name = if cfg!(target_os = "windows") {
         format!("{}.exe", env!("CARGO_PKG_NAME"))
     } else {
         env!("CARGO_PKG_NAME").to_string()
     };
-    
+
     if !Path::new(&exe_name).exists() {
         println!("Binary not found, building...");
         if !build_project() {
@@ -331,7 +306,7 @@ fn check_and_fix_environment() -> bool {
             return false;
         }
     }
-    
+
     println!("Environment check passed.");
     true
 }
@@ -358,7 +333,7 @@ fn build_project() -> bool {
     let status = Command::new("cargo")
         .args(&["build", "--release"])
         .status();
-    
+
     match status {
         Ok(status) => {
             if status.success() {
@@ -381,14 +356,14 @@ fn read_config() -> serde_json::Value {
     // 获取当前可执行文件所在目录
     let exe_path = env::current_exe().expect("Failed to get executable path");
     let node_dir = exe_path.parent().expect("Failed to get parent directory");
-    
+
     // 尝试在多个位置查找配置文件
     let config_paths = vec![
         node_dir.join("config.json"),                              // 与可执行文件同目录 (target/release/)
         node_dir.parent().unwrap_or(node_dir).join("config.json"), // 父目录 (target/)
         node_dir.parent().and_then(|p| p.parent()).unwrap_or(node_dir).join("config.json"), // 祖父目录 (项目根目录)
     ];
-    
+
     for config_path in &config_paths {
         if let Ok(config_str) = fs::read_to_string(config_path) {
             match serde_json::from_str(&config_str) {
@@ -400,7 +375,7 @@ fn read_config() -> serde_json::Value {
             }
         }
     }
-    
+
     eprintln!("Failed to read config file from any of the expected locations");
     std::process::exit(1);
 }
@@ -410,31 +385,31 @@ fn listen_loop(config: &serde_json::Value) {
     let upper_file = config["listen_upper_file"]
         .as_str()
         .unwrap_or("../data/upper_data.json");
-    
+
     let output_file = config["output_file"]
         .as_str()
         .unwrap_or("./output.json");
-    
+
     let node_name = config["node_name"]
         .as_str()
         .unwrap_or("unknown");
-    
+
     let process_flag = format!("_processed_{}", node_name);
-    
+
     println!("Listening to: {}", upper_file);
     println!("Output to: {}", output_file);
     println!("Process flag: {}", process_flag);
-    
+
     log_message(&format!("Node started: {}", node_name));
     log_message(&format!("Listening: {}", upper_file));
-    
+
     loop {
         // 检查输入文件是否存在
         if !Path::new(upper_file).exists() {
             thread::sleep(Duration::from_millis(200));
             continue;
         }
-        
+
         // 读取输入数据
         let data_str = match fs::read_to_string(upper_file) {
             Ok(s) => s,
@@ -444,7 +419,7 @@ fn listen_loop(config: &serde_json::Value) {
                 continue;
             }
         };
-        
+
         // 解析 JSON
         let mut data: serde_json::Value = match serde_json::from_str(&data_str) {
             Ok(d) => d,
@@ -454,7 +429,7 @@ fn listen_loop(config: &serde_json::Value) {
                 continue;
             }
         };
-        
+
         // 检查是否已处理
         if let Some(flag) = data.get(&process_flag) {
             if flag.as_bool().unwrap_or(false) {
@@ -462,7 +437,7 @@ fn listen_loop(config: &serde_json::Value) {
                 continue;
             }
         }
-        
+
         // 应用过滤器
         if let Some(filter) = config.get("filter") {
             if !apply_filter(&data, filter) {
@@ -470,43 +445,43 @@ fn listen_loop(config: &serde_json::Value) {
                 continue;
             }
         }
-        
+
         log_message("Processing data...");
-        
+
         // 调用主程序处理 - 使用完整路径
         let exe_name = if cfg!(target_os = "windows") {
             format!("{}.exe", env!("CARGO_PKG_NAME"))
         } else {
             env!("CARGO_PKG_NAME").to_string()
         };
-        
+
         // 获取当前可执行文件所在目录，以便找到主处理程序
         let current_exe = env::current_exe().expect("Failed to get executable path");
         let node_dir = current_exe.parent().expect("Failed to get parent directory");
         let main_exe_path = node_dir.join(&exe_name);
-        
+
         let input_json = serde_json::to_string(&data).unwrap_or_else(|_| "{}".to_string());
-        
+
         let output = Command::new(&main_exe_path)
             .arg(&input_json)
             .output();
-        
+
         match output {
             Ok(out) => {
                 if out.status.success() {
                     let result = String::from_utf8_lossy(&out.stdout);
-                    
+
                     // 写入输出文件
                     if let Err(e) = fs::write(output_file, result.as_ref()) {
                         log_message(&format!("Error writing output: {}", e));
                     } else {
                         log_message("Processing completed successfully");
-                        
+
                         // 标记为已处理
                         if let Some(obj) = data.as_object_mut() {
                             obj.insert(process_flag.clone(), serde_json::Value::Bool(true));
                         }
-                        
+
                         // 更新输入文件
                         if let Ok(updated_json) = serde_json::to_string_pretty(&data) {
                             let _ = fs::write(upper_file, updated_json);
@@ -521,7 +496,7 @@ fn listen_loop(config: &serde_json::Value) {
                 log_message(&format!("Failed to execute {}: {}", exe_name, e));
             }
         }
-        
+
         thread::sleep(Duration::from_millis(200));
     }
 }
@@ -549,13 +524,13 @@ fn log_message(message: &str) {
     let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
     let log_line = format!("[{}] {}", timestamp, message);
     println!("{}", log_line);
-    
+
     // 写入日志文件
     let log_dir = "logs";
     if !Path::new(log_dir).exists() {
         let _ = fs::create_dir_all(log_dir);
     }
-    
+
     let log_file = Path::new(log_dir).join("listener.log");
     if let Ok(mut file) = fs::OpenOptions::new()
         .create(true)
@@ -566,12 +541,12 @@ fn log_message(message: &str) {
         let _ = writeln!(file, "{}", log_line);
     }
 }
-'''
+"""
 
 
 def create_packet_rs() -> str:
     """生成 src/packet.rs 文件内容"""
-    return '''use serde::{Deserialize, Serialize};
+    return """use serde::{Deserialize, Serialize};
 
 /// 输出数据包结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -602,7 +577,7 @@ impl OutputPacket {
         }
     }
 }
-'''
+"""
 
 
 def create_config_json(node_name: str) -> str:
@@ -612,14 +587,14 @@ def create_config_json(node_name: str) -> str:
         "listen_upper_file": "../data/upper_data.json",
         "output_file": "./output.json",
         "filter": {},
-        "output_type": ""
+        "output_type": "",
     }
     return json.dumps(config, indent=2, ensure_ascii=False)
 
 
 def create_start_bat(node_name: str) -> str:
     """生成 start.bat 文件内容（增强版 - 双文件检测）"""
-    return f'''@echo off
+    return f"""@echo off
 setlocal enabledelayedexpansion
 cls
 chcp 65001 >nul
@@ -648,7 +623,7 @@ if "!NEED_BUILD!"=="1" (
     echo.
     echo 🔧 开始自动构建...
     echo.
-    
+
     REM 检查 Rust 是否安装
     where rustc >nul 2>&1
     if errorlevel 1 (
@@ -657,7 +632,7 @@ if "!NEED_BUILD!"=="1" (
         if not "%%1"=="--no-pause" pause
         exit /b 1
     )
-    
+
     REM 构建项目
     cargo build --release
     if errorlevel 1 (
@@ -680,12 +655,12 @@ timeout /t 1 /nobreak >nul
 for /f "tokens=2" %%i in ('tasklist /fi "imagename eq {node_name}_listener.exe" /nh 2^>nul') do echo %%i > .pid
 echo ✅ 监听程序已在后台运行 (PID 已写入 .pid)
 if not "%%1"=="--no-pause" pause
-'''
+"""
 
 
 def create_start_sh(node_name: str) -> str:
     """生成 start.sh 文件内容（增强版 - 双文件检测）"""
-    return f'''#!/bin/bash
+    return f"""#!/bin/bash
 
 cd "$(dirname "$0")"
 
@@ -713,7 +688,7 @@ if [ "$NEED_BUILD" -eq 1 ]; then
     echo ""
     echo "🔧 开始自动构建..."
     echo ""
-    
+
     # 检查 Rust 是否安装
     if ! command -v rustc &> /dev/null; then
         echo "❌ Rust 未安装"
@@ -723,7 +698,7 @@ if [ "$NEED_BUILD" -eq 1 ]; then
         fi
         exit 1
     fi
-    
+
     # 构建项目
     cargo build --release
     if [ $? -ne 0 ]; then
@@ -749,12 +724,12 @@ echo "✅ 监听程序已在后台运行 (PID: $(cat .pid))"
 if [ "$1" != "--no-pause" ]; then
     read -p "按回车键退出..."
 fi
-'''
+"""
 
 
 def create_gitignore() -> str:
     """生成 .gitignore 文件内容"""
-    return '''# Rust
+    return """# Rust
 /target/
 **/*.rs.bk
 Cargo.lock
@@ -780,7 +755,7 @@ logs/
 # Build artifacts
 *.pdb
 *.dll
-'''
+"""
 
 
 def create_readme(node_name: str) -> str:
@@ -887,13 +862,13 @@ chmod +x start.sh
 fn process(data: &serde_json::Value) -> Option<serde_json::Value> {{
     // 在此实现你的业务逻辑
     // 例如：数据转换、计算、API 调用等
-    
+
     // 示例：提取并处理数据
     let input = data.get("data")?;
-    
+
     // 进行处理...
     let result = /* 你的处理逻辑 */;
-    
+
     Some(result)
 }}
 ```
@@ -1005,22 +980,17 @@ echo. > logs\\listener.log
 
 def generate_node(node_name: str, output_dir: str = None):
     """生成完整的 Rust 节点项目"""
-    
+
     # 强制使用默认输出目录格式：node_rust_<节点名称>
     output_dir = os.path.join(os.getcwd(), f"node_rust_{node_name}")
-    
-    print(f"\n{'='*60}")
-    print(f"正在生成 Rust 节点项目: {node_name}")
-    print(f"输出目录: {output_dir}")
-    print(f"{'='*60}\n")
-    
+
     # 创建目录结构
     src_dir = os.path.join(output_dir, "src")
     logs_dir = os.path.join(output_dir, "logs")
-    
+
     os.makedirs(src_dir, exist_ok=True)
     os.makedirs(logs_dir, exist_ok=True)
-    
+
     # 生成文件列表
     files = {
         "Cargo.toml": create_cargo_toml(node_name),
@@ -1033,65 +1003,44 @@ def generate_node(node_name: str, output_dir: str = None):
         ".gitignore": create_gitignore(),
         "README.md": create_readme(node_name),
     }
-    
+
     # 写入文件
     for filename, content in files.items():
         filepath = os.path.join(output_dir, filename)
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(content)
-        print(f"  [OK] 创建文件: {filename}")
-    
+
     # 创建空的 output.json 文件（与 Python 节点保持一致）
     output_json_path = os.path.join(output_dir, "output.json")
-    with open(output_json_path, 'w', encoding='utf-8') as f:
+    with open(output_json_path, "w", encoding="utf-8") as f:
         f.write('{"code":0,"data":null}')
-    print(f"  [OK] 创建文件: output.json")
-    
+
     # 为 start.sh 添加执行权限（在非 Windows 系统上）
-    if sys.platform != 'win32':
+    if sys.platform != "win32":
         start_sh_path = os.path.join(output_dir, "start.sh")
         os.chmod(start_sh_path, 0o755)
-        print(f"  [OK] 设置执行权限: start.sh")
-    
-    print(f"\n{'='*60}")
-    print(f"[SUCCESS] 节点项目 '{node_name}' 生成成功！")
-    print(f"{'='*60}\n")
-    print(f"下一步操作:")
-    print(f"  1. 进入项目目录: cd {output_dir}")
-    
-    # 检查 Rust 环境
-    if check_rust_installed():
-        print(f"  2. Rust 环境已就绪 [OK]")
-        print(f"  3. 构建项目: cargo build --release")
-    else:
-        print(f"  2. [WARN] 未检测到 Rust 环境")
-        print(f"     请先安装 Rust: https://rustup.rs/")
-        print(f"  3. 安装后运行: cargo build --release")
-    
-    print(f"  4. 编辑 src/main.rs 实现你的业务逻辑")
-    print(f"  5. 修改 config.json 配置节点参数")
-    print(f"  6. 运行节点: {'start.bat' if sys.platform == 'win32' else './start.sh'}")
-    print()
+
+    # 确认 Rust 工具链状态
+    rust_ok = check_rust_installed()
+    cargo_ok = check_cargo_installed()
+    if not rust_ok:
+        print("[警告] Rust 未安装，请访问 https://rustup.rs/ 安装", file=sys.stderr)
+    if not cargo_ok:
+        print("[警告] Cargo 未安装，请访问 https://rustup.rs/ 安装", file=sys.stderr)
 
 
 def repair_only_mode(node_dir: str):
     """仅修复模式：检测并修复指定节点的编译产物"""
-    print(f"\n{'='*60}")
-    print(f"[REPAIR] 开始修复节点: {node_dir}")
-    print(f"{'='*60}\n")
-    
+
     if not os.path.exists(node_dir):
-        print(f"[ERROR] 节点目录不存在: {node_dir}")
         sys.exit(1)
-    
+
     # 检测并修复编译产物
     success = auto_repair_build(node_dir)
-    
+
     if success:
-        print(f"\n[SUCCESS] 节点修复完成")
         sys.exit(0)
     else:
-        print(f"\n[ERROR] 节点修复失败")
         sys.exit(1)
 
 
@@ -1102,51 +1051,34 @@ def main():
         node_dir = sys.argv[2]
         repair_only_mode(node_dir)
         return
-    
+
     # 正常创建节点模式
     if len(sys.argv) < 2:
-        print("="*60)
-        print("    BNOS Rust 节点生成器（增强版）")
-        print("="*60)
-        print()
-        print("用法: python generate_node.py <node_name>")
-        print("      python generate_node.py --repair-only <node_dir>")
-        print()
-        print("示例:")
-        print("  python generate_node.py my_node")
-        print("  python generate_node.py --repair-only ./node_rust_my_node")
-        print()
-        
         # 交互式输入
         name = input("输入节点名称: ").strip()
         if not name:
-            print("❌ 名称不能为空")
             sys.exit(1)
-        
+
         # 验证节点名称
-        if not name.replace('_', '').replace('-', '').isalnum():
-            print("错误: 节点名称只能包含字母、数字、下划线和连字符")
+        if not name.replace("_", "").replace("-", "").isalnum():
             sys.exit(1)
-        
+
         try:
             generate_node(name)
-        except Exception as e:
-            print(f"错误: 生成节点项目时出错 - {e}")
+        except Exception:
             sys.exit(1)
-        
+
         input("\n按回车退出...")
     else:
         node_name = sys.argv[1]
-        
+
         # 验证节点名称
-        if not node_name.replace('_', '').replace('-', '').isalnum():
-            print("错误: 节点名称只能包含字母、数字、下划线和连字符")
+        if not node_name.replace("_", "").replace("-", "").isalnum():
             sys.exit(1)
-        
+
         try:
             generate_node(node_name)
-        except Exception as e:
-            print(f"错误: 生成节点项目时出错 - {e}")
+        except Exception:
             sys.exit(1)
 
 

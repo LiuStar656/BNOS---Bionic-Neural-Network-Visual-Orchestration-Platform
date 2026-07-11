@@ -7,33 +7,34 @@
   - 紧凑间距（spacing=4），减少视觉噪声
   - 每个 Widget 类型独立文件，通过 WidgetRegistry 统一注册
 """
-import os
+
+from __future__ import annotations
 
 from ._base import (
-    ParameterWidget,
-    _make_label,
-    _apply_dark_style,
-    DARK_CONTROL_QSS,
-    ROW_HEIGHT,
     CONTROL_HEIGHT,
-    LAYOUT_SPACING,
-    VALUE_LABEL_WIDTH,
-    LEFT_MARGIN,
-    RIGHT_MARGIN,
-    MIN_CONTROL_WIDTH,
+    DARK_CONTROL_QSS,
     LABEL_MIN_WIDTH,
+    LAYOUT_SPACING,
+    LEFT_MARGIN,
+    MIN_CONTROL_WIDTH,
+    RIGHT_MARGIN,
+    ROW_HEIGHT,
+    VALUE_LABEL_WIDTH,
+    ParameterWidget,
+    _apply_dark_style,
+    _make_label,
 )
-from .string import StringWidget
-from .text import TextWidget
-from .password import PasswordWidget
-from .int_widget import IntWidget
-from .float_widget import FloatWidget
 from .bool_widget import BoolWidget
+from .color_widget import ColorWidget
+from .dir_picker import DirPickerWidget
 from .enum_widget import EnumWidget
 from .file_picker import FilePickerWidget
-from .dir_picker import DirPickerWidget
-from .color_widget import ColorWidget
+from .float_widget import FloatWidget
+from .int_widget import IntWidget
+from .password import PasswordWidget
 from .range_widget import RangeWidget
+from .string import StringWidget
+from .text import TextWidget
 
 
 class WidgetRegistry:

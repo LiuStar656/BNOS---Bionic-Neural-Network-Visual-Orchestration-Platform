@@ -14,19 +14,20 @@
     TK.list_unused(glob)    # 扫描代码中未使用的 key
 """
 
+from __future__ import annotations
+
 import json
 import os
 import sys
-import logging
 
-logger = logging.getLogger(__name__)
+from ui.core.logger import logger
 
 
 def _load_json_keys() -> dict:
     """从 strings_cn.json 加载所有 key"""
     _here = os.path.dirname(os.path.abspath(__file__))
     _path = os.path.join(_here, "strings_cn.json")
-    with open(_path, "r", encoding="utf-8") as f:
+    with open(_path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -832,7 +833,7 @@ class TranslationKeys:
         json_key_set = set(_json_keys.keys())
 
         missing_in_json = defined_keys - json_key_set  # 定义了但 JSON 中不存在
-        extra_in_json = json_key_set - defined_keys     # JSON 中存在但未定义 — 仅警告
+        extra_in_json = json_key_set - defined_keys  # JSON 中存在但未定义 — 仅警告
 
         result = {"ok": True}
         if missing_in_json:
@@ -840,13 +841,13 @@ class TranslationKeys:
             result["missing_in_json"] = sorted(missing_in_json)
             logger.warning(
                 "TranslationKeys validation: %d keys defined but missing in JSON: %s",
-                len(missing_in_json), missing_in_json[:5]
+                len(missing_in_json),
+                missing_in_json[:5],
             )
         if extra_in_json:
             result["extra_in_json"] = sorted(extra_in_json)
             logger.info(
-                "TranslationKeys: %d keys in JSON not yet in TK registry: %s",
-                len(extra_in_json), extra_in_json[:5]
+                "TranslationKeys: %d keys in JSON not yet in TK registry: %s", len(extra_in_json), extra_in_json[:5]
             )
         return result
 
@@ -860,8 +861,7 @@ class TranslationKeys:
         返回: 未使用 key 的列表
         """
         if not source_dir:
-            source_dir = os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__))))
+            source_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         if not _json_keys:
             return []
 
@@ -872,7 +872,7 @@ class TranslationKeys:
                 if f.endswith(".py"):
                     fpath = os.path.join(root, f)
                     try:
-                        with open(fpath, "r", encoding="utf-8", errors="ignore") as fh:
+                        with open(fpath, encoding="utf-8", errors="ignore") as fh:
                             content = fh.read()
                     except Exception:
                         continue
@@ -894,21 +894,20 @@ TK = TranslationKeys
 # ═══════════════════════════════════════════════════════════════════
 def _regenerate():
     """从 strings_cn.json 重新生成此文件。"""
-    import io
     keys = sorted(_json_keys.keys())
 
     lines = []
     lines.append('"""')
-    lines.append('集中翻译 Key 注册表 (Translation Key Registry)')
-    lines.append('───────────────────────────────────────────')
-    lines.append(f'数据源: strings_cn.json ({len(keys)} keys)')
-    lines.append('生成方式: python -m ui.core.i18n.translation_keys --regenerate')
-    lines.append('')
-    lines.append('用法:')
-    lines.append('    from ui.core.i18n.translation_keys import TK')
+    lines.append("集中翻译 Key 注册表 (Translation Key Registry)")
+    lines.append("───────────────────────────────────────────")
+    lines.append(f"数据源: strings_cn.json ({len(keys)} keys)")
+    lines.append("生成方式: python -m ui.core.i18n.translation_keys --regenerate")
+    lines.append("")
+    lines.append("用法:")
+    lines.append("    from ui.core.i18n.translation_keys import TK")
     lines.append('    t(TK.PROJECT)           # 代替 t("k_project")')
     lines.append('"""')
-    lines.append('')
+    lines.append("")
     # Write the rest similar to this file... (keep existing content)
     print(f"Regeneration would create file with {len(keys)} keys.")
     print("This is a stub - please manually update the file if needed.")

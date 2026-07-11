@@ -1,24 +1,32 @@
 """折线多边形图形 — 单击加点，双击闭合"""
-from PySide6.QtCore import Qt, QRectF, QPointF
+
+from __future__ import annotations
+
+from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QPainterPath, QPolygonF
+
 from ._base import GraphicBase
 
 
 class PolygonGraphic(GraphicBase):
     """折线多边形 — 单击加点，双击闭合"""
+
     def __init__(self, points=None):
         super().__init__("polygon", points or [])
 
     def boundingRect(self):
-        if not self._points: return QRectF(0,0,1,1)
-        xs = [p[0] for p in self._points]; ys = [p[1] for p in self._points]
-        return QRectF(min(xs)-10, min(ys)-10, max(xs)-min(xs)+20, max(ys)-min(ys)+20)
+        if not self._points:
+            return QRectF(0, 0, 1, 1)
+        xs = [p[0] for p in self._points]
+        ys = [p[1] for p in self._points]
+        return QRectF(min(xs) - 10, min(ys) - 10, max(xs) - min(xs) + 20, max(ys) - min(ys) + 20)
 
     def shape(self):
         p = QPainterPath()
         if len(self._points) >= 2:
             p.moveTo(*self._points[0])
-            for pt in self._points[1:]: p.lineTo(*pt)
+            for pt in self._points[1:]:
+                p.lineTo(*pt)
             p.closeSubpath()
         return p
 
@@ -27,8 +35,9 @@ class PolygonGraphic(GraphicBase):
         self.prepareGeometryChange()
 
     def paint(self, painter, option, widget):
-        if not self._points: return
-        pts = [QPointF(x,y) for x,y in self._points]
+        if not self._points:
+            return
+        pts = [QPointF(x, y) for x, y in self._points]
         painter.setPen(self._stroke)
         if len(pts) >= 2 and self.isFinished():
             painter.setBrush(self._fill)

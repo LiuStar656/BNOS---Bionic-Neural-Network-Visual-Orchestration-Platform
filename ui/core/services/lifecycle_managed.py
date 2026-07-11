@@ -20,7 +20,10 @@
             self._register_resource(timer, 'stop')
             timer.start(1000)
 """
-from PySide6.QtCore import QTimer, QThread
+
+from __future__ import annotations
+
+from PySide6.QtCore import QTimer
 
 
 class LifecycleManaged:
@@ -34,7 +37,7 @@ class LifecycleManaged:
         self._disposed = False
 
     # ── 资源注册 ──
-    def _register_resource(self, resource, stop_method: str = 'stop'):
+    def _register_resource(self, resource, stop_method: str = "stop"):
         """注册一个需要追踪的子资源
 
         Args:
@@ -56,6 +59,7 @@ class LifecycleManaged:
         dispose() 时自动注销。
         """
         from ui.core.system.update_scheduler import update_scheduler
+
         update_scheduler.subscribe(self, interval_ms, callback)
 
     def _run_in_thread(self, fn, on_done=None) -> int:
@@ -68,6 +72,7 @@ class LifecycleManaged:
             任务 ID
         """
         from ui.core.system.thread_pool import thread_pool
+
         return thread_pool.run_task(fn, on_done)
 
     # ── 清理 ──
@@ -92,6 +97,7 @@ class LifecycleManaged:
         # 2. 注销 UpdateScheduler 订阅
         try:
             from ui.core.system.update_scheduler import update_scheduler
+
             update_scheduler.unsubscribe(self)
         except Exception:
             pass
@@ -120,9 +126,9 @@ class LifecycleManaged:
             QTimer 实例
         """
         # self 必须是 QObject 的子类才能设置 parent
-        timer = QTimer(self if hasattr(self, 'metaObject') else None)
+        timer = QTimer(self if hasattr(self, "metaObject") else None)
         timer.timeout.connect(callback)
-        self._register_resource(timer, 'stop')
+        self._register_resource(timer, "stop")
         if single_shot:
             timer.setSingleShot(True)
         timer.start(interval_ms)

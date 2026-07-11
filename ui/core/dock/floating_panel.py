@@ -4,17 +4,19 @@
 子类通过 self.content_layout 和 self.hint_bar 添加内容。
 自带：无边框、半透明深色背景、标题栏（可拖动）、最小化/关闭按钮。
 """
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QWidget
-)
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+
 from ui.core.i18n.i18n import t
 
 
 class FloatingPanel(QDialog):
     """浮动面板基类"""
-    
+
     closed = Signal()  # 关闭信号
 
     def __init__(self, parent=None, title=None):
@@ -25,10 +27,7 @@ class FloatingPanel(QDialog):
         self.drag_position = None
 
         # 统一窗口标志
-        self.setWindowFlags(
-            Qt.WindowType.Tool |
-            Qt.WindowType.FramelessWindowHint
-        )
+        self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         self._setup_frame(title)
@@ -64,9 +63,7 @@ class FloatingPanel(QDialog):
 
         # 底部提示栏（子类可选使用 self.hint(text) 设置）
         self._hint_label = QLabel("")
-        self._hint_label.setStyleSheet(
-            "color: rgba(255, 255, 255, 80); font-size: 9px; padding: 2px;"
-        )
+        self._hint_label.setStyleSheet("color: rgba(255, 255, 255, 80); font-size: 9px; padding: 2px;")
         self._hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._frame_layout.addWidget(self._hint_label)
 
@@ -188,4 +185,5 @@ class FloatingPanel(QDialog):
 def themed_input_dialog(parent, title, prompt, default=""):
     """统一样式输入弹窗（委托给 dialog_utils）"""
     from ui.core.utils.dialog_utils import themed_input
+
     return themed_input(parent, title, prompt, default)

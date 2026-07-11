@@ -4,14 +4,14 @@
 【统一重构】本服务现在委托给 node_process.py 的标准化实现，
 消除代码重复，保证行为一致性。
 """
-from typing import Dict, List, Optional, Callable
-from PySide6.QtCore import QObject
-from pathlib import Path
-from ui.core.logger import logger
+
+from __future__ import annotations
+
 import subprocess
-import os
-import signal
+from collections.abc import Callable
 from enum import Enum
+
+from ui.core.logger import logger
 
 
 class NodeStatus(Enum):
@@ -30,17 +30,17 @@ class NodeInfo:
         self.path = path
         self.pid = pid
         self.status = status
-        self.process: Optional[subprocess.Popen] = None
+        self.process: subprocess.Popen | None = None
 
 
 class NodeControlService:
     """节点控制服务 — 统一委托给 node_process.py"""
 
     def __init__(self):
-        self.nodes: Dict[str, NodeInfo] = {}
-        self._active_processes: Dict[str, subprocess.Popen] = {}
-        self._status_callbacks: List[Callable] = []
-        self._monitor_threads: Dict[str, int] = {}  # task_id per node
+        self.nodes: dict[str, NodeInfo] = {}
+        self._active_processes: dict[str, subprocess.Popen] = {}
+        self._status_callbacks: list[Callable] = []
+        self._monitor_threads: dict[str, int] = {}  # task_id per node
 
     def register_node(self, name: str, path: str):
         self.nodes[name] = NodeInfo(name, path)
@@ -64,19 +64,13 @@ class NodeControlService:
             node_info.status = NodeStatus.STARTING
             self._notify(name, NodeStatus.STARTING)
 
-            node_dict = {
-                "path": node_info.path,
-                "name": name,
-                "config": {},
-                "process": None,
-                "status": "stopped"
-            }
+            node_dict = {"path": node_info.path, "name": name, "config": {}, "process": None, "status": "stopped"}
 
             success, error = start_node_process(node_dict)
 
             if success:
-                node_info.process = node_dict.get('process')
-                node_info.pid = node_dict.get('process').pid if node_dict.get('process') else None
+                node_info.process = node_dict.get("process")
+                node_info.pid = node_dict.get("process").pid if node_dict.get("process") else None
                 node_info.status = NodeStatus.RUNNING
                 self._active_processes[name] = node_info.process
                 self._notify(name, NodeStatus.RUNNING)
@@ -106,10 +100,7 @@ class NodeControlService:
             node_info.status = NodeStatus.STOPPING
             self._notify(name, NodeStatus.STOPPING)
 
-            node_dict = {
-                "path": node_info.path,
-                "process": node_info.process
-            }
+            node_dict = {"path": node_info.path, "process": node_info.process}
 
             success, error = stop_node_process(node_dict)
 
@@ -137,7 +128,7 @@ class NodeControlService:
         for name in list(self._active_processes.keys()):
             self.stop_node(name)
 
-    def get_node_status(self, name: str) -> Optional[NodeStatus]:
+    def get_node_status(self, name: str) -> NodeStatus | None:
         if name in self.nodes:
             return self.nodes[name].status
         return None
@@ -154,6 +145,7 @@ class NodeControlService:
 
         self._cleanup_monitor_thread(name)
         from ui.core.system.thread_pool import thread_pool
+
         task_id = thread_pool.run_task(run)
         self._monitor_threads[name] = task_id
 
@@ -161,11 +153,13 @@ class NodeControlService:
         task_id = self._monitor_threads.pop(name, None)
         if task_id is not None:
             from ui.core.system.thread_pool import thread_pool
+
             thread_pool.cancel(task_id)
 
     def cleanup_all_monitors(self):
         """清理所有监控线程（应用退出时调用）"""
         from ui.core.system.thread_pool import thread_pool
+
         for name in list(self._monitor_threads.keys()):
             self._cleanup_monitor_thread(name)
         thread_pool.wait_for_done(2000)

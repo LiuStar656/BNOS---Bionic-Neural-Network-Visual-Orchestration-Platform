@@ -13,7 +13,8 @@ NodeMonitor 面板节点同步 Mixin — 消除 node_monitor.py 与 node_monitor
   - self._panel_layout: QVBoxLayout（用于 insertWidget）
   - 可选: _create_sub_panel(node_name, node_path, status) 工厂方法
 """
-from ui.core.system.polling_manager import polling_manager
+
+from __future__ import annotations
 
 
 class NodePanelSyncMixin:
@@ -22,6 +23,7 @@ class NodePanelSyncMixin:
     def _create_sub_panel(self, node_name: str, node_path: str, status: str):
         """工厂方法 — 子类覆盖以使用自己的 NodeLogSubPanel 子类"""
         from ui.panels._shared.node_log_sub_panel import BaseNodeLogSubPanel
+
         return BaseNodeLogSubPanel(node_name, node_path, status)
 
     def _sync_panels(self):
@@ -29,10 +31,10 @@ class NodePanelSyncMixin:
         if not self.parent_window:
             return
 
-        canvas = getattr(self.parent_window, 'canvas', None)
+        canvas = getattr(self.parent_window, "canvas", None)
 
         # 如果画布不存在或画布上没有节点，清空所有子面板
-        if not canvas or not hasattr(canvas, 'nodes') or not canvas.nodes:
+        if not canvas or not hasattr(canvas, "nodes") or not canvas.nodes:
             for name in list(self._sub_panels.keys()):
                 self._remove_sub_panel(name)
             return
@@ -48,15 +50,14 @@ class NodePanelSyncMixin:
         # 添加新节点子面板
         added = canvas_nodes - current_nodes
         for name in added:
-            if hasattr(self.parent_window, 'nodes_data') and name in self.parent_window.nodes_data:
+            if hasattr(self.parent_window, "nodes_data") and name in self.parent_window.nodes_data:
                 node_info = self.parent_window.nodes_data[name]
-                self._add_sub_panel(name, node_info.get('path', ''),
-                                    node_info.get('status', 'stopped'))
+                self._add_sub_panel(name, node_info.get("path", ""), node_info.get("status", "stopped"))
 
         # 更新状态
         for name in self._sub_panels:
-            if hasattr(self.parent_window, 'nodes_data') and name in self.parent_window.nodes_data:
-                status = self.parent_window.nodes_data[name].get('status', 'stopped')
+            if hasattr(self.parent_window, "nodes_data") and name in self.parent_window.nodes_data:
+                status = self.parent_window.nodes_data[name].get("status", "stopped")
                 self._sub_panels[name].update_status(status)
 
     def _add_sub_panel(self, node_name: str, node_path: str, status: str):

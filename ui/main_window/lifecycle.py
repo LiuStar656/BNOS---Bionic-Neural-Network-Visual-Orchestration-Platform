@@ -6,8 +6,12 @@ Handles startup and shutdown orchestration:
 - Shutdown flow
 - Event handling (show, close, resize, etc.)
 """
+
+from __future__ import annotations
+
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QMainWindow
+
 from ui.core.logger import logger
 
 
@@ -62,14 +66,14 @@ class MainWindowLifecycleMixin:
         logger.info("   Total nodes: %d", len(self.nodes_data))
 
         # Immediately set closing flag to prevent subsequent hideEvent from overwriting persisted state
-        if hasattr(self, '_canvas_host') and self._canvas_host:
+        if hasattr(self, "_canvas_host") and self._canvas_host:
             self._canvas_host._is_closing = True
-            if hasattr(self._canvas_host, '_terminal_dock') and self._canvas_host._terminal_dock:
+            if hasattr(self._canvas_host, "_terminal_dock") and self._canvas_host._terminal_dock:
                 self._canvas_host._terminal_dock._is_closing = True
                 logger.info("Set TerminalDock._is_closing = True")
 
         # Wait for node creation thread to finish (if running)
-        if hasattr(self, 'node_creation_worker'):
+        if hasattr(self, "node_creation_worker"):
             try:
                 if self.node_creation_worker and self.node_creation_worker.isRunning():
                     logger.info("Waiting for node creation thread...")
@@ -81,7 +85,7 @@ class MainWindowLifecycleMixin:
                 logger.info("Node creation thread object already cleaned up")
 
         # Wait for node start threads to finish
-        if hasattr(self, '_node_start_workers') and self._node_start_workers:
+        if hasattr(self, "_node_start_workers") and self._node_start_workers:
             logger.info("Waiting for %d node start threads...", len(self._node_start_workers))
             for worker in list(self._node_start_workers):
                 if worker.isRunning():
@@ -91,7 +95,7 @@ class MainWindowLifecycleMixin:
                         worker.terminate()
 
         # Wait for node stop threads to finish
-        if hasattr(self, '_stop_node_workers') and self._stop_node_workers:
+        if hasattr(self, "_stop_node_workers") and self._stop_node_workers:
             logger.info("Waiting for %d node stop threads...", len(self._stop_node_workers))
             for worker in list(self._stop_node_workers):
                 if worker.isRunning():
@@ -103,11 +107,11 @@ class MainWindowLifecycleMixin:
         # Check for running nodes
         running_nodes = []
         for node_name, node_info in self.nodes_data.items():
-            status = node_info.get('status', 'unknown')
-            process = node_info.get('process', None)
-            logger.debug("Node %s: status=%s, process=%s", node_name, status, 'exists' if process else 'None')
+            status = node_info.get("status", "unknown")
+            process = node_info.get("process", None)
+            logger.debug("Node %s: status=%s, process=%s", node_name, status, "exists" if process else "None")
 
-            if status == 'running' and process:
+            if status == "running" and process:
                 running_nodes.append(node_name)
 
         logger.info("Detected %d running nodes: %s", len(running_nodes), running_nodes)
@@ -118,12 +122,14 @@ class MainWindowLifecycleMixin:
             if len(running_nodes) > 10:
                 nodes_list += f"\n... and {len(running_nodes) - 10} more nodes"
 
-            from ui.core.utils.dialog_utils import MSG_ACCEPT, MSG_REJECT, MSG_CANCEL, themed_message
             from ui.core.i18n import t
+            from ui.core.utils.dialog_utils import MSG_ACCEPT, MSG_REJECT, themed_message
+
             reply = themed_message(
-                self, t("k_title_detect_running"),
+                self,
+                t("k_title_detect_running"),
                 t("_k_close_running_nodes").format(count=len(running_nodes), nodes=nodes_list),
-                "question3"
+                "question3",
             )
 
             if reply == MSG_ACCEPT:
@@ -137,9 +143,9 @@ class MainWindowLifecycleMixin:
             else:
                 logger.info("User cancelled close operation")
                 # Reset closing flag
-                if hasattr(self, '_canvas_host') and self._canvas_host:
+                if hasattr(self, "_canvas_host") and self._canvas_host:
                     self._canvas_host._is_closing = False
-                    if hasattr(self._canvas_host, '_terminal_dock') and self._canvas_host._terminal_dock:
+                    if hasattr(self._canvas_host, "_terminal_dock") and self._canvas_host._terminal_dock:
                         self._canvas_host._terminal_dock._is_closing = False
                 event.ignore()
                 return
@@ -165,9 +171,9 @@ class MainWindowLifecycleMixin:
         if self.canvas:
             canvas = self.canvas
             try:
-                all_items = canvas.items() if hasattr(canvas, 'items') else []
+                all_items = canvas.items() if hasattr(canvas, "items") else []
                 for item in all_items:
-                    if hasattr(item, 'dispose'):
+                    if hasattr(item, "dispose"):
                         try:
                             item.dispose()
                         except Exception as e:
@@ -179,8 +185,9 @@ class MainWindowLifecycleMixin:
         # 2. Clear PollingManager node-level watchers and stop worker thread
         try:
             from ui.core.system.polling_manager import polling_manager
+
             polling_manager.cleanup_all_watchers()
-            if hasattr(polling_manager, '_worker_thread') and polling_manager._worker_thread:
+            if hasattr(polling_manager, "_worker_thread") and polling_manager._worker_thread:
                 polling_manager._worker_thread.quit()
                 polling_manager._worker_thread.wait(2000)
                 if polling_manager._worker_thread.isRunning():
@@ -193,6 +200,7 @@ class MainWindowLifecycleMixin:
         # 3. Stop NodeControlService callbacks and cleanup all monitor threads
         try:
             from ui.core.node.node_control_service import node_control_service
+
             node_control_service._status_callbacks.clear()
             node_control_service.cleanup_all_monitors()
             logger.debug("[CLEANUP] NodeControlService callbacks + monitor threads cleared")
@@ -202,7 +210,8 @@ class MainWindowLifecycleMixin:
         # 4. Stop startup queue worker thread
         try:
             from ui.core.node.node_startup_queue import startup_queue
-            if hasattr(startup_queue, 'stop_queue'):
+
+            if hasattr(startup_queue, "stop_queue"):
                 startup_queue.stop_queue()
             logger.debug("[CLEANUP] Startup queue stopped")
         except Exception as e:
@@ -211,6 +220,7 @@ class MainWindowLifecycleMixin:
         # 5. Stop all timers and background threads in Dock panels
         try:
             from ui.core.dock.dock_manager import DockManager
+
             titles = list(self._dock_manager.get_all_dock_titles())
             for dock_title in titles:
                 dock = self._dock_manager.get_dock_by_title(dock_title)
@@ -219,7 +229,7 @@ class MainWindowLifecycleMixin:
                 try:
                     DockManager._stop_content_timers(dock)
                     content = dock.get_content_widget()
-                    if content and hasattr(content, 'dispose'):
+                    if content and hasattr(content, "dispose"):
                         try:
                             content.dispose()
                             logger.debug("[CLEANUP] Panel disposed: %s", dock_title)
@@ -234,6 +244,7 @@ class MainWindowLifecycleMixin:
         # 6. Close global thread pool
         try:
             from ui.core.system.thread_pool import thread_pool
+
             thread_pool.shutdown()
             logger.debug("[CLEANUP] Global thread pool closed")
         except Exception as e:
@@ -245,10 +256,10 @@ class MainWindowLifecycleMixin:
         """Save all data (layout/window state/panel visibility/floating panel positions)."""
         logger.info("[SHUTDOWN] === Starting save all data ===")
 
-        if hasattr(self, '_canvas_host') and self._canvas_host:
+        if hasattr(self, "_canvas_host") and self._canvas_host:
             self._canvas_host.update_canvas_data_from_main_window(self.canvas)
 
-        if self.current_project_path and hasattr(self, '_canvas_host'):
+        if self.current_project_path and hasattr(self, "_canvas_host"):
             self._canvas_host.save_all_layouts(self.current_project_path)
 
         logger.info("[SAVE] Saving window state...")
@@ -262,6 +273,7 @@ class MainWindowLifecycleMixin:
         self.app_config.save()
 
         import os
+
         if os.path.exists(self.app_config.config_file):
             logger.info("Config file saved successfully: %s", self.app_config.config_file)
         else:
@@ -276,13 +288,13 @@ class MainWindowLifecycleMixin:
         if self.CANVAS_PROCESS_MODE:
             self._sync_canvas_geometry()
 
-        if hasattr(self, 'node_monitor') and self.node_monitor is not None and self.node_monitor.isVisible():
+        if hasattr(self, "node_monitor") and self.node_monitor is not None and self.node_monitor.isVisible():
             p = self.pos()
             monitor_x = p.x() + self.width() - 440
             monitor_y = p.y() + 40
             self.node_monitor.move(monitor_x, monitor_y)
 
-        if hasattr(self, 'toast_manager'):
+        if hasattr(self, "toast_manager"):
             self.toast_manager._update_positions()
 
     def resizeEvent(self, event):
@@ -292,13 +304,13 @@ class MainWindowLifecycleMixin:
         if self.CANVAS_PROCESS_MODE:
             self._sync_canvas_geometry()
 
-        if hasattr(self, 'node_monitor') and self.node_monitor is not None and self.node_monitor.isVisible():
+        if hasattr(self, "node_monitor") and self.node_monitor is not None and self.node_monitor.isVisible():
             p = self.pos()
             monitor_x = p.x() + self.width() - 440
             monitor_y = p.y() + 40
             self.node_monitor.move(monitor_x, monitor_y)
 
-        if hasattr(self, 'toast_manager'):
+        if hasattr(self, "toast_manager"):
             self.toast_manager._update_positions()
 
     def _sync_canvas_geometry(self):
@@ -308,15 +320,16 @@ class MainWindowLifecycleMixin:
 
         try:
             from ui.core.system.ipc import send_canvas_geometry
+
             send_canvas_geometry(self)
         except Exception as e:
             logger.error("Failed to sync canvas geometry: %s", e)
 
     def _stop_terminal_subprocesses(self):
         """Stop all subprocesses in terminal."""
-        if hasattr(self, '_canvas_host') and self._canvas_host:
+        if hasattr(self, "_canvas_host") and self._canvas_host:
             ch = self._canvas_host
-            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
+            if hasattr(ch, "_terminal_dock") and ch._terminal_dock:
                 logger.info("Stopping terminal processes...")
                 ch._terminal_dock.stop_all_terminals()
 
@@ -329,7 +342,7 @@ class MainWindowLifecycleMixin:
                 stop_node_process(self.nodes_data[node_name])
                 logger.info("Node %s stopped", node_name)
 
-        if hasattr(self, 'node_list_panel') and self.node_list_panel:
+        if hasattr(self, "node_list_panel") and self.node_list_panel:
             self.node_list_panel.update_node_list(self.nodes_data)
 
         if self.canvas:
@@ -337,9 +350,9 @@ class MainWindowLifecycleMixin:
 
     def _disconnect_terminal_signals(self):
         """Disconnect terminal signal connections."""
-        if hasattr(self, '_canvas_host') and self._canvas_host:
+        if hasattr(self, "_canvas_host") and self._canvas_host:
             ch = self._canvas_host
-            if hasattr(ch, '_terminal_dock') and ch._terminal_dock:
+            if hasattr(ch, "_terminal_dock") and ch._terminal_dock:
                 logger.info("Disconnecting TerminalDock visibility_changed signal...")
                 try:
                     ch._terminal_dock.visibility_changed.disconnect()

@@ -7,15 +7,17 @@
 - 新增 port_name / port_type / port_label 属性，记录该锚点对应的端口信息
 - 单锚点（默认 "default"）与多锚点（根据 input_ports 定义生成）共用同一类
 """
-from PySide6.QtWidgets import QGraphicsEllipseItem
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPen, QColor
 
+from __future__ import annotations
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPen
+from PySide6.QtWidgets import QGraphicsEllipseItem
 
 # 锚点几何常量。全系统共用，避免分散在各文件里硬编码 16/8。
-ANCHOR_SIZE = 16          # 默认锚点尺寸（listen_upper_file / output）
+ANCHOR_SIZE = 16  # 默认锚点尺寸（listen_upper_file / output）
 ANCHOR_HALF = ANCHOR_SIZE // 2  # = 8
-ANCHOR_SIZE_SMALL = 10    # 小锚点尺寸（input_port 贴在标签右侧）
+ANCHOR_SIZE_SMALL = 10  # 小锚点尺寸（input_port 贴在标签右侧）
 ANCHOR_HALF_SMALL = ANCHOR_SIZE_SMALL // 2  # = 5
 
 
@@ -26,9 +28,17 @@ class AnchorItem(QGraphicsEllipseItem):
       - 小锚点（10px）：其他 input_port（贴在标签右侧）
     """
 
-    def __init__(self, x, y, anchor_type="input", parent=None,
-                 port_name: str | None = None, port_type: str = "default",
-                 port_label: str = "", size: int = ANCHOR_SIZE):
+    def __init__(
+        self,
+        x,
+        y,
+        anchor_type="input",
+        parent=None,
+        port_name: str | None = None,
+        port_type: str = "default",
+        port_label: str = "",
+        size: int = ANCHOR_SIZE,
+    ):
         super().__init__(x, y, size, size, parent)
         self.anchor_type = anchor_type  # "input" 或 "output"
 
@@ -67,7 +77,7 @@ class AnchorItem(QGraphicsEllipseItem):
 
     def update_anchor_color(self):
         """更新锚点颜色（从画布配置读取）"""
-        if self.parentItem() and hasattr(self.parentItem(), 'canvas') and self.parentItem().canvas:
+        if self.parentItem() and hasattr(self.parentItem(), "canvas") and self.parentItem().canvas:
             canvas = self.parentItem().canvas
             color_hex = canvas.input_anchor_color if self.anchor_type == "input" else canvas.output_anchor_color
             color = QColor(color_hex)
@@ -81,7 +91,7 @@ class AnchorItem(QGraphicsEllipseItem):
 
     def hoverEnterEvent(self, event):
         """鼠标进入时高亮"""
-        if self.parentItem() and hasattr(self.parentItem(), 'canvas') and self.parentItem().canvas:
+        if self.parentItem() and hasattr(self.parentItem(), "canvas") and self.parentItem().canvas:
             canvas = self.parentItem().canvas
             base_color = canvas.input_anchor_color if self.anchor_type == "input" else canvas.output_anchor_color
             highlight_color = QColor(base_color)

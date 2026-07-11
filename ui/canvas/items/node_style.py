@@ -4,4 +4,7 @@
 新路径：
     from ui.canvas.items.styles import DetailedNodeStyle, StyleRegistry
 """
+
+from __future__ import annotations
+
 from ui.canvas.items.styles import DetailedNodeStyle, StyleRegistry  # noqa: F401

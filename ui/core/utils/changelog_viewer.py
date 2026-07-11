@@ -2,22 +2,31 @@
 更新日志查看器 — 根据当前语言读取 docs/changelogs/{cn|en}/README.md 并展示，
 支持通过链接导航到其他 .md 文件。使用 QTextBrowser 渲染。
 """
-import os
+
+from __future__ import annotations
+
 import re
 from html import escape
+from pathlib import Path
+
 import markdown
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QTextBrowser
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QDesktopServices, QColor, QPalette
-from ui.core.i18n import t, get_lang
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QDesktopServices, QPalette
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QTextBrowser, QVBoxLayout, QWidget
 
+from ui.core.i18n import get_lang, t
+from ui.core.logger import logger
 
-_STYLE_CONTAINER = "QWidget { background-color: rgba(30,30,30,220); border-radius: 8px; border: 1px solid rgba(255,255,255,25); }"
-_STYLE_TITLE    = "color: white; font-size: 14px; font-weight: bold; background: transparent;"
-_STYLE_INFO     = "color: rgba(255,255,255,120); font-size: 11px; background: transparent; padding: 2px 0;"
-_STYLE_BACK_BTN = ("QPushButton { color: #4daafc; background: transparent; border: none; font-size: 11px; padding: 0 4px; } "
-                   "QPushButton:hover { color: #ffffff; } "
-                   "QPushButton:disabled { color: #555; }")
+_STYLE_CONTAINER = (
+    "QWidget { background-color: rgba(30,30,30,220); border-radius: 8px; border: 1px solid rgba(255,255,255,25); }"
+)
+_STYLE_TITLE = "color: white; font-size: 14px; font-weight: bold; background: transparent;"
+_STYLE_INFO = "color: rgba(255,255,255,120); font-size: 11px; background: transparent; padding: 2px 0;"
+_STYLE_BACK_BTN = (
+    "QPushButton { color: #4daafc; background: transparent; border: none; font-size: 11px; padding: 0 4px; } "
+    "QPushButton:hover { color: #ffffff; } "
+    "QPushButton:disabled { color: #555; }"
+)
 
 _STYLE_BROWSER = """
 QTextBrowser {
@@ -39,8 +48,8 @@ class ChangelogViewer(QDialog):
         self.resize(780, 580)
         self.setWindowTitle(title or t("k_menu_changelog"))
 
-        self._history = []      # 导航历史栈
-        self._base_dir = ""     # 根目录
+        self._history = []  # 导航历史栈
+        self._base_dir = Path()  # 根目录
 
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
@@ -62,7 +71,8 @@ class ChangelogViewer(QDialog):
 
         close_label = QLabel("\u00d7")
         close_label.setStyleSheet(
-            "color: rgba(255,255,255,150); font-size: 16px; padding:0 6px; background:transparent;")
+            "color: rgba(255,255,255,150); font-size: 16px; padding:0 6px; background:transparent;"
+        )
         close_label.setCursor(Qt.CursorShape.PointingHandCursor)
         close_label.mousePressEvent = lambda e: self.reject()
         title_bar.addWidget(close_label)
@@ -105,22 +115,24 @@ class ChangelogViewer(QDialog):
         btn_row = QHBoxLayout()
         btn_row.addStretch()
         close_btn = QPushButton(t("k_ok"))
-        close_btn.setStyleSheet("QPushButton { background: rgba(0,120,212,200); color: white; border: none; border-radius: 4px; padding: 6px 24px; } QPushButton:hover { background: rgba(0,140,240,220); }")
+        close_btn.setStyleSheet(
+            "QPushButton { background: rgba(0,120,212,200); color: white; border: none; border-radius: 4px; padding: 6px 24px; } QPushButton:hover { background: rgba(0,140,240,220); }"
+        )
         close_btn.clicked.connect(self.accept)
         btn_row.addWidget(close_btn)
         main_layout.addLayout(btn_row)
 
         # 初始加载
         if start_path:
-            self._base_dir = os.path.dirname(os.path.abspath(start_path))
+            self._base_dir = Path(start_path).resolve().parent
             self.navigate_to(start_path)
         else:
             lang = get_lang()
             lang_dir = "cn" if lang == "cn" else "en"
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-            self._base_dir = os.path.join(base_dir, "docs", "changelogs", lang_dir)
-            start_path = os.path.join(self._base_dir, "README.md")
-            self.navigate_to(start_path)
+            base_dir = Path(__file__).resolve().parent.parent.parent.parent
+            self._base_dir = base_dir / "docs" / "changelogs" / lang_dir
+            start_path = self._base_dir / "README.md"
+            self.navigate_to(str(start_path))
 
     def _on_anchor_clicked(self, url):
         """处理链接点击 — .md 内部导航，其他用系统浏览器"""
@@ -129,30 +141,31 @@ class ChangelogViewer(QDialog):
             # 外部链接用系统浏览器打开
             QDesktopServices.openUrl(url)
             return
-        path = os.path.normpath(path)
-        if path.lower().endswith(".md"):
-            if os.path.isfile(path):
-                self.navigate_to(path)
-        elif os.path.isfile(path):
+        p = Path(path)
+        if p.suffix.lower() == ".md":
+            if p.is_file():
+                self.navigate_to(str(p))
+        elif p.is_file():
             QDesktopServices.openUrl(url)
         else:
             QDesktopServices.openUrl(url)
 
     def navigate_to(self, file_path):
         """导航到指定 .md 文件 — S15: 边界检查防止路径穿越"""
-        file_path = os.path.normpath(file_path)
-        if not os.path.isabs(file_path) and self._history:
-            current_dir = os.path.dirname(self._history[-1])
-            file_path = os.path.normpath(os.path.join(current_dir, file_path))
+        file_path = str(Path(file_path))
+        if not Path(file_path).is_absolute() and self._history:
+            current_dir = str(Path(self._history[-1]).parent)
+            file_path = str(Path(current_dir) / file_path)
         # 禁止穿越到 _base_dir 之外
-        base_real = os.path.realpath(self._base_dir)
-        real_path = os.path.realpath(file_path) if os.path.exists(file_path) else os.path.realpath(os.path.abspath(file_path))
-        if not real_path.startswith(base_real + os.sep) and real_path != base_real:
+        base_real = self._base_dir.resolve()
+        real_path = Path(file_path).resolve()
+        try:
+            real_path.relative_to(base_real)
+        except ValueError:
             logger.warning("[changelog_viewer] navigate_to 路径穿越拦截: %s", file_path)
             return
-        if not os.path.isfile(file_path):
-            self._browser.setHtml(
-                "<p style='color:#d4d4d4;'>文件不存在: " + escape(file_path) + "</p>")
+        if not Path(file_path).is_file():
+            self._browser.setHtml("<p style='color:#d4d4d4;'>文件不存在: " + escape(file_path) + "</p>")
             return
         self._history.append(file_path)
         self._render_file(file_path)
@@ -160,13 +173,12 @@ class ChangelogViewer(QDialog):
 
     def _render_file(self, file_path):
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
+            content = Path(file_path).read_text(encoding="utf-8")
             # 去除每行前导空格（README_CN.md 每行有缩进，会干扰 markdown 解析）
             content = "\n".join(line.lstrip() for line in content.split("\n"))
             # <div>/<details> → markdown="1" 让内部 Markdown 被解析
-            content = re.sub(r'(<div\b[^>]*)(>)', r'\1 markdown="1"\2', content, flags=re.IGNORECASE)
-            content = re.sub(r'(<details\b[^>]*)(>)', r'\1 markdown="1"\2', content, flags=re.IGNORECASE)
+            content = re.sub(r"(<div\b[^>]*)(>)", r'\1 markdown="1"\2', content, flags=re.IGNORECASE)
+            content = re.sub(r"(<details\b[^>]*)(>)", r'\1 markdown="1"\2', content, flags=re.IGNORECASE)
             html_body = markdown.markdown(
                 content,
                 extensions=["extra", "sane_lists"],
@@ -178,88 +190,101 @@ class ChangelogViewer(QDialog):
             html_body = self._badge_to_span(html_body)
             # 本地相对路径 → file:/// 绝对路径
             html_body = self._absolutify_urls(html_body, file_path)
-            html = ("<html><head><meta charset='utf-8'></head>"
-                    + "<body style='background:#1e1e1e;color:#fff;font-size:13px;line-height:1.6;margin:8px;'>"
-                    + html_body + "</body></html>")
+            html = (
+                "<html><head><meta charset='utf-8'></head>"
+                + "<body style='background:#1e1e1e;color:#fff;font-size:13px;line-height:1.6;margin:8px;'>"
+                + html_body
+                + "</body></html>"
+            )
             self._browser.setHtml(html)
         except Exception as e:
             import traceback
+
             self._browser.setHtml(
-                "<pre style='color:red;'>ERROR: " + escape(str(e)) + "\n" + escape(traceback.format_exc()) + "</pre>")
+                "<pre style='color:red;'>ERROR: " + escape(str(e)) + "\n" + escape(traceback.format_exc()) + "</pre>"
+            )
 
     # ---- shields.io 颜色映射 ----
     _SHIELDS_COLORS = {
-        "blue": "#007ec6", "yellow": "#dfb317", "orange": "#fe7d37",
-        "green": "#97ca00", "red": "#e05d44", "brightgreen": "#4c1",
-        "lightgrey": "#9f9f9f", "blueviolet": "#8834b4", "ff69b4": "#ff69b4",
-        "success": "#97ca00", "important": "#fe7d37", "critical": "#e05d44",
-        "informational": "#007ec6", "inactive": "#9f9f9f",
+        "blue": "#007ec6",
+        "yellow": "#dfb317",
+        "orange": "#fe7d37",
+        "green": "#97ca00",
+        "red": "#e05d44",
+        "brightgreen": "#4c1",
+        "lightgrey": "#9f9f9f",
+        "blueviolet": "#8834b4",
+        "ff69b4": "#ff69b4",
+        "success": "#97ca00",
+        "important": "#fe7d37",
+        "critical": "#e05d44",
+        "informational": "#007ec6",
+        "inactive": "#9f9f9f",
     }
 
     def _badge_to_span(self, html_body):
         """将 shields.io <img> 转为彩色文字徽章"""
+
         def _repl(m):
             alt = m.group("alt")
             src = m.group("src")
             # 从 URL 提取颜色: /badge/LABEL-COLOR?...
-            color_match = re.search(r'-([a-z]+)(?:\?|$)', src)
+            color_match = re.search(r"-([a-z]+)(?:\?|$)", src)
             color_name = color_match.group(1) if color_match else "blue"
             bg = self._SHIELDS_COLORS.get(color_name, "#555")
             label = alt or src.rsplit("/", 1)[-1].rsplit("?", 1)[0]
             # 标签带 - 分隔的话取后半段作为显示
             if "-" in label and label.count("-") <= 3:
                 label = label.rsplit("-", 1)[-1]
-            return (f'<span style="display:inline-block;background:{bg};color:#fff;'
-                    f'padding:1px 8px;border-radius:3px;font-size:11px;margin:1px 2px;'
-                    f'font-weight:bold;vertical-align:middle;">{escape(label)}</span>')
+            return (
+                f'<span style="display:inline-block;background:{bg};color:#fff;'
+                f"padding:1px 8px;border-radius:3px;font-size:11px;margin:1px 2px;"
+                f'font-weight:bold;vertical-align:middle;">{escape(label)}</span>'
+            )
+
         return re.sub(
-            r'<img\s+alt="(?P<alt>[^"]*)"\s+src="(?P<src>https?://img\.shields\.io/[^"]+)"[^>]*/?>',
-            _repl, html_body
+            r'<img\s+alt="(?P<alt>[^"]*)"\s+src="(?P<src>https?://img\.shields\.io/[^"]+)"[^>]*/?>', _repl, html_body
         )
 
     def _details_to_div(self, html_body):
         """<details>/<summary> → 展开的 div（QTextBrowser 不支持 HTML5 details）"""
         html_body = re.sub(
-            r'<details[^>]*>',
+            r"<details[^>]*>",
             '<div style="border:1px solid #444;border-radius:4px;margin:6px 0;padding:4px 10px;">',
-            html_body
+            html_body,
         )
         html_body = re.sub(
-            r'<summary[^>]*>',
-            '<div style="color:#4daafc;font-weight:bold;margin-bottom:4px;">',
-            html_body
+            r"<summary[^>]*>", '<div style="color:#4daafc;font-weight:bold;margin-bottom:4px;">', html_body
         )
-        html_body = html_body.replace('</summary>', '</div>')
-        html_body = html_body.replace('</details>', '</div>')
+        html_body = html_body.replace("</summary>", "</div>")
+        html_body = html_body.replace("</details>", "</div>")
         return html_body
 
     def _absolutify_urls(self, html_body, md_file_path):
         """相对路径 → file:/// 绝对路径"""
         # S04: 锁定边界目录，禁止路径穿越到 _base_dir 之外
-        base_real = os.path.realpath(self._base_dir)
-        md_dir = os.path.dirname(md_file_path)
+        base_real = self._base_dir.resolve()
+        md_dir = Path(md_file_path).parent
 
         def _make_abs(attr_val):
-            if re.match(r'^(https?:|file:///|data:|#)', attr_val, re.IGNORECASE):
+            if re.match(r"^(https?:|file:///|data:|#)", attr_val, re.IGNORECASE):
                 return attr_val
-            abs_path = os.path.realpath(os.path.join(md_dir, attr_val))
+            abs_path = (md_dir / attr_val).resolve()
             # 禁止穿越到 _base_dir 之外
-            if not abs_path.startswith(base_real + os.sep) and abs_path != base_real:
+            try:
+                abs_path.relative_to(base_real)
+            except ValueError:
                 logger.warning("[changelog_viewer] 路径穿越拦截: %s", attr_val)
                 return ""
-            return "file:///" + abs_path.replace("\\", "/")
+            return "file:///" + str(abs_path).replace("\\", "/")
 
-        return re.sub(
-            r'(src|href)="([^"]+)"',
-            lambda m: f'{m.group(1)}="{_make_abs(m.group(2))}"',
-            html_body
-        )
+        return re.sub(r'(src|href)="([^"]+)"', lambda m: f'{m.group(1)}="{_make_abs(m.group(2))}"', html_body)
 
     def _update_nav(self):
         self._back_btn.setEnabled(len(self._history) > 1)
         current = self._history[-1] if self._history else ""
         try:
-            rel = os.path.relpath(current, self._base_dir)
+            rel = str(Path(current).relative_to(self._base_dir))
         except ValueError:
             rel = current
         self._breadcrumb.setText(f"  {rel}")
@@ -284,11 +309,11 @@ class ChangelogViewer(QDialog):
             self.move(pc.x() - self.width() // 2, pc.y() - self.height() // 2)
         else:
             from PySide6.QtWidgets import QApplication
+
             screen = QApplication.primaryScreen()
             if screen:
                 geo = screen.availableGeometry()
-                self.move(geo.center().x() - self.width() // 2,
-                         geo.center().y() - self.height() // 2)
+                self.move(geo.center().x() - self.width() // 2, geo.center().y() - self.height() // 2)
 
 
 def show_changelog(parent=None):
@@ -299,10 +324,10 @@ def show_changelog(parent=None):
 def show_about_readme(parent=None):
     """显示关于 — 根据语言加载根目录 README_CN.md 或 README.md"""
     lang = get_lang()
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    base_dir = Path(__file__).resolve().parent.parent.parent.parent
     if lang == "cn":
-        path = os.path.join(base_dir, "README_CN.md")
+        path = str(base_dir / "README_CN.md")
     else:
-        path = os.path.join(base_dir, "README.md")
+        path = str(base_dir / "README.md")
     viewer = ChangelogViewer(parent, start_path=path, title=t("k_title_about"))
     viewer.exec()

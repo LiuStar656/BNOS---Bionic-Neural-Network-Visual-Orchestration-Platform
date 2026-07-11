@@ -4,9 +4,11 @@ Node Language Detector
 Detects the programming language of a node by inspecting its file system structure.
 Used by composite node factory to route creation to the correct builder.
 """
-import os
+
+from __future__ import annotations
+
 import json
-from typing import List
+from pathlib import Path
 
 
 class LanguageDetector:
@@ -63,20 +65,20 @@ class LanguageDetector:
         Returns:
             "Python" | "Rust" | "Node.js" | "Go" | "Java" | "C++" | "Shell" | "Unknown"
         """
-        if not node_path or not os.path.isdir(node_path):
+        if not node_path or not Path(node_path).is_dir():
             return "Unknown"
 
         # 1. Check start.json entry field
-        start_json = os.path.join(node_path, "start.json")
-        if os.path.isfile(start_json):
+        start_json = Path(node_path) / "start.json"
+        if start_json.is_file():
             try:
-                with open(start_json, 'r', encoding='utf-8') as f:
+                with start_json.open(encoding="utf-8") as f:
                     data = json.load(f)
                 nodes_list = data.get("nodes", [])
                 if isinstance(nodes_list, list) and nodes_list:
                     entry = nodes_list[0].get("entry", "")
                     if entry:
-                        _, ext = os.path.splitext(entry)
+                        ext = Path(entry).suffix
                         lang = LanguageDetector.ENTRY_EXT_MAP.get(ext.lower())
                         if lang:
                             return lang
@@ -84,19 +86,20 @@ class LanguageDetector:
                 pass
 
         # 2. Check signature files
+        np = Path(node_path)
         for filename, lang in LanguageDetector.SIGNATURE_FILES.items():
-            if os.path.isfile(os.path.join(node_path, filename)):
+            if (np / filename).is_file():
                 return lang
 
         # 3. Check main files
         for path_rel, lang in LanguageDetector.MAIN_FILE_CHECKS:
-            if os.path.isfile(os.path.join(node_path, path_rel)):
+            if (np / path_rel).is_file():
                 return lang
 
         return "Unknown"
 
     @staticmethod
-    def detect_multi(node_paths: List[str]) -> str:
+    def detect_multi(node_paths: list[str]) -> str:
         """
         Detect the language for multiple nodes. All must be the same language.
 

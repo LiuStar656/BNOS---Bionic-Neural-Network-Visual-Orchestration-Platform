@@ -24,10 +24,12 @@ Dock 面板统一基类（对标 Photoshop Panel 基类）
             # 每秒调用的更新逻辑
             pass
 """
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel
-from PySide6.QtCore import Qt
+
+from __future__ import annotations
+
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+
 from ui.core.services.lifecycle_managed import LifecycleManaged
-from ui.core.i18n.i18n import t
 
 
 class DockPanelBase(QWidget, LifecycleManaged):

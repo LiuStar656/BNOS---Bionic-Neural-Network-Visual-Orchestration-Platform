@@ -2,12 +2,14 @@
 test_action_registry.py — ActionRegistry 单元测试
 覆盖: action_registry.py (register, get, all, execute, is_enabled, clear, get_action_ids)
 """
-import pytest
-from ui.core.actions.action_registry import ActionRegistry
-from ui.core.actions.action_definition import ActionDefinition, ActionContext, ActionCategory
 
+from __future__ import annotations
+
+from ui.core.actions.action_definition import ActionCategory, ActionContext, ActionDefinition
+from ui.core.actions.action_registry import ActionRegistry
 
 # ═══════════════════ 工具函数 ═══════════════════
+
 
 def _make_action(action_id, category=ActionCategory.NODE, execute_fn=None, is_enabled_fn=None):
     return ActionDefinition(
@@ -20,6 +22,7 @@ def _make_action(action_id, category=ActionCategory.NODE, execute_fn=None, is_en
 
 
 # ═══════════════════ ActionRegistry 测试 ═══════════════════
+
 
 class TestActionRegistry:
     def setup_method(self):
@@ -103,10 +106,7 @@ class TestActionRegistry:
     # ── is_enabled ──
 
     def test_is_enabled_uses_fn(self):
-        action = _make_action(
-            "test.enabled",
-            is_enabled_fn=lambda ctx: ctx.node_name == "active"
-        )
+        action = _make_action("test.enabled", is_enabled_fn=lambda ctx: ctx.node_name == "active")
         ActionRegistry.register(action)
 
         assert ActionRegistry.is_enabled("test.enabled", ActionContext(node_name="active")) is True
@@ -121,10 +121,7 @@ class TestActionRegistry:
         assert ActionRegistry.is_enabled("test.default") is True
 
     def test_is_enabled_default_context(self):
-        action = _make_action(
-            "test.ctx",
-            is_enabled_fn=lambda ctx: ctx is not None
-        )
+        action = _make_action("test.ctx", is_enabled_fn=lambda ctx: ctx is not None)
         ActionRegistry.register(action)
         assert ActionRegistry.is_enabled("test.ctx") is True
 
@@ -152,6 +149,7 @@ class TestActionRegistry:
 
 # ═══════════════════ ActionDefinition ═══════════════════
 
+
 class TestActionDefinition:
     def test_minimal_creation(self):
         a = ActionDefinition(id="test", name_i18n="k_test", category=ActionCategory.NODE)
@@ -164,8 +162,11 @@ class TestActionDefinition:
         assert a.is_enabled_fn is None
 
     def test_full_creation(self):
-        def dummy_exec(ctx): return True
-        def dummy_enabled(ctx): return False
+        def dummy_exec(ctx):
+            return True
+
+        def dummy_enabled(ctx):
+            return False
 
         a = ActionDefinition(
             id="full.test",
@@ -178,7 +179,7 @@ class TestActionDefinition:
             requires_permission="admin",
             execute_fn=dummy_exec,
             is_enabled_fn=dummy_enabled,
-            icon_id="play"
+            icon_id="play",
         )
         assert a.description_i18n == "k_desc"
         assert a.shortcut_id == "Ctrl+T"

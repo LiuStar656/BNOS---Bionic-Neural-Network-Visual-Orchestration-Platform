@@ -10,56 +10,46 @@
 
 使用单例模式确保全局只有一个配置实例
 """
-import os
+
+from __future__ import annotations
+
 import json
-from typing import Dict, Any
+from pathlib import Path
+
 from ui.core.logger import logger
 
 
 class AppConfig:
     """应用配置管理 - 单例模式"""
-    
+
     _instance = None
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(AppConfig, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
     def __init__(self):
         if self._initialized:
             return
-        
-        self.config_file = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..", "..",
-            "app_config.json"
-        )
+
+        self.config_file = Path(__file__).resolve().parent.parent.parent / "app_config.json"
 
         self.config = {
-            "window_geometry": {
-                "x": 100, "y": 100, "width": 1400, "height": 900,
-                "maximized": False
-            },
+            "window_geometry": {"x": 100, "y": 100, "width": 1400, "height": 900, "maximized": False},
             "splitter_sizes": [250, 1150],
             "last_project": None,
-            "canvas_view_state": {
-                "scale": 1.0, "scroll_x": 0, "scroll_y": 0
-            },
+            "canvas_view_state": {"scale": 1.0, "scroll_x": 0, "scroll_y": 0},
             "language": "cn",
             "process_mode": False,
             "draw_toolbar_visible": False,
-            "rendering": {
-                "canvas_width": 5000,
-                "canvas_height": 5000,
-                "antialiasing": True
-            },
+            "rendering": {"canvas_width": 5000, "canvas_height": 5000, "antialiasing": True},
             "panel_positions": {
                 "node_list_dock": {"x": 0, "y": 0},
                 "resource_monitor_dock": {"x": 0, "y": 0},
                 "node_monitor_dock": {"x": 0, "y": 0},
-                "terminal_dock": {"x": 0, "y": 0}
+                "terminal_dock": {"x": 0, "y": 0},
             },
             "panel_visibility": {
                 "node_list": True,
@@ -68,9 +58,8 @@ class AppConfig:
                 "node_list_dock": True,
                 "resource_monitor_dock": True,
                 "node_monitor_dock": False,
-                "terminal_dock": False
+                "terminal_dock": False,
             },
-
             "theme": {
                 "mode": "dark",
                 "accent_color": "#00D4FF",
@@ -89,18 +78,16 @@ class AppConfig:
                 "success_color": "#00FF88",
                 "warning_color": "#FFAA00",
                 "error_color": "#FF4444",
-                "info_color": "#00D4FF"
+                "info_color": "#00D4FF",
             },
-
             "layout": {
                 "panel_layout": "left",
                 "toolbar_position": "top",
                 "status_bar_visible": True,
                 "tab_bar_visible": True,
                 "auto_hide_panels": False,
-                "panel_width": 250
+                "panel_width": 250,
             },
-
             "shortcuts": {
                 "undo": "Ctrl+Z",
                 "redo": "Ctrl+Y",
@@ -122,26 +109,26 @@ class AppConfig:
                 "toggle_panel": "Ctrl+Shift+P",
                 "toggle_terminal": "Ctrl+`",
                 "find": "Ctrl+F",
-                "replace": "Ctrl+H"
+                "replace": "Ctrl+H",
             },
-
             "performance": {
                 "polling_frequency": 2,
                 "dynamic_frequency": True,
                 "cpu_low_threshold": 30,
                 "cpu_high_threshold": 60,
                 "render_caching": True,
-                "viewport_clipping": True
-            }
+                "viewport_clipping": True,
+            },
         }
 
         self.load()
         self._initialized = True
 
     def load(self):
+        config_file = Path(self.config_file)
         try:
-            if os.path.exists(self.config_file):
-                with open(self.config_file, 'r', encoding='utf-8') as f:
+            if config_file.exists():
+                with config_file.open(encoding="utf-8") as f:
                     loaded = json.load(f)
                 for key in loaded:
                     if key in self.config and isinstance(self.config[key], dict) and isinstance(loaded[key], dict):
@@ -156,44 +143,46 @@ class AppConfig:
                             default_type = type(self.config[key])
                             if isinstance(loaded[key], default_type):
                                 self.config[key] = loaded[key]
-                logger.info("配置已加载: %s", self.config_file)
+                logger.info("配置已加载: %s", config_file)
             else:
                 logger.info("配置文件不存在，使用默认配置")
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning("配置文件损坏，重置: %s", e)
-            if os.path.exists(self.config_file):
+            if config_file.exists():
                 try:
                     import shutil
-                    shutil.copy2(self.config_file, self.config_file + ".bak")
+
+                    shutil.copy2(str(config_file), str(config_file) + ".bak")
                 except Exception:
                     pass
         except Exception as e:
             logger.error("加载配置失败: %s", e)
 
     def save(self):
-        tmp_path = self.config_file + ".tmp"
-        bak_path = self.config_file + ".bak"
-        
+        config_file = Path(self.config_file)
+        tmp_path = config_file.with_suffix(config_file.suffix + ".tmp")
+        bak_path = config_file.with_suffix(config_file.suffix + ".bak")
+
         try:
-            d = os.path.dirname(self.config_file)
-            if not os.path.exists(d):
-                os.makedirs(d)
-            
-            with open(tmp_path, 'w', encoding='utf-8') as f:
+            d = config_file.parent
+            if not d.exists():
+                d.mkdir(parents=True, exist_ok=True)
+
+            with tmp_path.open("w", encoding="utf-8") as f:
                 json.dump(self.config, f, indent=2, ensure_ascii=False)
-            
-            if os.path.exists(self.config_file):
-                os.replace(self.config_file, bak_path)
-            
-            os.replace(tmp_path, self.config_file)
-            
-            if os.path.exists(bak_path):
-                os.remove(bak_path)
-            
-            logger.info("配置已保存: %s", self.config_file)
+
+            if config_file.exists():
+                config_file.replace(bak_path)
+
+            tmp_path.replace(config_file)
+
+            if bak_path.exists():
+                bak_path.unlink()
+
+            logger.info("配置已保存: %s", config_file)
         except Exception as e:
-            if os.path.exists(bak_path):
-                os.replace(bak_path, self.config_file)
+            if bak_path.exists():
+                bak_path.replace(config_file)
             logger.error("保存配置失败: %s", e)
             raise e
 

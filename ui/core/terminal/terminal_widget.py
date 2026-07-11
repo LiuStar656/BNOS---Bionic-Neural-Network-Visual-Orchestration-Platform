@@ -1,12 +1,15 @@
 """
 终端界面组件
 """
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QTextEdit, QLineEdit, QSplitter
-)
-from PySide6.QtCore import Qt, Signal
+
+from __future__ import annotations
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLineEdit, QTextEdit, QVBoxLayout, QWidget
+
 from ui.core.i18n import t
 from ui.core.logger import logger
+
 from .terminal_process import TerminalProcess
 
 
@@ -17,13 +20,13 @@ class HistoryLineEdit(QLineEdit):
         super().__init__(parent)
         self._command_history = []
         self._history_index = -1
-        self._current_text = ''
+        self._current_text = ""
         # 保存输入时的文本
         self.textChanged.connect(self._on_text_changed)
-    
+
     def _on_text_changed(self, text):
         """记录用户输入的文本"""
-        if not hasattr(self, '_history_browsing') or not self._history_browsing:
+        if not hasattr(self, "_history_browsing") or not self._history_browsing:
             self._current_text = text
 
     def keyPressEvent(self, event):
@@ -36,26 +39,26 @@ class HistoryLineEdit(QLineEdit):
             self._history_browsing = True
             self._navigate_history(1)
             return
-        
+
         self._history_browsing = False
         super().keyPressEvent(event)
-    
+
     def add_to_history(self, command):
         """添加命令到历史"""
         command = command.strip()
         if command and (not self._command_history or self._command_history[-1] != command):
             self._command_history.append(command)
         self._history_index = len(self._command_history)
-        self._current_text = ''
-    
+        self._current_text = ""
+
     def _navigate_history(self, direction: int):
         """导航命令历史"""
         if not self._command_history:
             return
-        
+
         # 更新索引
         self._history_index += direction
-        
+
         # 边界检查
         if self._history_index < 0:
             self._history_index = 0
@@ -134,7 +137,7 @@ class TerminalWidget(QWidget):
     def _on_output(self, data: str):
         """处理输出"""
         # 去除多余的控制字符并显示
-        data = data.replace('\r\n', '\n').replace('\r', '\n')
+        data = data.replace("\r\n", "\n").replace("\r", "\n")
         self.output_edit.insertPlainText(data)
         # 滚动到底部
         scrollbar = self.output_edit.verticalScrollBar()
@@ -143,7 +146,7 @@ class TerminalWidget(QWidget):
     def _on_error(self, data: str):
         """处理错误"""
         # 去除多余的控制字符并显示
-        data = data.replace('\r\n', '\n').replace('\r', '\n')
+        data = data.replace("\r\n", "\n").replace("\r", "\n")
         self.output_edit.insertPlainText(data)
         # 滚动到底部
         scrollbar = self.output_edit.verticalScrollBar()
@@ -152,10 +155,10 @@ class TerminalWidget(QWidget):
     def _on_input(self):
         """处理输入"""
         command = self.input_edit.text()
-        
+
         # 添加到历史记录
         self.input_edit.add_to_history(command)
-        
+
         # 发送命令到终端
         self.process.write(command)
         self.input_edit.clear()

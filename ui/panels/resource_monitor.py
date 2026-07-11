@@ -5,17 +5,27 @@
 与 resource_monitor_dock.py 共享:
   - SystemResourceCollector: 系统+节点资源数据采集
 """
-from PySide6.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
-    QGroupBox, QWidget, QTableWidget, QTableWidgetItem,
-    QHeaderView
-)
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor
+from PySide6.QtWidgets import (
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QProgressBar,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
 from ui.core.dock.floating_panel import FloatingPanel
 from ui.core.i18n import t
-from ui.core.system.polling_manager import polling_manager
 from ui.core.logger import logger
+from ui.core.system.polling_manager import polling_manager
 from ui.panels._shared.system_resource_collector import shared_resource_collector
 
 
@@ -133,9 +143,7 @@ class ResourceMonitor(FloatingPanel):
 
         self._node_table = QTableWidget()
         self._node_table.setColumnCount(4)
-        self._node_table.setHorizontalHeaderLabels([
-            t("k_node_name"), t("k_cpu"), t("k_memory"), t("k_status")
-        ])
+        self._node_table.setHorizontalHeaderLabels([t("k_node_name"), t("k_cpu"), t("k_memory"), t("k_status")])
         self._node_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._node_table.verticalHeader().setVisible(False)
         self._node_table.setStyleSheet("""
@@ -195,24 +203,20 @@ class ResourceMonitor(FloatingPanel):
             stats = shared_resource_collector.collect_system_stats()
             self._system_stats.update(stats)
 
-            self._cpu_bar.setValue(int(stats['cpu_percent']))
+            self._cpu_bar.setValue(int(stats["cpu_percent"]))
             self._cpu_value_label.setText(f"{stats['cpu_percent']}%")
 
-            self._ram_bar.setValue(int(stats['memory_percent']))
-            used_gb = stats['memory_used'] / (1024**3)
-            total_gb = stats['memory_total'] / (1024**3)
-            self._ram_value_label.setText(
-                f"{used_gb:.1f}/{total_gb:.1f} GB ({stats['memory_percent']}%)"
-            )
+            self._ram_bar.setValue(int(stats["memory_percent"]))
+            used_gb = stats["memory_used"] / (1024**3)
+            total_gb = stats["memory_total"] / (1024**3)
+            self._ram_value_label.setText(f"{used_gb:.1f}/{total_gb:.1f} GB ({stats['memory_percent']}%)")
 
-            self._disk_bar.setValue(int(stats['disk_percent']))
-            used_gb = stats['disk_used'] / (1024**3)
-            total_gb = stats['disk_total'] / (1024**3)
-            self._disk_value_label.setText(
-                f"{used_gb:.1f}/{total_gb:.1f} GB ({stats['disk_percent']}%)"
-            )
+            self._disk_bar.setValue(int(stats["disk_percent"]))
+            used_gb = stats["disk_used"] / (1024**3)
+            total_gb = stats["disk_total"] / (1024**3)
+            self._disk_value_label.setText(f"{used_gb:.1f}/{total_gb:.1f} GB ({stats['disk_percent']}%)")
 
-            total_kb = (stats['net_sent_per_sec'] + stats['net_recv_per_sec']) / 1024
+            total_kb = (stats["net_sent_per_sec"] + stats["net_recv_per_sec"]) / 1024
             max_bandwidth_kb = 100000
             net_percent = min((total_kb / max_bandwidth_kb) * 100, 100)
             self._net_bar.setValue(int(net_percent))
@@ -229,14 +233,14 @@ class ResourceMonitor(FloatingPanel):
         if not self.parent_window:
             return
 
-        canvas = getattr(self.parent_window, 'canvas', None)
+        canvas = getattr(self.parent_window, "canvas", None)
 
-        if not canvas or not hasattr(canvas, 'nodes') or not canvas.nodes:
+        if not canvas or not hasattr(canvas, "nodes") or not canvas.nodes:
             self._node_stats.clear()
             self._refresh_node_table()
             return
 
-        nodes_data = getattr(self.parent_window, 'nodes_data', {})
+        nodes_data = getattr(self.parent_window, "nodes_data", {})
         canvas_names = set(canvas.nodes.keys())
         current_names = set(self._node_stats.keys())
 
@@ -249,7 +253,7 @@ class ResourceMonitor(FloatingPanel):
                 node_info = nodes_data[name]
                 stats = shared_resource_collector.collect_single_node_stats(node_info, name)
                 self._node_stats[name] = stats
-                self.node_state_updated.emit(name, stats['cpu'], stats['memory'])
+                self.node_state_updated.emit(name, stats["cpu"], stats["memory"])
 
         self._refresh_node_table()
 
@@ -264,16 +268,16 @@ class ResourceMonitor(FloatingPanel):
             mem_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
             status_map = {
-                'running': t("k_status_running"),
-                'idle': t("k_status_idle"),
-                'stopped': t("k_status_stopped")
+                "running": t("k_status_running"),
+                "idle": t("k_status_idle"),
+                "stopped": t("k_status_stopped"),
             }
-            status_item = QTableWidgetItem(status_map.get(stats['status'], stats['status']))
+            status_item = QTableWidgetItem(status_map.get(stats["status"], stats["status"]))
             status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
 
-            if stats['status'] == 'running':
+            if stats["status"] == "running":
                 status_item.setForeground(QColor("#4CAF50"))
-            elif stats['status'] == 'idle':
+            elif stats["status"] == "idle":
                 status_item.setForeground(QColor("#F0A030"))
             else:
                 status_item.setForeground(QColor("#999"))
@@ -285,7 +289,7 @@ class ResourceMonitor(FloatingPanel):
 
     def _on_node_status_changed(self, node_name, new_status):
         if node_name in self._node_stats:
-            self._node_stats[node_name]['status'] = new_status
+            self._node_stats[node_name]["status"] = new_status
             self._refresh_node_table()
 
     def _on_close(self):

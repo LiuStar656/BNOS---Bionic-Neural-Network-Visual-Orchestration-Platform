@@ -2,9 +2,11 @@
 VSCode 风格的深色自定义标题栏
 标题 + 菜单栏 + 窗口按钮 同排，支持拖动、最小化、最大化/还原、关闭
 """
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QMenuBar
-from PySide6.QtCore import Qt, QPoint, Signal
 
+from __future__ import annotations
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
 _RESIZE_MARGIN = 6  # 顶部边缘保留给窗口 resize，不响应拖动
 

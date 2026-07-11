@@ -1,26 +1,29 @@
 """
 全局快捷键管理器 — 集中定义、持久化、统一应用
 """
+
+from __future__ import annotations
+
 from PySide6.QtGui import QKeySequence
 
 # 默认快捷键定义: id → (default_keystr, i18n_display_key)
 DEFAULTS = {
-    "new_project":     ("Ctrl+N",        "k_project_new"),
-    "open_project":    ("Ctrl+O",        "k_project_open"),
-    "settings":        ("Ctrl+,",        "_k_settings_title"),
-    "restart":         ("Ctrl+R",        "k_menu_restart"),
-    "exit_app":        ("Ctrl+Q",        "k_menu_exit"),
-    "refresh_nodes":   ("F5",            "k_node_refresh"),
-    "mount_external":  ("Ctrl+Shift+O",  "k_node_mount"),
-    "clear_connections":("",             "k_canvas_clear_connections"),
-    "start_node":      ("Ctrl+Shift+S",  "k_node_start"),
-    "stop_node":       ("Ctrl+Shift+X",  "k_node_stop"),
-    "node_monitor":    ("Ctrl+Shift+M",  "k_node_monitor"),
-    "resource_monitor":("Ctrl+Shift+R",  "k_resource_monitor"),
-    "new_canvas_tab":  ("Ctrl+T",        "k_new_canvas_tab"),
-    "delete_selected": ("Ctrl+D",        "_k_delete_selected"),
-    "undo":            ("Ctrl+Z",        "k_edit_undo"),
-    "redo":            ("Ctrl+Y",        "k_edit_redo"),
+    "new_project": ("Ctrl+N", "k_project_new"),
+    "open_project": ("Ctrl+O", "k_project_open"),
+    "settings": ("Ctrl+,", "_k_settings_title"),
+    "restart": ("Ctrl+R", "k_menu_restart"),
+    "exit_app": ("Ctrl+Q", "k_menu_exit"),
+    "refresh_nodes": ("F5", "k_node_refresh"),
+    "mount_external": ("Ctrl+Shift+O", "k_node_mount"),
+    "clear_connections": ("", "k_canvas_clear_connections"),
+    "start_node": ("Ctrl+Shift+S", "k_node_start"),
+    "stop_node": ("Ctrl+Shift+X", "k_node_stop"),
+    "node_monitor": ("Ctrl+Shift+M", "k_node_monitor"),
+    "resource_monitor": ("Ctrl+Shift+R", "k_resource_monitor"),
+    "new_canvas_tab": ("Ctrl+T", "k_new_canvas_tab"),
+    "delete_selected": ("Ctrl+D", "_k_delete_selected"),
+    "undo": ("Ctrl+Z", "k_edit_undo"),
+    "redo": ("Ctrl+Y", "k_edit_redo"),
 }
 
 # 需要 QAction.setShortcut(hotkey) 处理空快捷键
@@ -48,7 +51,7 @@ class ShortcutManager:
         if keystr and keystr.strip():
             existing = self._find_conflict(keystr, sid)
             if existing:
-                logger = __import__('ui.core.logger', fromlist=['logger']).logger
+                logger = __import__("ui.core.logger", fromlist=["logger"]).logger
                 logger.warning("快捷键 %s 与 %s 冲突，拒绝设置", keystr, existing)
                 return False
         self._overrides[sid] = keystr
@@ -77,6 +80,7 @@ class ShortcutManager:
     def all_items(self):
         """返回 [(sid, display_key, current_str, default_str)]"""
         from ui.core.i18n.i18n import t
+
         for sid, (default, dk) in DEFAULTS.items():
             yield (sid, t(dk), self.get(sid), default)
 
@@ -84,6 +88,7 @@ class ShortcutManager:
         """将当前快捷键应用到主窗口所有已注册 QAction"""
         # 重新加载菜单以应用新快捷键
         from ui.menu.menu_manager import MenuManager
+
         bar = main_window._inline_menubar
         bar.clear()
         MenuManager.init_menu(main_window, bar)

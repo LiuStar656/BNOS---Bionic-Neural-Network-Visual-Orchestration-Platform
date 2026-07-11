@@ -2,9 +2,12 @@
 共享的节点树组件 — 供 NodeListDockPanel 和 NodeListPanel 共用
 消除 ~400 行重复代码
 """
-from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
 
 
 class NodeTreeWidget(QTreeWidget):
@@ -37,11 +40,11 @@ class NodeTreeWidget(QTreeWidget):
 
     def _apply_status(self, item: QTreeWidgetItem, status: str):
         color_map = {
-            "running":  "#6a9955",
+            "running": "#6a9955",
             "starting": "#dcdcaa",
             "stopping": "#ce9178",
-            "stopped":  "#808080",
-            "error":    "#f44747",
+            "stopped": "#808080",
+            "error": "#f44747",
         }
         item.setForeground(0, QColor(color_map.get(status, "#808080")))
 

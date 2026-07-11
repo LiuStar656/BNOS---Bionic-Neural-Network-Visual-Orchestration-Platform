@@ -1,14 +1,29 @@
 """
 设置对话框 — 语言/进程隔离 + 快捷键管理（浮动窗口版本）
 """
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                              QComboBox, QCheckBox, QPushButton, QGroupBox,
-                              QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
-                              QSpinBox, QDoubleSpinBox, QSlider)
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QKeySequence
+from PySide6.QtGui import QKeySequence
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QPushButton,
+    QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
 from ui.core.dock.floating_panel import FloatingPanel
-from ui.core.i18n import t, set_lang, get_lang
+from ui.core.i18n import get_lang, t
 from ui.core.utils.dialog_utils import themed_message
 
 _SET_STYLE = """
@@ -44,10 +59,10 @@ class SettingsDialog(FloatingPanel):
         self._orig_lang = get_lang()
         self._shortcut_changes = {}  # sid → new_keystr
         self._editing_row = -1
-        
+
         self.resize(580, 440)
         self.setStyleSheet(_SET_STYLE)
-        
+
         # 居中显示
         if parent:
             self.move(parent.geometry().center() - self.rect().center())
@@ -223,7 +238,8 @@ class SettingsDialog(FloatingPanel):
 
         self._sc_table = QTableWidget(0, 3)
         self._sc_table.setHorizontalHeaderLabels(
-            [t("_k_settings_sc_action"), t("_k_settings_sc_current"), t("_k_settings_sc_default")])
+            [t("_k_settings_sc_action"), t("_k_settings_sc_current"), t("_k_settings_sc_default")]
+        )
         self._sc_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self._sc_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self._sc_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
@@ -282,8 +298,8 @@ class SettingsDialog(FloatingPanel):
     def _apply_and_close(self):
         lang = self.lang_combo.currentData()
         proc_mode = self.proc_check.isChecked()
-        lang_changed = (lang != self._orig_lang)
-        proc_changed = (proc_mode != self.main_window.CANVAS_PROCESS_MODE)
+        lang_changed = lang != self._orig_lang
+        proc_changed = proc_mode != self.main_window.CANVAS_PROCESS_MODE
 
         # 渲染设置变更
         cfg = self.main_window.app_config.get("rendering", {})
@@ -291,9 +307,9 @@ class SettingsDialog(FloatingPanel):
         new_height = self._canvas_height.value()
         new_aa = self._antialiasing_check.isChecked()
         render_changed = (
-            new_width != cfg.get("canvas_width", 5000) or
-            new_height != cfg.get("canvas_height", 5000) or
-            new_aa != cfg.get("antialiasing", True)
+            new_width != cfg.get("canvas_width", 5000)
+            or new_height != cfg.get("canvas_height", 5000)
+            or new_aa != cfg.get("antialiasing", True)
         )
 
         # 快捷键变更
@@ -308,27 +324,30 @@ class SettingsDialog(FloatingPanel):
         # 保存渲染设置
         if render_changed:
             try:
-                self.main_window.app_config.set("rendering", {
-                    "canvas_width": new_width,
-                    "canvas_height": new_height,
-                    "antialiasing": new_aa
-                })
+                self.main_window.app_config.set(
+                    "rendering", {"canvas_width": new_width, "canvas_height": new_height, "antialiasing": new_aa}
+                )
                 self.main_window.app_config.save()
             except Exception:
                 pass
 
         if lang_changed or proc_changed or render_changed:
             if lang_changed:
-                try: self.main_window.app_config.set("language", lang)
-                except Exception: pass
+                try:
+                    self.main_window.app_config.set("language", lang)
+                except Exception:
+                    pass
             if proc_changed:
                 self.main_window.CANVAS_PROCESS_MODE = proc_mode
-                try: self.main_window.app_config.set("process_mode", proc_mode)
-                except Exception: pass
-            try: self.main_window.app_config.save()
-            except Exception: pass
-            themed_message(self, t("_k_settings_restart_title"),
-                t("_k_settings_restart_msg"), "info")
+                try:
+                    self.main_window.app_config.set("process_mode", proc_mode)
+                except Exception:
+                    pass
+            try:
+                self.main_window.app_config.save()
+            except Exception:
+                pass
+            themed_message(self, t("_k_settings_restart_title"), t("_k_settings_restart_msg"), "info")
             self.close()
             self.main_window._restart_application()
         else:
@@ -342,11 +361,12 @@ class ShortcutCaptureDialog(FloatingPanel):
     def __init__(self, sid, parent=None):
         super().__init__(parent, title=t("_k_settings_sc_capture"))
         self._keystr = None
-        
+
         self.resize(340, 140)
         self.setStyleSheet(_SET_STYLE)
 
         from ui.core.system.shortcut_manager import DEFAULTS
+
         self._sid = sid
         default = DEFAULTS.get(sid, ("",))[0]
         mgr = parent.main_window.shortcut_mgr
@@ -359,7 +379,9 @@ class ShortcutCaptureDialog(FloatingPanel):
 
         self._display = QLabel(cur if cur else t("_k_settings_sc_empty"))
         self._display.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._display.setStyleSheet("color: #4fc3f7; font-size: 18px; font-weight: bold; padding: 10px; background: #1e1e1e; border-radius: 4px;")
+        self._display.setStyleSheet(
+            "color: #4fc3f7; font-size: 18px; font-weight: bold; padding: 10px; background: #1e1e1e; border-radius: 4px;"
+        )
         self.content_layout.addWidget(self._display)
 
         default_lbl = QLabel(t("_k_settings_sc_default_label") + (": " + default if default else ": —"))
@@ -392,10 +414,14 @@ class ShortcutCaptureDialog(FloatingPanel):
         if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Escape):
             return super().keyPressEvent(event)
         parts = []
-        if mods & Qt.KeyboardModifier.ControlModifier.value: parts.append("Ctrl")
-        if mods & Qt.KeyboardModifier.ShiftModifier.value: parts.append("Shift")
-        if mods & Qt.KeyboardModifier.AltModifier.value: parts.append("Alt")
+        if mods & Qt.KeyboardModifier.ControlModifier.value:
+            parts.append("Ctrl")
+        if mods & Qt.KeyboardModifier.ShiftModifier.value:
+            parts.append("Shift")
+        if mods & Qt.KeyboardModifier.AltModifier.value:
+            parts.append("Alt")
         k = QKeySequence(key).toString()
-        if k: parts.append(k)
+        if k:
+            parts.append(k)
         self._keystr = "+".join(parts) if parts else ""
         self._display.setText(self._keystr or t("_k_settings_sc_empty"))

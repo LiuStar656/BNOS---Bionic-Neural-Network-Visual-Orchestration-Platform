@@ -2,10 +2,16 @@
 事件总线系统，用于解耦模块间的直接依赖关系
 设计原则：基于 PySide6 信号机制，线程安全，零侵入现有代码
 """
-from typing import Dict, List, Callable, Any
-from PySide6.QtCore import QObject, Signal
-from ui.core.logger import logger
+
+from __future__ import annotations
+
 import threading
+from collections.abc import Callable
+from typing import Any
+
+from PySide6.QtCore import QObject, Signal
+
+from ui.core.logger import logger
 
 
 class EventBus(QObject):
@@ -16,7 +22,7 @@ class EventBus(QObject):
 
     def __init__(self):
         super().__init__()
-        self._handlers: Dict[str, List[Callable]] = {}
+        self._handlers: dict[str, list[Callable]] = {}
         self._lock = threading.Lock()
         self.event_signal.connect(self._dispatch)
 
@@ -54,7 +60,15 @@ class EventBus(QObject):
 # 全局事件总线单例
 event_bus = EventBus()
 
+
 # 便捷模块级函数（让调用方写起来更自然）
-def subscribe(et: str, h: Callable): event_bus.subscribe(et, h)
-def publish(et: str, d: Any = None): event_bus.publish(et, d)
-def unsubscribe(et: str, h: Callable): event_bus.unsubscribe(et, h)
+def subscribe(et: str, h: Callable):
+    event_bus.subscribe(et, h)
+
+
+def publish(et: str, d: Any = None):
+    event_bus.publish(et, d)
+
+
+def unsubscribe(et: str, h: Callable):
+    event_bus.unsubscribe(et, h)

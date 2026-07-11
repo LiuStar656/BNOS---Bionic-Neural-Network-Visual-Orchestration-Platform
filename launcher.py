@@ -10,15 +10,20 @@ BNOS Launcher — 纯 tkinter 启动动画 + 启动虚拟环境 + 监控主程�
   launcher 显示闪屏 → 后台启动 venv python bnos_console.py --progress=<file>
   → 主程序逐步写入进度 → launcher 实时更新闪屏 → 主程序就绪 → 闪屏关闭
 """
+
+from __future__ import annotations
+
+import os
 import subprocess
 import sys
-import os
 import tempfile
 import time
+from pathlib import Path
 
 try:
     import tkinter as tk
     from tkinter import ttk
+
     HAS_TK = True
 except ImportError:
     HAS_TK = False
@@ -44,34 +49,33 @@ ASCII_BNOS = [
 
 def find_venv_python():
     try:
-        base = os.path.dirname(os.path.abspath(__file__))
+        base = Path(__file__).resolve().parent
     except NameError:
-        base = os.getcwd()
+        base = Path.cwd()
     # Windows 优先 pythonw（无控制台窗口）
     candidates = [
-        os.path.join(base, "venv", "Scripts", "pythonw.exe"),
-        os.path.join(base, "venv", "Scripts", "python.exe"),
-        os.path.join(base, "venv", "bin", "python3"),
+        base / "venv" / "Scripts" / "pythonw.exe",
+        base / "venv" / "Scripts" / "python.exe",
+        base / "venv" / "bin" / "python3",
     ]
     for p in candidates:
-        if os.path.exists(p):
+        if p.exists():
             return p
-    return sys.executable
+    return Path(sys.executable)
 
 
 def main():
     if not HAS_TK:
-        print("BNOS Console — tkinter not available, launching directly...")
         _fallback_launch()
         return
 
-    base = os.path.dirname(os.path.abspath(__file__))
-    main_script = os.path.join(base, "bnos_console.py")
+    base = Path(__file__).resolve().parent
+    main_script = base / "bnos_console.py"
 
     # 进度文件：主程序写入，启动器读取
-    progress_file = os.path.join(tempfile.gettempdir(), f"bnos_progress_{os.getpid()}.txt")
-    if os.path.exists(progress_file):
-        os.remove(progress_file)
+    progress_file = Path(tempfile.gettempdir()) / f"bnos_progress_{os.getpid()}.txt"
+    if progress_file.exists():
+        progress_file.unlink()
 
     # ── tkinter 闪屏 ──
     root = tk.Tk()
@@ -79,7 +83,7 @@ def main():
     root.configure(bg=BG)
     root.attributes("-topmost", True)
     sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-    root.geometry(f"{WIDTH}x{HEIGHT}+{(sw-WIDTH)//2}+{(sh-HEIGHT)//2}")
+    root.geometry(f"{WIDTH}x{HEIGHT}+{(sw - WIDTH) // 2}+{(sh - HEIGHT) // 2}")
 
     cv = tk.Canvas(root, width=WIDTH, height=HEIGHT, bg=BG, highlightthickness=0)
     cv.pack(fill="both", expand=True)
@@ -91,16 +95,15 @@ def main():
     for line in ASCII_BNOS:
         tk.Label(content, text=line, font=("Consolas", 12, "bold"), fg=FG, bg=BG).pack()
 
-    tk.Label(content, text="BNOS  CONSOLE", font=("Consolas", 11, "bold"),
-             fg="#ccc", bg=BG).pack()
-    tk.Label(content, text="Bionic Neural Network Program Operating System",
-             font=("Consolas", 8), fg=FG_DIM, bg=BG).pack(pady=(0, 8))
+    tk.Label(content, text="BNOS  CONSOLE", font=("Consolas", 11, "bold"), fg="#ccc", bg=BG).pack()
+    tk.Label(
+        content, text="Bionic Neural Network Program Operating System", font=("Consolas", 8), fg=FG_DIM, bg=BG
+    ).pack(pady=(0, 8))
 
     # 日志区
     log_frame = tk.Frame(content, bg=BG)
     log_frame.pack(fill="x")
-    log_text = tk.Text(log_frame, height=4, bg=BG, fg=FG_DIM, font=("Consolas", 9),
-                       bd=0, wrap="word", state="disabled")
+    log_text = tk.Text(log_frame, height=4, bg=BG, fg=FG_DIM, font=("Consolas", 9), bd=0, wrap="word", state="disabled")
     log_text.pack(fill="x")
 
     # 进度条
@@ -110,8 +113,7 @@ def main():
     bar_cv.pack(fill="x")
     bar_rect = bar_cv.create_rectangle(0, 0, 0, 10, fill=BAR_FG, outline="")
 
-    hint = tk.Label(content, text="Loading...", font=("Consolas", 9),
-                    fg="#888", bg=BG)
+    hint = tk.Label(content, text="Loading...", font=("Consolas", 9), fg="#888", bg=BG)
     hint.pack(pady=(2, 0))
 
     def log(msg):
@@ -134,7 +136,7 @@ def main():
     root.update()
 
     venv_python = find_venv_python()
-    if not os.path.exists(venv_python):
+    if not venv_python.exists():
         log("[!] Virtual environment not found")
         log("[!] Please run: python -m venv venv")
         log("[!] Then: venv\\Scripts\\pip install -r requirements.txt")
@@ -145,7 +147,7 @@ def main():
         sys.exit(1)
 
     progress(15, "Virtual environment ready")
-    log("[+] Virtual environment: " + venv_python)
+    log("[+] Virtual environment: " + str(venv_python))
     root.update()
 
     # ── 步骤 2: 启动主程序 ──
@@ -154,29 +156,29 @@ def main():
     root.update()
 
     proc = subprocess.Popen(
-        [venv_python, main_script, "--progress", progress_file],
-        cwd=base,
+        [str(venv_python), str(main_script), "--progress", str(progress_file)],
+        cwd=str(base),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
 
     # ── 步骤 3: 等待主程序就绪（平滑动画进度条）──
-    target_pct = 25          # 目标进度（从文件读取）
-    display_pct = 25         # 当前显示进度（动画过渡）
+    target_pct = 25  # 目标进度（从文件读取）
+    display_pct = 25  # 当前显示进度（动画过渡）
     last_read_pos = 0
     start_time = time.time()
-    finish_time = None       # 主程序完成时间
+    finish_time = None  # 主程序完成时间
 
     while True:
         # 读取进度文件（更新目标值）
-        if os.path.exists(progress_file):
+        if progress_file.exists():
             try:
-                with open(progress_file, 'r', encoding='utf-8') as f:
+                with progress_file.open(encoding="utf-8") as f:
                     f.seek(last_read_pos)
                     for line in f:
                         line = line.strip()
-                        if '|' in line:
-                            p_str, msg = line.split('|', 1)
+                        if "|" in line:
+                            p_str, msg = line.split("|", 1)
                             try:
                                 p = int(p_str)
                                 if p > target_pct:
@@ -222,30 +224,27 @@ def main():
 
     # 清理
     try:
-        os.remove(progress_file)
+        progress_file.unlink()
     except Exception:
         pass
 
 
 def _fallback_launch():
     """无 tkinter 时的降级方案：直接启动主程序"""
-    base = os.path.dirname(os.path.abspath(__file__))
+    base = Path(__file__).resolve().parent
     venv_python = find_venv_python()
-    main_script = os.path.join(base, "bnos_console.py")
-    if not os.path.exists(venv_python):
-        print("[!] Virtual environment not found. Please create it first:")
-        print("    python -m venv venv")
+    main_script = base / "bnos_console.py"
+    if not venv_python.exists():
         sys.exit(1)
-    print("[*] Launching BNOS Console...")
-    sys.exit(subprocess.call([venv_python, main_script], cwd=base))
+    sys.exit(subprocess.call([str(venv_python), str(main_script)], cwd=str(base)))
 
 
 if __name__ == "__main__":
     try:
         main()
-    except Exception as e:
-        print(f"[!] Launcher crashed: {e}")
+    except Exception:
         import traceback
+
         traceback.print_exc()
         input("Press Enter to exit...")
         sys.exit(1)

@@ -6,131 +6,114 @@ BNOS 主窗口状态管理模块
 - 窗口状态（尺寸、布局）
 - 项目状态（上次打开的项目）
 """
+
+from __future__ import annotations
+
 import os
+
 from ui.core.logger import logger
-from ui.core.i18n import t
-from ui.core.system.window_state_manager import save_state, restore_state
+from ui.core.system.window_state_manager import restore_state, save_state
 
 
 class MainWindowStateMixin:
     """
     主窗口状态管理 Mixin
-    
+
     提供窗口状态保存和恢复的方法，需要与 BNOSMainWindow 配合使用。
     """
-    
+
     def save_window_state(self):
         """保存窗口状态"""
         logger.info("进入 save_window_state()")
         save_state(self)
         logger.info("离开 save_window_state()")
-    
+
     def restore_window_state(self):
         """恢复窗口状态"""
         logger.info("进入 restore_window_state()")
         restore_state(self)
         logger.info("离开 restore_window_state()")
-    
+
     def _restore_panel_state(self):
         """【关键】从配置恢复面板可见性状态 - 立即创建 Dock
-        
+
         为了让 Qt restoreState() 能找到 Dock，必须在 restoreState() 之前创建
         """
-        visibility = self.app_config.get('panel_visibility', {})
+        visibility = self.app_config.get("panel_visibility", {})
         logger.info("[PANEL] 开始恢复面板状态(立即创建Dock)，配置值: %s", visibility)
-        
+
         # ===== 节点列表面板 =====
-        show_node_dock = visibility.get('node_list_dock')
+        show_node_dock = visibility.get("node_list_dock")
         if show_node_dock is None:
-            show_node_dock = visibility.get('node_list', True)
-        
+            show_node_dock = visibility.get("node_list", True)
+
         logger.info("[PANEL] 节点列表 - dock: %s", show_node_dock)
-        
+
         if show_node_dock:
             logger.info("[PANEL] 立即恢复节点列表 Dock 版")
             self.toggle_node_list_panel(True)
-        
+
         # ===== 资源监测面板 =====
-        show_resource_dock = visibility.get('resource_monitor_dock')
+        show_resource_dock = visibility.get("resource_monitor_dock")
         if show_resource_dock is None:
-            show_resource_dock = visibility.get('resource_monitor', False)
-        
+            show_resource_dock = visibility.get("resource_monitor", False)
+
         logger.info("[PANEL] 资源监测 - dock: %s", show_resource_dock)
-        
+
         if show_resource_dock:
             logger.info("[PANEL] 立即恢复资源监测 Dock 版")
             self.show_resource_monitor_dock()
-        
+
         # ===== 节点监测面板 =====
-        show_monitor_dock = visibility.get('node_monitor_dock')
+        show_monitor_dock = visibility.get("node_monitor_dock")
         if show_monitor_dock is None:
-            show_monitor_dock = visibility.get('node_monitor', False)
-        
+            show_monitor_dock = visibility.get("node_monitor", False)
+
         logger.info("[PANEL] 节点监测 - dock: %s", show_monitor_dock)
-        
+
         if show_monitor_dock:
             logger.info("[PANEL] 立即恢复节点监测 Dock 版")
             self.show_node_monitor_dock()
-        
+
         # ===== 终端 Dock =====
         # 终端 Dock 由 window_state_manager 恢复，这里不处理
-        show_terminal = visibility.get('terminal_dock', False)
+        show_terminal = visibility.get("terminal_dock", False)
         logger.info("[PANEL] 终端 - dock(将由window_state_manager处理): %s", show_terminal)
-        
+
         # ===== 历史记录面板 =====
-        show_history = visibility.get('history_dock', False)
+        show_history = visibility.get("history_dock", False)
         if show_history:
             logger.info("[PANEL] 恢复历史记录面板")
             self.show_history_panel()
-        
+
         # ===== 性能面板 =====
-        show_performance = visibility.get('performance_dock', False)
+        show_performance = visibility.get("performance_dock", False)
         if show_performance:
             logger.info("[PANEL] 恢复性能面板")
             self.show_performance_panel()
-        
+
         # ===== 预设节点库 =====
-        show_preset = visibility.get('preset_library_dock', False)
+        show_preset = visibility.get("preset_library_dock", False)
         if show_preset:
             logger.info("[PANEL] 恢复预设节点库")
             self.show_template_selector()
-    
-    def _restore_terminal_dock(self):
-        """恢复终端 Dock 可见性（必须在主窗口 show 后调用）"""
-        if not hasattr(self, '_canvas_host') or not self._canvas_host:
-            return
-        ch = self._canvas_host
-        if not hasattr(ch, '_terminal_dock'):
-            return
-        
-        visibility = self.app_config.get('panel_visibility', {})
-        show_terminal = visibility.get('terminal_dock', True)
-        
-        logger.info("恢复终端 Dock (showEvent), visible=%s", show_terminal)
-        
-        if show_terminal:
-            ch._terminal_dock.show()
-            logger.info("终端恢复后: isVisible=%s", ch._terminal_dock.isVisible())
-    
+
     def _save_panel_position(self, panel_name, panel_widget):
         """保存面板位置"""
-        if hasattr(panel_widget, 'pos'):
+        if hasattr(panel_widget, "pos"):
             pos = panel_widget.pos()
-            self.app_config.set(f"panel_position.{panel_name}", {
-                "x": pos.x(),
-                "y": pos.y()
-            })
-    
+            self.app_config.set(f"panel_position.{panel_name}", {"x": pos.x(), "y": pos.y()})
+
     def _save_panel_visibility_state(self, panel_key, visible):
         """保存单个面板的可见性状态"""
         visibility = self.app_config.get("panel_visibility", {})
         visibility[panel_key] = visible
         self.app_config.set("panel_visibility", visibility)
         self.app_config.save()
-    
+
     def _save_panel_visibility(self):
         """保存所有面板的可见性状态到配置"""
-        current_visibility = self.app_config.get('panel_visibility', {})
+        current_visibility = self.app_config.get("panel_visibility", {})
         visibility = current_visibility.copy()
 
         def is_panel_visible(panel):
@@ -141,12 +124,12 @@ class MainWindowStateMixin:
             return visible
 
         dock_panels = [
-            ('node_list_dock', self.node_list_panel),
-            ('resource_monitor_dock', self.resource_monitor),
-            ('node_monitor_dock', getattr(self, 'node_monitor_dock', None)),
-            ('history_dock', getattr(self, 'history_panel', None)),
-            ('performance_dock', getattr(self, 'performance_panel', None)),
-            ('preset_library_dock', getattr(self, 'template_selector', None)),
+            ("node_list_dock", self.node_list_panel),
+            ("resource_monitor_dock", self.resource_monitor),
+            ("node_monitor_dock", getattr(self, "node_monitor_dock", None)),
+            ("history_dock", getattr(self, "history_panel", None)),
+            ("performance_dock", getattr(self, "performance_panel", None)),
+            ("preset_library_dock", getattr(self, "template_selector", None)),
         ]
 
         for key, panel in dock_panels:
@@ -156,37 +139,37 @@ class MainWindowStateMixin:
             elif panel is None:
                 visibility[key] = False
 
-        visibility['node_list'] = is_panel_visible(self.node_list_panel) or False
-        visibility['resource_monitor'] = is_panel_visible(self.resource_monitor) or False
-        visibility['node_monitor'] = is_panel_visible(getattr(self, 'node_monitor_dock', None)) or False
+        visibility["node_list"] = is_panel_visible(self.node_list_panel) or False
+        visibility["resource_monitor"] = is_panel_visible(self.resource_monitor) or False
+        visibility["node_monitor"] = is_panel_visible(getattr(self, "node_monitor_dock", None)) or False
 
-        if hasattr(self, '_canvas_host') and self._canvas_host:
+        if hasattr(self, "_canvas_host") and self._canvas_host:
             ch = self._canvas_host
-            if hasattr(ch, '_terminal_dock'):
+            if hasattr(ch, "_terminal_dock"):
                 term_visible = ch._terminal_dock.isVisible()
-                visibility['terminal_dock'] = term_visible
+                visibility["terminal_dock"] = term_visible
                 logger.info("[SAVE] _save_panel_visibility: terminal_dock = %s", term_visible)
 
         logger.info("保存面板可见性状态: %s", visibility)
-        self.app_config.set('panel_visibility', visibility)
-    
+        self.app_config.set("panel_visibility", visibility)
+
     def _restore_terminal_dock(self):
         """恢复终端 Dock 的可见性
-        
+
         注意：仅在终端已初始化（画布已创建）时才恢复可见性。
         如果终端尚未初始化，则跳过 —— 它将在第一个画布创建时自动初始化。
         """
         visibility = self.app_config.get("panel_visibility", {})
         show_terminal = visibility.get("terminal_dock", True)
-        
-        if hasattr(self, '_canvas_host') and self._canvas_host:
+
+        if hasattr(self, "_canvas_host") and self._canvas_host:
             ch = self._canvas_host
-            if hasattr(ch, '_terminal_dock') and ch._terminal_dock is not None:
+            if hasattr(ch, "_terminal_dock") and ch._terminal_dock is not None:
                 if show_terminal:
                     ch._terminal_dock.show()
                 else:
                     ch._terminal_dock.hide()
-    
+
     def auto_open_last_project(self):
         """自动打开上次打开的项目：
         - 如果有上次打开的项目，自动打开
@@ -200,7 +183,7 @@ class MainWindowStateMixin:
             self._auto_open_project(last_project)
         else:
             logger.info("没有上次项目或项目不存在，等待用户手动打开项目")
-    
+
     def _auto_open_project(self, project_dir):
         """内部方法：自动打开指定项目
 
@@ -209,7 +192,7 @@ class MainWindowStateMixin:
         才调用 add_canvas_dock。
         """
         # 检查项目是否已经打开
-        if hasattr(self, '_canvas_host') and self._canvas_host:
+        if hasattr(self, "_canvas_host") and self._canvas_host:
             if self._canvas_host.is_project_open(project_dir):
                 logger.info("项目已经打开，无需重复打开: %s", project_dir)
                 return
@@ -237,11 +220,12 @@ class MainWindowStateMixin:
 
         # —— 在主线程先重置状态 ——
         # 清理之前的画布 dock（如果有）
-        if hasattr(self, '_canvas_host') and self._canvas_host:
+        if hasattr(self, "_canvas_host") and self._canvas_host:
             self._canvas_host.remove_canvas_dock_by_path(project_dir)
 
         # —— Worker：在后台线程做磁盘扫描 + JSON 解析 ——
         from ui.core.project.project_load_worker import ProjectLoadWorker
+
         worker = ProjectLoadWorker(project_dir, parent=self)
 
         def _on_progress(pct, msg):
@@ -259,24 +243,24 @@ class MainWindowStateMixin:
 
             # 挂载节点锁定组 UI
             for m in mounted_nodes:
-                m_mount_root = m['mount_root']
+                m_mount_root = m["mount_root"]
                 if self.node_list_panel:
                     gm = self.node_list_panel.group_manager
                     if not gm.groups.get(m_mount_root):
                         gm.create_group(m_mount_root, "#E67E22")
-                    gm.add_nodes_to_group(m_mount_root, [m['name']])
+                    gm.add_nodes_to_group(m_mount_root, [m["name"]])
                     gm.lock_group(m_mount_root)
 
             # 2) ✅ 关键：确保 nodes_data 填充后再创建画布
             #    add_canvas_dock → _create_canvas_dock → canvas.load_layout
             #    load_layout 内部会读取 self.parent_window.nodes_data
-            if hasattr(self, '_canvas_host'):
-                logger.info("[auto_open] nodes_data 已填充 (%d 个节点)，开始创建画布",
-                            len(self.nodes_data))
+            if hasattr(self, "_canvas_host"):
+                logger.info("[auto_open] nodes_data 已填充 (%d 个节点)，开始创建画布", len(self.nodes_data))
                 self._canvas_host.add_canvas_dock(project_name, project_dir)
 
                 # 3) 统一 UI 更新（面板、运行状态同步等——不调用 restore_canvas_host_state 避免用旧状态隐藏新画布 dock）
                 from ui.core.project.project_manager import _apply_after_refresh
+
                 _apply_after_refresh(self, running_nodes)
 
             # 5) 保存项目到配置
@@ -284,9 +268,9 @@ class MainWindowStateMixin:
             self.app_config.save()
 
             # 6) 同步节点列表面板显示
-            if hasattr(self, 'node_list_panel') and self.node_list_panel:
+            if hasattr(self, "node_list_panel") and self.node_list_panel:
                 # NodeListDockPanel 使用 update_node_list(nodes_data) 刷新显示
-                if hasattr(self.node_list_panel, 'update_node_list'):
+                if hasattr(self.node_list_panel, "update_node_list"):
                     self.node_list_panel.update_node_list(self.nodes_data)
 
             self.show_toast(f"已自动打开项目: {project_name}", "success")

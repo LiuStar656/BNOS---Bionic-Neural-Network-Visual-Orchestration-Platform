@@ -6,7 +6,6 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 from PySide6.QtCore import QObject, Signal
 
@@ -29,7 +28,8 @@ class HistoryState:
       - commands[current_index+1:] 是"可重做"区间
       - 在非末尾位置执行新命令 → 截断 current_index 之后的所有命令
     """
-    commands: List[Command] = field(default_factory=list)
+
+    commands: list[Command] = field(default_factory=list)
     current_index: int = -1
     max_history: int = 50
     is_recording: bool = True
@@ -40,38 +40,40 @@ class HistoryState:
     def get_can_redo(self) -> bool:
         return self.current_index < len(self.commands) - 1
 
-    def get_current_command(self) -> Optional[Command]:
+    def get_current_command(self) -> Command | None:
         if 0 <= self.current_index < len(self.commands):
             return self.commands[self.current_index]
         return None
 
-    def get_undo_description(self) -> Optional[str]:
+    def get_undo_description(self) -> str | None:
         cmd = self.get_current_command()
         return cmd.description if cmd else None
 
-    def get_redo_description(self) -> Optional[str]:
+    def get_redo_description(self) -> str | None:
         redo_index = self.current_index + 1
         if redo_index < len(self.commands):
             return self.commands[redo_index].description
         return None
 
-    def get_all_descriptions(self) -> List[dict]:
+    def get_all_descriptions(self) -> list[dict]:
         """获取全部历史条目信息（供 HistoryPanel 显示）"""
         result = []
         for i, cmd in enumerate(self.commands):
-            result.append({
-                "index": i,
-                "description": cmd.description,
-                "command_type": cmd.command_type.name,
-                "is_current": (i == self.current_index),
-                "is_future": (i > self.current_index),
-            })
+            result.append(
+                {
+                    "index": i,
+                    "description": cmd.description,
+                    "command_type": cmd.command_type.name,
+                    "is_current": (i == self.current_index),
+                    "is_future": (i > self.current_index),
+                }
+            )
         return result
 
     def truncate_future(self):
         """截断当前指针之后的所有命令（在新操作执行前调用）"""
         if self.current_index + 1 < len(self.commands):
-            self.commands = self.commands[:self.current_index + 1]
+            self.commands = self.commands[: self.current_index + 1]
 
     def trim_head(self):
         """超出最大历史限制时，从头部丢弃最旧命令"""
@@ -83,12 +85,12 @@ class HistoryState:
 class HistoryManager(QObject):
     """历史记录管理器 - 单例（扁平列表 + 指针，支持 Photoshop 式跳转）"""
 
-    history_changed = Signal()       # 历史内容变更
+    history_changed = Signal()  # 历史内容变更
     can_undo_changed = Signal(bool)  # 是否可撤销
     can_redo_changed = Signal(bool)  # 是否可重做
-    index_changed = Signal(int)      # 当前指针变更
+    index_changed = Signal(int)  # 当前指针变更
 
-    _instance: Optional[HistoryManager] = None
+    _instance: HistoryManager | None = None
 
     def __new__(cls) -> HistoryManager:
         if cls._instance is None:
@@ -108,8 +110,8 @@ class HistoryManager(QObject):
         """注入 EventBus（延迟绑定，避免循环导入）"""
         self._event_bus = event_bus
         if event_bus:
-            event_bus.subscribe('project.opened', self._on_project_opened)
-            event_bus.subscribe('project.closed', self._on_project_closed)
+            event_bus.subscribe("project.opened", self._on_project_opened)
+            event_bus.subscribe("project.closed", self._on_project_closed)
 
     # ── 核心操作 ──
 
@@ -228,7 +230,7 @@ class HistoryManager(QObject):
 
     # ── 历史查看接口 ──
 
-    def get_history_entries(self) -> List[dict]:
+    def get_history_entries(self) -> list[dict]:
         return self.state.get_all_descriptions()
 
     def get_current_index(self) -> int:
@@ -281,7 +283,7 @@ class HistoryManager(QObject):
             return
 
         try:
-            with open(history_file, "r", encoding="utf-8") as f:
+            with open(history_file, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as e:
             logger.error("Failed to load history: %s", e)
@@ -290,13 +292,9 @@ class HistoryManager(QObject):
         commands_data = data.get("commands", [])
         current_index = data.get("current_index", -1)
 
-        from ui.core.commands.node_commands import (
-            CreateNodeCommand, DeleteNodeCommand, MoveNodeCommand
-        )
-        from ui.core.commands.edge_commands import (
-            CreateEdgeCommand, DeleteEdgeCommand
-        )
         from ui.core.commands.base import CommandType
+        from ui.core.commands.edge_commands import CreateEdgeCommand, DeleteEdgeCommand
+        from ui.core.commands.node_commands import CreateNodeCommand, DeleteNodeCommand, MoveNodeCommand
 
         command_type_map = {
             CommandType.CREATE_NODE: CreateNodeCommand,
@@ -308,8 +306,8 @@ class HistoryManager(QObject):
 
         canvas = None
         if self._event_bus:
-            canvas = self._event_bus._app_context.canvas if hasattr(self._event_bus, '_app_context') else None
-            if canvas and hasattr(canvas, 'current_canvas'):
+            canvas = self._event_bus._app_context.canvas if hasattr(self._event_bus, "_app_context") else None
+            if canvas and hasattr(canvas, "current_canvas"):
                 canvas = canvas.current_canvas
 
         self.state.commands.clear()
@@ -329,8 +327,7 @@ class HistoryManager(QObject):
         self.state.current_index = current_index
         self._emit_change_signals()
         self.index_changed.emit(current_index)
-        logger.info("History loaded: %d commands, current index=%d",
-                    len(self.state.commands), current_index)
+        logger.info("History loaded: %d commands, current index=%d", len(self.state.commands), current_index)
 
     # ── 内部方法 ──
 

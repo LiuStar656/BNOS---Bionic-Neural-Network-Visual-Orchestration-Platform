@@ -10,12 +10,15 @@ Dock位置管理器 - 使用 JSON 文件持久化停靠/悬浮坐标
 DockDoubleClickHandler - 独立的双击标题栏/边缘事件处理组件
 与 DockPositionManager 配合完成浮动↔停靠切换。
 """
+
+from __future__ import annotations
+
 import json
 import os
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer, QObject
-from PySide6.QtWidgets import QMainWindow, QDockWidget
+from PySide6.QtCore import QObject, Qt, QTimer
+from PySide6.QtWidgets import QMainWindow
 
 
 class DockPositionManager(QObject):
@@ -62,10 +65,7 @@ class DockPositionManager(QObject):
     @classmethod
     def _save_all_positions(cls, data):
         try:
-            cls._CONFIG_FILE.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2),
-                encoding="utf-8"
-            )
+            cls._CONFIG_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
             pass
 
@@ -81,12 +81,7 @@ class DockPositionManager(QObject):
     def _persist_floating_geometry(self, geo):
         data = self._load_all_positions()
         entry = data.get(self._dock_id, {})
-        entry["floating"] = {
-            "x": geo.x(),
-            "y": geo.y(),
-            "width": geo.width(),
-            "height": geo.height()
-        }
+        entry["floating"] = {"x": geo.x(), "y": geo.y(), "width": geo.width(), "height": geo.height()}
         data[self._dock_id] = entry
         self._save_all_positions(data)
 

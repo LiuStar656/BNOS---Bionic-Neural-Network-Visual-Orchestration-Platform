@@ -17,15 +17,15 @@
     self.node_mgr.remove_node_from_canvas(name)
     ...
 """
-import os
-import json
 
-from PySide6.QtGui import QPen, QColor
+from __future__ import annotations
 
-from ui.core.logger import logger
-from ui.core.i18n import t
-from ui.core.utils.dialog_utils import themed_message
+from pathlib import Path
+
 from ui.canvas.items.node_item import NodeItem
+from ui.core.i18n import t
+from ui.core.logger import logger
+from ui.core.utils.dialog_utils import themed_message
 
 
 class NodeManager:
@@ -48,24 +48,19 @@ class NodeManager:
                        包含 'path', 'config', 'status' 等字段
         """
         if node_name in self.canvas.nodes:
-            themed_message(
-                self.canvas, t("k_title_info"), t("k_canvas_node_exists"), "info"
-            )
+            themed_message(self.canvas, t("k_title_info"), t("k_canvas_node_exists"), "info")
             return
 
         # 获取节点信息（优先使用传入的 node_info，否则从 parent_window 读取）
         if node_info:
             # 子进程模式：直接用传入的节点信息
-            language = self.detect_language(node_info.get('path', ''))
-            status = node_info.get('status', 'stopped')
-        elif (
-            self.canvas.parent_window
-            and node_name in self.canvas.parent_window.nodes_data
-        ):
+            language = self.detect_language(node_info.get("path", ""))
+            status = node_info.get("status", "stopped")
+        elif self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
             # 主进程模式：从 nodes_data 读取
             parent_info = self.canvas.parent_window.nodes_data[node_name]
-            language = self.detect_language(parent_info['path'])
-            status = parent_info.get('status', 'stopped')
+            language = self.detect_language(parent_info["path"])
+            status = parent_info.get("status", "stopped")
         else:
             # 兜底：默认值
             language = "Python"
@@ -95,10 +90,7 @@ class NodeManager:
         self.canvas.selection._record_create_node(node_name)
 
         # 触发自动保存布局（包含节点位置）
-        if (
-            self.canvas.parent_window
-            and self.canvas.parent_window.current_project_path
-        ):
+        if self.canvas.parent_window and self.canvas.parent_window.current_project_path:
             self.canvas._save_timer.stop()
             self.canvas._save_timer.start(500)
 
@@ -125,16 +117,13 @@ class NodeManager:
         logger.info("节点 %s 已从画布移除", node_name)
 
         # 触发自动保存布局
-        if (
-            self.canvas.parent_window
-            and self.canvas.parent_window.current_project_path
-        ):
+        if self.canvas.parent_window and self.canvas.parent_window.current_project_path:
             self.canvas._save_timer.stop()
             self.canvas._save_timer.start(500)
 
     def remove_node_with_cleanup(self, node_name):
         """从画布删除节点并清理上下游配置
-        
+
         如果节点正在运行，先自动停止进程再删除，防止孤儿进程。
         """
         if node_name not in self.canvas.nodes:
@@ -191,7 +180,7 @@ class NodeManager:
             self.canvas.remove_edge(edge)
 
         # 移除所有节点
-        for node_name, node in self.canvas.nodes.items():
+        for _node_name, node in self.canvas.nodes.items():
             self.canvas.scene.removeItem(node)
         self.canvas.nodes.clear()
 
@@ -213,21 +202,20 @@ class NodeManager:
 
     def detect_language(self, node_path):
         """检测节点语言"""
-        if os.path.exists(os.path.join(node_path, "main.py")):
+        p = Path(node_path)
+        if (p / "main.py").exists():
             return "Python"
-        elif os.path.exists(os.path.join(node_path, "main.js")):
+        elif (p / "main.js").exists():
             return "Node.js"
-        elif os.path.exists(os.path.join(node_path, "main.go")):
+        elif (p / "main.go").exists():
             return "Go"
-        elif os.path.exists(os.path.join(node_path, "Main.java")):
+        elif (p / "Main.java").exists():
             return "Java"
-        elif os.path.exists(os.path.join(node_path, "main.cpp")):
+        elif (p / "main.cpp").exists():
             return "C++"
-        elif os.path.exists(os.path.join(node_path, "src", "main.rs")) or os.path.exists(
-            os.path.join(node_path, "Cargo.toml")
-        ):
+        elif (p / "src" / "main.rs").exists() or (p / "Cargo.toml").exists():
             return "Rust"
-        elif os.path.exists(os.path.join(node_path, "main.sh")):
+        elif (p / "main.sh").exists():
             return "Shell"
         else:
             return "Unknown"
@@ -241,15 +229,15 @@ class NodeManager:
             return
 
         node_data = self.canvas.parent_window.nodes_data[node_name]
-        config = node_data.get('config', {})
-        status = node_data.get('status', 'stopped')
+        config = node_data.get("config", {})
+        status = node_data.get("status", "stopped")
 
         node_item = self.canvas.nodes[node_name]
 
         display_data = {
-            'name': config.get('node_name', node_name),
-            'language': self.detect_language(node_data.get('path', '')),
-            'status': status,
+            "name": config.get("node_name", node_name),
+            "language": self.detect_language(node_data.get("path", "")),
+            "status": status,
         }
 
         node_item.sync_with_data(display_data)
@@ -273,40 +261,30 @@ class NodeManager:
 
     def export_node_from_canvas(self, node_name):
         """从画布导出节点（委托给父窗口）"""
-        if self.canvas.parent_window and hasattr(
-            self.canvas.parent_window, 'export_node'
-        ):
+        if self.canvas.parent_window and hasattr(self.canvas.parent_window, "export_node"):
             self.canvas.parent_window.export_node(node_name)
 
     def stop_all_nodes(self):
         """停止画布上所有节点进程"""
-        if (
-            self.canvas.parent_window
-            and hasattr(self.canvas.parent_window, 'nodes_data')
-        ):
+        if self.canvas.parent_window and hasattr(self.canvas.parent_window, "nodes_data"):
             running_nodes = [
                 name
                 for name, info in self.canvas.parent_window.nodes_data.items()
-                if info.get('status') in ('running', 'idle')
+                if info.get("status") in ("running", "idle")
             ]
-            if running_nodes and hasattr(
-                self.canvas.parent_window, '_force_stop_all_nodes'
-            ):
+            if running_nodes and hasattr(self.canvas.parent_window, "_force_stop_all_nodes"):
                 self.canvas.parent_window._force_stop_all_nodes(running_nodes)
 
     # ── 节点面板 ──
 
     def open_node_config(self, node_name):
         """打开节点配置对话框"""
-        if (
-            self.canvas.parent_window
-            and node_name in self.canvas.parent_window.nodes_data
-        ):
+        if self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
             node_info = self.canvas.parent_window.nodes_data[node_name]
-            config = node_info['config']
-            node_path = node_info['path']
+            config = node_info["config"]
+            node_path = node_info["path"]
 
-            from ui.panels.property_panel import NodeConfigDialog
+            from ui.dialogs.node_config_dialog import NodeConfigDialog
 
             dialog = NodeConfigDialog(node_name, config, node_path, self.canvas.parent_window)
             dialog.exec()
@@ -316,12 +294,9 @@ class NodeManager:
         from ui.panels.node_expand_panel import NodeExpandPanel
 
         # 如果同节点已有展开面板，关闭旧的
-        if hasattr(self.canvas, '_expand_panel') and self.canvas._expand_panel is not None:
+        if hasattr(self.canvas, "_expand_panel") and self.canvas._expand_panel is not None:
             try:
-                if (
-                    self.canvas._expand_panel.isVisible()
-                    and self.canvas._expand_panel.node_name == node_name
-                ):
+                if self.canvas._expand_panel.isVisible() and self.canvas._expand_panel.node_name == node_name:
                     self.canvas._expand_panel._close()
             except RuntimeError:
                 pass  # 面板已被销毁

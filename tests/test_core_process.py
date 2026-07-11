@@ -4,12 +4,17 @@
 先启动主 GUI (python bnos_console.py)，再运行此脚本。
 核心进程无 UI，只输出日志。
 """
-import sys
+
+from __future__ import annotations
+
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 if __name__ == "__main__":
     from PySide6.QtCore import QCoreApplication
+
     from ui.core.services.process_manager import ProcessManager
 
     app = QCoreApplication.instance() or QCoreApplication(sys.argv)
@@ -22,11 +27,8 @@ if __name__ == "__main__":
     proc.start()
 
     pid = proc.process.pid if proc.process else "?"
-    print(f"核心进程已启动 (PID={pid})，无GUI，查看日志")
-    print("Ctrl+C 退出")
 
     try:
         app.exec()
     except KeyboardInterrupt:
         pm.stop_all()
-        print("已停止")

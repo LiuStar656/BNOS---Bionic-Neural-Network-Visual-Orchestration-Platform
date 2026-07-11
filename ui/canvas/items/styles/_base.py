@@ -1,7 +1,8 @@
 """
 节点样式抽象基类 — 只定义属性，不实现渲染
 """
-from PySide6.QtGui import QColor
+
+from __future__ import annotations
 
 
 class NodeStyle:
@@ -61,10 +62,10 @@ class NodeStyle:
         """子类必须实现 — 将样式属性渲染到 node_item 上"""
         # 从 canvas 读取颜色设置
         if node_item.canvas:
-            self.bg_color = getattr(node_item.canvas, 'node_bg_color', '#2d2d30')
-            self.border_color = getattr(node_item.canvas, 'node_border_color', '#454545')
-            self.text_color = getattr(node_item.canvas, 'node_text_color', '#d4d4d4')
-            self.selected_color = getattr(node_item.canvas, 'node_selected_color', '#007acc')
+            self.bg_color = getattr(node_item.canvas, "node_bg_color", "#2d2d30")
+            self.border_color = getattr(node_item.canvas, "node_border_color", "#454545")
+            self.text_color = getattr(node_item.canvas, "node_text_color", "#d4d4d4")
+            self.selected_color = getattr(node_item.canvas, "node_selected_color", "#007acc")
         raise NotImplementedError
 
     def apply_status(self, node_item, status):

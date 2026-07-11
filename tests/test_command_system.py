@@ -2,15 +2,18 @@
 test_command_system.py — Command 系统单元测试
 覆盖: base.py (CommandType, CommandResult, Command), history_manager.py (HistoryState, HistoryManager 核心逻辑)
 """
-import pytest
-from ui.core.commands.base import Command, CommandResult, CommandType
-from ui.core.commands.history_manager import HistoryState, HistoryManager
 
+from __future__ import annotations
+
+from ui.core.commands.base import Command, CommandResult, CommandType
+from ui.core.commands.history_manager import HistoryManager, HistoryState
 
 # ═══════════════════ 测试用模拟 Command ═══════════════════
 
+
 class _DummyCommand(Command):
     """可测试的模拟命令 — execute / undo 均可控"""
+
     def __init__(self, description="test", should_fail=False):
         super().__init__(description)
         self.command_type = CommandType.GENERIC
@@ -45,6 +48,7 @@ class _DummyCommand(Command):
 
 # ═══════════════════ CommandType ═══════════════════
 
+
 class TestCommandType:
     def test_enum_values(self):
         assert CommandType.CREATE_NODE is not None
@@ -62,6 +66,7 @@ class TestCommandType:
 
 # ═══════════════════ CommandResult ═══════════════════
 
+
 class TestCommandResult:
     def test_success(self):
         r = CommandResult(True, "OK")
@@ -76,6 +81,7 @@ class TestCommandResult:
 
 
 # ═══════════════════ Command 基类 ═══════════════════
+
 
 class TestCommand:
     def test_init_defaults(self):
@@ -131,6 +137,7 @@ class TestCommand:
 
 
 # ═══════════════════ HistoryState ═══════════════════
+
 
 class TestHistoryState:
     def test_initial_state(self):
@@ -194,9 +201,9 @@ class TestHistoryState:
         entries = s.get_all_descriptions()
         assert len(entries) == 3
         assert entries[0]["is_current"] is False
-        assert entries[1]["is_current"] is True   # b is current
+        assert entries[1]["is_current"] is True  # b is current
         assert entries[2]["is_current"] is False
-        assert entries[2]["is_future"] is True    # c is future
+        assert entries[2]["is_future"] is True  # c is future
 
     def test_truncate_future(self):
         s = HistoryState()
@@ -234,6 +241,7 @@ class TestHistoryState:
 
 
 # ═══════════════════ HistoryManager 核心 ─══════════════════
+
 
 class TestHistoryManager:
     def setup_method(self):

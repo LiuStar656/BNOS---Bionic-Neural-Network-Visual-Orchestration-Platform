@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import time
-from typing import List
-
 from ui.core.commands.base import Command, CommandResult, CommandType
 from ui.core.logger import logger
 
@@ -19,7 +16,7 @@ class MacroCommand(Command):
     def __init__(self, description: str = "批量操作"):
         super().__init__(description)
         self.command_type = CommandType.MACRO
-        self._commands: List[Command] = []
+        self._commands: list[Command] = []
         self._closed: bool = False
 
     def add_command(self, command: Command):

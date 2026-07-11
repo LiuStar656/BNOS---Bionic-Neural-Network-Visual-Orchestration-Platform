@@ -15,20 +15,19 @@ BaseNodeLogSubPanel 包含以下共享逻辑:
   - _build_log_area() — 日志内容区 UI
   - 特有功能（如 _clear_log, _open_folder）
 """
+
+from __future__ import annotations
+
 import os
 import subprocess
-import psutil
-from PySide6.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTextEdit, QGroupBox, QProgressBar, QWidget
-)
+
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QGroupBox, QPushButton
+
 from ui.core.i18n import t
 from ui.core.system.polling_manager import polling_manager
 from ui.core.utils.dialog_utils import themed_message
 from ui.panels._shared.system_resource_collector import SystemResourceCollector
-from ui.core.logger import logger
 
 
 class BaseNodeLogSubPanel(QGroupBox):
@@ -65,8 +64,8 @@ class BaseNodeLogSubPanel(QGroupBox):
 
     def _build_title_content(self, status: str) -> QPushButton:
         """构建标题按钮（公共辅助方法）"""
-        status_text = t("k_status_running") if status == 'running' else t("k_status_stopped")
-        status_color = "#4CAF50" if status == 'running' else "#999"
+        status_text = t("k_status_running") if status == "running" else t("k_status_stopped")
+        status_color = "#4CAF50" if status == "running" else "#999"
         btn = QPushButton(f"{self.node_name}  [{status_text}]")
         btn.setStyleSheet(f"""
             QPushButton {{
@@ -92,6 +91,7 @@ class BaseNodeLogSubPanel(QGroupBox):
     def _start_resource_timer(self):
         """启动资源监测定时器（使用统一调度器）"""
         from ui.core.system.update_scheduler import update_scheduler
+
         update_scheduler.subscribe(self, 1000, self._update_resource_usage)
 
     def _update_resource_usage(self):
@@ -116,7 +116,7 @@ class BaseNodeLogSubPanel(QGroupBox):
             return
 
         try:
-            with open(self._log_file, 'r', encoding='utf-8', errors='replace') as f:
+            with open(self._log_file, encoding="utf-8", errors="replace") as f:
                 content = f.read()
             if not content.strip():
                 self._set_log_text(t("k_log_empty"))
@@ -152,10 +152,10 @@ class BaseNodeLogSubPanel(QGroupBox):
 
     def update_status(self, status: str):
         """外部更新状态显示（支持 running/idle/stopped 三态）"""
-        if status == 'running':
+        if status == "running":
             status_text = t("k_status_running")
             status_color = "#4CAF50"
-        elif status == 'idle':
+        elif status == "idle":
             status_text = t("k_status_idle")
             status_color = "#F0A030"
         else:
@@ -181,6 +181,7 @@ class BaseNodeLogSubPanel(QGroupBox):
         """取消订阅 polling_manager（面板移除时调用）"""
         polling_manager.unwatch_log(self.node_path, "listener.log")
         from ui.core.system.update_scheduler import update_scheduler
+
         update_scheduler.unsubscribe(self)
 
     # ──── 可选的扩展功能（子类按需覆盖）────
@@ -188,29 +189,29 @@ class BaseNodeLogSubPanel(QGroupBox):
     def _clear_log(self, parent_widget=None):
         """清空日志文件（需要确认对话框）"""
         reply = themed_message(
-            parent_widget or self, t("k_title_confirm_clear"),
-            t("_k_clear_log_confirm").format(name=self.node_name), "question"
+            parent_widget or self,
+            t("k_title_confirm_clear"),
+            t("_k_clear_log_confirm").format(name=self.node_name),
+            "question",
         )
         if not reply:
             return
         try:
             os.makedirs(os.path.dirname(self._log_file), exist_ok=True)
-            with open(self._log_file, 'w', encoding='utf-8') as f:
+            with open(self._log_file, "w", encoding="utf-8") as f:
                 f.write("")
             self._set_log_text(t("k_log_cleared"))
         except Exception as e:
-            themed_message(
-                parent_widget or self, t("k_title_error"),
-                t("_k_clear_failed").format(err=str(e)), "error"
-            )
+            themed_message(parent_widget or self, t("k_title_error"), t("_k_clear_failed").format(err=str(e)), "error")
 
     def _open_folder(self):
         """打开节点目录"""
         import platform
+
         system = platform.system()
         if system == "Windows":
-            subprocess.Popen(['explorer', self.node_path])
+            subprocess.Popen(["explorer", self.node_path])
         elif system == "Darwin":
-            subprocess.Popen(['open', self.node_path])
+            subprocess.Popen(["open", self.node_path])
         else:
-            subprocess.Popen(['xdg-open', self.node_path])
+            subprocess.Popen(["xdg-open", self.node_path])

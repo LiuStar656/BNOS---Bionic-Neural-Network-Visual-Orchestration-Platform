@@ -1,14 +1,27 @@
 """预设节点库对话框 — 使用统一Dock面板风格"""
-import os
+
+from __future__ import annotations
+
 import json
 import shutil
 import tempfile
-from PySide6.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, QLabel,
-    QListWidget, QListWidgetItem, QPushButton,
-    QTextEdit, QGroupBox, QSplitter, QWidget, QMessageBox
-)
+from pathlib import Path
+
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
 
@@ -28,8 +41,7 @@ class PresetLibraryDialog(QWidget):
         self._load_presets()
 
     def _preset_dir(self):
-        return os.path.join(os.path.dirname(os.path.dirname(
-            os.path.dirname(os.path.abspath(__file__)))), "node_templates")
+        return Path(__file__).resolve().parent.parent.parent / "node_templates"
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
@@ -221,21 +233,20 @@ class PresetLibraryDialog(QWidget):
         self._preset_list.clear()
         preset_dir = self._preset_dir()
 
-        if not os.path.isdir(preset_dir):
+        if not preset_dir.is_dir():
             return
 
-        for fname in sorted(os.listdir(preset_dir)):
-            if not fname.endswith(".json"):
+        for entry in sorted(preset_dir.iterdir()):
+            if not entry.is_file() or not entry.name.endswith(".json"):
                 continue
-            json_path = os.path.join(preset_dir, fname)
-            base_name = fname[:-5]  # remove .json
-            bnos_path = os.path.join(preset_dir, base_name + ".bnos")
-            if not os.path.exists(bnos_path):
+            json_path = entry
+            base_name = entry.stem
+            bnos_path = preset_dir / f"{base_name}.bnos"
+            if not bnos_path.exists():
                 continue
 
             try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
+                data = json.loads(json_path.read_text(encoding="utf-8"))
             except Exception:
                 data = {"name": base_name, "description": ""}
 
@@ -270,7 +281,7 @@ class PresetLibraryDialog(QWidget):
             details.append(f"{t('k_saved_at')}: {data['saved_at'][:19]}")
         if data.get("source_project"):
             details.append(f"{t('k_source_project')}: {data['source_project']}")
-        bnos_size = os.path.getsize(preset["bnos_path"])
+        bnos_size = preset["bnos_path"].stat().st_size
         details.append(f"{t('k_size')}: {bnos_size / 1024:.1f} KB")
         self._details_label.setText("\n".join(details))
 
@@ -295,49 +306,49 @@ class PresetLibraryDialog(QWidget):
             themed_message(self, t("k_title_warning"), t("k_project_no_project"), "warning")
             return
 
-        nodes_dir = os.path.join(main_window.current_project_path, "nodes")
-        os.makedirs(nodes_dir, exist_ok=True)
+        nodes_dir = Path(main_window.current_project_path) / "nodes"
+        nodes_dir.mkdir(parents=True, exist_ok=True)
 
         base_name = self._selected_name
-        target_path = os.path.join(nodes_dir, base_name)
+        target_path = nodes_dir / base_name
 
-        if os.path.exists(target_path):
+        if target_path.exists():
             reply = QMessageBox.question(
-                self, t("k_title_warning"),
+                self,
+                t("k_title_warning"),
                 f"Node '{base_name}' already exists, overwrite?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if reply == QMessageBox.StandardButton.No:
                 counter = 1
-                while os.path.exists(target_path):
-                    target_path = os.path.join(nodes_dir, f"{base_name}_{counter}")
+                while target_path.exists():
+                    target_path = nodes_dir / f"{base_name}_{counter}"
                     counter += 1
             else:
-                shutil.rmtree(target_path)
+                shutil.rmtree(str(target_path))
 
         try:
             temp_dir = tempfile.mkdtemp()
-            extracted_dir = Packager.extract_package(preset["bnos_path"], temp_dir)
+            extracted_dir = Packager.extract_package(str(preset["bnos_path"]), temp_dir)
 
             if not extracted_dir:
                 shutil.rmtree(temp_dir)
                 themed_message(self, t("k_title_error"), "Failed to extract preset", "error")
                 return
 
-            shutil.move(extracted_dir, target_path)
-            if os.path.exists(temp_dir):
+            shutil.move(extracted_dir, str(target_path))
+            if Path(temp_dir).exists():
                 shutil.rmtree(temp_dir)
 
             from ui.core.project.import_export_manager import _repair_portable_venv
-            _repair_portable_venv(target_path)
+
+            _repair_portable_venv(str(target_path))
 
             main_window.refresh_nodes()
-            themed_message(self, t("k_title_success"),
-                           t("_k_preset_imported").format(name=base_name), "info")
+            themed_message(self, t("k_title_success"), t("_k_preset_imported").format(name=base_name), "info")
             self.close()
         except Exception as e:
-            themed_message(self, t("k_title_error"),
-                           f"Import failed: {e}", "error")
+            themed_message(self, t("k_title_error"), f"Import failed: {e}", "error")
 
     def _delete_preset(self):
         if not self._selected_name:
@@ -348,16 +359,17 @@ class PresetLibraryDialog(QWidget):
             return
 
         reply = QMessageBox.question(
-            self, t("k_title_confirm"),
+            self,
+            t("k_title_confirm"),
             f"Delete preset '{self._selected_name}' from library?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
 
         try:
-            os.remove(preset["bnos_path"])
-            os.remove(preset["json_path"])
+            preset["bnos_path"].unlink()
+            preset["json_path"].unlink()
         except Exception as e:
             themed_message(self, t("k_title_error"), f"Delete failed: {e}", "error")
             return

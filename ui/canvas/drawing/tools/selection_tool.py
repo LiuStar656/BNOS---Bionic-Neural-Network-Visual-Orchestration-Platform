@@ -1,12 +1,15 @@
 """
 选择工具 — 负责图形的选择、移动、控制点编辑、多选、框选
 """
-from PySide6.QtCore import Qt, QPointF, QRectF
-from PySide6.QtGui import QPen, QColor, QBrush
-from PySide6.QtWidgets import QGraphicsItem
+
+from __future__ import annotations
+
+from PySide6.QtCore import QPointF, Qt
+from PySide6.QtGui import QBrush, QColor, QPen
+
+from ui.canvas.drawing.graphic_items import GraphicBase, TextGraphic
 
 from .tool_base import ToolBase, ToolResult
-from ui.canvas.drawing.graphic_items import GraphicBase, TextGraphic
 
 
 class SelectionTool(ToolBase):
@@ -17,7 +20,7 @@ class SelectionTool(ToolBase):
         self._drag_start = None
         self._dragging_handle = -1
         self._dragging_graphic = None
-        self._marquee = None          # 框选矩形
+        self._marquee = None  # 框选矩形
         self._marquee_start = None
 
     def on_activate(self):
@@ -30,11 +33,10 @@ class SelectionTool(ToolBase):
         # 查找点击的图形
         graphic = None
         while item:
-            if isinstance(item, (GraphicBase, TextGraphic)) and item in self.draw_layer.graphics:
+            if isinstance(item, GraphicBase | TextGraphic) and item in self.draw_layer.graphics:
                 graphic = item
                 break
             item = item.parentItem()
-
         if graphic:
             # Ctrl+点击：切换多选状态
             if modifiers & Qt.KeyboardModifier.ControlModifier:
@@ -96,7 +98,7 @@ class SelectionTool(ToolBase):
         item = self.canvas.scene.itemAt(scene_pos, self.canvas.transform())
         graphic = None
         while item:
-            if isinstance(item, (GraphicBase, TextGraphic)) and item in self.draw_layer.graphics:
+            if isinstance(item, GraphicBase | TextGraphic) and item in self.draw_layer.graphics:
                 graphic = item
                 break
             item = item.parentItem()
@@ -160,10 +162,14 @@ class SelectionTool(ToolBase):
                 return ToolResult.IGNORED
             step = 10 if event.modifiers() & Qt.KeyboardModifier.ShiftModifier else 1
             dx = dy = 0
-            if key == Qt.Key.Key_Left: dx = -step
-            elif key == Qt.Key.Key_Right: dx = step
-            elif key == Qt.Key.Key_Up: dy = -step
-            elif key == Qt.Key.Key_Down: dy = step
+            if key == Qt.Key.Key_Left:
+                dx = -step
+            elif key == Qt.Key.Key_Right:
+                dx = step
+            elif key == Qt.Key.Key_Up:
+                dy = -step
+            elif key == Qt.Key.Key_Down:
+                dy = step
             self.draw_layer._save_undo()
             for g in selected:
                 g.moveBy(dx, dy)
@@ -187,6 +193,7 @@ class SelectionTool(ToolBase):
     def _create_marquee(self, pos: QPointF):
         """创建框选矩形"""
         from PySide6.QtWidgets import QGraphicsRectItem
+
         pen = QPen(QColor("#00AAFF"), 1, Qt.PenStyle.DashLine)
         brush = QBrush(QColor(0, 170, 255, 30))
         self._marquee = QGraphicsRectItem(0, 0, 0, 0)

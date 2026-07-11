@@ -3,8 +3,12 @@
 
 从 node_item.py 拆分出来。
 """
-from PySide6.QtCore import Qt, QRectF
-from ui.canvas.items.anchor_item import ANCHOR_SIZE, ANCHOR_HALF
+
+from __future__ import annotations
+
+from PySide6.QtCore import QRectF, Qt
+
+from ui.canvas.items.anchor_item import ANCHOR_HALF, ANCHOR_SIZE
 from ui.core.logger import logger
 
 
@@ -37,18 +41,13 @@ class NodeInteractionHandler:
         # 输出锚点（开始连线）
         clicked_output = self._node.find_nearest_output_anchor(pos_in_item, max_dist=20)
         if clicked_output is None:
-            default_output_rect = QRectF(
-                w - ANCHOR_HALF, h / 2 - ANCHOR_HALF, ANCHOR_SIZE, ANCHOR_SIZE)
+            default_output_rect = QRectF(w - ANCHOR_HALF, h / 2 - ANCHOR_HALF, ANCHOR_SIZE, ANCHOR_SIZE)
             if default_output_rect.contains(pos_in_item):
                 default_output = self._node.anchor_manager.get_output("default")
                 if default_output and default_output.isVisible():
                     clicked_output = default_output
         if clicked_output and clicked_output.isVisible():
-            port_label = (
-                clicked_output.port_name
-                if getattr(clicked_output, "port_name", None)
-                else "default"
-            )
+            port_label = clicked_output.port_name if getattr(clicked_output, "port_name", None) else "default"
             logger.debug("NodeItem[%s]: 输出锚点命中 %s", self._node.node_name, port_label)
             if self._node.canvas:
                 self._node.canvas.start_connection_from_output(self._node, clicked_output)
@@ -58,20 +57,17 @@ class NodeInteractionHandler:
         # 输入锚点（完成连线）
         clicked_anchor = self._node.find_nearest_input_anchor(pos_in_item, max_dist=20)
         if clicked_anchor is None:
-            if (len(self._node.anchor_manager.input_anchors) == 1
-                    and "default" in self._node.anchor_manager.input_anchors):
-                default_rect = QRectF(
-                    -ANCHOR_HALF, h / 2 - ANCHOR_HALF, ANCHOR_SIZE, ANCHOR_SIZE)
+            if (
+                len(self._node.anchor_manager.input_anchors) == 1
+                and "default" in self._node.anchor_manager.input_anchors
+            ):
+                default_rect = QRectF(-ANCHOR_HALF, h / 2 - ANCHOR_HALF, ANCHOR_SIZE, ANCHOR_SIZE)
                 if default_rect.contains(pos_in_item):
                     default_anchor = self._node.anchor_manager.input_anchors["default"]
                     if default_anchor.isVisible():
                         clicked_anchor = default_anchor
         if clicked_anchor and clicked_anchor.isVisible():
-            port_label = (
-                clicked_anchor.port_name
-                if getattr(clicked_anchor, "port_name", None)
-                else "default"
-            )
+            port_label = clicked_anchor.port_name if getattr(clicked_anchor, "port_name", None) else "default"
             logger.debug("NodeItem[%s]: 输入锚点命中 %s", self._node.node_name, port_label)
             if self._node.canvas and self._node.canvas.is_connecting:
                 self._node.canvas.complete_connection_to_input(self._node, clicked_anchor)

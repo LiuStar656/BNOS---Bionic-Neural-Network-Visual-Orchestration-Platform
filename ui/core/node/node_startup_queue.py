@@ -9,13 +9,16 @@
 - 启动间隔控制：批次间平滑延迟
 - 队列持久化：退出时保存队列状态，重启后恢复
 """
-import os
+
+from __future__ import annotations
+
 import json
+import os
 import time
-import heapq
+from collections.abc import Callable
 from enum import Enum
-from typing import Dict, List, Optional, Callable, Tuple
-from PySide6.QtCore import QObject, QThread, Signal, QTimer, Qt
+
+from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
 from ui.core.logger import logger
 
@@ -54,29 +57,29 @@ class NodeStartupQueueManager:
         self._batch_delay = batch_delay
         self._retry_delay = retry_delay
         self._stopped = True
-        self._queue: List[QueueItem] = []
-        self._project_path: Optional[str] = None
-        self._nodes_data: Optional[Dict] = None
+        self._queue: list[QueueItem] = []
+        self._project_path: str | None = None
+        self._nodes_data: dict | None = None
         self._canvas_layout = None
-        self._event_callbacks: Dict[str, List[Callable]] = {}
+        self._event_callbacks: dict[str, list[Callable]] = {}
         self._timer = None
-        self._running_workers: List[QThread] = []
+        self._running_workers: list[QThread] = []
         self._scheduler_signals = _SchedulerSignals()
         self._scheduler_signals.schedule_process.connect(self._schedule_next_process_slot)
 
-    def set_project_context(self, project_path: str, nodes_data: Dict, canvas_layout = None):
+    def set_project_context(self, project_path: str, nodes_data: dict, canvas_layout=None):
         self._project_path = project_path
         self._nodes_data = nodes_data
         self._canvas_layout = canvas_layout
 
-    def enqueue(self, node_name: str, priority: int = 0, dependencies: List[str] = None) -> bool:
+    def enqueue(self, node_name: str, priority: int = 0, dependencies: list[str] = None) -> bool:
         if node_name in [item.node_name for item in self._queue]:
             return False
 
         item = QueueItem(node_name, priority)
         self._queue.append(item)
         logger.info(f"节点已加入启动队列: {node_name} (优先级: {priority})")
-        self._notify('node_enqueued', node_name=node_name, position=len(self._queue), priority=priority)
+        self._notify("node_enqueued", node_name=node_name, position=len(self._queue), priority=priority)
 
         if self._stopped:
             self.start_queue()
@@ -89,7 +92,7 @@ class NodeStartupQueueManager:
                 item.status = QueueStatus.CANCELLED
                 del self._queue[i]
                 logger.info(f"节点已从队列移除: {node_name}")
-                self._notify('node_dequeued', node_name=node_name, status=QueueStatus.CANCELLED)
+                self._notify("node_dequeued", node_name=node_name, status=QueueStatus.CANCELLED)
                 return True
         return False
 
@@ -105,12 +108,12 @@ class NodeStartupQueueManager:
         if self._timer:
             self._timer.stop()
             self._timer = None
-        
+
         for worker in self._running_workers[:]:
             worker.quit()
             worker.wait(3000)
             self._running_workers.remove(worker)
-        
+
         logger.info("队列调度器已停止")
 
     def clear_queue(self):
@@ -121,24 +124,24 @@ class NodeStartupQueueManager:
         self.stop_queue()
         logger.info("队列已清空")
 
-    def get_queue_status(self) -> Dict:
+    def get_queue_status(self) -> dict:
         status = {
-            'total': len(self._queue),
-            'queued': len([i for i in self._queue if i.status == QueueStatus.QUEUED]),
-            'blocked': len([i for i in self._queue if i.status == QueueStatus.BLOCKED]),
-            'starting': len([i for i in self._queue if i.status == QueueStatus.STARTING]),
-            'success': len([i for i in self._queue if i.status == QueueStatus.SUCCESS]),
-            'failed': len([i for i in self._queue if i.status == QueueStatus.FAILED]),
+            "total": len(self._queue),
+            "queued": len([i for i in self._queue if i.status == QueueStatus.QUEUED]),
+            "blocked": len([i for i in self._queue if i.status == QueueStatus.BLOCKED]),
+            "starting": len([i for i in self._queue if i.status == QueueStatus.STARTING]),
+            "success": len([i for i in self._queue if i.status == QueueStatus.SUCCESS]),
+            "failed": len([i for i in self._queue if i.status == QueueStatus.FAILED]),
         }
         return status
 
-    def get_queued_nodes(self) -> List[str]:
+    def get_queued_nodes(self) -> list[str]:
         return [item.node_name for item in self._queue if item.status in (QueueStatus.QUEUED, QueueStatus.BLOCKED)]
 
     def is_queued(self, node_name: str) -> bool:
         return node_name in self.get_queued_nodes()
 
-    def get_status(self, node_name: str) -> Optional[QueueStatus]:
+    def get_status(self, node_name: str) -> QueueStatus | None:
         for item in self._queue:
             if item.node_name == node_name:
                 return item.status
@@ -152,13 +155,13 @@ class NodeStartupQueueManager:
                 return True
         return False
 
-    def get_blocked_reason(self, node_name: str) -> List[str]:
+    def get_blocked_reason(self, node_name: str) -> list[str]:
         for item in self._queue:
             if item.node_name == node_name and item.status == QueueStatus.BLOCKED:
                 return item.blocked_by
         return []
 
-    def get_dependencies(self, node_name: str) -> List[str]:
+    def get_dependencies(self, node_name: str) -> list[str]:
         for item in self._queue:
             if item.node_name == node_name:
                 return item.dependencies
@@ -171,10 +174,10 @@ class NodeStartupQueueManager:
         for item in self._queue:
             item.dependencies = []
 
-        connections = self._canvas_layout.get_connections() if hasattr(self._canvas_layout, 'get_connections') else []
+        connections = self._canvas_layout.get_connections() if hasattr(self._canvas_layout, "get_connections") else []
         for conn in connections:
-            source_node = conn.get('source_node')
-            target_node = conn.get('target_node')
+            source_node = conn.get("source_node")
+            target_node = conn.get("target_node")
             if source_node and target_node:
                 for item in self._queue:
                     if item.node_name == target_node:
@@ -187,26 +190,33 @@ class NodeStartupQueueManager:
             return False
 
         try:
-            snapshot_path = os.path.join(self._project_path, '.queue_snapshot.json')
+            snapshot_path = os.path.join(self._project_path, ".queue_snapshot.json")
             items_data = []
             for item in self._queue:
                 if item.status in (QueueStatus.QUEUED, QueueStatus.BLOCKED, QueueStatus.STARTING):
-                    items_data.append({
-                        'node_name': item.node_name,
-                        'priority': item.priority,
-                        'status': item.status.value,
-                        'retry_count': item.retry_count,
-                        'enqueue_time': item.enqueue_time,
-                        'dependencies': item.dependencies
-                    })
+                    items_data.append(
+                        {
+                            "node_name": item.node_name,
+                            "priority": item.priority,
+                            "status": item.status.value,
+                            "retry_count": item.retry_count,
+                            "enqueue_time": item.enqueue_time,
+                            "dependencies": item.dependencies,
+                        }
+                    )
 
-            with open(snapshot_path, 'w', encoding='utf-8') as f:
-                json.dump({
-                    'items': items_data,
-                    'timestamp': time.time(),
-                    'max_concurrent': self._max_concurrent,
-                    'max_retry': self._max_retry
-                }, f, indent=2, ensure_ascii=False)
+            with open(snapshot_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "items": items_data,
+                        "timestamp": time.time(),
+                        "max_concurrent": self._max_concurrent,
+                        "max_retry": self._max_retry,
+                    },
+                    f,
+                    indent=2,
+                    ensure_ascii=False,
+                )
 
             logger.info(f"队列快照已保存: {snapshot_path}")
             return True
@@ -214,42 +224,39 @@ class NodeStartupQueueManager:
             logger.error(f"保存队列快照失败: {e}")
             return False
 
-    def load_snapshot(self) -> Tuple[bool, bool]:
+    def load_snapshot(self) -> tuple[bool, bool]:
         if not self._project_path:
             return False, False
 
-        snapshot_path = os.path.join(self._project_path, '.queue_snapshot.json')
+        snapshot_path = os.path.join(self._project_path, ".queue_snapshot.json")
         if not os.path.exists(snapshot_path):
             return True, False
 
         try:
-            with open(snapshot_path, 'r', encoding='utf-8') as f:
+            with open(snapshot_path, encoding="utf-8") as f:
                 data = json.load(f)
 
-            if time.time() - data.get('timestamp', 0) > 3600:
+            if time.time() - data.get("timestamp", 0) > 3600:
                 logger.info("队列快照已过期，跳过加载")
                 os.remove(snapshot_path)
                 return True, False
 
-            for item_data in data.get('items', []):
-                self.enqueue(
-                    node_name=item_data['node_name'],
-                    priority=item_data.get('priority', 0)
-                )
-                item = self._get_item(item_data['node_name'])
+            for item_data in data.get("items", []):
+                self.enqueue(node_name=item_data["node_name"], priority=item_data.get("priority", 0))
+                item = self._get_item(item_data["node_name"])
                 if item:
-                    item.retry_count = item_data.get('retry_count', 0)
-                    item.dependencies = item_data.get('dependencies', [])
-                    item.status = QueueStatus(item_data.get('status', 'queued'))
+                    item.retry_count = item_data.get("retry_count", 0)
+                    item.dependencies = item_data.get("dependencies", [])
+                    item.status = QueueStatus(item_data.get("status", "queued"))
 
-            if 'max_concurrent' in data:
-                self._max_concurrent = data['max_concurrent']
-            if 'max_retry' in data:
-                self._max_retry = data['max_retry']
+            if "max_concurrent" in data:
+                self._max_concurrent = data["max_concurrent"]
+            if "max_retry" in data:
+                self._max_retry = data["max_retry"]
 
             os.remove(snapshot_path)
             logger.info(f"队列快照已加载，恢复 {len(data.get('items', []))} 个节点")
-            return True, len(data.get('items', [])) > 0
+            return True, len(data.get("items", [])) > 0
 
         except Exception as e:
             logger.error(f"加载队列快照失败: {e}")
@@ -258,7 +265,7 @@ class NodeStartupQueueManager:
     def has_pending_nodes(self) -> bool:
         return len(self.get_queued_nodes()) > 0
 
-    def is_ready(self, node_name: str) -> Tuple[bool, List[str]]:
+    def is_ready(self, node_name: str) -> tuple[bool, list[str]]:
         item = self._get_item(node_name)
         if not item:
             return False, []
@@ -283,7 +290,7 @@ class NodeStartupQueueManager:
             except Exception as e:
                 logger.warning(f"事件回调异常: {e}")
 
-    def _get_item(self, node_name: str) -> Optional[QueueItem]:
+    def _get_item(self, node_name: str) -> QueueItem | None:
         for item in self._queue:
             if item.node_name == node_name:
                 return item
@@ -291,17 +298,17 @@ class NodeStartupQueueManager:
 
     def _get_node_status(self, node_name: str) -> str:
         if self._nodes_data and node_name in self._nodes_data:
-            return self._nodes_data[node_name].get('status', 'stopped')
+            return self._nodes_data[node_name].get("status", "stopped")
 
         for item in self._queue:
             if item.node_name == node_name:
                 return item.status.value
 
-        return 'stopped'
+        return "stopped"
 
-    def _get_ready_nodes(self) -> List[QueueItem]:
+    def _get_ready_nodes(self) -> list[QueueItem]:
         ready = [item for item in self._queue if item.status == QueueStatus.QUEUED]
-        self._notify('queue_updated', queue_info=self.get_queue_status(), blocked_info={})
+        self._notify("queue_updated", queue_info=self.get_queue_status(), blocked_info={})
         return ready
 
     def _process_queue(self):
@@ -322,7 +329,7 @@ class NodeStartupQueueManager:
             else:
                 logger.info("队列调度完成")
                 self._stopped = True
-                self._notify('queue_empty')
+                self._notify("queue_empty")
                 return
 
         ready_items.sort(key=lambda x: (-x.priority, x.enqueue_time))
@@ -334,7 +341,7 @@ class NodeStartupQueueManager:
     def _schedule_next_process(self, delay=None):
         if delay is None:
             delay = self._batch_delay
-        
+
         self._scheduler_signals.schedule_process.emit(delay)
 
     def _schedule_next_process_slot(self, delay):
@@ -343,7 +350,7 @@ class NodeStartupQueueManager:
     def _start_node(self, item):
         item.status = QueueStatus.STARTING
         item.start_time = time.time()
-        self._notify('node_starting', node_name=item.node_name)
+        self._notify("node_starting", node_name=item.node_name)
 
         worker = NodeStartWorker(item, self._nodes_data)
         worker.finished.connect(lambda success, err: self._on_node_start_complete(item, success, err))
@@ -360,7 +367,7 @@ class NodeStartupQueueManager:
             item.status = QueueStatus.SUCCESS
             item.complete_time = time.time()
             logger.info(f"节点启动成功: {item.node_name}")
-            self._notify('node_started', node_name=item.node_name)
+            self._notify("node_started", node_name=item.node_name)
             self._schedule_next_process(delay=100)
         else:
             item.error_message = error
@@ -369,12 +376,12 @@ class NodeStartupQueueManager:
             if item.retry_count < self._max_retry:
                 item.status = QueueStatus.QUEUED
                 logger.warning(f"节点启动失败，将重试 ({item.retry_count}/{self._max_retry}): {item.node_name}")
-                self._notify('node_retry', node_name=item.node_name, retry_count=item.retry_count)
+                self._notify("node_retry", node_name=item.node_name, retry_count=item.retry_count)
                 self._schedule_next_process(delay=self._retry_delay)
             else:
                 item.status = QueueStatus.FAILED
                 logger.error(f"节点启动失败（已达最大重试次数）: {item.node_name} - {error}")
-                self._notify('node_failed', node_name=item.node_name, error=error)
+                self._notify("node_failed", node_name=item.node_name, error=error)
 
             self._schedule_next_process()
 
@@ -385,7 +392,7 @@ class NodeStartupQueueManager:
 class NodeStartWorker(QThread):
     finished = Signal(bool, str)
 
-    def __init__(self, item: QueueItem, nodes_data: Dict, parent=None):
+    def __init__(self, item: QueueItem, nodes_data: dict, parent=None):
         super().__init__(parent)
         self._item = item
         self._nodes_data = nodes_data

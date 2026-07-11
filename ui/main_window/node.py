@@ -7,13 +7,16 @@ BNOS 主窗口节点控制模块
 - 节点导入/导出
 - 节点状态同步
 """
-from typing import Dict
-from PySide6.QtCore import QTimer, QThread, Signal
-from ui.core.logger import logger
+
+from __future__ import annotations
+
+from PySide6.QtCore import QThread, QTimer, Signal
+
 from ui.core.i18n import t
-from ui.core.node.node_process import start_node_process, stop_node_process, resolve_selected_node
+from ui.core.logger import logger
 from ui.core.node.node_control_service import NodeStatus, node_control_service
-from ui.core.node.node_startup_queue import startup_queue, QueueStatus
+from ui.core.node.node_process import resolve_selected_node, start_node_process, stop_node_process
+from ui.core.node.node_startup_queue import QueueStatus, startup_queue
 
 
 class MainWindowNodeControlMixin:
@@ -34,6 +37,7 @@ class MainWindowNodeControlMixin:
             return
 
         from ui.core.utils.dialog_utils import themed_input
+
         prompt = t("k_node_enter_name").replace("{lang}", language)
         node_name = themed_input(self, t("k_node_create"), prompt)
         if not node_name:
@@ -50,6 +54,7 @@ class MainWindowNodeControlMixin:
 
     def _start_async_node_creation(self, node_name, lang_key, display_language):
         from ui.core.node.node_creation_worker import start_async_node_creation
+
         start_async_node_creation(self, node_name, lang_key, display_language)
 
     def start_selected_node(self):
@@ -65,7 +70,7 @@ class MainWindowNodeControlMixin:
         if node_name not in self.nodes_data:
             return
         node_info = self.nodes_data[node_name]
-        if node_info['status'] in ('running', 'idle'):
+        if node_info["status"] in ("running", "idle"):
             self.show_toast(t("_k_node_running").format(name=node_name), "info")
             return
 
@@ -88,58 +93,61 @@ class MainWindowNodeControlMixin:
         if success:
             self._setup_queue_event_handlers()
             if self.node_list_panel:
-                self.node_list_panel.update_node_status(node_name, 'queued')
+                self.node_list_panel.update_node_status(node_name, "queued")
             if self.canvas:
-                self.canvas.update_node_status(node_name, 'queued')
+                self.canvas.update_node_status(node_name, "queued")
             if dependencies:
                 self.show_toast(f"节点 {node_name} 已加入启动队列（等待: {', '.join(dependencies)}）", "info")
             else:
                 self.show_toast(f"节点 {node_name} 已加入启动队列", "info")
         else:
-            self.show_toast(f"加入队列失败", "error")
+            self.show_toast("加入队列失败", "error")
 
     def _setup_queue_event_handlers(self):
         """设置队列事件处理器（仅设置一次）"""
-        if hasattr(self, '_queue_handlers_set') and self._queue_handlers_set:
+        if hasattr(self, "_queue_handlers_set") and self._queue_handlers_set:
             return
 
-        startup_queue.on('node_starting', self._on_queue_node_starting)
-        startup_queue.on('node_started', self._on_queue_node_started)
-        startup_queue.on('node_failed', self._on_queue_node_failed)
-        startup_queue.on('node_retry', self._on_queue_node_retry)
-        startup_queue.on('node_blocked', self._on_queue_node_blocked)
-        startup_queue.on('queue_empty', self._on_queue_empty)
+        startup_queue.on("node_starting", self._on_queue_node_starting)
+        startup_queue.on("node_started", self._on_queue_node_started)
+        startup_queue.on("node_failed", self._on_queue_node_failed)
+        startup_queue.on("node_retry", self._on_queue_node_retry)
+        startup_queue.on("node_blocked", self._on_queue_node_blocked)
+        startup_queue.on("queue_empty", self._on_queue_empty)
         self._queue_handlers_set = True
 
     def _on_queue_node_starting(self, node_name):
         """队列节点开始启动"""
         logger.info(f"队列节点开始启动: {node_name}")
         if self.node_list_panel:
-            self.node_list_panel.update_node_status(node_name, 'starting')
+            self.node_list_panel.update_node_status(node_name, "starting")
         if self.canvas:
-            self.canvas.update_node_status(node_name, 'starting')
-        self.show_toast(t("_k_node_starting").format(name=node_name), "info",
-                        node_name=node_name, operation_type="start")
+            self.canvas.update_node_status(node_name, "starting")
+        self.show_toast(
+            t("_k_node_starting").format(name=node_name), "info", node_name=node_name, operation_type="start"
+        )
 
     def _on_queue_node_started(self, node_name):
         """队列节点启动成功"""
         logger.info(f"队列节点启动成功: {node_name}")
         if self.node_list_panel:
-            self.node_list_panel.update_node_status(node_name, 'idle')
+            self.node_list_panel.update_node_status(node_name, "idle")
         if self.canvas:
-            self.canvas.update_node_status(node_name, 'idle')
-        self.show_toast(t("_k_node_started").format(name=node_name), "success",
-                        node_name=node_name, operation_type="start")
+            self.canvas.update_node_status(node_name, "idle")
+        self.show_toast(
+            t("_k_node_started").format(name=node_name), "success", node_name=node_name, operation_type="start"
+        )
         node_control_service._notify(node_name, NodeStatus.RUNNING)
 
     def _on_queue_node_failed(self, node_name, error):
         """队列节点启动失败"""
         logger.error(f"队列节点启动失败: {node_name} - {error}")
         if self.node_list_panel:
-            self.node_list_panel.update_node_status(node_name, 'stopped')
+            self.node_list_panel.update_node_status(node_name, "stopped")
         if self.canvas:
-            self.canvas.update_node_status(node_name, 'stopped')
+            self.canvas.update_node_status(node_name, "stopped")
         from ui.core.utils.dialog_utils import themed_message
+
         themed_message(self, t("k_title_error"), t("_k_start_fail").format(err=error), "error")
         node_control_service._notify(node_name, NodeStatus.ERROR)
 
@@ -152,9 +160,9 @@ class MainWindowNodeControlMixin:
         """队列节点被依赖阻塞"""
         logger.info(f"队列节点被阻塞: {node_name} 等待 {blocked_by}")
         if self.node_list_panel:
-            self.node_list_panel.update_node_status(node_name, 'blocked')
+            self.node_list_panel.update_node_status(node_name, "blocked")
         if self.canvas:
-            self.canvas.update_node_status(node_name, 'blocked')
+            self.canvas.update_node_status(node_name, "blocked")
         self.show_toast(f"节点 {node_name} 等待依赖节点启动: {', '.join(blocked_by)}", "info")
 
     def _on_queue_empty(self):
@@ -189,18 +197,20 @@ class MainWindowNodeControlMixin:
 
             if success:
                 if self.node_list_panel:
-                    self.node_list_panel.update_node_status(node_name, 'idle')
+                    self.node_list_panel.update_node_status(node_name, "idle")
                 if self.canvas:
-                    self.canvas.update_node_status(node_name, 'idle')
-                self.show_toast(t("_k_node_started").format(name=node_name), "success",
-                                node_name=node_name, operation_type="start")
+                    self.canvas.update_node_status(node_name, "idle")
+                self.show_toast(
+                    t("_k_node_started").format(name=node_name), "success", node_name=node_name, operation_type="start"
+                )
                 node_control_service._notify(node_name, NodeStatus.RUNNING)
             else:
                 if self.node_list_panel:
-                    self.node_list_panel.update_node_status(node_name, 'stopped')
+                    self.node_list_panel.update_node_status(node_name, "stopped")
                 if self.canvas:
-                    self.canvas.update_node_status(node_name, 'stopped')
+                    self.canvas.update_node_status(node_name, "stopped")
                 from ui.core.utils.dialog_utils import themed_message
+
                 themed_message(self, t("k_title_error"), t("_k_start_fail").format(err=err), "error")
                 node_control_service._notify(node_name, NodeStatus.ERROR)
 
@@ -221,18 +231,19 @@ class MainWindowNodeControlMixin:
         if node_name not in self.nodes_data:
             return
         node_info = self.nodes_data[node_name]
-        if node_info['status'] == 'stopped':
+        if node_info["status"] == "stopped":
             self.show_toast(t("_k_node_not_running_toast").format(name=node_name), "info")
             return
 
         startup_queue.dequeue(node_name)
 
         if self.node_list_panel:
-            self.node_list_panel.update_node_status(node_name, 'stopping')
+            self.node_list_panel.update_node_status(node_name, "stopping")
         if self.canvas:
-            self.canvas.update_node_status(node_name, 'stopping')
-        self.show_toast(t("_k_node_stopping").format(name=node_name), "info",
-                        node_name=node_name, operation_type="stop")
+            self.canvas.update_node_status(node_name, "stopping")
+        self.show_toast(
+            t("_k_node_stopping").format(name=node_name), "info", node_name=node_name, operation_type="stop"
+        )
 
         QTimer.singleShot(10, lambda n=node_name: self._stop_node_async(n))
 
@@ -256,26 +267,29 @@ class MainWindowNodeControlMixin:
         """停止节点完成回调"""
         if success:
             if self.node_list_panel:
-                self.node_list_panel.update_node_status(node_name, 'stopped')
+                self.node_list_panel.update_node_status(node_name, "stopped")
             if self.canvas:
-                self.canvas.update_node_status(node_name, 'stopped')
-            self.show_toast(t("_k_node_stopped").format(name=node_name), "success",
-                            node_name=node_name, operation_type="stop")
+                self.canvas.update_node_status(node_name, "stopped")
+            self.show_toast(
+                t("_k_node_stopped").format(name=node_name), "success", node_name=node_name, operation_type="stop"
+            )
             node_control_service._notify(node_name, NodeStatus.STOPPED)
         else:
-            from ui.core.utils.dialog_utils import themed_message
             from ui.core.i18n import t as i18n_t
-            themed_message(self, i18n_t("k_title_error"),
-                           i18n_t("_k_stop_fail").format(name=node_name, err=err_msg or ""),
-                           "error")
+            from ui.core.utils.dialog_utils import themed_message
+
+            themed_message(
+                self, i18n_t("k_title_error"), i18n_t("_k_stop_fail").format(name=node_name, err=err_msg or ""), "error"
+            )
             node_control_service._notify(node_name, NodeStatus.ERROR)
 
 
 class NodeStopWorker(QThread):
     """节点停止工作线程"""
+
     finished = Signal(bool, str)
 
-    def __init__(self, node_name: str, nodes_data: Dict, parent=None):
+    def __init__(self, node_name: str, nodes_data: dict, parent=None):
         super().__init__(parent)
         self._node_name = node_name
         self._nodes_data = nodes_data
@@ -292,7 +306,7 @@ class NodeStopWorker(QThread):
     def update_node_status(self, node_name, status):
         """更新节点状态并同步UI"""
         if node_name in self.nodes_data:
-            self.nodes_data[node_name]['status'] = status
+            self.nodes_data[node_name]["status"] = status
             if self.canvas:
                 self.canvas.sync_node_display(node_name)
             if self.node_list_panel:
@@ -308,25 +322,30 @@ class NodeStopWorker(QThread):
             node_name = selected
 
         from ui.core.project.import_export_manager import ImportExportManager
+
         manager = ImportExportManager(self)
         manager.export_node(node_name)
 
     def export_project(self):
         """导出整个项目"""
         from ui.core.project.import_export_manager import ImportExportManager
+
         manager = ImportExportManager(self)
         manager.export_project()
 
     def import_node(self):
         """导入节点"""
         from ui.core.project.import_export_manager import ImportExportManager
+
         manager = ImportExportManager(self)
         manager.import_node()
 
     def mount_external_node(self):
         from ui.core.node.external_node_manager import mount_node
+
         mount_node(self)
 
     def unmount_external_node(self, node_name: str):
         from ui.core.node.external_node_manager import unmount_node as _unmount_node
+
         _unmount_node(self, node_name)

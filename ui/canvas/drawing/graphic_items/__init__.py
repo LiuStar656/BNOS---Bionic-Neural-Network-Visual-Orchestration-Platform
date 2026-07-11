@@ -3,11 +3,14 @@
 
 所有图形通过 GraphicRegistry 统一注册和反序列化。
 """
-from ._base import GraphicBase, C_STROKE, C_FILL, C_TEXT, STROKE_W, FONT_SIZE
+
+from __future__ import annotations
+
+from ._base import C_FILL, C_STROKE, C_TEXT, FONT_SIZE, STROKE_W, GraphicBase
+from .arrow import ArrowGraphic
+from .polygon import PolygonGraphic
 from .rect import RectGraphic
 from .round_rect import RoundRectGraphic
-from .polygon import PolygonGraphic
-from .arrow import ArrowGraphic
 from .text import TextGraphic
 
 
@@ -46,15 +49,18 @@ class GraphicRegistry:
             px = d.get("x", 0)
             py = d.get("y", 0)
             obj = TextGraphic(text, px, py)
-            obj.set_style(stroke_color=sty.get("stroke"), stroke_w=sty.get("stroke_w"),
-                          fill_color=sty.get("fill"),
-                          font_size=sty.get("font_size"), text_color=sty.get("text_color"))
+            obj.set_style(
+                stroke_color=sty.get("stroke"),
+                stroke_w=sty.get("stroke_w"),
+                fill_color=sty.get("fill"),
+                font_size=sty.get("font_size"),
+                text_color=sty.get("text_color"),
+            )
         else:
             pts = d.get("points", [])
             cls_type = cls._types.get(gtype, RectGraphic)
             obj = cls_type(pts)
-            obj.set_style(stroke_color=sty.get("stroke"), stroke_w=sty.get("stroke_w"),
-                          fill_color=sty.get("fill"))
+            obj.set_style(stroke_color=sty.get("stroke"), stroke_w=sty.get("stroke_w"), fill_color=sty.get("fill"))
         return obj
 
 

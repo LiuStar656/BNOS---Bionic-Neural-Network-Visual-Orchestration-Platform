@@ -3,24 +3,30 @@
 
 注入到 NodeCanvas，作为绘图层 (z=0) 在节点层下方。
 """
-from PySide6.QtCore import Qt, QPointF
-from PySide6.QtWidgets import QGraphicsItem, QMenu
-from PySide6.QtGui import QAction
 
-from ui.core.i18n import t
-from ui.canvas.drawing.graphic_items import (
-    RectGraphic, RoundRectGraphic, PolygonGraphic, ArrowGraphic, TextGraphic,
-    GraphicBase, C_STROKE, C_FILL, STROKE_W
-)
-from ui.canvas.drawing.draw_toolbar import DrawToolbar
-from ui.canvas.drawing.tools import (
-    SelectionTool, RectTool, RoundRectTool, EllipseTool,
-    PolygonTool, ArrowTool, TextTool, ToolResult,
-)
+from __future__ import annotations
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QGraphicsItem, QMenu
+
 from ui.canvas.drawing.components import DrawPropertyPanel
-from ui.canvas.drawing.styles import apply_preset, PRESETS
-from ui.core.logger import logger
+from ui.canvas.drawing.draw_toolbar import DrawToolbar
+from ui.canvas.drawing.graphic_items import C_FILL, C_STROKE, STROKE_W, GraphicBase, TextGraphic
+from ui.canvas.drawing.styles import PRESETS, apply_preset
+from ui.canvas.drawing.tools import (
+    ArrowTool,
+    EllipseTool,
+    PolygonTool,
+    RectTool,
+    RoundRectTool,
+    SelectionTool,
+    TextTool,
+    ToolResult,
+)
 from ui.core.config.app_config import AppConfig
+from ui.core.i18n import t
+from ui.core.logger import logger
 
 
 class DrawLayer:
@@ -30,11 +36,11 @@ class DrawLayer:
 
     def __init__(self, canvas):
         self.canvas = canvas
-        self.graphics = []         # 所有图形
-        self._tool = ""            # 当前工具 ID
-        self._locked = False       # 图层锁定
-        self._visible = True       # 图层可见
-        self._alt_mode = False     # Alt 编辑模式
+        self.graphics = []  # 所有图形
+        self._tool = ""  # 当前工具 ID
+        self._locked = False  # 图层锁定
+        self._visible = True  # 图层可见
+        self._alt_mode = False  # Alt 编辑模式
 
         self._undo_stack = []
         self._redo_stack = []
@@ -228,7 +234,7 @@ class DrawLayer:
             item = self.canvas.scene.itemAt(pos, self.canvas.transform())
             graphic = None
             while item:
-                if isinstance(item, (GraphicBase, TextGraphic)) and item in self.graphics:
+                if isinstance(item, GraphicBase | TextGraphic) and item in self.graphics:
                     graphic = item
                     break
                 item = item.parentItem()
@@ -286,7 +292,7 @@ class DrawLayer:
         item = self.canvas.scene.itemAt(scene_pos, self.canvas.transform())
         graphic = None
         while item:
-            if isinstance(item, (GraphicBase, TextGraphic)) and item in self.graphics:
+            if isinstance(item, GraphicBase | TextGraphic) and item in self.graphics:
                 graphic = item
                 break
             item = item.parentItem()
@@ -515,7 +521,7 @@ class DrawLayer:
         for g in self.graphics:
             self.canvas.scene.removeItem(g)
         self.graphics.clear()
-        for d in (data or []):
+        for d in data or []:
             g = GraphicBase.from_dict(d)
             if g:
                 self.canvas.scene.addItem(g)

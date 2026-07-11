@@ -3,10 +3,11 @@
 
 从 node_item.py 拆分出来。
 """
-from PySide6.QtGui import QColor, QFont, QPen
-from ui.canvas.items.styles import DetailedNodeStyle
+
+from __future__ import annotations
+
 from ui.canvas.items.node_status_widget import NodeStatusWidget
-from ui.core.logger import logger
+from ui.canvas.items.styles import DetailedNodeStyle
 
 
 class NodeStyleManager:
@@ -18,7 +19,7 @@ class NodeStyleManager:
     def set_style(self, style):
         """设置节点样式（统一使用面板模式）"""
         # 销毁所有 Proxy 控件
-        if hasattr(self._node, '_proxy_widgets') and self._node._proxy_widgets:
+        if hasattr(self._node, "_proxy_widgets") and self._node._proxy_widgets:
             self._node._destroy_detailed()
 
         # 只有 DetailedNodeStyle 被支持
@@ -48,8 +49,8 @@ class NodeStyleManager:
         self._node.setCacheMode(self._node.CacheMode.ItemCoordinateCache)
         self._node.update()
         from PySide6.QtCore import QTimer
-        QTimer.singleShot(0, lambda: self._ensure_rect(
-            self._node._style.node_width, self._node._style.node_height))
+
+        QTimer.singleShot(0, lambda: self._ensure_rect(self._node._style.node_width, self._node._style.node_height))
 
     def _ensure_rect(self, w, h):
         """兜底：事件循环后强制校正节点尺寸"""
@@ -65,8 +66,8 @@ class NodeStyleManager:
 
     def update_display(self, node_name=None, language=None, status=None):
         """更新节点显示信息（与数据同步）"""
-        w = self._node.rect().width()
-        h = self._node.rect().height()
+        self._node.rect().width()
+        self._node.rect().height()
 
         if node_name:
             self._node.node_name = node_name
@@ -84,9 +85,9 @@ class NodeStyleManager:
 
     def sync_with_data(self, node_data):
         """从节点数据字典同步所有信息"""
-        if 'name' in node_data:
-            self.update_display(node_name=node_data['name'])
-        if 'language' in node_data:
-            self.update_display(language=node_data['language'])
-        if 'status' in node_data:
-            self.update_display(status=node_data['status'])
+        if "name" in node_data:
+            self.update_display(node_name=node_data["name"])
+        if "language" in node_data:
+            self.update_display(language=node_data["language"])
+        if "status" in node_data:
+            self.update_display(status=node_data["status"])

@@ -6,3 +6,5 @@
   - BaseNodeLogSubPanel: 节点日志子面板共享基类
   - NodePanelSyncMixin: NodeMonitor 面板节点同步逻辑 Mixin
 """
+
+from __future__ import annotations

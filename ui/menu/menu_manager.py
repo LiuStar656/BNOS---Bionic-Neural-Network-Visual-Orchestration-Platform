@@ -1,12 +1,15 @@
 """
 BNOS 菜单管理器 — 所有菜单项均通过 ActionRegistry + ActionFactory 构建
 """
-from ui.core.i18n import t
+
+from __future__ import annotations
+
 from ui.core.actions import ActionFactory
-from ui.core.actions.builtin_project_actions import register_project_actions
-from ui.core.actions.builtin_node_actions import register_node_actions
 from ui.core.actions.builtin_canvas_actions import register_canvas_actions
+from ui.core.actions.builtin_node_actions import register_node_actions
+from ui.core.actions.builtin_project_actions import register_project_actions
 from ui.core.actions.builtin_view_actions import register_view_actions
+from ui.core.i18n import t
 
 
 class MenuManager:
@@ -57,7 +60,7 @@ class MenuManager:
             ("k_lang_cpp", "C++ (开发中)"),
             ("k_lang_shell", "Shell (开发中)"),
         ]
-        for i18n_key, lang_name in _lang_list:
+        for _i18n_key, lang_name in _lang_list:
             ActionFactory.create_action(main_window, f"canvas.new_node.{lang_name}", menu=new_node_menu)
 
         edit_menu.addSeparator()
@@ -107,4 +110,5 @@ class MenuManager:
     @staticmethod
     def show_about(main_window):
         from ui.core.utils.dialog_utils import themed_message
+
         themed_message(main_window, t("k_title_about"), t("_k_about_text"), "info")

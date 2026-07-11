@@ -4,36 +4,37 @@
 主进程启动 Server，子进程通过 Socket 连接。
 双向通信：主→子 发送命令，子→主 回传事件。
 """
+
+from __future__ import annotations
+
 import json
 import uuid
+
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
+
 from ui.core.logger import logger
 
 SERVER_NAME = "BNOS_IPC_Server"
 
 # ── Action 常量 ──
-A_ADD_NODE      = "canvas.add_node"
-A_REMOVE_NODE   = "canvas.remove_node"
-A_CREATE_EDGE   = "canvas.create_edge"
-A_REMOVE_EDGE   = "canvas.remove_edge"
+A_ADD_NODE = "canvas.add_node"
+A_REMOVE_NODE = "canvas.remove_node"
+A_CREATE_EDGE = "canvas.create_edge"
+A_REMOVE_EDGE = "canvas.remove_edge"
 A_UPDATE_STATUS = "canvas.update_status"
-A_SYNC_DATA     = "canvas.sync_data"
-A_CLEAR_ALL     = "canvas.clear_all"
-A_WIN_SYNC      = "canvas.win_sync"
+A_SYNC_DATA = "canvas.sync_data"
+A_CLEAR_ALL = "canvas.clear_all"
+A_WIN_SYNC = "canvas.win_sync"
 
-E_NODE_SELECTED    = "canvas.node_selected"
-E_NODE_DBLCLICKED  = "canvas.node_dblclicked"
-E_EDGE_CREATED     = "canvas.edge_created"
-E_EDGE_REMOVED     = "canvas.edge_removed"
+E_NODE_SELECTED = "canvas.node_selected"
+E_NODE_DBLCLICKED = "canvas.node_dblclicked"
+E_EDGE_CREATED = "canvas.edge_created"
+E_EDGE_REMOVED = "canvas.edge_removed"
 
 
 def make_message(action, params=None, request_id=None):
-    return json.dumps({
-        "action": action,
-        "params": params or {},
-        "request_id": request_id or str(uuid.uuid4())[:8]
-    })
+    return json.dumps({"action": action, "params": params or {}, "request_id": request_id or str(uuid.uuid4())[:8]})
 
 
 def parse_message(raw: str):
@@ -45,14 +46,15 @@ def parse_message(raw: str):
 
 class IPCServer(QObject):
     """主进程 IPC 服务端，接受子进程连接"""
-    message_received = Signal(str, object)   # (client_id, msg_dict)
-    client_connected = Signal(str)            # client_id
+
+    message_received = Signal(str, object)  # (client_id, msg_dict)
+    client_connected = Signal(str)  # client_id
     client_disconnected = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._server = QLocalServer(self)
-        self._clients = {}   # client_id → QLocalSocket
+        self._clients = {}  # client_id → QLocalSocket
         QLocalServer.removeServer(SERVER_NAME)
 
     def start(self):
@@ -74,7 +76,7 @@ class IPCServer(QObject):
         if not sock or sock.state() != QLocalSocket.LocalSocketState.ConnectedState:
             return False
         msg = make_message(action, params)
-        sock.write(msg.encode('utf-8'))
+        sock.write(msg.encode("utf-8"))
         sock.flush()
         return True
 
@@ -90,27 +92,30 @@ class IPCServer(QObject):
             self.client_connected.emit(cid)
 
             buffer = b""
-            def on_ready():
+
+            def on_ready(_sock=sock, _cid=cid):
                 nonlocal buffer
-                data = sock.readAll().data()
+                data = _sock.readAll().data()
                 buffer += data
-                while b'\n' in buffer:
-                    line, buffer = buffer.split(b'\n', 1)
-                    msg = parse_message(line.decode('utf-8'))
+                while b"\n" in buffer:
+                    line, buffer = buffer.split(b"\n", 1)
+                    msg = parse_message(line.decode("utf-8"))
                     if msg:
-                        self.message_received.emit(cid, msg)
+                        self.message_received.emit(_cid, msg)
 
             sock.readyRead.connect(on_ready)
 
-            def on_disconnect():
-                self._clients.pop(cid, None)
-                self.client_disconnected.emit(cid)
+            def on_disconnect(_cid=cid):
+                self._clients.pop(_cid, None)
+                self.client_disconnected.emit(_cid)
+
             sock.disconnected.connect(on_disconnect)
 
 
 class IPCClient(QObject):
     """子进程 IPC 客户端，连接主进程"""
-    message_received = Signal(object)   # msg_dict
+
+    message_received = Signal(object)  # msg_dict
     connected = Signal()
     disconnected = Signal()
 
@@ -134,16 +139,16 @@ class IPCClient(QObject):
         if self._socket.state() != QLocalSocket.LocalSocketState.ConnectedState:
             return False
         msg = make_message(action, params)
-        self._socket.write(msg.encode('utf-8'))
-        self._socket.write(b'\n')
+        self._socket.write(msg.encode("utf-8"))
+        self._socket.write(b"\n")
         self._socket.flush()
         return True
 
     def _on_ready(self):
         data = self._socket.readAll().data()
         self._buffer += data
-        while b'\n' in self._buffer:
-            line, self._buffer = self._buffer.split(b'\n', 1)
-            msg = parse_message(line.decode('utf-8'))
+        while b"\n" in self._buffer:
+            line, self._buffer = self._buffer.split(b"\n", 1)
+            msg = parse_message(line.decode("utf-8"))
             if msg:
                 self.message_received.emit(msg)

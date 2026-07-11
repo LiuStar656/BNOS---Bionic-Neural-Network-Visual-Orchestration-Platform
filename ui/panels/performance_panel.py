@@ -1,27 +1,42 @@
 """
 性能分析面板 - 高级性能监控和分析工具（优化版）
 """
+
+from __future__ import annotations
+
+from PySide6.QtCore import QMutex, QMutexLocker, Qt, QThread, Signal
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
-    QGroupBox, QWidget, QTableWidget, QTableWidgetItem,
-    QHeaderView, QSplitter, QComboBox, QSpinBox, QCheckBox, QTabWidget
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QProgressBar,
+    QSpinBox,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Qt, Signal, QThread, QMutex, QMutexLocker
-from PySide6.QtGui import QColor, QPen, QPainter, QPainterPath
-from PySide6.QtWidgets import QApplication
+
+from ui.core.dock.dock_panel_base import DockPanelBase
 from ui.core.i18n import t
 from ui.core.logger import logger
+from ui.core.system.polling_manager import polling_manager
 from ui.panels._shared.system_resource_collector import shared_resource_collector
-from ui.core.dock.dock_panel_base import DockPanelBase
-import time
 
 
 class StatsCollectorThread(QThread):
     """后台数据收集线程（系统+节点+进程）"""
-    
+
     stats_ready = Signal(dict, dict)
     processes_ready = Signal(list)
-    
+
     def __init__(self, parent_window, parent=None):
         super().__init__(parent)
         self.setObjectName("StatsCollector")
@@ -29,52 +44,53 @@ class StatsCollectorThread(QThread):
         self._mutex = QMutex()
         self._running = True
         self._iteration = 0
-    
+
     def stop(self):
         self._running = False
         if not self.wait(5000):
             self.terminate()
             self.wait(1000)
-    
+
     def run(self):
         while self._running:
             try:
                 # 系统+节点资源采集（每 2 秒）
                 system_stats = shared_resource_collector.collect_system_stats()
-                
+
                 node_stats = {}
                 if self._parent_window:
-                    canvas = getattr(self._parent_window, 'canvas', None)
-                    if canvas and hasattr(canvas, 'nodes') and canvas.nodes:
+                    canvas = getattr(self._parent_window, "canvas", None)
+                    if canvas and hasattr(canvas, "nodes") and canvas.nodes:
                         # S11: 快照 keys 防止主线程修改字典导致迭代 RuntimeError
-                        nodes_data = getattr(self._parent_window, 'nodes_data', {})
+                        nodes_data = getattr(self._parent_window, "nodes_data", {})
                         node_keys = list(canvas.nodes.keys())
                         for name in node_keys:
                             if name in nodes_data:
                                 stats = shared_resource_collector.collect_single_node_stats(nodes_data[name], name)
                                 node_stats[name] = stats
-                
+
                 self.stats_ready.emit(system_stats, node_stats)
-                
+
                 # 进程列表采集（每 3 次迭代 = 6 秒，避免过于频繁）
                 self._iteration += 1
                 if self._iteration % 3 == 0:
                     self._collect_processes()
-                    
+
             except Exception as e:
                 logger.warning("后台数据收集失败: %s", e)
-            
+
             self.msleep(2000)
-    
+
     def _collect_processes(self):
         """在后台线程采集进程列表（避免主线程 psutil 卡顿）"""
         try:
             import psutil
+
             processes = []
-            for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_info']):
+            for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_info"]):
                 try:
                     cpu = proc.cpu_percent()
-                    mem = proc.memory_info().rss / (1024 ** 2)
+                    mem = proc.memory_info().rss / (1024**2)
                     if cpu > 0 or mem > 1:
                         processes.append((proc.pid, proc.name(), cpu, mem))
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -87,69 +103,69 @@ class StatsCollectorThread(QThread):
 
 class ChartCanvas(QWidget):
     """图表画布 - 使用 paintEvent 进行绘制"""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_window = parent
-        self._history = {'cpu': [], 'mem': []}
+        self._history = {"cpu": [], "mem": []}
         self._history_mutex = QMutex()
         self.setMinimumHeight(200)
-    
+
     def set_history(self, history):
         """设置历史数据"""
         with QMutexLocker(self._history_mutex):
             self._history = history
         self.update()
-    
+
     def paintEvent(self, event):
         """绘制图表"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
+
         rect = self.rect()
         painter.fillRect(rect, QColor("#1e1e1e"))
-        
+
         padding = 30
         chart_rect = rect.adjusted(padding, padding, -padding, -padding)
-        
+
         cpu_color = QColor("#4CAF50")
         mem_color = QColor("#2196F3")
-        
+
         with QMutexLocker(self._history_mutex):
-            cpu_data = list(self._history.get('cpu', []))
-            mem_data = list(self._history.get('mem', []))
-        
+            cpu_data = list(self._history.get("cpu", []))
+            mem_data = list(self._history.get("mem", []))
+
         if len(cpu_data) < 2:
             return
-        
+
         points = len(cpu_data)
         x_step = chart_rect.width() / (points - 1)
-        
+
         cpu_path = QPainterPath()
         mem_path = QPainterPath()
-        
+
         for i in range(points):
             x = chart_rect.left() + i * x_step
             cpu_y = chart_rect.bottom() - (cpu_data[i] / 100) * chart_rect.height()
             mem_y = chart_rect.bottom() - (mem_data[i] / 100) * chart_rect.height()
-            
+
             if i == 0:
                 cpu_path.moveTo(x, cpu_y)
                 mem_path.moveTo(x, mem_y)
             else:
                 cpu_path.lineTo(x, cpu_y)
                 mem_path.lineTo(x, mem_y)
-        
+
         painter.setPen(QPen(cpu_color, 2))
         painter.drawPath(cpu_path)
         painter.setPen(QPen(mem_color, 2))
         painter.drawPath(mem_path)
-        
+
         painter.setPen(QPen(QColor("#444")))
         for i in range(5):
             y = chart_rect.top() + (chart_rect.height() / 4) * i
             painter.drawLine(chart_rect.left(), y, chart_rect.right(), y)
-        
+
         painter.setPen(QPen(QColor("#666")))
         for i in range(5):
             y = chart_rect.top() + (chart_rect.height() / 4) * i
@@ -168,11 +184,7 @@ class PerformancePanel(DockPanelBase):
         self._node_stats = {}
         self._history = {}
         self._max_history_points = 60
-        self._alert_thresholds = {
-            'cpu': 80,
-            'memory': 85,
-            'network': 90
-        }
+        self._alert_thresholds = {"cpu": 80, "memory": 85, "network": 90}
         self._stats_mutex = QMutex()
         self._process_cache = []
 
@@ -183,11 +195,11 @@ class PerformancePanel(DockPanelBase):
         self._schedule_update(1000, self._update_ui)
 
         self._collector_thread = StatsCollectorThread(self.parent_window, self)
-        self._register_resource(self._collector_thread, 'stop')
+        self._register_resource(self._collector_thread, "stop")
         self._collector_thread.stats_ready.connect(self._on_stats_ready)
         self._collector_thread.processes_ready.connect(self._on_processes_ready)
         self._collector_thread.start()
-        
+
         # 确保应用退出前停止线程（在 Qt 销毁 widget 树之前触发）
         QApplication.instance().aboutToQuit.connect(self._on_app_quitting)
 
@@ -285,10 +297,9 @@ class PerformancePanel(DockPanelBase):
 
         self._node_table = QTableWidget()
         self._node_table.setColumnCount(6)
-        self._node_table.setHorizontalHeaderLabels([
-            t("k_node_name"), t("k_cpu"), t("k_memory"),
-            t("k_network"), t("k_status"), t("k_peak_cpu")
-        ])
+        self._node_table.setHorizontalHeaderLabels(
+            [t("k_node_name"), t("k_cpu"), t("k_memory"), t("k_network"), t("k_status"), t("k_peak_cpu")]
+        )
         self._node_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._node_table.verticalHeader().setVisible(False)
         self._node_table.setStyleSheet("""
@@ -346,9 +357,7 @@ class PerformancePanel(DockPanelBase):
 
         self._process_table = QTableWidget()
         self._process_table.setColumnCount(4)
-        self._process_table.setHorizontalHeaderLabels([
-            t("k_pid"), t("k_name"), t("k_cpu"), t("k_memory")
-        ])
+        self._process_table.setHorizontalHeaderLabels([t("k_pid"), t("k_name"), t("k_cpu"), t("k_memory")])
         self._process_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._process_table.verticalHeader().setVisible(False)
         self._process_table.setStyleSheet("""
@@ -369,7 +378,7 @@ class PerformancePanel(DockPanelBase):
         cpu_label.setStyleSheet("color: #888; font-size: 11px;")
         self._cpu_threshold = QSpinBox()
         self._cpu_threshold.setRange(1, 100)
-        self._cpu_threshold.setValue(self._alert_thresholds['cpu'])
+        self._cpu_threshold.setValue(self._alert_thresholds["cpu"])
         self._cpu_threshold.setSuffix("%")
         alert_layout.addWidget(cpu_label)
         alert_layout.addWidget(self._cpu_threshold)
@@ -378,7 +387,7 @@ class PerformancePanel(DockPanelBase):
         mem_label.setStyleSheet("color: #888; font-size: 11px;")
         self._mem_threshold = QSpinBox()
         self._mem_threshold.setRange(1, 100)
-        self._mem_threshold.setValue(self._alert_thresholds['memory'])
+        self._mem_threshold.setValue(self._alert_thresholds["memory"])
         self._mem_threshold.setSuffix("%")
         alert_layout.addWidget(mem_label)
         alert_layout.addWidget(self._mem_threshold)
@@ -427,14 +436,10 @@ class PerformancePanel(DockPanelBase):
             self._system_stats = system_stats
             for name, stats in node_stats.items():
                 if name not in self._node_stats:
-                    self._node_stats[name] = {'peak_cpu': 0, 'peak_mem': 0}
+                    self._node_stats[name] = {"peak_cpu": 0, "peak_mem": 0}
                 self._node_stats[name].update(stats)
-                self._node_stats[name]['peak_cpu'] = max(
-                    self._node_stats[name]['peak_cpu'], stats.get('cpu', 0)
-                )
-                self._node_stats[name]['peak_mem'] = max(
-                    self._node_stats[name]['peak_mem'], stats.get('memory', 0)
-                )
+                self._node_stats[name]["peak_cpu"] = max(self._node_stats[name]["peak_cpu"], stats.get("cpu", 0))
+                self._node_stats[name]["peak_mem"] = max(self._node_stats[name]["peak_mem"], stats.get("memory", 0))
 
     def _update_ui(self):
         """更新UI（轻量级，只更新已有控件）"""
@@ -444,11 +449,11 @@ class PerformancePanel(DockPanelBase):
 
         if system_stats:
             self._update_system_ui(system_stats)
-        
+
         if node_stats:
             self._refresh_node_table(node_stats)
             self._update_node_combo(node_stats)
-        
+
         self._update_history()
         self._check_alerts()
 
@@ -456,24 +461,24 @@ class PerformancePanel(DockPanelBase):
         """更新系统资源UI"""
         cpu_bar = self._sys_cpu_widget.findChild(QProgressBar)
         cpu_label = self._sys_cpu_widget.findChildren(QLabel)[-1]
-        cpu_bar.setValue(int(stats['cpu_percent']))
+        cpu_bar.setValue(int(stats["cpu_percent"]))
         cpu_label.setText(f"{stats['cpu_percent']}%")
 
         ram_bar = self._sys_ram_widget.findChild(QProgressBar)
         ram_label = self._sys_ram_widget.findChildren(QLabel)[-1]
-        ram_bar.setValue(int(stats['memory_percent']))
-        used_gb = stats['memory_used'] / (1024**3)
-        total_gb = stats['memory_total'] / (1024**3)
+        ram_bar.setValue(int(stats["memory_percent"]))
+        used_gb = stats["memory_used"] / (1024**3)
+        total_gb = stats["memory_total"] / (1024**3)
         ram_label.setText(f"{used_gb:.1f}/{total_gb:.1f} GB")
 
         disk_bar = self._sys_disk_widget.findChild(QProgressBar)
         disk_label = self._sys_disk_widget.findChildren(QLabel)[-1]
-        disk_bar.setValue(int(stats['disk_percent']))
+        disk_bar.setValue(int(stats["disk_percent"]))
         disk_label.setText(f"{stats['disk_percent']}%")
 
         net_bar = self._sys_net_widget.findChild(QProgressBar)
         net_label = self._sys_net_widget.findChildren(QLabel)[-1]
-        total_kb = (stats['net_sent_per_sec'] + stats['net_recv_per_sec']) / 1024
+        total_kb = (stats["net_sent_per_sec"] + stats["net_recv_per_sec"]) / 1024
         max_bw = 100000
         net_percent = min((total_kb / max_bw) * 100, 100)
         net_bar.setValue(int(net_percent))
@@ -484,7 +489,7 @@ class PerformancePanel(DockPanelBase):
     def _update_detail_table(self, stats):
         """更新详细信息表（复用已有Item）"""
         details = [
-            (t("k_cpu_cores"), stats.get('cpu_count', 0)),
+            (t("k_cpu_cores"), stats.get("cpu_count", 0)),
             (t("k_cpu_used"), f"{stats.get('cpu_percent', 0)}%"),
             (t("k_memory_used"), f"{stats.get('memory_used', 0) / (1024**3):.2f} GB"),
             (t("k_memory_total"), f"{stats.get('memory_total', 0) / (1024**3):.2f} GB"),
@@ -511,15 +516,19 @@ class PerformancePanel(DockPanelBase):
             self._node_table.item(i, 1).setText(f"{stats.get('cpu', 0):.1f}%")
             self._node_table.item(i, 2).setText(f"{stats.get('memory', 0):.1f} MB")
             self._node_table.item(i, 3).setText(f"{stats.get('network', 0):.1f} KB/s")
-            
-            status_map = {'running': t("k_status_running"), 'idle': t("k_status_idle"), 'stopped': t("k_status_stopped")}
-            self._node_table.item(i, 4).setText(status_map.get(stats.get('status'), stats.get('status', '')))
+
+            status_map = {
+                "running": t("k_status_running"),
+                "idle": t("k_status_idle"),
+                "stopped": t("k_status_stopped"),
+            }
+            self._node_table.item(i, 4).setText(status_map.get(stats.get("status"), stats.get("status", "")))
             self._node_table.item(i, 5).setText(f"{stats.get('peak_cpu', 0):.1f}%")
 
             status_color = QColor("#999")
-            if stats.get('status') == 'running':
+            if stats.get("status") == "running":
                 status_color = QColor("#4CAF50")
-            elif stats.get('status') == 'idle':
+            elif stats.get("status") == "idle":
                 status_color = QColor("#F0A030")
             self._node_table.item(i, 4).setForeground(status_color)
 
@@ -555,18 +564,18 @@ class PerformancePanel(DockPanelBase):
     def _update_history(self):
         """更新历史数据"""
         with QMutexLocker(self._stats_mutex):
-            cpu_val = self._system_stats.get('cpu_percent', 0)
-            mem_val = self._system_stats.get('memory_percent', 0)
+            cpu_val = self._system_stats.get("cpu_percent", 0)
+            mem_val = self._system_stats.get("memory_percent", 0)
 
-        if 'system' not in self._history:
-            self._history['system'] = {'cpu': [], 'mem': []}
+        if "system" not in self._history:
+            self._history["system"] = {"cpu": [], "mem": []}
 
-        self._history['system']['cpu'].append(cpu_val)
-        self._history['system']['mem'].append(mem_val)
+        self._history["system"]["cpu"].append(cpu_val)
+        self._history["system"]["mem"].append(mem_val)
 
-        if len(self._history['system']['cpu']) > self._max_history_points:
-            self._history['system']['cpu'] = self._history['system']['cpu'][-self._max_history_points:]
-            self._history['system']['mem'] = self._history['system']['mem'][-self._max_history_points:]
+        if len(self._history["system"]["cpu"]) > self._max_history_points:
+            self._history["system"]["cpu"] = self._history["system"]["cpu"][-self._max_history_points :]
+            self._history["system"]["mem"] = self._history["system"]["mem"][-self._max_history_points :]
 
         self._update_chart()
 
@@ -575,8 +584,8 @@ class PerformancePanel(DockPanelBase):
         selected = self._node_combo.currentText()
         if selected == t("k_system"):
             selected = "system"
-        
-        history = self._history.get(selected, {'cpu': [], 'mem': []})
+
+        history = self._history.get(selected, {"cpu": [], "mem": []})
         self._chart_canvas.set_history(history)
 
     def _on_node_selected_for_chart(self, node_name):
@@ -589,26 +598,27 @@ class PerformancePanel(DockPanelBase):
             return
 
         with QMutexLocker(self._stats_mutex):
-            cpu_val = self._system_stats.get('cpu_percent', 0)
-            mem_val = self._system_stats.get('memory_percent', 0)
+            cpu_val = self._system_stats.get("cpu_percent", 0)
+            mem_val = self._system_stats.get("memory_percent", 0)
             node_stats = self._node_stats.copy()
 
         cpu_threshold = self._cpu_threshold.value()
         mem_threshold = self._mem_threshold.value()
 
         if cpu_val > cpu_threshold:
-            self.performance_alert.emit('cpu', t("k_system"), cpu_val, cpu_threshold)
+            self.performance_alert.emit("cpu", t("k_system"), cpu_val, cpu_threshold)
 
         if mem_val > mem_threshold:
-            self.performance_alert.emit('memory', t("k_system"), mem_val, mem_threshold)
+            self.performance_alert.emit("memory", t("k_system"), mem_val, mem_threshold)
 
         for name, stats in node_stats.items():
-            if stats.get('cpu', 0) > cpu_threshold:
-                self.performance_alert.emit('cpu', name, stats.get('cpu', 0), cpu_threshold)
+            if stats.get("cpu", 0) > cpu_threshold:
+                self.performance_alert.emit("cpu", name, stats.get("cpu", 0), cpu_threshold)
 
     def _on_drag_start(self):
         """拖动开始：暂停所有更新"""
         from ui.core.system.update_scheduler import update_scheduler
+
         update_scheduler.unsubscribe(self)
 
     def _on_drag_end(self):
@@ -626,14 +636,14 @@ class PerformancePanel(DockPanelBase):
             pass
         self._stop_collector_thread()
         super().dispose()
-    
+
     def _on_app_quitting(self):
         """应用退出前停止采集线程（比 closeEvent 更早触发）"""
         self._stop_collector_thread()
-    
+
     def _stop_collector_thread(self):
         """安全停止采集线程"""
-        if not hasattr(self, '_collector_thread'):
+        if not hasattr(self, "_collector_thread"):
             return
         t = self._collector_thread
         if t.isRunning():
@@ -646,7 +656,7 @@ class PerformancePanel(DockPanelBase):
         """获取所有统计数据"""
         with QMutexLocker(self._stats_mutex):
             return {
-                'system': self._system_stats.copy(),
-                'nodes': self._node_stats.copy(),
-                'history': self._history.copy()
+                "system": self._system_stats.copy(),
+                "nodes": self._node_stats.copy(),
+                "history": self._history.copy(),
             }

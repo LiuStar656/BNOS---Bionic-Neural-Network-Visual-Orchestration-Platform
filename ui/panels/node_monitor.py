@@ -8,27 +8,39 @@
   - SystemResourceCollector: 系统+节点资源数据采集
   - NodePanelSyncMixin: 子面板同步逻辑
 """
+
+from __future__ import annotations
+
 import os
 import subprocess
+
 import psutil
-from PySide6.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTextEdit, QGroupBox, QWidget, QScrollArea, QProgressBar
-)
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
-from ui.core.i18n import t
-from ui.core.dock.floating_panel import FloatingPanel
-from ui.core.utils.dialog_utils import themed_message
-from ui.core.system.polling_manager import polling_manager
-from ui.panels._shared.system_resource_collector import SystemResourceCollector
-from ui.panels._shared.node_panel_sync_mixin import NodePanelSyncMixin
+from PySide6.QtWidgets import (
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
+from ui.core.dock.floating_panel import FloatingPanel
+from ui.core.i18n import t
+from ui.core.system.polling_manager import polling_manager
+from ui.core.utils.dialog_utils import themed_message
+from ui.panels._shared.node_panel_sync_mixin import NodePanelSyncMixin
+from ui.panels._shared.system_resource_collector import SystemResourceCollector
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  NodeLogSubPanel — 浮动版
 #  特有: Refresh/Clear/Dir 按钮、折叠指示符、CPU > 80% 变红
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 class NodeLogSubPanel(QGroupBox):
     """单个节点的日志子面板（可折叠）— 浮动版特有 UI"""
@@ -76,8 +88,8 @@ class NodeLogSubPanel(QGroupBox):
 
         # 标题栏（可点击折叠）
         title_row = QHBoxLayout()
-        status_text = t("k_status_running") if status == 'running' else t("k_status_stopped")
-        status_color = "#4CAF50" if status == 'running' else "#999"
+        status_text = t("k_status_running") if status == "running" else t("k_status_stopped")
+        status_color = "#4CAF50" if status == "running" else "#999"
         self._title_btn = QPushButton(f"{self.node_name}  [{status_text}]")
         self._title_btn.setStyleSheet(f"""
             QPushButton {{
@@ -241,7 +253,7 @@ class NodeLogSubPanel(QGroupBox):
             self._log_editor.setPlainText("# 暂无日志\n# 节点启动后将自动生成")
             return
         try:
-            with open(self._log_file, 'r', encoding='utf-8', errors='replace') as f:
+            with open(self._log_file, encoding="utf-8", errors="replace") as f:
                 content = f.read()
             if not content.strip():
                 self._log_editor.setPlainText(t("k_log_empty"))
@@ -257,28 +269,29 @@ class NodeLogSubPanel(QGroupBox):
             self._load_log()
 
     def _clear_log(self):
-        reply = themed_message(self, t("k_title_confirm_clear"),
-            t("_k_clear_log_confirm").format(name=self.node_name), "question")
+        reply = themed_message(
+            self, t("k_title_confirm_clear"), t("_k_clear_log_confirm").format(name=self.node_name), "question"
+        )
         if not reply:
             return
         try:
             os.makedirs(os.path.dirname(self._log_file), exist_ok=True)
-            with open(self._log_file, 'w', encoding='utf-8') as f:
+            with open(self._log_file, "w", encoding="utf-8") as f:
                 f.write("")
             self._log_editor.setPlainText(t("k_log_cleared"))
         except Exception as e:
-            themed_message(self, t("k_title_error"),
-                t("_k_clear_failed").format(err=str(e)), "error")
+            themed_message(self, t("k_title_error"), t("_k_clear_failed").format(err=str(e)), "error")
 
     def _open_folder(self):
         import platform
+
         system = platform.system()
         if system == "Windows":
-            subprocess.Popen(['explorer', self.node_path])
+            subprocess.Popen(["explorer", self.node_path])
         elif system == "Darwin":
-            subprocess.Popen(['open', self.node_path])
+            subprocess.Popen(["open", self.node_path])
         else:
-            subprocess.Popen(['xdg-open', self.node_path])
+            subprocess.Popen(["xdg-open", self.node_path])
 
     def _toggle_collapse(self):
         self._collapsed = not self._collapsed
@@ -299,10 +312,10 @@ class NodeLogSubPanel(QGroupBox):
     # ──── 状态更新（浮动版特有：三态 running/idle/stopped）────
 
     def update_status(self, status):
-        if status == 'running':
+        if status == "running":
             status_text = t("k_status_running")
             status_color = "#4CAF50"
-        elif status == 'idle':
+        elif status == "idle":
             status_text = t("k_status_idle")
             status_color = "#F0A030"
         else:
@@ -329,6 +342,7 @@ class NodeLogSubPanel(QGroupBox):
 #  NodeMonitor — 浮动版
 #  使用 NodePanelSyncMixin 消除同步逻辑重复
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 class NodeMonitor(FloatingPanel, NodePanelSyncMixin):
     """节点监测面板（浮动半透明悬浮窗）"""

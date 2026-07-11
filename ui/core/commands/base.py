@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional
 
 
 class CommandType(Enum):
     """命令类型枚举"""
+
     CREATE_NODE = auto()
     DELETE_NODE = auto()
     MOVE_NODE = auto()
@@ -23,9 +22,10 @@ class CommandType(Enum):
 @dataclass
 class CommandResult:
     """命令执行结果"""
+
     success: bool
     message: str = ""
-    data: Optional[dict] = None
+    data: dict | None = None
 
 
 class Command(ABC):

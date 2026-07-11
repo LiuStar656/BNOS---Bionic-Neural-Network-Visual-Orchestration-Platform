@@ -2,11 +2,15 @@
 依赖注入容器测试
 测试 DIContainer 的服务注册和解析功能（含旧 API 兼容 + 新 API）
 """
+
+from __future__ import annotations
+
 import pytest
+
 from ui.core.system.di import DIContainer
 
-
 # ======================== 原有测试（向后兼容验证）========================
+
 
 class TestDIContainerBackwardCompat:
     """验证原有 register_instance / register_factory / resolve / is_registered 仍然可用"""
@@ -83,6 +87,7 @@ class TestDIContainerBackwardCompat:
 
 
 # ======================== 新 API 测试 ========================
+
 
 class TestNewRegisterAPI:
     """测试统一 register() 方法和增强 resolve()"""

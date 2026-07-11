@@ -15,15 +15,18 @@
         self.events.mousePressEvent(event)
     ...
 """
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPen, QColor
 
-from ui.core.logger import logger
-from ui.core.config.app_config import AppConfig
-from ui.canvas.items.node_item import NodeItem
-from ui.canvas.items.edge_item import EdgeItem
+from __future__ import annotations
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPen
+
 from ui.canvas.items.anchor_item import AnchorItem
 from ui.canvas.items.composite_node_item import CompositeNodeItem
+from ui.canvas.items.edge_item import EdgeItem
+from ui.canvas.items.node_item import NodeItem
+from ui.core.config.app_config import AppConfig
+from ui.core.logger import logger
 
 
 class EventHandlers:
@@ -53,11 +56,7 @@ class EventHandlers:
             return
 
         # 如果正在框选（左键长按拖拽）
-        if (
-            self.canvas.is_box_selecting
-            and self.canvas.box_select_rect
-            and self.canvas.box_select_start_pos
-        ):
+        if self.canvas.is_box_selecting and self.canvas.box_select_rect and self.canvas.box_select_start_pos:
             from PySide6.QtCore import QRect
 
             current_pos = event.pos()
@@ -70,7 +69,7 @@ class EventHandlers:
             self.canvas.box_select_rect.setRect(scene_rect)
 
             self.canvas.scene.clearSelection()
-            for node_name, node in self.canvas.nodes.items():
+            for _node_name, node in self.canvas.nodes.items():
                 node_rect = node.sceneBoundingRect()
                 if scene_rect.intersects(node_rect):
                     node.setPen(QPen(QColor(self.canvas.node_selected_color), 3))
@@ -79,7 +78,6 @@ class EventHandlers:
                     node.setPen(QPen(QColor(self.canvas.node_border_color), 2))
                     node.setSelected(False)
 
-            from ui.canvas.drawing.graphic_items import GraphicBase
             for g in self.canvas.draw_layer.graphics:
                 if scene_rect.intersects(g.sceneBoundingRect()):
                     g.setSelected(True)
@@ -91,15 +89,11 @@ class EventHandlers:
             return
 
         # 如果正在连线中，更新临时连线的终点跟随鼠标
-        if (
-            self.canvas.is_connecting
-            and self.canvas.temp_edge
-            and self.canvas.connect_source
-        ):
+        if self.canvas.is_connecting and self.canvas.temp_edge and self.canvas.connect_source:
             from PySide6.QtGui import QPainterPath
 
             scene_pos = self.canvas.mapToScene(event.position().toPoint())
-            source_anchor = getattr(self.canvas, '_connect_source_anchor', None)
+            source_anchor = getattr(self.canvas, "_connect_source_anchor", None)
             if source_anchor is None:
                 source_anchor = self.canvas.connect_source.output_anchor
             anchor_center = source_anchor.boundingRect().center()
@@ -138,12 +132,12 @@ class EventHandlers:
                     clicked_anchor = probe
                     parent = probe.parentItem()
                     while parent is not None:
-                        if isinstance(parent, (NodeItem, CompositeNodeItem)):
+                        if isinstance(parent, NodeItem | CompositeNodeItem):
                             target_node = parent
                             break
                         parent = parent.parentItem()
                     break
-                if isinstance(probe, (NodeItem, CompositeNodeItem)):
+                if isinstance(probe, NodeItem | CompositeNodeItem):
                     target_node = probe
                     break
                 if isinstance(probe, EdgeItem):
@@ -152,10 +146,8 @@ class EventHandlers:
             # Fallback: if anchor not precisely clicked but node/composite hit
             if target_node is not None and clicked_anchor is None:
                 local_pos = target_node.mapFromScene(scene_pos)
-                clicked_anchor = target_node.find_nearest_input_anchor(
-                    local_pos, max_dist=60
-                )
-                if clicked_anchor is None and hasattr(target_node, 'anchor_manager'):
+                clicked_anchor = target_node.find_nearest_input_anchor(local_pos, max_dist=60)
+                if clicked_anchor is None and hasattr(target_node, "anchor_manager"):
                     if target_node.anchor_manager.input_anchors:
                         input_list = list(target_node.anchor_manager.input_anchors.values())
                         if len(input_list) == 1:
@@ -165,7 +157,7 @@ class EventHandlers:
                 type(item).__name__,
                 target_node.node_name if target_node else None,
                 "ok" if clicked_anchor else "None",
-                getattr(clicked_anchor, 'port_name', None),
+                getattr(clicked_anchor, "port_name", None),
                 self.canvas.connect_source.node_name if self.canvas.connect_source else None,
             )
             if target_node and target_node != self.canvas.connect_source:
@@ -182,9 +174,7 @@ class EventHandlers:
         if event.button() == Qt.MouseButton.LeftButton and self.canvas.space_mode_active:
             # 如果点击的是节点、连线或锚点，不进入平移模式，交给子项处理
             if item is not None and (
-                isinstance(item, NodeItem)
-                or isinstance(item, EdgeItem)
-                or isinstance(item, AnchorItem)
+                isinstance(item, NodeItem) or isinstance(item, EdgeItem) or isinstance(item, AnchorItem)
             ):
                 return
 
@@ -211,7 +201,7 @@ class EventHandlers:
             is_interactive = False
             probe = item
             while probe is not None:
-                if isinstance(probe, (NodeItem, EdgeItem, AnchorItem, CompositeNodeItem)):
+                if isinstance(probe, NodeItem | EdgeItem | AnchorItem | CompositeNodeItem):
                     is_interactive = True
                     break
                 probe = probe.parentItem()
@@ -224,9 +214,7 @@ class EventHandlers:
                 from PySide6.QtWidgets import QGraphicsRectItem
 
                 self.canvas.box_select_rect = QGraphicsRectItem()
-                self.canvas.box_select_rect.setPen(
-                    QPen(QColor("#2196F3"), 1.5, Qt.PenStyle.DashLine)
-                )
+                self.canvas.box_select_rect.setPen(QPen(QColor("#2196F3"), 1.5, Qt.PenStyle.DashLine))
                 self.canvas.box_select_rect.setBrush(QColor(33, 150, 243, 30))
                 self.canvas.box_select_rect.setZValue(1)
                 self.canvas.scene.addItem(self.canvas.box_select_rect)
@@ -246,17 +234,23 @@ class EventHandlers:
             comp_parent = item.parentItem()
             if isinstance(comp_parent, CompositeNodeItem):
                 anchor = item
-                if getattr(anchor, 'port_type', '') == 'output':
+                if getattr(anchor, "port_type", "") == "output":
                     # Start connection from composite output
-                    logger.debug("CompositeNodeItem[%s]: output anchor %s clicked",
-                                 comp_parent.comp_id, getattr(anchor, 'port_name', ''))
+                    logger.debug(
+                        "CompositeNodeItem[%s]: output anchor %s clicked",
+                        comp_parent.comp_id,
+                        getattr(anchor, "port_name", ""),
+                    )
                     self.canvas.start_connection_from_output(comp_parent, anchor)
                     event.accept()
                     return
-                elif self.canvas.is_connecting and getattr(anchor, 'port_type', '') == 'input':
+                elif self.canvas.is_connecting and getattr(anchor, "port_type", "") == "input":
                     # Complete connection to composite input
-                    logger.debug("CompositeNodeItem[%s]: input anchor %s connected",
-                                 comp_parent.comp_id, getattr(anchor, 'port_name', ''))
+                    logger.debug(
+                        "CompositeNodeItem[%s]: input anchor %s connected",
+                        comp_parent.comp_id,
+                        getattr(anchor, "port_name", ""),
+                    )
                     if self.canvas.connect_source != comp_parent:
                         self.canvas.complete_connection_to_input(comp_parent, anchor)
                     event.accept()
@@ -288,10 +282,7 @@ class EventHandlers:
             logger.debug("退出平移模式")
 
             # 自动保存布局（包含视图状态）
-            if (
-                self.canvas.parent_window
-                and self.canvas.parent_window.current_project_path
-            ):
+            if self.canvas.parent_window and self.canvas.parent_window.current_project_path:
                 self.canvas._save_timer.stop()
                 self.canvas._save_timer.start(500)
 
@@ -332,14 +323,14 @@ class EventHandlers:
         """
         if not isinstance(item, NodeItem):
             return
-        node_name = getattr(item, 'node_name', None)
+        node_name = getattr(item, "node_name", None)
         if not node_name:
             return
-        mgr = getattr(self.canvas, '_composite_manager', None)
+        mgr = getattr(self.canvas, "_composite_manager", None)
         if not mgr:
             return
 
-        for comp_id, comp in mgr._composites.items():
+        for _comp_id, comp in mgr._composites.items():
             if not comp.get("_expanded"):
                 continue
             node_names = comp.get("nodes", [])
@@ -361,11 +352,11 @@ class EventHandlers:
         Anchor positions are pre-set in mousePressEvent and updated
         every frame to avoid feedback loops.
         """
-        mgr = getattr(self.canvas, '_composite_manager', None)
+        mgr = getattr(self.canvas, "_composite_manager", None)
         if not mgr:
             return
 
-        if getattr(self.canvas, '_group_moving', False):
+        if getattr(self.canvas, "_group_moving", False):
             return
 
         for comp_id, comp in mgr._composites.items():
@@ -423,16 +414,19 @@ class EventHandlers:
                 # Update group frame bounds
                 frame_key = f"__frame__{comp_id}"
                 frame = self.canvas.nodes.get(frame_key)
-                if frame and hasattr(frame, 'update_for_items'):
-                    visible_items = [self.canvas.nodes[n] for n in node_names
-                                     if n in self.canvas.nodes and self.canvas.nodes[n].isVisible()]
+                if frame and hasattr(frame, "update_for_items"):
+                    visible_items = [
+                        self.canvas.nodes[n]
+                        for n in node_names
+                        if n in self.canvas.nodes and self.canvas.nodes[n].isVisible()
+                    ]
                     frame.update_for_items(visible_items)
             finally:
                 self.canvas._group_moving = False
 
     def _clear_composite_drag_anchors(self):
         """Clear drag anchor positions for all expanded composites."""
-        mgr = getattr(self.canvas, '_composite_manager', None)
+        mgr = getattr(self.canvas, "_composite_manager", None)
         if not mgr:
             return
         for comp in mgr._composites.values():
@@ -509,10 +503,7 @@ class EventHandlers:
             new_scale = current_scale * factor
             if 0.1 <= new_scale <= 5.0:
                 self.canvas.scale(factor, factor)
-                if (
-                    self.canvas.parent_window
-                    and self.canvas.parent_window.current_project_path
-                ):
+                if self.canvas.parent_window and self.canvas.parent_window.current_project_path:
                     self.canvas._save_timer.stop()
                     self.canvas._save_timer.start(500)
             event.accept()
@@ -536,10 +527,7 @@ class EventHandlers:
                 h_scroll.setValue(h_scroll.value() - scroll_x)
                 v_scroll.setValue(v_scroll.value() - scroll_y)
 
-            if (
-                self.canvas.parent_window
-                and self.canvas.parent_window.current_project_path
-            ):
+            if self.canvas.parent_window and self.canvas.parent_window.current_project_path:
                 self.canvas._save_timer.stop()
                 self.canvas._save_timer.start(500)
             event.accept()
@@ -573,13 +561,13 @@ class EventHandlers:
 
     def _toggle_draw_toolbar(self):
         """切换绘图工具栏显示/隐藏"""
-        if hasattr(self.canvas, 'draw_layer'):
+        if hasattr(self.canvas, "draw_layer"):
             self.canvas.draw_layer.toggle_toolbar()
 
     def _auto_save_layout(self):
         """自动保存布局（防抖定时器回调"""
         if self.canvas.parent_window and self.canvas.parent_window.current_project_path:
             for i, edge in enumerate(self.canvas.edges):
-                ep = getattr(edge.end_anchor, 'port_name', None) if edge.end_anchor else None
+                ep = getattr(edge.end_anchor, "port_name", None) if edge.end_anchor else None
                 logger.debug("[auto_save] edge#%d end_anchor.port_name=%s", i, ep)
             self.canvas.save_layout(self.canvas.parent_window.current_project_path)

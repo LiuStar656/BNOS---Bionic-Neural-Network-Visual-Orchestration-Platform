@@ -1,23 +1,27 @@
 """
 节点配置解析器 — 从 config.json 中提取参数定义和输入端口定义
 """
+
+from __future__ import annotations
+
 from dataclasses import dataclass, field, fields
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
 class ParameterDef:
     """单个参数的定义"""
+
     name: str
-    type: str          # string|text|password|int|float|bool|enum|file|directory|color|range
+    type: str  # string|text|password|int|float|bool|enum|file|directory|color|range
     label: str
     default: Any = None
     required: bool = False
     description: str = ""
     # 数值约束
-    min: Optional[float] = None
-    max: Optional[float] = None
-    step: Optional[float] = None
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
     decimals: int = 2
     # 枚举约束
     options: list[str] = field(default_factory=list)
@@ -26,7 +30,7 @@ class ParameterDef:
     # 文本约束
     rows: int = 1
     # 动态选项（v1.1）
-    dynamic_options: Optional[dict] = None
+    dynamic_options: dict | None = None
 
 
 @dataclass
@@ -39,12 +43,13 @@ class InputPortDef:
         - "param": 可选参数（有 default）→ 由参数面板渲染
         - None   : 未指定 → 默认不生成锚点（保持旧节点兼容）
     """
-    name: str                        # 端口唯一标识
-    label: str = ""                  # 端口显示名称
-    type: str = "default"            # 数据类型（用于连线兼容性校验）
-    required: bool = False           # 是否必需连接
-    description: str = ""            # 端口描述
-    source: Optional[str] = None     # 数据来源（见上方注释）
+
+    name: str  # 端口唯一标识
+    label: str = ""  # 端口显示名称
+    type: str = "default"  # 数据类型（用于连线兼容性校验）
+    required: bool = False  # 是否必需连接
+    description: str = ""  # 端口描述
+    source: str | None = None  # 数据来源（见上方注释）
 
 
 @dataclass
@@ -54,10 +59,11 @@ class OutputPortDef:
     节点可以有多个输出端口，每个输出端口都在画布右侧生成一个锚点，
     可供下游节点连线使用。
     """
-    name: str                        # 端口唯一标识
-    label: str = ""                  # 端口显示名称
-    type: str = "default"            # 数据类型
-    description: str = ""            # 端口描述
+
+    name: str  # 端口唯一标识
+    label: str = ""  # 端口显示名称
+    type: str = "default"  # 数据类型
+    description: str = ""  # 端口描述
 
 
 class NodeConfigParser:

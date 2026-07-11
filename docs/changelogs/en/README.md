@@ -5,11 +5,12 @@
 
 ---
 <details open>
-<summary><strong>【2026-07-12】V2.0.27 - _port_routing Port Routing Refactoring & Composite Node UI Interaction Round 2 Fixes</strong></summary>
+<summary><strong>【2026-07-12】V2.0.27 - _port_routing Port Routing, Code Standardization Overhaul & Composite Node UI Interaction Round 2 Fixes</strong></summary>
 
-[View Full Update](./2026-07-12/README.md)
+[View Full Update](./2026-07-12/README.md) | [06_Standardization](./2026-07-12/06_Code_Standardization.md)
 
 **Main Updates:**
+- **Code Standardization Overhaul**: 227 files with Ruff + Pre-commit + EditorConfig toolchain; eliminated 8 real runtime bugs (NameError/ImportError/closure capture/dead code); unified 4 Logger styles into `from ui.core.logger import logger`; migrated `print()` to `logger.info()`; added `from __future__ import annotations` to 219 files; eliminated `# type: ignore` 8→0; `os.path` → `pathlib.Path` 691→156 (-77%); removed dead `if/else: pass`, `except Exception: pass`, etc; PyLance 0 diagnostics
 - **_port_routing Port Routing Mechanism**: Routing info migrated from internal node config.json to `_port_routing` field in node_clusters.json, decoupling port routing from node configuration. Resolves the core issue of `listen_upper_file` causing input ports to disappear. Node `main.py` requires zero changes.
 - **Composite Node Connection & Collapse Fixes**: Expand/collapse edge update and jitter fixes (added `update_path()` calls, `_batch_updating` flag, skip double `setPos` on dragged nodes); config write diagnostics enhancement; `_port_routing` residue cleanup
 - **Single-Entry DAG Validation**: New `_validate_dag_single_entry` method, rejects multi-entry DAGs on compress and collapse. Supports A→B→C or A→B concurrently A→C; disallows multi-entry DAGs.

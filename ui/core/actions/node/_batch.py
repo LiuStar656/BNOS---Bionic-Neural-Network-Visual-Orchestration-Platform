@@ -1,5 +1,8 @@
 """批量节点操作 — 5 个 batch_* action"""
-from ..action_definition import ActionDefinition, ActionCategory, ActionContext
+
+from __future__ import annotations
+
+from ..action_definition import ActionCategory, ActionContext, ActionDefinition
 from ..action_registry import ActionRegistry
 
 
@@ -15,11 +18,12 @@ def register(main_window):
 
 def _register_batch(action_id: str, name_i18n: str, method: str):
     def execute(ctx: ActionContext) -> bool:
-        panel = (ctx.extra or {}).get('panel')
+        panel = (ctx.extra or {}).get("panel")
         if panel:
             getattr(panel, method)()
             return True
         return False
 
-    ActionRegistry.register(ActionDefinition(
-        id=action_id, name_i18n=name_i18n, category=ActionCategory.NODE, execute_fn=execute))
+    ActionRegistry.register(
+        ActionDefinition(id=action_id, name_i18n=name_i18n, category=ActionCategory.NODE, execute_fn=execute)
+    )

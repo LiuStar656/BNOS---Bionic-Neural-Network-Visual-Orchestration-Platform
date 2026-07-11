@@ -6,13 +6,18 @@
 
 用法:
     from ui.panels._shared.system_resource_collector import SystemResourceCollector
-    
+
     collector = SystemResourceCollector()
     sys_stats = collector.collect_system_stats()
     node_stats = collector.collect_node_stats(canvas_nodes, nodes_data)
 """
-import os
+
+from __future__ import annotations
+
+from pathlib import Path
+
 import psutil
+
 from ui.core.logger import logger
 
 
@@ -34,36 +39,36 @@ class SystemResourceCollector:
     def collect_system_stats(self) -> dict:
         """采集系统级资源（CPU/RAM/Disk/Net），返回标准化字典"""
         stats = {
-            'cpu_percent': 0,
-            'memory_percent': 0,
-            'memory_used': 0,
-            'memory_total': 0,
-            'disk_percent': 0,
-            'disk_used': 0,
-            'disk_total': 0,
-            'net_sent_per_sec': 0,
-            'net_recv_per_sec': 0,
+            "cpu_percent": 0,
+            "memory_percent": 0,
+            "memory_used": 0,
+            "memory_total": 0,
+            "disk_percent": 0,
+            "disk_used": 0,
+            "disk_total": 0,
+            "net_sent_per_sec": 0,
+            "net_recv_per_sec": 0,
         }
         try:
-            stats['cpu_percent'] = psutil.cpu_percent()
+            stats["cpu_percent"] = psutil.cpu_percent()
 
             mem = psutil.virtual_memory()
-            stats['memory_percent'] = mem.percent
-            stats['memory_used'] = mem.used
-            stats['memory_total'] = mem.total
+            stats["memory_percent"] = mem.percent
+            stats["memory_used"] = mem.used
+            stats["memory_total"] = mem.total
 
-            disk = psutil.disk_usage('/')
-            stats['disk_percent'] = disk.percent
-            stats['disk_used'] = disk.used
-            stats['disk_total'] = disk.total
+            disk = psutil.disk_usage("/")
+            stats["disk_percent"] = disk.percent
+            stats["disk_used"] = disk.used
+            stats["disk_total"] = disk.total
 
             net = psutil.net_io_counters()
             sent_diff = net.bytes_sent - self._last_net_sent
             recv_diff = net.bytes_recv - self._last_net_recv
             self._last_net_sent = net.bytes_sent
             self._last_net_recv = net.bytes_recv
-            stats['net_sent_per_sec'] = sent_diff
-            stats['net_recv_per_sec'] = recv_diff
+            stats["net_sent_per_sec"] = sent_diff
+            stats["net_recv_per_sec"] = recv_diff
         except Exception as e:
             logger.warning("系统资源采集失败: %s", e)
 
@@ -73,16 +78,17 @@ class SystemResourceCollector:
 
     def resolve_node_pid(self, node_info: dict) -> int | None:
         """从 node_info 中解析进程 PID（优先 process.pid，其次 .pid 文件）"""
-        if 'process' in node_info and node_info['process']:
-            return node_info['process'].pid
+        if "process" in node_info and node_info["process"]:
+            return node_info["process"].pid
 
-        pid_file = os.path.join(node_info.get('path', ''), '.pid')
-        if not os.path.exists(pid_file):
-            pid_file = os.path.join(node_info.get('path', ''), 'pid')
+        node_path = node_info.get("path", "")
+        pid_file = Path(node_path) / ".pid"
+        if not pid_file.exists():
+            pid_file = Path(node_path) / "pid"
 
-        if os.path.exists(pid_file):
+        if pid_file.exists():
             try:
-                with open(pid_file, 'r') as f:
+                with pid_file.open() as f:
                     return int(f.read().strip())
             except Exception:
                 pass
@@ -101,10 +107,10 @@ class SystemResourceCollector:
         pid = self.resolve_node_pid(node_info)
 
         stats = {
-            'cpu': 0.0,
-            'memory': 0.0,
-            'memory_rss': 0,
-            'status': node_info.get('status', 'stopped'),
+            "cpu": 0.0,
+            "memory": 0.0,
+            "memory_rss": 0,
+            "status": node_info.get("status", "stopped"),
         }
 
         if pid and psutil.pid_exists(pid):
@@ -126,14 +132,14 @@ class SystemResourceCollector:
                 except Exception:
                     pass
 
-                stats['cpu'] = cpu_total
-                stats['memory'] = mem_total / (1024 ** 2)  # MB
-                stats['memory_rss'] = mem_total
-                stats['status'] = 'running'  # 进程存在 → 强制为 running
+                stats["cpu"] = cpu_total
+                stats["memory"] = mem_total / (1024**2)  # MB
+                stats["memory_rss"] = mem_total
+                stats["status"] = "running"  # 进程存在 → 强制为 running
             except Exception:
-                stats['status'] = 'stopped'
+                stats["status"] = "stopped"
         else:
-            stats['status'] = 'stopped'
+            stats["status"] = "stopped"
 
         return stats
 
@@ -152,7 +158,7 @@ class SystemResourceCollector:
             if node_name in nodes_data:
                 node_info = nodes_data[node_name]
                 stats = self.collect_single_node_stats(node_info, node_name)
-                stats['name'] = node_info.get('name', node_name)
+                stats["name"] = node_info.get("name", node_name)
                 result[node_name] = stats
         return result
 
@@ -161,12 +167,12 @@ class SystemResourceCollector:
     @staticmethod
     def get_node_pid(node_path: str) -> int | None:
         """根据节点路径获取进程 PID（优先 .pid 文件）"""
-        pid_file = os.path.join(node_path, '.pid')
-        if not os.path.exists(pid_file):
-            pid_file = os.path.join(node_path, 'pid')
-        if os.path.exists(pid_file):
+        pid_file = Path(node_path) / ".pid"
+        if not pid_file.exists():
+            pid_file = Path(node_path) / "pid"
+        if pid_file.exists():
             try:
-                with open(pid_file, 'r') as f:
+                with pid_file.open() as f:
                     return int(f.read().strip())
             except Exception:
                 pass
@@ -200,7 +206,7 @@ class SystemResourceCollector:
             except Exception:
                 pass
 
-            return cpu_total, mem_total / (1024 ** 2)
+            return cpu_total, mem_total / (1024**2)
         except Exception:
             return None, None
 

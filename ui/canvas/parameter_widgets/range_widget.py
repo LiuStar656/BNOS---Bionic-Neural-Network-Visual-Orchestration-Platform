@@ -1,7 +1,11 @@
 """范围滑块控件"""
-from PySide6.QtWidgets import QSlider, QLabel, QHBoxLayout
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
-from ._base import ParameterWidget, _make_label, ROW_HEIGHT, LAYOUT_SPACING, VALUE_LABEL_WIDTH
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider
+
+from ._base import LAYOUT_SPACING, ROW_HEIGHT, VALUE_LABEL_WIDTH, ParameterWidget, _make_label
 
 
 class RangeWidget(ParameterWidget):

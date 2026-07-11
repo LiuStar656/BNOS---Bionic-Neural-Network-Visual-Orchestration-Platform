@@ -2,15 +2,20 @@
 BNOS 桌面可视化节点编排平台 - 主入口
 基于PySide6的纯桌面端应用
 """
-import sys
+
+from __future__ import annotations
+
 import os
+import sys
 import time
-from PySide6.QtWidgets import QApplication
+
 from PySide6.QtCore import Qt
-from ui.main_window import BNOSMainWindow
-from ui.core.logger import logger
+from PySide6.QtWidgets import QApplication
+
 from ui.core.i18n import init_i18n, t
+from ui.core.logger import logger
 from ui.icons import codicon
+from ui.main_window import BNOSMainWindow
 
 
 def _progress(progress_file, pct, msg):
@@ -18,11 +23,11 @@ def _progress(progress_file, pct, msg):
     if not progress_file:
         return
     try:
-        with open(progress_file, 'a', encoding='utf-8') as f:
+        with open(progress_file, "a", encoding="utf-8") as f:
             f.write(f"{pct}|{msg}\n")
             f.flush()
-    except Exception as e:
-        print(f"[!] Progress write failed: {e}", file=sys.stderr)
+    except Exception:
+        pass
 
 
 def main():
@@ -38,12 +43,13 @@ def main():
                 break
             elif a == "--progress" and i + 1 < len(args):
                 progress_file = args[i + 1]
-                del args[i:i + 2]
+                del args[i : i + 2]
                 break
 
         # ---- 加载语言 ----
         from ui.core.config.app_config import AppConfig
-        saved_lang = AppConfig().get("language", "cn")
+
+        saved_lang: str = AppConfig().get("language", "cn") or "cn"
         init_i18n(saved_lang)
         if progress_file:
             _progress(progress_file, 35, "Config loaded (" + saved_lang + ")")
@@ -56,9 +62,10 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName(t("_k_app_name"))
         app.setOrganizationName("BNOS")
-        
+
         # 设置应用程序默认字体（避免系统缺少特定字体导致警告）
         from PySide6.QtGui import QFont
+
         default_font = QFont()
         default_font.setFamilies(["Segoe UI", "Microsoft YaHei", "Arial", "Helvetica", "sans-serif"])
         app.setFont(default_font)
@@ -68,6 +75,7 @@ def main():
 
         # 初始化应用上下文
         from ui.core.services.application_context import ApplicationContext
+
         app_context = ApplicationContext()
         app_context.initialize()
 
@@ -78,7 +86,7 @@ def main():
         if progress_file:
             _progress(progress_file, 55, "Building main window...")
         window = BNOSMainWindow()
-        
+
         # 初始化依赖主窗口的 UI 服务
         app_context.initialize_ui_services(window)
 
@@ -93,21 +101,20 @@ def main():
 
         window.show()
         ret = app.exec()
-        
+
         # 关闭应用上下文
         app_context.shutdown()
-        
+
         if ret == 42:
             # 使用重启脚本，确保先完全关闭再启动新进程
             try:
                 import subprocess
-                restart_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "restart_helper.py")
-                main_script = os.path.abspath(__file__)
-                subprocess.Popen(
-                    [sys.executable, restart_script, main_script] + args,
-                    cwd=os.getcwd(),
-                    close_fds=True
+
+                restart_script = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), "scripts", "restart_helper.py"
                 )
+                main_script = os.path.abspath(__file__)
+                subprocess.Popen([sys.executable, restart_script, main_script] + args, cwd=os.getcwd(), close_fds=True)
             except Exception as e:
                 logger.error("重启子进程启动失败: %s", e)
                 sys.exit(1)

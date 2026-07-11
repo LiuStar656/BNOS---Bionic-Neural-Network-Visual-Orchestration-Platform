@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from .draw_commands import (
-    DrawCommand,
     AddGraphicCommand,
     DeleteGraphicCommand,
+    DrawCommand,
     MoveGraphicCommand,
-    StyleChangeCommand,
     ReorderCommand,
+    StyleChangeCommand,
     TextEditCommand,
 )
 

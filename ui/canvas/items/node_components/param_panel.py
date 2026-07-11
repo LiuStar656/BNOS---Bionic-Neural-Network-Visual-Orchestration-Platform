@@ -4,11 +4,13 @@
 从 node_item.py 拆分出来。这是最大的代码块（约 211 行），负责面板模式下
 的参数控件容器构建、锚点位置缓存计算、文本/状态灯/语言标签布局。
 """
-import os
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                                QGraphicsProxyWidget, QSizePolicy)
+from PySide6.QtWidgets import QGraphicsProxyWidget, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
+
 from ui.canvas.items.anchor_item import ANCHOR_SIZE, ANCHOR_SIZE_SMALL
 
 
@@ -44,9 +46,9 @@ class NodeParamPanel:
         has_content = False
         if config:
             from ui.core.node.node_config_parser import NodeConfigParser, ParameterDef
+
             input_port_defs = NodeConfigParser.parse_input_ports(config) or []
-            input_port_defs = [p for p in input_port_defs
-                               if getattr(p, "source", "") == "node"]
+            input_port_defs = [p for p in input_port_defs if getattr(p, "source", "") == "node"]
             param_defs = NodeConfigParser.parse(config) or []
             has_content = bool(input_port_defs or param_defs)
 
@@ -54,9 +56,9 @@ class NodeParamPanel:
         min_container_w = 340
         default_height = 80
         final_w = max(
-            style.node_width if style and hasattr(style, "node_width") and style.node_width
-            else min_container_w,
-            min_container_w)
+            style.node_width if style and hasattr(style, "node_width") and style.node_width else min_container_w,
+            min_container_w,
+        )
         final_h = default_height
 
         if has_content:
@@ -82,8 +84,7 @@ class NodeParamPanel:
                 p_name = port.name
                 label_text = getattr(port, "label", "") or port.name
                 p_default = config.get(p_name, "") if p_name in config else ""
-                param_obj = ParameterDef(
-                    name=p_name, type="string", label=label_text, default=p_default)
+                param_obj = ParameterDef(name=p_name, type="string", label=label_text, default=p_default)
                 w = ParameterWidget.create(param_obj, p_default)
                 if hasattr(w, "value_changed"):
                     w.value_changed.connect(self._node._config_manager.on_param_changed)
@@ -141,8 +142,7 @@ class NodeParamPanel:
             self._node._proxy_widgets.append(proxy)
 
             # 计算锚点位置
-            small_center_x = (self._ANCHOR_ZONE_WIDTH + self._LEFT_INNER_PADDING
-                              - ANCHOR_SIZE_SMALL / 2 - 2)
+            small_center_x = self._ANCHOR_ZONE_WIDTH + self._LEFT_INNER_PADDING - ANCHOR_SIZE_SMALL / 2 - 2
             margins_top = v_layout.contentsMargins().top() if v_layout.contentsMargins() else 0
             running_y = 0
             est_ys = []
@@ -155,9 +155,9 @@ class NodeParamPanel:
                 geom = item.geometry() if item and item.widget() else None
                 if geom is None or geom.width() <= 0 or geom.height() <= 0:
                     center_y = (
-                        margins_top + est_ys[i] if i < len(est_ys)
-                        else (margins_top + i * (self._ROW_HEIGHT + self._ROW_SPACING)
-                              + self._ROW_HEIGHT / 2)
+                        margins_top + est_ys[i]
+                        if i < len(est_ys)
+                        else (margins_top + i * (self._ROW_HEIGHT + self._ROW_SPACING) + self._ROW_HEIGHT / 2)
                     )
                 else:
                     row_top = geom.y()
@@ -168,13 +168,14 @@ class NodeParamPanel:
                     if port_idx < len(input_port_defs):
                         port = input_port_defs[port_idx]
                         self._node._param_row_positions[port.name] = (
-                            small_center_x, center_y, ANCHOR_SIZE_SMALL,
+                            small_center_x,
+                            center_y,
+                            ANCHOR_SIZE_SMALL,
                         )
                 elif rtype == "output":
                     out_cx = final_w
                     out_cy = final_h / 2.0
-                    self._node._param_row_positions["__output__"] = (
-                        out_cx, out_cy, ANCHOR_SIZE)
+                    self._node._param_row_positions["__output__"] = (out_cx, out_cy, ANCHOR_SIZE)
         else:
             # 无参数：直接用默认尺寸
             self._node.setRect(0, 0, final_w, final_h)
@@ -198,8 +199,7 @@ class NodeParamPanel:
         indicator_size = 10
         indicator_x = final_w - indicator_size - 8
         indicator_y = 4
-        self._node.status_indicator.setRect(
-            indicator_x, indicator_y, indicator_size, indicator_size)
+        self._node.status_indicator.setRect(indicator_x, indicator_y, indicator_size, indicator_size)
         self._node.status_indicator.setZValue(7)
         self._node.status_indicator.setVisible(True)
         style.apply_status(self._node, self._node.status)

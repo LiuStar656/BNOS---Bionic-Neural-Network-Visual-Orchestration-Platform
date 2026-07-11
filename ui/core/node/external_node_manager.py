@@ -1,14 +1,19 @@
 """
 外部节点管理 — 挂载/卸载外部节点到当前项目
 """
-import os
+
+from __future__ import annotations
+
 import json
+import os
+
 from PySide6.QtCore import QTimer
-from ui.core.logger import logger
+
 from ui.core.i18n.i18n import t
+from ui.core.logger import logger
 from ui.core.node.node_registry import NodeRegistry
-from ui.core.utils.dialog_utils import pick_folder
 from ui.core.project.project_manager import _canvas_call
+from ui.core.utils.dialog_utils import pick_folder
 
 
 def mount_node(main_window):
@@ -28,6 +33,7 @@ def mount_node(main_window):
     # 异步执行挂载
     QTimer.singleShot(10, lambda: _mount_node_async(main_window, folder_path))
 
+
 def _mount_node_async(main_window, folder_path):
     """异步执行挂载（内部方法）"""
     try:
@@ -35,13 +41,15 @@ def _mount_node_async(main_window, folder_path):
         config_path = os.path.join(folder_path, "config.json")
 
         if not os.path.exists(config_path):
-            QTimer.singleShot(10, lambda: main_window.show_toast(f"所选文件夹中未找到 config.json:\n{folder_path}", "warning"))
+            QTimer.singleShot(
+                10, lambda: main_window.show_toast(f"所选文件夹中未找到 config.json:\n{folder_path}", "warning")
+            )
             return
 
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, encoding="utf-8") as f:
             config = json.load(f)
 
-        node_name = config.get('node_name', os.path.basename(folder_path))
+        node_name = config.get("node_name", os.path.basename(folder_path))
 
         if node_name in main_window.nodes_data:
             QTimer.singleShot(10, lambda: main_window.show_toast(f"节点 '{node_name}' 已存在，无法重复挂载", "warning"))
@@ -52,12 +60,12 @@ def _mount_node_async(main_window, folder_path):
 
         # 更新节点数据
         main_window.nodes_data[node_name] = {
-            'config': config,
-            'path': folder_path,
-            'process': None,
-            'status': 'stopped',
-            'mounted': True,
-            'mount_root': mount_root
+            "config": config,
+            "path": folder_path,
+            "process": None,
+            "status": "stopped",
+            "mounted": True,
+            "mount_root": mount_root,
         }
 
         # 注册到节点注册表
@@ -66,8 +74,7 @@ def _mount_node_async(main_window, folder_path):
             registry.load()
             registry.register_node(node_name, folder_path, mount_root=mount_root)
             registry.save()
-            logger.info("挂载节点已注册: name=%s, path=%s, mount_root=%s",
-                        node_name, folder_path, mount_root)
+            logger.info("挂载节点已注册: name=%s, path=%s, mount_root=%s", node_name, folder_path, mount_root)
         except Exception as e:
             logger.warning("挂载节点注册表同步失败: %s", e)
 
@@ -86,13 +93,13 @@ def _mount_node_async(main_window, folder_path):
         def update_ui():
             if main_window.node_list_panel:
                 main_window.node_list_panel.update_node_list(main_window.nodes_data)
-            _canvas_call(main_window, 'sync_all_nodes_display')
+            _canvas_call(main_window, "sync_all_nodes_display")
             main_window.show_toast(f"已挂载外部节点: {node_name}", "success")
             logger.info("外部节点挂载完成: %s -> %s (group=%s)", node_name, folder_path, mount_group_name)
-        
+
         QTimer.singleShot(10, update_ui)
     except Exception as e:
-        QTimer.singleShot(10, lambda: main_window.show_toast(f"挂载失败: {e}", "error"))
+        QTimer.singleShot(10, lambda _e=e: main_window.show_toast(f"挂载失败: {_e}", "error"))
 
 
 def unmount_node(main_window, node_name):
@@ -101,7 +108,7 @@ def unmount_node(main_window, node_name):
         return
 
     node_info = main_window.nodes_data[node_name]
-    if not node_info.get('mounted'):
+    if not node_info.get("mounted"):
         main_window.show_toast(f"节点 '{node_name}' 不是外部挂载节点", "warning")
         return
 
@@ -111,11 +118,12 @@ def unmount_node(main_window, node_name):
     # 异步执行卸载
     QTimer.singleShot(10, lambda: _unmount_node_async(main_window, node_name))
 
+
 def _unmount_node_async(main_window, node_name):
     """异步执行卸载（内部方法）"""
     try:
         node_info = main_window.nodes_data[node_name]
-        mount_root = node_info.get('mount_root')
+        mount_root = node_info.get("mount_root")
         mount_group_name = mount_root
 
         # 从注册表注销
@@ -144,9 +152,9 @@ def _unmount_node_async(main_window, node_name):
         def update_ui():
             if main_window.node_list_panel:
                 main_window.node_list_panel.update_node_list(main_window.nodes_data)
-            _canvas_call(main_window, 'remove_node_from_canvas', node_name)
+            _canvas_call(main_window, "remove_node_from_canvas", node_name)
             main_window.show_toast(f"已卸载外部节点: {node_name}", "success")
-        
+
         QTimer.singleShot(10, update_ui)
     except Exception as e:
-        QTimer.singleShot(10, lambda: main_window.show_toast(f"卸载失败: {e}", "error"))
+        QTimer.singleShot(10, lambda _e=e: main_window.show_toast(f"卸载失败: {_e}", "error"))

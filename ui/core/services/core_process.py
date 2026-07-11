@@ -12,18 +12,22 @@
   - project.refresh  : 刷新项目
   - project.load     : 加载项目
 """
-import sys
-import os
-import json
 
-_proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+_proj_root = str(Path(__file__).resolve().parent.parent.parent)
 if _proj_root not in sys.path:
     sys.path.insert(0, _proj_root)
 
 from PySide6.QtCore import QCoreApplication, QTimer
-from ui.core.system.ipc import IPCClient
+
+from ui.core.i18n import init_i18n
 from ui.core.logger import logger
-from ui.core.i18n.i18n import init_i18n
+from ui.core.system.ipc import IPCClient
 
 
 class CoreProcessApp:
@@ -50,12 +54,10 @@ class CoreProcessApp:
             return
 
         self._init_done = True
-        print("[核心进程] 就绪，监听主进程命令...", flush=True)
-        logger.info("核心业务进程就绪（后台无UI）")
+        logger.info("[核心进程] 就绪，监听主进程命令...")
 
     def _on_connected(self):
-        print("[核心进程] 已连接到主进程", flush=True)
-        logger.info("核心进程已连接到主进程")
+        logger.info("[核心进程] 已连接到主进程")
 
     def _on_disconnected(self):
         logger.warning("核心进程与主进程断开，退出")
@@ -92,16 +94,12 @@ class CoreProcessApp:
             self._send_response(request_id, action, {"error": f"未知命令: {action}"}, success=False)
 
     def _send_response(self, request_id, action, data, success=True):
-        response = {
-            "request_id": request_id,
-            "action": action,
-            "success": success,
-            "data": data
-        }
+        response = {"request_id": request_id, "action": action, "success": success, "data": data}
         self.ipc.send("core.response", response)
 
     def _handle_start_node(self, params):
         from ui.core.node.node_process import start_node_process
+
         node_name = params.get("node_name")
         node_path = params.get("node_path")
 
@@ -113,12 +111,16 @@ class CoreProcessApp:
 
         if success:
             self._nodes_data[node_name] = node_info
-            return {"message": f"节点 {node_name} 启动成功", "pid": node_info.get('process').pid if node_info.get('process') else None}
+            return {
+                "message": f"节点 {node_name} 启动成功",
+                "pid": node_info.get("process").pid if node_info.get("process") else None,
+            }
         else:
             return {"error": error}
 
     def _handle_stop_node(self, params):
         from ui.core.node.node_process import stop_node_process
+
         node_name = params.get("node_name")
 
         if not node_name:
@@ -147,18 +149,20 @@ class CoreProcessApp:
         return {
             "status": node_info.get("status", "stopped"),
             "pid": node_info.get("process").pid if node_info.get("process") else None,
-            "path": node_info.get("path", "")
+            "path": node_info.get("path", ""),
         }
 
     def _handle_node_list(self, params):
         result = []
         for name, info in self._nodes_data.items():
-            result.append({
-                "name": name,
-                "status": info.get("status", "stopped"),
-                "path": info.get("path", ""),
-                "pid": info.get("process").pid if info.get("process") else None
-            })
+            result.append(
+                {
+                    "name": name,
+                    "status": info.get("status", "stopped"),
+                    "path": info.get("path", ""),
+                    "pid": info.get("process").pid if info.get("process") else None,
+                }
+            )
         return {"nodes": result}
 
     def _handle_project_refresh(self, params):
@@ -170,11 +174,7 @@ class CoreProcessApp:
         nodes_data = self._scan_project_nodes(project_path)
         self._nodes_data = nodes_data
 
-        return {
-            "project_path": project_path,
-            "node_count": len(nodes_data),
-            "nodes": list(nodes_data.keys())
-        }
+        return {"project_path": project_path, "node_count": len(nodes_data), "nodes": list(nodes_data.keys())}
 
     def _handle_project_load(self, params):
         project_path = params.get("project_path")
@@ -186,17 +186,19 @@ class CoreProcessApp:
         self._nodes_data = nodes_data
 
         from ui.core.node.node_process import detect_running_nodes
+
         running_nodes = detect_running_nodes(self._nodes_data)
 
         return {
             "project_path": project_path,
             "node_count": len(nodes_data),
             "running_count": len(running_nodes),
-            "running_nodes": [name for name, pid in running_nodes]
+            "running_nodes": [name for name, pid in running_nodes],
         }
 
     def _handle_stop_all_nodes(self, params):
         from ui.core.node.node_process import stop_node_process
+
         stopped_count = 0
         errors = []
 
@@ -213,28 +215,29 @@ class CoreProcessApp:
 
     def _handle_detect_running_nodes(self, params):
         from ui.core.node.node_process import detect_running_nodes
+
         running_nodes = detect_running_nodes(self._nodes_data)
         return {"running_nodes": [{"name": name, "pid": pid} for name, pid in running_nodes]}
 
     def _scan_project_nodes(self, project_path):
-        nodes_dir = os.path.join(project_path, "nodes")
+        nodes_dir = Path(project_path) / "nodes"
         nodes_data = {}
 
-        if not os.path.isdir(nodes_dir):
+        if not nodes_dir.is_dir():
             return nodes_data
 
-        for node_name in os.listdir(nodes_dir):
-            node_path = os.path.join(nodes_dir, node_name)
-            if not os.path.isdir(node_path):
+        for entry in nodes_dir.iterdir():
+            if not entry.is_dir():
                 continue
 
-            config_path = os.path.join(node_path, "config.json")
-            if not os.path.isfile(config_path):
+            node_name = entry.name
+            config_path = entry / "config.json"
+            if not config_path.is_file():
                 logger.info("跳过非节点目录（无 config.json）: %s", node_name)
                 continue
 
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with config_path.open(encoding="utf-8") as f:
                     config = json.load(f)
             except Exception as e:
                 logger.warning("读取节点配置失败 %s: %s", node_name, e)
@@ -242,10 +245,10 @@ class CoreProcessApp:
 
             nodes_data[node_name] = {
                 "name": node_name,
-                "path": node_path,
+                "path": str(entry),
                 "config": config,
                 "status": "stopped",
-                "process": None
+                "process": None,
             }
 
         return nodes_data

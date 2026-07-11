@@ -2,24 +2,26 @@
 画布右键菜单 Mixin — 统一使用 ActionRegistry + ActionFactory
 所有菜单操作（包括节点操作、连线操作、画布设置）均通过 Action 系统分发
 """
-import os
+
+from __future__ import annotations
+
 import platform
 from functools import partial
-from PySide6.QtWidgets import QMenu
+
 from PySide6.QtGui import QAction
-from PySide6.QtCore import Qt
-from ui.core.utils.dialog_utils import themed_input, themed_message
-from PySide6.QtWidgets import QGraphicsItem
-from ui.canvas.items.node_item import NodeItem
-from ui.canvas.items.edge_item import EdgeItem
+from PySide6.QtWidgets import QMenu
+
 from ui.canvas.items.composite_node_item import CompositeNodeItem
+from ui.canvas.items.edge_item import EdgeItem
+from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.styles import StyleRegistry
-from ui.core.node.composite_node import CompositeNode
+from ui.core.actions import ActionContext, ActionFactory, ActionRegistry
+from ui.core.actions.builtin_canvas_actions import register_canvas_actions
+from ui.core.actions.builtin_node_actions import register_node_actions
 from ui.core.i18n import t
 from ui.core.i18n.translation_keys import TK
-from ui.core.actions import ActionFactory, ActionContext, ActionRegistry
-from ui.core.actions.builtin_node_actions import register_node_actions
-from ui.core.actions.builtin_canvas_actions import register_canvas_actions
+from ui.core.node.composite_node import CompositeNode
+from ui.core.utils.dialog_utils import themed_input, themed_message
 from ui.core.utils.file_utils import get_project_root, open_terminal_in_directory
 
 
@@ -33,7 +35,7 @@ class CanvasMenu:
 
     def _make_ctx(self, **kwargs):
         """构建 ActionContext，自动注入 canvas 引用"""
-        return ActionContext(**(kwargs | {'extra': {'canvas': self.canvas}}))
+        return ActionContext(**(kwargs | {"extra": {"canvas": self.canvas}}))
 
     def _dispatch(self, action_id, **kwargs):
         """通过 ActionRegistry 分发操作"""
@@ -44,7 +46,7 @@ class CanvasMenu:
     def contextMenuEvent(self, event):
         all_items = self.canvas.items(event.pos())
         item = None
-        
+
         for probe in all_items:
             if isinstance(probe, NodeItem):
                 item = probe
@@ -54,7 +56,7 @@ class CanvasMenu:
                 break
             elif isinstance(probe, EdgeItem) and item is None:
                 item = probe
-        
+
         if item is None and all_items:
             item = all_items[0]
 
@@ -118,7 +120,7 @@ class CanvasMenu:
         compress_action.triggered.connect(lambda: self._on_compress_to_composite(self.canvas.box_selected_nodes))
 
         # 如果所有选中节点已在某复合节点中，显示"解耦"
-        if hasattr(self.canvas, '_composite_manager') and self.canvas._composite_manager:
+        if hasattr(self.canvas, "_composite_manager") and self.canvas._composite_manager:
             mgr = self.canvas._composite_manager
             comp_ids = set()
             for n in self.canvas.box_selected_nodes:
@@ -128,9 +130,7 @@ class CanvasMenu:
             if comp_ids:
                 for cid in comp_ids:
                     decompress_action = menu.addAction(f"\u293a \u89e3\u8026\u590d\u5408\u8282\u70b9 {cid}")
-                    decompress_action.triggered.connect(
-                        lambda checked, c=cid: mgr.decompress(c)
-                    )
+                    decompress_action.triggered.connect(lambda checked, c=cid: mgr.decompress(c))
 
         menu.addSeparator()
         ActionFactory.create_action(self.canvas, "canvas.clear_listen_config", menu=menu)
@@ -147,24 +147,21 @@ class CanvasMenu:
 
         # 启动/停止
         if self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
-            status = self.canvas.parent_window.nodes_data[node_name].get('status')
+            status = self.canvas.parent_window.nodes_data[node_name].get("status")
             ctx = ActionContext(node_name=node_name)
-            if status in ('running', 'idle'):
+            if status in ("running", "idle"):
                 ActionFactory.create_action(self.canvas, "node.stop", ctx, menu)
             else:
                 ActionFactory.create_action(self.canvas, "node.start", ctx, menu)
             menu.addSeparator()
 
         # 开始连线
-        ActionFactory.create_action(self.canvas, "canvas.start_connection",
-                                     self._make_ctx(node_name=node_name), menu)
+        ActionFactory.create_action(self.canvas, "canvas.start_connection", self._make_ctx(node_name=node_name), menu)
         menu.addSeparator()
 
         # 配置 / 展开节点
-        ActionFactory.create_action(self.canvas, "node.config",
-                                     self._make_ctx(node_name=node_name), menu)
-        ActionFactory.create_action(self.canvas, "canvas.expand_node",
-                                     self._make_ctx(node_name=node_name), menu)
+        ActionFactory.create_action(self.canvas, "node.config", self._make_ctx(node_name=node_name), menu)
+        ActionFactory.create_action(self.canvas, "canvas.expand_node", self._make_ctx(node_name=node_name), menu)
         menu.addSeparator()
 
         # 样式子菜单（动态从 StyleRegistry 构建，通过 Action 系统分发）
@@ -172,9 +169,11 @@ class CanvasMenu:
         for key in StyleRegistry.keys():
             cls = StyleRegistry.get(key)
             st = cls()
-            ActionFactory.create_action(self.canvas, "node.change_style",
-                ActionContext(extra={'canvas': self.canvas, 'node_item': node_item, 'style_key': key}),
-                style_menu
+            ActionFactory.create_action(
+                self.canvas,
+                "node.change_style",
+                ActionContext(extra={"canvas": self.canvas, "node_item": node_item, "style_key": key}),
+                style_menu,
             )
             # 用样式名覆盖 label（ActionFactory 用的是 i18n key，这里需要动态名称）
             last_action = style_menu.actions()[-1] if style_menu.actions() else None
@@ -185,7 +184,7 @@ class CanvasMenu:
 
         # 节点颜色子菜单（通过 Action 系统分发）
         color_menu = menu.addMenu(t("k_node_color"))
-        color_ctx = ActionContext(extra={'canvas': self.canvas, 'node_item': node_item})
+        color_ctx = ActionContext(extra={"canvas": self.canvas, "node_item": node_item})
         ActionFactory.create_action(self.canvas, "node.change_bg_color", color_ctx, color_menu)
         ActionFactory.create_action(self.canvas, "node.change_border_color", color_ctx, color_menu)
         ActionFactory.create_action(self.canvas, "node.change_text_color", color_ctx, color_menu)
@@ -193,26 +192,25 @@ class CanvasMenu:
         menu.addSeparator()
 
         # 导出
-        ActionFactory.create_action(self.canvas, "node.export",
-                                     ActionContext(node_name=node_name), menu)
+        ActionFactory.create_action(self.canvas, "node.export", ActionContext(node_name=node_name), menu)
 
         # 保存为模板
-        ActionFactory.create_action(self.canvas, "node.save_as_template",
-                                     self._make_ctx(node_name=node_name), menu)
+        ActionFactory.create_action(self.canvas, "node.save_as_template", self._make_ctx(node_name=node_name), menu)
 
         menu.addSeparator()
 
         # IDE 打开（通过 Action 系统统一管理）
-        node_path = self.canvas.parent_window.nodes_data.get(node_name, {}).get('path', '') if self.canvas.parent_window else ''
-        ide_ctx = ActionContext(extra={'node_name': node_name, 'node_path': node_path})
+        node_path = (
+            self.canvas.parent_window.nodes_data.get(node_name, {}).get("path", "") if self.canvas.parent_window else ""
+        )
+        ide_ctx = ActionContext(extra={"node_name": node_name, "node_path": node_path})
         ActionFactory.create_action(self.canvas, "node.open_vscode", ide_ctx, menu)
         ActionFactory.create_action(self.canvas, "node.open_trae_ide", ide_ctx, menu)
 
         menu.addSeparator()
 
         # 从画布移除
-        ActionFactory.create_action(self.canvas, "canvas.remove_node",
-                                     self._make_ctx(node_name=node_name), menu)
+        ActionFactory.create_action(self.canvas, "canvas.remove_node", self._make_ctx(node_name=node_name), menu)
 
         menu.exec(event.globalPos())
 
@@ -220,7 +218,7 @@ class CanvasMenu:
 
     def _show_edge_menu(self, event, edge):
         menu = QMenu(self.canvas)
-        edge_ctx = ActionContext(extra={'canvas': self.canvas, 'edge': edge})
+        edge_ctx = ActionContext(extra={"canvas": self.canvas, "edge": edge})
 
         ActionFactory.create_action(self.canvas, "canvas.delete_edge", edge_ctx, menu)
         menu.addSeparator()
@@ -246,7 +244,7 @@ class CanvasMenu:
             ("k_lang_cpp", "C++ (开发中)"),
             ("k_lang_shell", "Shell (开发中)"),
         ]
-        for i18n_key, lang_name in _lang_list:
+        for _i18n_key, lang_name in _lang_list:
             ActionFactory.create_action(self.canvas, f"canvas.new_node.{lang_name}", self._make_ctx(), menu=new_menu)
         menu.addSeparator()
 
@@ -273,11 +271,15 @@ class CanvasMenu:
 
         # IDE 工作区（通过 Action 系统统一管理）
         workspace_path = None
-        if self.canvas.parent_window and hasattr(self.canvas.parent_window, 'current_project_path') and self.canvas.parent_window.current_project_path:
+        if (
+            self.canvas.parent_window
+            and hasattr(self.canvas.parent_window, "current_project_path")
+            and self.canvas.parent_window.current_project_path
+        ):
             workspace_path = self.canvas.parent_window.current_project_path
         else:
             workspace_path = get_project_root()
-        ws_ctx = ActionContext(extra={'workspace_path': workspace_path or ''})
+        ws_ctx = ActionContext(extra={"workspace_path": workspace_path or ""})
         ActionFactory.create_action(self.canvas, "workspace.open_vscode", ws_ctx, menu)
         ActionFactory.create_action(self.canvas, "workspace.open_trae_ide", ws_ctx, menu)
 
@@ -288,7 +290,7 @@ class CanvasMenu:
         menu.addSeparator()
 
         # 绘画工具栏（动态文本 — 保留 menu.addAction，路由到 ActionRegistry）
-        toolbar_visible = self.canvas.draw_layer._toolbar_visible if hasattr(self.canvas, 'draw_layer') else False
+        toolbar_visible = self.canvas.draw_layer._toolbar_visible if hasattr(self.canvas, "draw_layer") else False
         action_text = t("k_canvas_hide_draw_toolbar") if toolbar_visible else t("k_canvas_show_draw_toolbar")
         a = QAction(action_text, menu)
         a.triggered.connect(lambda: self._dispatch("canvas.toggle_draw_toolbar"))
@@ -310,7 +312,10 @@ class CanvasMenu:
         """在项目根目录打开终端"""
         try:
             target_dir = None
-            if hasattr(self.canvas.parent_window, 'current_project_path') and self.canvas.parent_window.current_project_path:
+            if (
+                hasattr(self.canvas.parent_window, "current_project_path")
+                and self.canvas.parent_window.current_project_path
+            ):
                 target_dir = self.canvas.parent_window.current_project_path
             else:
                 target_dir = get_project_root()
@@ -322,24 +327,25 @@ class CanvasMenu:
 
     def _switch_node_style(self, style_key, node_item):
         from ui.canvas.items.styles import StyleRegistry
+
         cls = StyleRegistry.get(style_key)
         if not cls:
             return
         node_item.set_style(cls())
 
         all_edges = set()
-        if hasattr(node_item, 'output_anchor'):
+        if hasattr(node_item, "output_anchor"):
             for e in node_item.output_anchor.edges[:]:
                 if e and e.end_node:
                     all_edges.add(e)
-        if hasattr(node_item, 'input_anchor'):
+        if hasattr(node_item, "input_anchor"):
             for e in node_item.input_anchor.edges[:]:
                 if e and e.start_node:
                     all_edges.add(e)
         for e in all_edges:
             e.update_path()
 
-        if hasattr(self.canvas, '_save_timer'):
+        if hasattr(self.canvas, "_save_timer"):
             self.canvas._save_timer.stop()
             self.canvas._save_timer.start(500)
 
@@ -364,16 +370,14 @@ class CanvasMenu:
         # 展开/折叠
         comp_data = mgr._composites.get(comp_id, {})
         is_expanded = comp_data.get("_expanded", False)
-        expand_action = menu.addAction(
-            "\u6298\u53e0" if is_expanded else "\u5c55\u5f00"
-        )
+        expand_action = menu.addAction("\u6298\u53e0" if is_expanded else "\u5c55\u5f00")
         expand_action.triggered.connect(lambda: mgr.toggle_expand(comp_id))
 
         menu.addSeparator()
 
         # 运行时模式
         runtime_menu = menu.addMenu("\u8fd0\u884c\u65f6\u6a21\u5f0f")
-        current_runtime = mgr.get_runtime(comp_id) or "inprocess"
+        mgr.get_runtime(comp_id) or "inprocess"
 
         proc_action = runtime_menu.addAction("\u72ec\u7acb\u8fdb\u7a0b (process)")
         inproc_action = runtime_menu.addAction("\u5355\u8fdb\u7a0b (inprocess)")
@@ -391,20 +395,20 @@ class CanvasMenu:
 
     def _ensure_composite_manager(self):
         """懒初始化复合节点管理器。"""
-        if hasattr(self.canvas, '_composite_manager') and self.canvas._composite_manager:
+        if hasattr(self.canvas, "_composite_manager") and self.canvas._composite_manager:
             return self.canvas._composite_manager
 
         if not self.canvas.parent_window:
             return None
 
         project_path = None
-        if hasattr(self.canvas.parent_window, 'current_project_path'):
+        if hasattr(self.canvas.parent_window, "current_project_path"):
             project_path = self.canvas.parent_window.current_project_path
         if not project_path:
             return None
 
         group_manager = None
-        if hasattr(self.canvas.parent_window, 'node_list_panel') and self.canvas.parent_window.node_list_panel:
+        if hasattr(self.canvas.parent_window, "node_list_panel") and self.canvas.parent_window.node_list_panel:
             group_manager = self.canvas.parent_window.node_list_panel.group_manager
 
         self.canvas._composite_manager = CompositeNode(project_path, self.canvas, group_manager)
@@ -424,9 +428,7 @@ class CanvasMenu:
         # 确认对话框
         n = len(node_names)
         confirm = themed_message(
-            None, t(TK.COMPOSITE_CONFIRM_TITLE),
-            t(TK.COMPOSITE_CONFIRM_TEXT).format(n=n),
-            "question"
+            None, t(TK.COMPOSITE_CONFIRM_TITLE), t(TK.COMPOSITE_CONFIRM_TEXT).format(n=n), "question"
         )
         if not confirm:
             return
@@ -438,9 +440,10 @@ class CanvasMenu:
     def _on_decompress_composite(self, mgr, comp_id, node_count):
         """解耦确认对话框。"""
         reply = themed_message(
-            None, t(TK.COMPOSITE_DECOMPRESS_CONFIRM_TITLE),
+            None,
+            t(TK.COMPOSITE_DECOMPRESS_CONFIRM_TITLE),
             t(TK.COMPOSITE_DECOMPRESS_CONFIRM_TEXT).format(n=node_count),
-            "question"
+            "question",
         )
         if not reply:
             return
@@ -455,4 +458,5 @@ class CanvasMenu:
             ok, msg = mgr.start_process_mode(comp_id)
         if not ok:
             from PySide6.QtWidgets import QMessageBox
+
             QMessageBox.warning(None, "\u542f\u52a8\u5931\u8d25", msg)

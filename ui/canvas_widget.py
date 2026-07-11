@@ -7,8 +7,10 @@
 ⚠️ 注意：此文件将在未来版本中移除
 """
 
+from __future__ import annotations
+
 # 从新模块导入所有组件，保持原有API不变
-from ui.canvas import AnchorItem, NodeItem, EdgeItem, NodeCanvas
+from ui.canvas import AnchorItem, EdgeItem, NodeCanvas, NodeItem
 from ui.canvas.items.composite_node_item import CompositeNodeItem
 
-__all__ = ['AnchorItem', 'NodeItem', 'EdgeItem', 'NodeCanvas', 'CompositeNodeItem']
+__all__ = ["AnchorItem", "NodeItem", "EdgeItem", "NodeCanvas", "CompositeNodeItem"]

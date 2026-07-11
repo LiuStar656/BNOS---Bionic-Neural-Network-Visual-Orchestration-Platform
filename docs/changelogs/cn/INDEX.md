@@ -9,6 +9,7 @@
 点击下方日期查看该日期的详细更新：
 
 ### [2026-07-12](./2026-07-12/)
+- **代码规范统一化整改**：全项目 227 文件工具链引入（Ruff + Pre-commit + EditorConfig + Pylance）；消除 8 个真实运行时 Bug；Logger 4 种写法统一；`print()` 迁移 `logger.info()`；219 文件新增 `from __future__ import annotations`；`# type: ignore` 清零；`os.path` → `pathlib.Path` 691→156（-77%）；死代码清理；最终 ruff/pytest/Pylance 全绿
 - **_port_routing 端口路由机制**：路由信息从内部节点 config.json 迁移到 node_clusters.json 的 `_port_routing` 字段，解耦端口路由与节点配置，解决写入 `listen_upper_file` 导致输入端口消失的核心问题；节点 `main.py` 零改动
 - **复合节点连线与折叠修复**：展开/折叠连线更新抖动修复（补充 `update_path()` 调用、`_batch_updating` 标志、跳过拖拽节点双重 `setPos`）；config 写入诊断增强；`_port_routing` 残留清理
 - **单入口 DAG 防错机制**：新增 `_validate_dag_single_entry` 校验方法，压缩/折叠时检测多入口拒绝操作，支持 A→B→C 或 A→B 同时 A→C，不允许多入口 DAG

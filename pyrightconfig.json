@@ -1,0 +1,16 @@
+{
+  "include": ["ui", "tests"],
+  "exclude": ["venv", "codicon-source", "build", "dist", "**/node_modules", "**/__pycache__", "**/.*"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownVariableType": false,
+  "reportAttributeAccessIssue": false,
+  "reportOptionalMemberAccess": false,
+  "reportOptionalCall": false,
+  "reportOptionalOperand": false,
+  "reportArgumentType": false
+}

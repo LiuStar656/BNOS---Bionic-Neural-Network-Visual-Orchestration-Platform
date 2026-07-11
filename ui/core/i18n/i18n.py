@@ -8,11 +8,13 @@
     set_lang("en")                 # 运行时切换语言
     msg = t("k_project_created")   # "项目已创建" / "Project Created"
 """
-import os
-import json
-import logging
 
-logger = logging.getLogger(__name__)
+from __future__ import annotations
+
+import json
+import os
+
+from ui.core.logger import logger
 
 STRINGS: dict = {}
 LANG: str = "cn"
@@ -41,14 +43,14 @@ def init_i18n(lang: str = "cn"):
     filename = f"strings_{lang}.json"
     _path = os.path.join(_here, filename)
     try:
-        with open(_path, "r", encoding="utf-8") as f:
+        with open(_path, encoding="utf-8") as f:
             STRINGS = json.load(f)
         logger.info("i18n loaded %d strings from %s", len(STRINGS), filename)
     except FileNotFoundError:
         logger.warning("%s not found, falling back to strings_cn.json", filename)
         try:
             _cn = os.path.join(_here, "strings_cn.json")
-            with open(_cn, "r", encoding="utf-8") as f:
+            with open(_cn, encoding="utf-8") as f:
                 STRINGS = json.load(f)
             LANG = "cn"
             logger.info("i18n fallback to strings_cn.json (%d strings)", len(STRINGS))
@@ -68,13 +70,14 @@ def validate_all_keys() -> dict:
     _here = os.path.dirname(os.path.abspath(__file__))
     _cn = os.path.join(_here, "strings_cn.json")
     try:
-        with open(_cn, "r", encoding="utf-8") as f:
+        with open(_cn, encoding="utf-8") as f:
             cn_keys = set(json.load(f).keys())
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
     try:
         from ui.core.i18n.translation_keys import TranslationKeys
+
         defined_keys = set(TranslationKeys.all_keys())
     except ImportError:
         return {"ok": True, "note": "translation_keys module not available"}

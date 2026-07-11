@@ -3,14 +3,18 @@ IDE 自动扫描器 — 自动检测 VSCode / Trae IDE + 统一的打开逻辑
 跨平台：Windows / Linux / macOS
 （菜单构建由 Action 系统负责，此模块只提供检测和打开能力）
 """
+
+from __future__ import annotations
+
 import json
 import os
-import sys
+import re
 import shutil
 import subprocess
-from typing import Optional, Dict
+import sys
+from pathlib import Path
 
-from PySide6.QtWidgets import QPushButton, QMessageBox
+from PySide6.QtWidgets import QMessageBox, QPushButton
 
 from ui.core.i18n.i18n import t
 
@@ -26,31 +30,34 @@ class IDEScanner:
         r"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe",
         r"%PROGRAMFILES%\Microsoft VS Code\Code.exe",
         r"%PROGRAMFILES(x86)%\Microsoft VS Code\Code.exe",
-        os.path.expanduser(r"~\scoop\apps\vscode\current\Code.exe"),
+        str(Path(r"~\scoop\apps\vscode\current\Code.exe").expanduser()),
     ]
 
     _TRAE_WIN_PATHS = [
         r"%LOCALAPPDATA%\Programs\Trae CN\Trae CN.exe",
         r"%LOCALAPPDATA%\Programs\Trae CN\resources\app\bin\trae.cmd",
         r"%LOCALAPPDATA%\Programs\Trae\Trae.exe",
-        os.path.expanduser(r"~\scoop\apps\trae\current\Trae.exe"),
+        str(Path(r"~\scoop\apps\trae\current\Trae.exe").expanduser()),
     ]
 
     # ── Linux 扫描路径 ──
     _VSCODE_LINUX_PATHS = [
-        "/usr/bin/code", "/usr/local/bin/code", "/snap/bin/code",
-        os.path.expanduser("~/.local/bin/code"),
+        "/usr/bin/code",
+        "/usr/local/bin/code",
+        "/snap/bin/code",
+        str(Path("~/.local/bin/code").expanduser()),
     ]
 
     _TRAE_LINUX_PATHS = [
-        os.path.expanduser("~/.local/share/trae/trae"),
-        os.path.expanduser("~/.local/bin/trae"), "/usr/local/bin/trae",
+        str(Path("~/.local/share/trae/trae").expanduser()),
+        str(Path("~/.local/bin/trae").expanduser()),
+        "/usr/local/bin/trae",
     ]
 
     # ── macOS 扫描路径 ──
     _VSCODE_MACOS_PATHS = [
         "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
-        os.path.expanduser("~/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"),
+        str(Path("~/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code").expanduser()),
     ]
 
     _TRAE_MACOS_PATHS = [
@@ -60,17 +67,17 @@ class IDEScanner:
 
     def __init__(self, app_config=None):
         self._app_config = app_config
-        self._cache: Dict[str, Optional[str]] = {}
+        self._cache: dict[str, str | None] = {}
         self._load_cache()
 
     # ========================================================================
     #  公开 API — 查找 IDE
     # ========================================================================
 
-    def find_vscode(self) -> Optional[str]:
+    def find_vscode(self) -> str | None:
         return self._find("vscode", self._CACHE_KEY_VSCODE, self._get_vscode_scan_paths())
 
-    def find_trae_ide(self) -> Optional[str]:
+    def find_trae_ide(self) -> str | None:
         return self._find("trae", self._CACHE_KEY_TRAE, self._get_trae_scan_paths())
 
     # ========================================================================
@@ -79,18 +86,22 @@ class IDEScanner:
 
     def open_vscode_workspace(self, node_name: str, node_path: str) -> bool:
         """生成 .code-workspace 文件后用 VSCode 打开节点目录"""
-        workspace_file = os.path.join(node_path, f"{node_name}.code-workspace")
-        py_exe = "${workspaceFolder}/venv/Scripts/python.exe" if sys.platform == "win32" else "${workspaceFolder}/venv/bin/python"
+        workspace_file = Path(node_path) / f"{node_name}.code-workspace"
+        py_exe = (
+            "${workspaceFolder}/venv/Scripts/python.exe"
+            if sys.platform == "win32"
+            else "${workspaceFolder}/venv/bin/python"
+        )
         config = {
             "folders": [{"path": "."}],
             "settings": {
                 "python.defaultInterpreterPath": py_exe,
-                "files.exclude": {"**/__pycache__": True, "**/*.pyc": True}
-            }
+                "files.exclude": {"**/__pycache__": True, "**/*.pyc": True},
+            },
         }
-        with open(workspace_file, 'w', encoding='utf-8') as f:
+        with workspace_file.open("w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
-        if self.open_in_vscode(workspace_file):
+        if self.open_in_vscode(str(workspace_file)):
             return True
         self._show_not_found("VSCode")
         return False
@@ -98,7 +109,7 @@ class IDEScanner:
     def open_in_vscode(self, workspace_path: str) -> bool:
         exe = self.find_vscode()
         return self._spawn(exe, workspace_path) if exe else False
-        
+
     def open_in_trae(self, workspace_path: str) -> bool:
         exe = self.find_trae_ide()
         if exe and self._spawn(exe, workspace_path):
@@ -131,11 +142,12 @@ class IDEScanner:
     #  内部 — 查找逻辑
     # ========================================================================
 
-    def _find(self, name: str, cache_key: str, scan_paths: list) -> Optional[str]:
+    def _find(self, name: str, cache_key: str, scan_paths: list) -> str | None:
         """统一查找：内存缓存 → app_config → PATH 命令 → 进程/环境变量 → 文件系统"""
         if name in self._cache:
             cached = self._cache[name]
-            if cached and self._is_valid_exe(cached): return cached
+            if cached and self._is_valid_exe(cached):
+                return cached
         if self._app_config:
             cached = self._app_config.get(cache_key)
             if cached and self._is_valid_exe(cached):
@@ -145,88 +157,109 @@ class IDEScanner:
                 return cached
         result = self._check_path_command(name)
         if result and self._is_valid_exe(result):
-            self._save_result(name, cache_key, result); return result
+            self._save_result(name, cache_key, result)
+            return result
         result = self._find_from_runtime(name)
-        if result: self._save_result(name, cache_key, result); return result
+        if result:
+            self._save_result(name, cache_key, result)
+            return result
         for raw_path in scan_paths:
-            expanded = os.path.expandvars(raw_path) if '%' in raw_path else raw_path
-            expanded = os.path.expanduser(expanded)
+            expanded = self._expandvars(raw_path) if "%" in raw_path else raw_path
+            expanded = str(Path(expanded).expanduser())
             if self._is_valid_exe(expanded):
-                self._save_result(name, cache_key, expanded); return expanded
+                self._save_result(name, cache_key, expanded)
+                return expanded
         return None
 
-    def _find_from_runtime(self, name: str) -> Optional[str]:
+    def _find_from_runtime(self, name: str) -> str | None:
         """从环境变量 / 运行中进程检测 IDE 路径（覆盖非标准安装位置）"""
         if name == "trae":
             # 1) 从 Trae sandbox 环境变量推导
-            sandbox_path = os.environ.get('TRAE_SANDBOX_CLI_PATH', '')
-            if sandbox_path and os.path.isfile(sandbox_path):
+            sandbox_path = os.environ.get("TRAE_SANDBOX_CLI_PATH", "")
+            if sandbox_path and Path(sandbox_path).is_file():
                 trae_root = self._walk_up_to_exe_dir(sandbox_path)
                 if trae_root:
-                    for candidate in [os.path.join(trae_root, 'Trae CN.exe'),
-                                      os.path.join(trae_root, 'Trae.exe')]:
-                        if os.path.isfile(candidate):
-                            return candidate
+                    trae_root_path = Path(trae_root)
+                    for candidate in [trae_root_path / "Trae CN.exe", trae_root_path / "Trae.exe"]:
+                        if candidate.is_file():
+                            return str(candidate)
             # 2) 从运行中进程查找
             exe = self._find_process_exe("Trae CN")
-            if exe: return exe
+            if exe:
+                return exe
             exe = self._find_process_exe("Trae")
-            if exe: return exe
-        elif name == "vscode" and sys.platform == 'win32':
+            if exe:
+                return exe
+        elif name == "vscode" and sys.platform == "win32":
             exe = self._find_process_exe("Code")
-            if exe: return exe
+            if exe:
+                return exe
         return None
 
     @staticmethod
-    def _walk_up_to_exe_dir(start_path: str) -> Optional[str]:
+    def _walk_up_to_exe_dir(start_path: str) -> str | None:
         """从子目录向上遍历，找到包含 .exe 的根目录"""
-        current = os.path.dirname(start_path)
-        root = os.path.dirname(current.split('\\')[0] + '\\') if sys.platform == 'win32' else '/'
-        while current and current != root:
-            # 当前目录有 .exe 文件 → 这就是安装根目录
+        current = Path(start_path).parent
+        root = Path(current.anchor)
+        while current != root:
             try:
-                if any(f.endswith('.exe') for f in os.listdir(current)
-                       if os.path.isfile(os.path.join(current, f))):
-                    return current
+                if any(p.suffix == ".exe" for p in current.iterdir() if p.is_file()):
+                    return str(current)
             except OSError:
                 pass
-            parent = os.path.dirname(current)
+            parent = current.parent
             if parent == current:
                 break
             current = parent
         return None
 
     @staticmethod
-    def _find_process_exe(process_name: str) -> Optional[str]:
+    def _find_process_exe(process_name: str) -> str | None:
         """通过 PowerShell 查找运行中进程的可执行文件路径"""
         try:
             result = subprocess.run(
-                ['powershell', '-NoProfile', '-Command',
-                 f'(Get-Process -Name "{process_name}" -ErrorAction SilentlyContinue | Select-Object -First 1).Path'],
-                capture_output=True, text=True, timeout=5,
-                creationflags=subprocess.CREATE_NO_WINDOW)
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-Command",
+                    f'(Get-Process -Name "{process_name}" -ErrorAction SilentlyContinue | Select-Object -First 1).Path',
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
             if result.returncode == 0:
                 path = result.stdout.strip()
-                if path and os.path.isfile(path):
+                if path and Path(path).is_file():
                     return path
         except Exception:
             pass
         return None
 
-    def _check_path_command(self, name: str) -> Optional[str]:
-        if name == "vscode": command = "code"
-        else: command = "trae"
+    def _check_path_command(self, name: str) -> str | None:
+        if name == "vscode":
+            command = "code"
+        else:
+            command = "trae"
         binary = shutil.which(command)
-        if binary: return binary
-        if sys.platform == 'win32' and name == "vscode":
+        if binary:
+            return binary
+        if sys.platform == "win32" and name == "vscode":
             try:
                 result = subprocess.run(
-                    ['where', 'code'], capture_output=True, text=True, timeout=3,
-                    creationflags=subprocess.CREATE_NO_WINDOW)
+                    ["where", "code"],
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
                 if result.returncode == 0:
-                    lines = result.stdout.strip().split('\n')
-                    if lines and lines[0].strip(): return lines[0].strip()
-            except Exception: pass
+                    lines = result.stdout.strip().split("\n")
+                    if lines and lines[0].strip():
+                        return lines[0].strip()
+            except Exception:
+                pass
         return None
 
     def _save_result(self, name: str, cache_key: str, path: str):
@@ -239,22 +272,33 @@ class IDEScanner:
         if self._app_config:
             vscode = self._app_config.get(self._CACHE_KEY_VSCODE)
             trae = self._app_config.get(self._CACHE_KEY_TRAE)
-            if vscode and self._is_valid_exe(vscode): self._cache["vscode"] = vscode
-            if trae and self._is_valid_exe(trae): self._cache["trae"] = trae
+            if vscode and self._is_valid_exe(vscode):
+                self._cache["vscode"] = vscode
+            if trae and self._is_valid_exe(trae):
+                self._cache["trae"] = trae
 
     @staticmethod
     def _is_valid_exe(path: str) -> bool:
         """验证路径是一个真实存在的可执行文件"""
-        return bool(path) and os.path.isfile(path)
+        return bool(path) and Path(path).is_file()
+
+    @staticmethod
+    def _expandvars(s: str) -> str:
+        """扩展 %ENV_VAR% 样式的环境变量（替代 os.path.expandvars）"""
+        return re.sub(r"%([^%]+)%", lambda m: os.environ.get(m.group(1), m.group(0)), s)
 
     def _get_vscode_scan_paths(self) -> list:
-        if sys.platform == 'win32': return self._VSCODE_WIN_PATHS
-        elif sys.platform == 'darwin': return self._VSCODE_MACOS_PATHS
+        if sys.platform == "win32":
+            return self._VSCODE_WIN_PATHS
+        elif sys.platform == "darwin":
+            return self._VSCODE_MACOS_PATHS
         return self._VSCODE_LINUX_PATHS
 
     def _get_trae_scan_paths(self) -> list:
-        if sys.platform == 'win32': return self._TRAE_WIN_PATHS
-        elif sys.platform == 'darwin': return self._TRAE_MACOS_PATHS
+        if sys.platform == "win32":
+            return self._TRAE_WIN_PATHS
+        elif sys.platform == "darwin":
+            return self._TRAE_MACOS_PATHS
         return self._TRAE_LINUX_PATHS
 
     # ========================================================================
@@ -264,10 +308,12 @@ class IDEScanner:
     def _spawn(self, exe: str, path: str) -> bool:
         try:
             kwargs = dict(shell=False)
-            if sys.platform == 'win32': kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            if sys.platform == "win32":
+                kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
             subprocess.Popen([exe, path], **kwargs)
             return True
-        except Exception: return False
+        except Exception:
+            return False
 
     @staticmethod
     def _show_not_found(ide_name: str):

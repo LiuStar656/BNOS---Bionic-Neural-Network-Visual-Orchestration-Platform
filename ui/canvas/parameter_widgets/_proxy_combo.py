@@ -1,5 +1,8 @@
 """QGraphicsProxyWidget 兼容的 ComboBox — 修复下拉弹窗坐标映射"""
-from PySide6.QtWidgets import QComboBox, QGraphicsProxyWidget, QFrame
+
+from __future__ import annotations
+
+from PySide6.QtWidgets import QComboBox, QFrame, QGraphicsProxyWidget
 
 
 class _ProxyAwareComboBox(QComboBox):
@@ -15,8 +18,11 @@ class _ProxyAwareComboBox(QComboBox):
         proxy = None
         parent = self.parent()
         while parent is not None:
-            if hasattr(parent, "metaObject") and parent.metaObject() and \
-               parent.metaObject().className() == b"QGraphicsProxyWidget":
+            if (
+                hasattr(parent, "metaObject")
+                and parent.metaObject()
+                and parent.metaObject().className() == b"QGraphicsProxyWidget"
+            ):
                 proxy = parent
                 break
             try:

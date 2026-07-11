@@ -4,19 +4,27 @@
 展开坐标以节点在画布上的位置为基准
 output.json 编辑区：始终可编辑，输入自动保存到文件，外部变化自动刷新
 """
-import os
+
+from __future__ import annotations
+
 import json
-from PySide6.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTextEdit, QGroupBox, QMessageBox,
-)
-from ui.core.utils.dialog_utils import themed_message
+import os
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+)
+
 from ui.core.dock.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.logger import logger
-from ui.core.system.polling_manager import polling_manager
+from ui.core.utils.dialog_utils import themed_message
 
 
 class NodeExpandPanel(FloatingPanel):
@@ -25,8 +33,8 @@ class NodeExpandPanel(FloatingPanel):
     def __init__(self, node_name, parent_window=None):
         super().__init__(parent_window, title=t("k_info_details_title"))
         self.node_name = node_name
-        self._save_timer = None      # 防抖保存定时器
-        self._last_content = ""      # 上次写入文件的内容（阻止回环刷新）
+        self._save_timer = None  # 防抖保存定时器
+        self._last_content = ""  # 上次写入文件的内容（阻止回环刷新）
         self._ignore_external = False  # 正在自行保存时忽略外部变化
         self._output_path = ""
 
@@ -35,7 +43,7 @@ class NodeExpandPanel(FloatingPanel):
         self._node_path = None
         if parent_window and node_name in parent_window.nodes_data:
             self._node_info = parent_window.nodes_data[node_name]
-            self._node_path = self._node_info.get('path', '')
+            self._node_path = self._node_info.get("path", "")
 
         if self._node_path:
             self._output_path = os.path.join(self._node_path, "output.json")
@@ -68,9 +76,7 @@ class NodeExpandPanel(FloatingPanel):
         tool_row = QHBoxLayout()
 
         self._status_indicator = QLabel(t("k_action_live"))
-        self._status_indicator.setStyleSheet(
-            "color: #4CAF50; font-size: 10px; padding: 2px 5px;"
-        )
+        self._status_indicator.setStyleSheet("color: #4CAF50; font-size: 10px; padding: 2px 5px;")
         tool_row.addWidget(self._status_indicator)
 
         refresh_btn = QPushButton(t("k_action_refresh"))
@@ -127,9 +133,9 @@ class NodeExpandPanel(FloatingPanel):
         name_label.setStyleSheet("color: white;")
         info_layout.addWidget(name_label)
 
-        status = self._node_info.get('status', 'stopped') if self._node_info else 'stopped'
-        status_text = t("k_status_running") if status == 'running' else t("k_status_stopped")
-        status_color = "#4CAF50" if status == 'running' else "#999"
+        status = self._node_info.get("status", "stopped") if self._node_info else "stopped"
+        status_text = t("k_status_running") if status == "running" else t("k_status_stopped")
+        status_color = "#4CAF50" if status == "running" else "#999"
         self._status_label = QLabel(status_text)
         self._status_label.setStyleSheet(f"color: {status_color}; font-size: 10px;")
         info_layout.addWidget(self._status_label)
@@ -155,10 +161,7 @@ class NodeExpandPanel(FloatingPanel):
         action_layout = QVBoxLayout(action_group)
         action_layout.setSpacing(4)
 
-        btn_style = (
-            "color: white; padding: 6px; font-weight: bold; font-size: 11px;"
-            "border: none; border-radius: 3px;"
-        )
+        btn_style = "color: white; padding: 6px; font-weight: bold; font-size: 11px;border: none; border-radius: 3px;"
 
         # 启动
         self._start_btn = QPushButton(t("k_node_start"))
@@ -173,7 +176,7 @@ class NodeExpandPanel(FloatingPanel):
         action_layout.addWidget(self._stop_btn)
 
         # 根据当前状态调整
-        if status == 'running':
+        if status == "running":
             self._start_btn.setEnabled(False)
             self._start_btn.setStyleSheet(f"background-color: #3a3a3a; color: #888; {btn_style}")
         else:
@@ -214,7 +217,7 @@ class NodeExpandPanel(FloatingPanel):
             return
 
         try:
-            with open(self._output_path, 'r', encoding='utf-8') as f:
+            with open(self._output_path, encoding="utf-8") as f:
                 raw = f.read()
 
             if not raw.strip():
@@ -267,7 +270,7 @@ class NodeExpandPanel(FloatingPanel):
             self._last_content = formatted
             self._ignore_external = True
 
-            with open(self._output_path, 'w', encoding='utf-8') as f:
+            with open(self._output_path, "w", encoding="utf-8") as f:
                 f.write(formatted)
 
             # 编辑器同步为格式化后的内容（阻止回环保存）
@@ -296,7 +299,7 @@ class NodeExpandPanel(FloatingPanel):
             return
 
         try:
-            with open(self._output_path, 'r', encoding='utf-8') as f:
+            with open(self._output_path, encoding="utf-8") as f:
                 file_content = f.read()
 
             if not file_content.strip():
@@ -345,9 +348,7 @@ class NodeExpandPanel(FloatingPanel):
 
     def _set_status(self, text, color):
         self._status_indicator.setText(text)
-        self._status_indicator.setStyleSheet(
-            f"color: {color}; font-size: 10px; padding: 2px 5px;"
-        )
+        self._status_indicator.setStyleSheet(f"color: {color}; font-size: 10px; padding: 2px 5px;")
 
     def _start_node(self):
         """启动节点"""
@@ -365,19 +366,16 @@ class NodeExpandPanel(FloatingPanel):
         """刷新按钮和状态显示"""
         if self.parent_window and self.node_name in self.parent_window.nodes_data:
             self._node_info = self.parent_window.nodes_data[self.node_name]
-            status = self._node_info.get('status', 'stopped')
-            is_running = status == 'running'
+            status = self._node_info.get("status", "stopped")
+            is_running = status == "running"
 
             self._status_label.setText(t("k_status_running") if is_running else t("k_status_stopped"))
-            self._status_label.setStyleSheet(
-                f"color: {'#4CAF50' if is_running else '#999'}; font-size: 10px;"
-            )
+            self._status_label.setStyleSheet(f"color: {'#4CAF50' if is_running else '#999'}; font-size: 10px;")
 
             self._start_btn.setEnabled(not is_running)
             self._stop_btn.setEnabled(is_running)
             btn_style = (
-                "color: white; padding: 6px; font-weight: bold; font-size: 11px;"
-                "border: none; border-radius: 3px;"
+                "color: white; padding: 6px; font-weight: bold; font-size: 11px;border: none; border-radius: 3px;"
             )
             disabled_style = (
                 "background-color: #3a3a3a; color: #888; padding: 6px; "
@@ -394,22 +392,24 @@ class NodeExpandPanel(FloatingPanel):
         """打开节点配置对话框"""
         if self.parent_window and self.node_name in self.parent_window.nodes_data:
             node_info = self.parent_window.nodes_data[self.node_name]
-            from ui.panels.property_panel import NodeConfigDialog
+            from ui.dialogs.node_config_dialog import NodeConfigDialog
+
             dialog = NodeConfigDialog(
-                self.node_name,
-                node_info.get('config', {}),
-                node_info.get('path', ''),
-                self.parent_window
+                self.node_name, node_info.get("config", {}), node_info.get("path", ""), self.parent_window
             )
             dialog.exec()
 
     def _delete_node(self):
         """从画布删除节点"""
-        reply = themed_message(self, t("k_title_confirm_delete"), t("_k_node_expand_confirm_delete").format(name=self.node_name),
-            "question")
+        reply = themed_message(
+            self,
+            t("k_title_confirm_delete"),
+            t("_k_node_expand_confirm_delete").format(name=self.node_name),
+            "question",
+        )
         if not reply:
             return
-        if self.parent_window and hasattr(self.parent_window, 'canvas'):
+        if self.parent_window and hasattr(self.parent_window, "canvas"):
             self.parent_window.canvas.remove_node_with_cleanup(self.node_name)
         self._close()
 

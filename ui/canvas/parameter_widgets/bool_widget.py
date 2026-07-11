@@ -1,7 +1,11 @@
 """布尔值复选框控件"""
-from PySide6.QtWidgets import QCheckBox, QHBoxLayout
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
-from ._base import ParameterWidget, _make_label, ROW_HEIGHT, LAYOUT_SPACING
+from PySide6.QtWidgets import QCheckBox, QHBoxLayout
+
+from ._base import LAYOUT_SPACING, ROW_HEIGHT, ParameterWidget, _make_label
 
 
 class BoolWidget(ParameterWidget):

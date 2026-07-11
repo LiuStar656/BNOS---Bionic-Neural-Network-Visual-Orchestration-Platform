@@ -12,19 +12,23 @@
     update_scheduler.subscribe(panel, 1000, panel._update_ui)
     # panel 销毁时自动 unsubscribe
 """
+
+from __future__ import annotations
+
 import time
 from collections import defaultdict
-from PySide6.QtCore import QObject, QTimer, QMutex
+
+from PySide6.QtCore import QMutex, QObject, QTimer
 
 
 class _Subscriber:
     """订阅者信息"""
 
     def __init__(self, owner, interval_ms, callback):
-        self.owner = owner          # 所有者（通常是面板 widget）
+        self.owner = owner  # 所有者（通常是面板 widget）
         self.interval_ms = interval_ms
         self.callback = callback
-        self.last_fire = 0          # 上次触发的时间戳
+        self.last_fire = 0  # 上次触发的时间戳
 
 
 class UpdateScheduler(QObject):
@@ -91,16 +95,13 @@ class UpdateScheduler(QObject):
         if owner is None:
             return
         for interval_ms in list(self._subscribers.keys()):
-            self._subscribers[interval_ms] = [
-                s for s in self._subscribers[interval_ms]
-                if s.owner is not owner
-            ]
+            self._subscribers[interval_ms] = [s for s in self._subscribers[interval_ms] if s.owner is not owner]
             if not self._subscribers[interval_ms]:
                 del self._subscribers[interval_ms]
 
     def unsubscribe_all(self, interval_ms=None):
         """注销所有订阅者
-        
+
         Args:
             interval_ms: 如果指定，只注销该间隔组的订阅者
         """

@@ -11,15 +11,10 @@
   _ide         — open_vscode/open_trae_ide（2 个 action）
   _style       — change_style/change_bg_color/change_border_color/change_text_color（4 个 action）
 """
-from . import _lifecycle
-from . import _context_menu
-from . import _batch
-from . import _selection
-from . import _group
-from . import _ungrouped
-from . import _ide
-from . import _style
-from . import _template
+
+from __future__ import annotations
+
+from . import _batch, _context_menu, _group, _ide, _lifecycle, _selection, _style, _template, _ungrouped
 
 
 def register_node_actions(main_window):

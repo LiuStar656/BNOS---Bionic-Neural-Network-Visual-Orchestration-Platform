@@ -23,7 +23,10 @@
 但 box_selected_nodes 保留在 NodeCanvas 中（因为事件处理器也需要访问）
 通过 self.canvas.box_selected_nodes 访问。
 """
-from PySide6.QtGui import QPen, QColor
+
+from __future__ import annotations
+
+from PySide6.QtGui import QColor, QPen
 
 from ui.core.logger import logger
 
@@ -106,8 +109,9 @@ class SelectionManager:
         if self._is_replaying:
             return
         try:
-            from ui.core.commands.node_commands import CreateNodeCommand
             from ui.core.commands.history_manager import history_manager
+            from ui.core.commands.node_commands import CreateNodeCommand
+
             if history_manager.state.is_recording:
                 history_manager.record_only(CreateNodeCommand(node_name, self.canvas))
         except Exception:
@@ -118,12 +122,11 @@ class SelectionManager:
         if self._is_replaying:
             return
         try:
-            from ui.core.commands.node_commands import DeleteNodeCommand
             from ui.core.commands.history_manager import history_manager
+            from ui.core.commands.node_commands import DeleteNodeCommand
+
             if history_manager.state.is_recording:
-                history_manager.execute_command(
-                    DeleteNodeCommand(node_name, self.canvas, self.canvas.parent_window)
-                )
+                history_manager.execute_command(DeleteNodeCommand(node_name, self.canvas, self.canvas.parent_window))
         except Exception:
             pass
 
@@ -134,23 +137,23 @@ class SelectionManager:
         try:
             from ui.core.commands.edge_commands import CreateEdgeCommand
             from ui.core.commands.history_manager import history_manager
+
             if history_manager.state.is_recording:
                 history_manager.record_only(CreateEdgeCommand(src_name, tgt_name, self.canvas))
         except Exception:
             pass
 
-    def _record_delete_edge(self, src_name: str, tgt_name: str,
-                            target_port_name=None, source_port_name=None):
+    def _record_delete_edge(self, src_name: str, tgt_name: str, target_port_name=None, source_port_name=None):
         """录制删除连线命令到历史（需在删除前调用）"""
         if self._is_replaying:
             return
         try:
             from ui.core.commands.edge_commands import DeleteEdgeCommand
             from ui.core.commands.history_manager import history_manager
+
             if history_manager.state.is_recording:
                 history_manager.execute_command(
-                    DeleteEdgeCommand(src_name, tgt_name,
-                                      target_port_name, source_port_name, None, self.canvas)
+                    DeleteEdgeCommand(src_name, tgt_name, target_port_name, source_port_name, None, self.canvas)
                 )
         except Exception:
             pass

@@ -4,6 +4,9 @@
 新路径：
     from ui.core.actions.node import register_node_actions
 """
+
+from __future__ import annotations
+
 import warnings
 
 warnings.warn(

@@ -9,45 +9,86 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-v"
 
-[tool.flake8]
-max-line-length = 120
-extend-ignore = ["E203", "W503"]
+# ── Ruff: 统一替代 flake8 + black + isort ──
+[tool.ruff]
+target-version = "py312"
+line-length = 120
 exclude = [
-    "__pycache__",
+    "venv",
+    "codicon-source",
     ".git",
-    "node_modules",
+    "__pycache__",
     "build",
     "dist",
+    "node_modules",
     ".eggs",
     "*.egg-info",
 ]
-[tool.flake8.per-file-ignores]
-"test_*.py" = ["D100", "D101", "D102", "D103", "D104"]
 
-[tool.black]
-line-length = 120
-target-version = ["py312"]
-exclude = '''
-(
-    __pycache__
-    | \\.git
-    | node_modules
-    | build
-    | dist
-    | \\.eggs
-    | \\*.egg-info
-)
-'''
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle errors / warnings
+    "F",         # pyflakes
+    "I",         # isort
+    "N",         # pep8-naming
+    "UP",        # pyupgrade
+    "B",         # flake8-bugbear
+    "T20",       # flake8-print
+]
+ignore = [
+    "E501",      # 行长度由 formatter 处理
+    "N802",      # Qt 项目：覆盖方法必须用 PascalCase
+    "N801",      # Windows API ctypes 结构体必须匹配 Win32 命名
+    "N803",      # Qt nativeEvent 参数名必须匹配 Qt API
+    "N806",      # Windows API 常量（HTLEFT 等 Win32 定义）
+    "W291",      # QSS 样式字符串内的尾随空格是故意的
+    "E741",      # l 作为 layout 变量名的简写（非歧义1/l）
+    "E731",      # 部分简单 lambda 用于回调绑定
+    "E712",      # QDialog.exec() == True 为 Qt 惯用写法
+]
 
-[tool.isort]
-line_length = 120
-multi_line_output = 3
-include_trailing_comma = true
-force_alphabetical_sort = true
-force_single_line_imports = false
-known_first_party = ["ui"]
-known_third_party = ["PySide6", "psutil"]
+[tool.ruff.lint.per-file-ignores]
+# 进程入口文件在 import 前需要修改 sys.path
+"ui/panels/panel_process.py" = ["E402"]
+"ui/core/services/core_process.py" = ["E402"]
+"ui/core/actions/action_registry.py" = ["E402"]
+"ui/canvas/canvas_process.py" = ["E402"]
+"ui/canvas/canvas_view.py" = ["E402"]
+"ui/dialogs/preset_library_dialog.py" = ["E402"]
+# __main__ 块中的 print 是有意的（测试/开发工具）
+"ui/creators/node_creator_manager.py" = ["T201"]
+# 生成的代码模板中包含 print 语句（模板源码，非执行代码）
+"ui/core/node/composite_orchestrator.py" = ["T201"]
+"ui/core/i18n/translation_keys.py" = ["T201"]
+# 测试文件中允许 print
+"tests/*.py" = ["T201", "D100", "D101", "D102", "D103", "D104"]
+# __init__.py 中的导入用于公共 API 重导出
+"ui/dialogs/__init__.py" = ["F401"]
+"ui/__init__.py" = ["F401"]
+"ui/core/i18n/__init__.py" = ["F401"]
+# TK 是项目中 TranslationKeys 的标准缩写
+"tests/test_translation_keys.py" = ["N817"]
+# try-except 导入检查，导入本身即目的
+"launcher.py" = ["F401"]
+"tests/test_polling_manager.py" = ["F401"]
+# 工具脚本的 CLI 输出，不是业务日志
+"tools/*.py" = ["T201"]
+"scripts/*.py" = ["T201"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["ui"]
+known-third-party = ["PySide6", "psutil"]
+combine-as-imports = true
+
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = ["classmethod"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+# ── MyPy ──
 [tool.mypy]
 python_version = "3.12"
 strict = false

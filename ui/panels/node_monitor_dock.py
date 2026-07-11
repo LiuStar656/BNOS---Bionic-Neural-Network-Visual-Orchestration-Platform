@@ -6,24 +6,35 @@
   - SystemResourceCollector: 系统+节点资源数据采集
   - NodePanelSyncMixin: 子面板同步逻辑
 """
+
+from __future__ import annotations
+
 import os
-import psutil
+
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTextEdit, QGroupBox, QWidget, QScrollArea, QProgressBar
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Qt, QTimer
+
+from ui.core.dock.dock_panel_base import DockPanelBase
 from ui.core.i18n import t
 from ui.core.system.polling_manager import polling_manager
-from ui.panels._shared.system_resource_collector import SystemResourceCollector
 from ui.panels._shared.node_panel_sync_mixin import NodePanelSyncMixin
-from ui.core.dock.dock_panel_base import DockPanelBase
-
+from ui.panels._shared.system_resource_collector import SystemResourceCollector
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  NodeLogSubPanel — Dock版
 #  特有: 内联 CPU/MEM 进度条在标题栏、无 Refresh/Clear/Dir 按钮
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 class NodeLogSubPanel(QGroupBox):
     """单个节点的日志子面板（可折叠）— Dock版特有 UI"""
@@ -71,8 +82,8 @@ class NodeLogSubPanel(QGroupBox):
         layout.setSpacing(3)
 
         title_row = QHBoxLayout()
-        status_text = t("k_status_running") if status == 'running' else t("k_status_stopped")
-        status_color = "#4CAF50" if status == 'running' else "#999"
+        status_text = t("k_status_running") if status == "running" else t("k_status_stopped")
+        status_color = "#4CAF50" if status == "running" else "#999"
         self._title_btn = QPushButton(f"{self.node_name}  [{status_text}]")
         self._title_btn.setStyleSheet(f"""
             QPushButton {{
@@ -154,6 +165,7 @@ class NodeLogSubPanel(QGroupBox):
 
     def _start_resource_timer(self):
         from ui.core.system.update_scheduler import update_scheduler
+
         update_scheduler.subscribe(self, 1000, self._update_resource_usage)
 
     def _update_resource_usage(self):
@@ -165,7 +177,7 @@ class NodeLogSubPanel(QGroupBox):
         self._last_memory = memory_mb or 0.0
         is_running = cpu_percent is not None
 
-        self.update_status('running' if is_running else 'stopped')
+        self.update_status("running" if is_running else "stopped")
 
         self._cpu_bar.setValue(min(int(self._last_cpu), 100))
         self._cpu_label.setText(f"CPU: {self._last_cpu:.1f}%")
@@ -179,7 +191,7 @@ class NodeLogSubPanel(QGroupBox):
             self._log_area.setPlainText("# 暂无日志\n# 节点启动后将自动生成")
             return
         try:
-            with open(self._log_file, 'r', encoding='utf-8', errors='replace') as f:
+            with open(self._log_file, encoding="utf-8", errors="replace") as f:
                 content = f.read()
                 if len(content) > 1000:
                     content = "..." + content[-1000:]
@@ -187,9 +199,7 @@ class NodeLogSubPanel(QGroupBox):
                     self._log_area.setPlainText("# 暂无日志\n# 节点启动后将自动生成")
                 else:
                     self._log_area.setPlainText(content)
-                self._log_area.verticalScrollBar().setValue(
-                    self._log_area.verticalScrollBar().maximum()
-                )
+                self._log_area.verticalScrollBar().setValue(self._log_area.verticalScrollBar().maximum())
         except Exception as e:
             self._log_area.setPlainText(f"# 读取失败: {e}")
 
@@ -207,13 +217,14 @@ class NodeLogSubPanel(QGroupBox):
 
     def unsubscribe_monitor(self):
         from ui.core.system.update_scheduler import update_scheduler
+
         update_scheduler.unsubscribe(self)
 
     # ──── 状态更新（Dock版：仅 running/stopped）────
 
     def update_status(self, status):
-        status_text = t("k_status_running") if status == 'running' else t("k_status_stopped")
-        status_color = "#4CAF50" if status == 'running' else "#999"
+        status_text = t("k_status_running") if status == "running" else t("k_status_stopped")
+        status_color = "#4CAF50" if status == "running" else "#999"
         self._title_btn.setText(f"{self.node_name}  [{status_text}]")
         self._title_btn.setStyleSheet(f"""
             QPushButton {{
@@ -232,6 +243,7 @@ class NodeLogSubPanel(QGroupBox):
 #  NodeMonitorDock — Dock版
 #  使用 NodePanelSyncMixin 消除同步逻辑重复
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
 class NodeMonitorDock(DockPanelBase, NodePanelSyncMixin):
     """节点监测面板（Dock版本）"""

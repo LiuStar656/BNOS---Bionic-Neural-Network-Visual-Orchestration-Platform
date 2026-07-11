@@ -3,8 +3,11 @@
 
 从 node_item.py 拆分出来。
 """
+
+from __future__ import annotations
+
 from datetime import datetime
-from ui.core.logger import logger
+
 from ui.canvas.items.node_status_widget import NodeStatusWidget
 
 
@@ -21,10 +24,9 @@ class NodeStatusManager:
 
         parent = self._node.canvas.parent_window
 
-        if hasattr(parent, 'resource_monitor') and parent.resource_monitor:
-            if hasattr(parent.resource_monitor, 'node_state_updated'):
-                parent.resource_monitor.node_state_updated.connect(
-                    self._on_status_updated)
+        if hasattr(parent, "resource_monitor") and parent.resource_monitor:
+            if hasattr(parent.resource_monitor, "node_state_updated"):
+                parent.resource_monitor.node_state_updated.connect(self._on_status_updated)
 
     def _on_status_updated(self, node_name, cpu_percent, mem_mb):
         """状态更新回调（从资源监测面板接收）"""
@@ -44,7 +46,7 @@ class NodeStatusManager:
 
         if self._node.node_name in self._node.canvas.parent_window.nodes_data:
             node_info = self._node.canvas.parent_window.nodes_data[self._node.node_name]
-            if node_info.get('status') in ['running', 'idle']:
+            if node_info.get("status") in ["running", "idle"]:
                 self._node._start_time = datetime.now()
 
     def update_status(self, status):
@@ -70,10 +72,9 @@ class NodeStatusManager:
         if self._node.canvas and self._node.canvas.parent_window:
             parent = self._node.canvas.parent_window
             try:
-                if hasattr(parent, 'resource_monitor') and parent.resource_monitor:
-                    if hasattr(parent.resource_monitor, 'node_state_updated'):
-                        parent.resource_monitor.node_state_updated.disconnect(
-                            self._on_status_updated)
+                if hasattr(parent, "resource_monitor") and parent.resource_monitor:
+                    if hasattr(parent.resource_monitor, "node_state_updated"):
+                        parent.resource_monitor.node_state_updated.disconnect(self._on_status_updated)
             except (TypeError, RuntimeError):
                 pass
 

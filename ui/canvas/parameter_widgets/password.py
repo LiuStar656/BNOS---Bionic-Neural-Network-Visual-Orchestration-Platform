@@ -1,7 +1,11 @@
 """密码输入控件"""
-from PySide6.QtWidgets import QLineEdit, QHBoxLayout
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
-from ._base import ParameterWidget, _make_label, ROW_HEIGHT, CONTROL_HEIGHT, LAYOUT_SPACING, MIN_CONTROL_WIDTH
+from PySide6.QtWidgets import QHBoxLayout, QLineEdit
+
+from ._base import CONTROL_HEIGHT, LAYOUT_SPACING, MIN_CONTROL_WIDTH, ROW_HEIGHT, ParameterWidget, _make_label
 
 
 class PasswordWidget(ParameterWidget):

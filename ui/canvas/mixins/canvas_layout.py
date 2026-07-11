@@ -2,16 +2,21 @@
 画布布局持久化 Mixin — 从 canvas_view.py 提取
 save_layout / load_layout
 """
-import os
+
+from __future__ import annotations
+
 import json
+import os
+
 from PySide6.QtCore import QPointF
-from PySide6.QtGui import QPen, QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QPen
 from PySide6.QtWidgets import QGraphicsScene
-from ui.canvas.items.node_item import NodeItem
+
 from ui.canvas.items.edge_item import EdgeItem
+from ui.canvas.items.node_item import NodeItem
+from ui.core.i18n import t
 from ui.core.logger import logger
 from ui.core.node.connection_inferrer import ConnectionInferrer
-from ui.core.i18n import t
 
 
 class CanvasLayout:
@@ -41,8 +46,8 @@ class CanvasLayout:
                 "width": self.canvas.canvas_width,
                 "height": self.canvas.canvas_height,
             },
-            "toolbar_visible": self.canvas.draw_layer._toolbar_visible if hasattr(self.canvas, 'draw_layer') else False,
-            "drawing_graphics": self.canvas.draw_layer.to_json() if hasattr(self.canvas, 'draw_layer') else [],
+            "toolbar_visible": self.canvas.draw_layer._toolbar_visible if hasattr(self.canvas, "draw_layer") else False,
+            "drawing_graphics": self.canvas.draw_layer.to_json() if hasattr(self.canvas, "draw_layer") else [],
         }
 
         for node_name, node in self.canvas.nodes.items():
@@ -58,7 +63,7 @@ class CanvasLayout:
                     custom_colors["text"] = config["custom_text_color"]
 
             style_key = "detailed"
-            if hasattr(node, '_style') and hasattr(node._style, 'style_key'):
+            if hasattr(node, "_style") and hasattr(node._style, "style_key"):
                 style_key = node._style.style_key
             layout_data["nodes"][node_name] = {
                 "x": pos.x(),
@@ -79,12 +84,12 @@ class CanvasLayout:
             if start_name and end_name:
                 ed = {"source": start_name, "target": end_name}
                 # 持久化端口名（多锚点系统：重启后可恢复正确的锚点绑定）
-                if edge.start_anchor and hasattr(edge.start_anchor, 'port_name') and edge.start_anchor.port_name:
+                if edge.start_anchor and hasattr(edge.start_anchor, "port_name") and edge.start_anchor.port_name:
                     ed["source_port"] = edge.start_anchor.port_name
-                if edge.end_anchor and hasattr(edge.end_anchor, 'port_name') and edge.end_anchor.port_name:
+                if edge.end_anchor and hasattr(edge.end_anchor, "port_name") and edge.end_anchor.port_name:
                     ed["target_port"] = edge.end_anchor.port_name
                 # 保存折叠点
-                wp_data = edge.to_dict() if hasattr(edge, 'to_dict') else {}
+                wp_data = edge.to_dict() if hasattr(edge, "to_dict") else {}
                 if wp_data:
                     ed.update(wp_data)
                 layout_data["edges"].append(ed)
@@ -119,18 +124,22 @@ class CanvasLayout:
             return
 
         # ===== 诊断前置信息 =====
-        parent_ok = hasattr(self.canvas, 'parent_window') and self.canvas.parent_window is not None
+        parent_ok = hasattr(self.canvas, "parent_window") and self.canvas.parent_window is not None
         nodes_data_count = 0
-        if parent_ok and hasattr(self.canvas.parent_window, 'nodes_data'):
+        if parent_ok and hasattr(self.canvas.parent_window, "nodes_data"):
             nodes_data_count = len(self.canvas.parent_window.nodes_data)
-        logger.info("[load_layout] 开始加载布局: project_path=%s, parent_window=%s, nodes_data=%d个节点",
-                    project_path, "OK" if parent_ok else "NONE", nodes_data_count)
+        logger.info(
+            "[load_layout] 开始加载布局: project_path=%s, parent_window=%s, nodes_data=%d个节点",
+            project_path,
+            "OK" if parent_ok else "NONE",
+            nodes_data_count,
+        )
 
         layout_file = os.path.join(project_path, "canvas_layout.json")
         has_layout_file = os.path.isfile(layout_file)
 
         # 【关键】加载期间停止自动保存定时器，避免把重建锚点过程中把错误的绑定状态写回文件
-        if hasattr(self.canvas, '_save_timer') and self.canvas._save_timer:
+        if hasattr(self.canvas, "_save_timer") and self.canvas._save_timer:
             try:
                 self.canvas._save_timer.stop()
             except Exception:
@@ -146,15 +155,19 @@ class CanvasLayout:
 
             if has_layout_file:
                 try:
-                    with open(layout_file, "r", encoding="utf-8") as f:
+                    with open(layout_file, encoding="utf-8") as f:
                         layout_data = json.load(f)
-                    logger.info("[load_layout] 已读取 canvas_layout.json: %d个节点位置, %d条连线",
-                                len(layout_data.get("nodes", {})), len(layout_data.get("edges", [])))
-                except (json.JSONDecodeError, IOError) as e:
+                    logger.info(
+                        "[load_layout] 已读取 canvas_layout.json: %d个节点位置, %d条连线",
+                        len(layout_data.get("nodes", {})),
+                        len(layout_data.get("edges", [])),
+                    )
+                except (OSError, json.JSONDecodeError) as e:
                     logger.warning("[load_layout] canvas_layout.json 读取失败，使用空布局: %s", e)
                     # F13: 备份损坏的布局文件
                     try:
                         import shutil
+
                         backup_path = layout_file + ".bak"
                         shutil.copy2(layout_file, backup_path)
                         logger.info("[load_layout] 已备份损坏的布局文件: %s", backup_path)
@@ -175,9 +188,11 @@ class CanvasLayout:
                         for name, node in self.canvas.nodes.items()
                     }
                     old_scene = self.canvas.scene
-                    self.canvas.scene = QGraphicsScene(-hw, -hh, self.canvas.canvas_width, self.canvas.canvas_height, self.canvas)
+                    self.canvas.scene = QGraphicsScene(
+                        -hw, -hh, self.canvas.canvas_width, self.canvas.canvas_height, self.canvas
+                    )
                     self.canvas.setScene(self.canvas.scene)
-                    for name, d in saved_nodes.items():
+                    for _name, d in saved_nodes.items():
                         old_scene.removeItem(d["item"])
                         self.canvas.scene.addItem(d["item"])
                         d["item"].setPos(d["pos"])
@@ -209,6 +224,7 @@ class CanvasLayout:
                     node.setRect(0, 0, w, h)
                     sk = pos_data.get("style", "detailed")
                     from ui.canvas.items.styles import StyleRegistry
+
                     st_cls = StyleRegistry.get(sk)
                     if type(node._style).__name__ != st_cls.__name__:
                         node._style = st_cls()
@@ -232,7 +248,11 @@ class CanvasLayout:
                                         config[cfg_key] = cc[key]
                                 except Exception:
                                     pass
-                elif self.canvas.parent_window and hasattr(self.canvas.parent_window, 'nodes_data') and node_name in self.canvas.parent_window.nodes_data:
+                elif (
+                    self.canvas.parent_window
+                    and hasattr(self.canvas.parent_window, "nodes_data")
+                    and node_name in self.canvas.parent_window.nodes_data
+                ):
                     missing_nodes.append((node_name, pos_data))
 
             # =================================================================
@@ -248,6 +268,7 @@ class CanvasLayout:
                 w, h = pos_data.get("width", 140), pos_data.get("height", 80)
                 sk = pos_data.get("style", "detailed")
                 from ui.canvas.items.styles import StyleRegistry
+
                 st_cls = StyleRegistry.get(sk)
                 node_style = st_cls()
                 node_style.node_width = w
@@ -282,8 +303,11 @@ class CanvasLayout:
                 created_from_layout += 1
                 logger.info("[load_layout] 从布局恢复: %s (位置: %d, %d)", node_name, x, y)
 
-            logger.info("[load_layout] 节点创建完成: 从布局恢复=%d, 画布现有=%d个节点",
-                        created_from_layout, len(self.canvas.nodes))
+            logger.info(
+                "[load_layout] 节点创建完成: 从布局恢复=%d, 画布现有=%d个节点",
+                created_from_layout,
+                len(self.canvas.nodes),
+            )
 
             # ---- 连线 ----
             # 建立 node_ref → name 的映射，避免每条 edge 内层遍历所有节点
@@ -294,15 +318,19 @@ class CanvasLayout:
                 sn = node_by_ref.get(e.start_node)
                 tn = node_by_ref.get(e.end_node)
                 tp = None
-                if hasattr(e, 'end_anchor') and e.end_anchor and hasattr(e.end_anchor, 'port_name'):
+                if hasattr(e, "end_anchor") and e.end_anchor and hasattr(e.end_anchor, "port_name"):
                     tp = e.end_anchor.port_name
-                    if tp == "default": tp = None
-                if sn and tn: existing.add((sn, tn, tp))
+                    if tp == "default":
+                        tp = None
+                if sn and tn:
+                    existing.add((sn, tn, tp))
             for ed in layout_data.get("edges", []):
                 sn, tn = ed.get("source"), ed.get("target")
                 tp = ed.get("target_port")
-                if tp == "default": tp = None
-                if (sn, tn, tp) in existing: continue
+                if tp == "default":
+                    tp = None
+                if (sn, tn, tp) in existing:
+                    continue
                 if sn in self.canvas.nodes and tn in self.canvas.nodes:
                     source_node = self.canvas.nodes[sn]
                     target_node = self.canvas.nodes[tn]
@@ -313,9 +341,9 @@ class CanvasLayout:
                     tgt_port = ed.get("target_port")
                     src_anchor = None
                     tgt_anchor = None
-                    if src_port and hasattr(source_node, 'anchor_manager'):
+                    if src_port and hasattr(source_node, "anchor_manager"):
                         src_anchor = source_node.anchor_manager.get_output(src_port)
-                    if tgt_port and hasattr(target_node, 'anchor_manager'):
+                    if tgt_port and hasattr(target_node, "anchor_manager"):
                         tgt_anchor = target_node.anchor_manager.get_input(tgt_port)
 
                     # 关键保护：如果明确指定了非 default 的端口但找不到锚点，
@@ -324,22 +352,34 @@ class CanvasLayout:
                         logger.warning(
                             "[load_layout] 跳过连线: 目标节点 '%s' 上找不到端口 '%s' 的锚点 "
                             "(可能节点 config 中 input_ports 缺少 source='node'): %s -> %s",
-                            tn, tgt_port, sn, tn
+                            tn,
+                            tgt_port,
+                            sn,
+                            tn,
                         )
                         continue
                     if src_port and src_port != "default" and src_anchor is None:
                         logger.warning(
                             "[load_layout] 跳过连线: 源节点 '%s' 上找不到端口 '%s' 的锚点: %s -> %s",
-                            sn, src_port, sn, tn
+                            sn,
+                            src_port,
+                            sn,
+                            tn,
                         )
                         continue
 
-                    edge = EdgeItem(source_node, target_node, self.canvas,
-                                    target_anchor=tgt_anchor, source_anchor=src_anchor,
-                                    target_port_name=tgt_port, source_port_name=src_port)
+                    edge = EdgeItem(
+                        source_node,
+                        target_node,
+                        self.canvas,
+                        target_anchor=tgt_anchor,
+                        source_anchor=src_anchor,
+                        target_port_name=tgt_port,
+                        source_port_name=src_port,
+                    )
 
                     # 恢复折叠点（使用延迟同步模式，不立即调用 _sync_abs_to_rel）
-                    if hasattr(edge, 'from_dict'):
+                    if hasattr(edge, "from_dict"):
                         # 使用 defer_sync=True 延迟同步，确保锚点坐标就绪后再转换
                         edge.from_dict(ed, defer_sync=True)
                     self.canvas.scene.addItem(edge)
@@ -356,10 +396,7 @@ class CanvasLayout:
                     inferrer = ConnectionInferrer(project_path, self.canvas.parent_window.nodes_data)
                     config_edges = inferrer.infer_all_edges()
                     # 去重键 = (source, target, target_port)
-                    config_set = {
-                        (e["source"], e["target"], e.get("target_port"))
-                        for e in config_edges
-                    }
+                    config_set = {(e["source"], e["target"], e.get("target_port")) for e in config_edges}
 
                     # 重建画布当前连线集合（含端口信息）
                     canvas_set = set()
@@ -370,16 +407,17 @@ class CanvasLayout:
                         sn = node_by_ref.get(e.start_node)
                         tn = node_by_ref.get(e.end_node)
                         tp = None
-                        if hasattr(e, 'end_anchor') and e.end_anchor and hasattr(e.end_anchor, 'port_name'):
+                        if hasattr(e, "end_anchor") and e.end_anchor and hasattr(e.end_anchor, "port_name"):
                             tp = e.end_anchor.port_name
-                            if tp == "default": tp = None
+                            if tp == "default":
+                                tp = None
                         if sn and tn:
                             canvas_set.add((sn, tn, tp))
                             canvas_pair_set.add((sn, tn))
 
                     # config 有但画布没有 → 自动补充
                     added = 0
-                    for src, tgt, port in (config_set - canvas_set):
+                    for src, tgt, port in config_set - canvas_set:
                         # 跨端口去重：如果同 (source, target) 已有任意端口的连线，跳过默认端口补线
                         if port is None and (src, tgt) in canvas_pair_set:
                             continue
@@ -390,20 +428,25 @@ class CanvasLayout:
                                 if e.start_node != self.canvas.nodes[src] or e.end_node != self.canvas.nodes[tgt]:
                                     continue
                                 ep = None
-                                if hasattr(e, 'end_anchor') and e.end_anchor and hasattr(e.end_anchor, 'port_name'):
+                                if hasattr(e, "end_anchor") and e.end_anchor and hasattr(e.end_anchor, "port_name"):
                                     ep = e.end_anchor.port_name
-                                    if ep == "default": ep = None
+                                    if ep == "default":
+                                        ep = None
                                 if ep == port:
                                     already = True
                                     break
                             if not already:
                                 # 查找端口锚点
                                 tgt_anchor = None
-                                if port and hasattr(self.canvas.nodes[tgt], 'anchor_manager'):
+                                if port and hasattr(self.canvas.nodes[tgt], "anchor_manager"):
                                     tgt_anchor = self.canvas.nodes[tgt].anchor_manager.get_input(port)
-                                edge = EdgeItem(self.canvas.nodes[src], self.canvas.nodes[tgt], self.canvas,
-                                                target_anchor=tgt_anchor,
-                                                target_port_name=port)
+                                edge = EdgeItem(
+                                    self.canvas.nodes[src],
+                                    self.canvas.nodes[tgt],
+                                    self.canvas,
+                                    target_anchor=tgt_anchor,
+                                    target_port_name=port,
+                                )
                                 self.canvas.scene.addItem(edge)
                                 self.canvas.edges.append(edge)
                                 edge.update_path()
@@ -416,27 +459,18 @@ class CanvasLayout:
                     # 画布有但 config 没有 → 警告（不自动删除，避免误删手动连线）
                     stale = canvas_set - config_set
                     if stale:
-                        stale_list = ", ".join(
-                            f"{s}→{t}" + (f"({p})" if p else "")
-                            for s, t, p in stale
-                        )
-                        logger.warning(
-                            "[Config兜底] 画布存在但config中无对应连线: %s",
-                            stale_list
-                        )
+                        stale_list = ", ".join(f"{s}→{t}" + (f"({p})" if p else "") for s, t, p in stale)
+                        logger.warning("[Config兜底] 画布存在但config中无对应连线: %s", stale_list)
 
                     if added > 0 or stale:
-                        logger.info(
-                            "[Config兜底] 校验完成: 补充%d条, 可疑%d条",
-                            added, len(stale)
-                        )
+                        logger.info("[Config兜底] 校验完成: 补充%d条, 可疑%d条", added, len(stale))
                 except Exception as e:
                     logger.warning("[Config兜底] 校验失败: %s", e)
 
             logger.info("加载完成: %d个节点, %d条连线", len(self.canvas.nodes), len(self.canvas.edges))
 
             # ---- 恢复绘图标注图形 ----
-            if hasattr(self.canvas, 'draw_layer') and self.canvas.draw_layer:
+            if hasattr(self.canvas, "draw_layer") and self.canvas.draw_layer:
                 drawing_data = layout_data.get("drawing_graphics", [])
                 if drawing_data:
                     try:
@@ -466,7 +500,7 @@ class CanvasLayout:
 
             logger.info(t("k_log_view_restored"))
 
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.info("布局文件损坏: %s", e)
         finally:
             # 无论成功或失败，必须恢复 view 更新；否则 widget 可能永远不刷新
@@ -491,11 +525,11 @@ class CanvasLayout:
                 logger.warning("[load_layout] ⚠️  画布上没有任何节点！")
 
             # ✅ 强制 scene 刷新：确保新添加的节点/连线立即显示
-            if hasattr(self.canvas, 'scene') and self.canvas.scene is not None:
+            if hasattr(self.canvas, "scene") and self.canvas.scene is not None:
                 self.canvas.scene.update(self.canvas.scene.sceneRect())
                 logger.info("[load_layout] scene已刷新, sceneRect=%s", str(self.canvas.scene.sceneRect()))
             # 强制 viewport 重绘
-            if hasattr(self.canvas, 'viewport') and callable(self.canvas.viewport):
+            if hasattr(self.canvas, "viewport") and callable(self.canvas.viewport):
                 self.canvas.viewport().update()
                 logger.info("[load_layout] viewport已刷新")
 
@@ -512,10 +546,9 @@ class CanvasLayout:
 
         for edge in self.canvas.edges:
             # —— 输入端绑定检查 ——
-            if (edge.end_anchor is None
-                    or (hasattr(edge.end_anchor, "scene") and edge.end_anchor.scene() is None)):
+            if edge.end_anchor is None or (hasattr(edge.end_anchor, "scene") and edge.end_anchor.scene() is None):
                 # 优先使用期望的端口名，其次使用当前锚点的 port_name
-                desired_port = getattr(edge, '_desired_target_port_name', None)
+                desired_port = getattr(edge, "_desired_target_port_name", None)
                 if desired_port and desired_port != "default":
                     saved_port = desired_port
                 elif edge.end_anchor is not None and hasattr(edge.end_anchor, "port_name"):
@@ -528,19 +561,20 @@ class CanvasLayout:
                     new_anchor = edge.end_node.anchor_manager.get_input(saved_port)
 
                 # 只有在未指定特定端口名时才允许 fallback 到 default
-                if (new_anchor is None
-                        and (not desired_port or desired_port == "default")
-                        and hasattr(edge.end_node, "input_anchor")):
+                if (
+                    new_anchor is None
+                    and (not desired_port or desired_port == "default")
+                    and hasattr(edge.end_node, "input_anchor")
+                ):
                     new_anchor = edge.end_node.input_anchor
 
                 if new_anchor is not None:
                     edge.end_anchor = new_anchor
 
             # —— 输出端绑定检查 ——
-            if (edge.start_anchor is None
-                    or (hasattr(edge.start_anchor, "scene") and edge.start_anchor.scene() is None)):
+            if edge.start_anchor is None or (hasattr(edge.start_anchor, "scene") and edge.start_anchor.scene() is None):
                 # 优先使用期望的端口名
-                desired_port = getattr(edge, '_desired_source_port_name', None)
+                desired_port = getattr(edge, "_desired_source_port_name", None)
                 if desired_port and desired_port != "default":
                     saved_port = desired_port
                 elif edge.start_anchor is not None and hasattr(edge.start_anchor, "port_name"):
@@ -553,9 +587,11 @@ class CanvasLayout:
                     new_anchor = edge.start_node.anchor_manager.get_output(saved_port)
 
                 # 只有在未指定特定端口名时才允许 fallback
-                if (new_anchor is None
-                        and (not desired_port or desired_port == "default")
-                        and hasattr(edge.start_node, "output_anchor")):
+                if (
+                    new_anchor is None
+                    and (not desired_port or desired_port == "default")
+                    and hasattr(edge.start_node, "output_anchor")
+                ):
                     new_anchor = edge.start_node.output_anchor
 
                 if new_anchor is not None:
@@ -580,4 +616,3 @@ class CanvasLayout:
 
         if fixed_count > 0:
             logger.info("[绑定校验] 修复了 %d 条连线的锚点绑定", fixed_count)
-
