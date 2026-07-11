@@ -10,6 +10,7 @@ Click on dates below to view detailed updates for that date:
 
 ### [2026-07-12](./2026-07-12/)
 - **Code Standardization Overhaul**: 227-file toolchain setup (Ruff + Pre-commit + EditorConfig + Pylance); eliminated 8 real runtime bugs; unified 4 Logger styles; migrated `print()` to `logger.info()`; added `from __future__ import annotations` to 219 files; eliminated `# type: ignore` 8→0; `os.path` → `pathlib.Path` 691→156 (-77%); dead code removal; all-green ruff/pytest/Pylance verification
+- **Node Resource Limiting**: Cross-platform CPU/memory hard limits (Linux cgroups v2 / Windows Job Objects / macOS nice), new optional `resource_limit` field in config.json, 22 new tests, docs updated with 7 usage scenarios
 - **_port_routing Port Routing Mechanism**: Routing info migrated from internal node config.json to `_port_routing` field in node_clusters.json, decoupling port routing from node configuration; resolves the core issue of `listen_upper_file` causing input ports to disappear; node `main.py` requires zero changes
 - **Composite Node Connection & Collapse Fixes**: Expand/collapse edge update and jitter fixes (added `update_path()` calls, `_batch_updating` flag, skip double `setPos` on dragged nodes); config write diagnostics enhancement; `_port_routing` residue cleanup
 - **Single-Entry DAG Validation**: New `_validate_dag_single_entry` method, rejects multi-entry DAGs on compress and collapse; supports A→B→C or A→B concurrently A→C; disallows multi-entry DAGs

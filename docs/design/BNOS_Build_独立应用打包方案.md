@@ -1,4 +1,4 @@
-# BNOS Build — 独立应用打包方案
+# BNOS Build — 独立运行时源码打包方案
 
 ## 一、背景与目标
 
@@ -8,9 +8,11 @@ BNOS 是优秀的可视化节点编排开发工具（Studio），但开发完成
 
 ### 目标
 
-实现 `bnos build` 命令，将 BNOS 画布上的工作流打包为**独立可部署应用**，砍掉所有 GUI 运行时依赖，只保留执行引擎。
+实现 `bnos build` 命令，将 BNOS 画布上的工作流连同必要的运行时源码打包为一个**独立可部署的源码目录**，砍掉所有 GUI 代码和依赖，只保留执行引擎。
 
-类比：**Unity Editor → Standalone Build**，或 **LabVIEW 开发环境 → 独立可执行文件**。
+**打包产物是源码（.py 文件），不是编译后的二进制**。用户拿到的是去掉 GUI 的纯净项目目录，通过 `python -m bnos_runtime.engine pipeline.json` 即可在任何有 Python 3.12 的机器上运行。
+
+类比：**Unity Editor → Export Project**（导出工程文件，而非 Standalone Build），或 **Node-RED 的运行时模式**。
 
 ---
 
@@ -29,7 +31,7 @@ BNOS 完整安装约 300MB+，按运行时必要性分层：
 | **业务逻辑** | 用户编写的 main.py + 第三方依赖 | ✅ | 用户决定 |
 | **基础运行时** | psutil、logger、config 解析、thread_pool | ✅ | ~3MB |
 
-**砍掉 GUI 后，运行时从 300MB → <10MB。**
+**砍掉 GUI 后，运行时核心模块仅 ~200KB（纯 Python 源文件），部署时无需安装 PySide6 及其 Qt 依赖。**
 
 ### 原则
 
@@ -354,10 +356,11 @@ services:
 
 | 检查项 | 标准 |
 |--------|------|
-| 构建产物大小 | < 15MB（不含 venv，不含 Docker） |
-| 运行时依赖 | 不含 PySide6 / Qt 任何组件 |
+| 产物形态 | 纯 Python 源码目录，无 .exe / .dll / 二进制文件 |
+| 构建产物大小 | < 200KB（bnos_runtime 模块，不含 venv 和用户节点） |
+| 运行时依赖 | 不含 PySide6 / Qt 任何组件，仅需 Python 3.12 + psutil |
 | 节点代码兼容性 | 现有所有节点 main.py 零改动可运行 |
-| 管线执行 | 3 节点线性管线 100% 成功率 |
+| 管线执行 | 3 节点线性管线，`python -m bnos_runtime.engine pipeline.json` 一次性成功 |
 | 并行执行 | 同层节点正确并发 |
 | 错误处理 | 任一节点失败立即终止，退出码非零 |
 | Docker 构建 | `docker build && docker compose up` 一次性通过 |

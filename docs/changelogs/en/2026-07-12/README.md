@@ -12,6 +12,7 @@
 - [04 Validation i18n](#04-validation-i18n)
 - [05 Composite Node UI Interaction & Edge System Round 2 Fixes](#05-composite-node-ui-interaction--edge-system-round-2-fixes)
 - [06 Code Standardization Overhaul](#06-code-standardization-overhaul)
+- [07 Node Resource Limiting](#07-node-resource-limiting)
 
 ---
 
@@ -221,3 +222,16 @@ pre-commit    → Installed
 ---
 
 **Last Updated**: 2026-07-12
+
+---
+
+## 07 Node Resource Limiting
+
+See full details in [07_Node_Resource_Limiting.md](./07_Node_Resource_Limiting.md).
+
+### Summary
+
+- **Cross-platform resource limiting**: Linux cgroups v2 (CPU + memory hard limits), Windows Job Objects (CPU + memory hard limits), macOS (nice priority)
+- **config.json fields**: `priority` / `cpu_affinity` / `cpu_percent` / `memory_mb` — all optional
+- **22 new tests**: Factory function, priority mapping, context manager, graceful degradation, macOS fallback, config edge cases
+- **Docs updated**: `config_json_开发规范` new Chapter 8 with 7 usage scenario recommendations

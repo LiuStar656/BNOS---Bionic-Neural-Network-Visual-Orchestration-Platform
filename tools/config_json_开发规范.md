@@ -507,3 +507,121 @@ WidgetRegistry 支持 11 种控件类型，每种有各自的专属字段：
 - [ ] `type=int/float/range` 时 `min` / `max` 范围合理
 - [ ] `default` 的类型与 `type` 匹配
 - [ ] JSON 语法正确（无尾逗号、无注释、引号闭合）
+- [ ] `resource_limit` 配置合理（如需限制资源占用）
+
+---
+
+## 八、resource_limit — 节点资源限制
+
+`resource_limit` 是 config.json 的**可选**顶层字段，用于限制节点进程的 CPU 和内存占用。
+底层实现根据操作系统自动选择：
+- **Linux**：cgroups v2（CPU 硬限制 + 内存硬限制）
+- **Windows**：Job Objects（CPU 硬限制 + 内存硬限制）
+- **macOS**：仅进程优先级（系统 API 不支持硬限制）
+
+### 字段说明
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|:---:|--------|------|
+| `priority` | `string` | 否 | `"normal"` | 进程优先级 |
+| `cpu_affinity` | `list[int]` | 否 | 全部核心 | CPU 核心绑定（macOS 忽略） |
+| `cpu_percent` | `int` | 否 | 无限制 | CPU 使用率上限，100 = 1 核（macOS 忽略） |
+| `memory_mb` | `int` | 否 | 无限制 | 内存硬上限，单位 MB（macOS 忽略） |
+
+### priority 可选值
+
+| 值 | Linux nice | Windows Priority Class | 说明 |
+|----|------------|----------------------|------|
+| `"low"` | 19 | IDLE_PRIORITY_CLASS | 最低优先级，后台任务 |
+| `"below_normal"` | 10 | BELOW_NORMAL_PRIORITY_CLASS | 低于正常 |
+| `"normal"` | 0 | NORMAL_PRIORITY_CLASS | 默认值 |
+| `"above_normal"` | -5 | ABOVE_NORMAL_PRIORITY_CLASS | 高于正常 |
+| `"high"` | -10 | HIGH_PRIORITY_CLASS | 高优先级，谨慎使用 |
+
+### cpu_affinity
+
+绑定进程到指定 CPU 核心。核心编号从 0 开始。
+
+```jsonc
+"cpu_affinity": [0, 1]   // 仅使用核心 0 和 1
+```
+
+> **macOS 不支持** `cpu_affinity`，配置后静默忽略。
+
+### cpu_percent
+
+`100` = 1 个完整核心。例如 `8` 核机器上配置 `200` 表示最多用 2 核。
+
+```jsonc
+"cpu_percent": 200       // 最多 2 核
+"cpu_percent": 50        // 最多半核
+```
+
+> **macOS 不支持** `cpu_percent`，配置后静默忽略。
+
+### memory_mb
+
+内存硬上限。进程尝试分配超过限制的内存时，`malloc` / `mmap` 将失败（返回 NULL），可能导致进程崩溃或被 OOM 终止。
+
+```jsonc
+"memory_mb": 4096        // 最多 4GB
+"memory_mb": 512         // 最多 512MB
+```
+
+> **macOS 不支持** `memory_mb`，配置后静默忽略。
+
+### 完整示例
+
+```jsonc
+{
+  "node_name": "stable_diffusion",
+  "listen_upper_file": "",
+  "output_file": "./output.json",
+
+  "parameters": [
+    { "name": "prompt", "type": "text", "label": "提示词", "default": "", "rows": 3 },
+    { "name": "steps",   "type": "int",  "label": "推理步数", "default": 30, "min": 1, "max": 150 }
+  ],
+
+  "resource_limit": {
+    "memory_mb": 4096,
+    "cpu_percent": 200,
+    "cpu_affinity": [0, 1],
+    "priority": "below_normal"
+  }
+}
+```
+
+### 不同场景的推荐配置
+
+| 场景 | priority | cpu_percent | memory_mb |
+|------|----------|-------------|-----------|
+| **轻量数据处理**（JSON 转换、文本清洗） | `"low"` | — | 256 |
+| **API 调用代理**（HTTP 请求、消息队列） | `"normal"` | — | 512 |
+| **LLM 推理节点**（Ollama、vLLM） | `"normal"` | — | 4096 |
+| **图像/视频处理**（SD、FFmpeg） | `"below_normal"` | 200 | 4096 |
+| **科学计算/训练** | `"below_normal"` | — | 8192 |
+| **实时信号处理** | `"high"` | — | — |
+| **文件监控/日志收集** | `"low"` | — | 128 |
+
+### 运行时效果
+
+当 `config.json` 包含 `resource_limit` 字段时，BNOS 节点启动流程自动调用：
+
+```python
+from ui.core.system.resource_limit import create_resource_limit
+
+limit = create_resource_limit(process.pid, config["resource_limit"])
+applied = limit.apply()
+# applied 示例: ["priority=below_normal", "memory_mb=4096", "cpu_percent=200"]
+```
+
+如果当前平台不支持某项限制（如 macOS），该配置静默忽略，不影响节点正常启动。
+
+### 注意事项
+
+1. **内存限制过小会导致进程崩溃**——确保 `memory_mb` 至少大于节点的峰值内存占用
+2. **CPU 限制仅在进程在用户态运行时生效**——内核态操作（I/O 等待）不计入 CPU 配额
+3. **Windows 上需要管理员权限**才能对已有进程设置 Job Object 限制；无权限时限制静默失败
+4. **Linux 上需要 root 或 cgroup 委派权限**才能写 `/sys/fs/cgroup/`；无权限时限制静默失败
+5. **子进程会继承限制**——节点启动的 `main.py` 子进程自动纳入同一限制范围
