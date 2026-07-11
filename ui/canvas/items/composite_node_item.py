@@ -12,12 +12,13 @@ from PySide6.QtWidgets import (
     QGraphicsItem,
     QGraphicsRectItem,
     QMenu,
-    QMessageBox,
     QStyleOptionGraphicsItem,
     QWidget,
 )
 
 from ui.canvas.items.anchor_item import AnchorItem
+from ui.core.i18n import t
+from ui.core.utils.dialog_utils import themed_message
 
 ANCHOR_RADIUS = 5
 ANCHOR_SPACING = 22
@@ -323,20 +324,19 @@ class CompositeNodeItem(QGraphicsRectItem):
         return None
 
     def _decompress(self):
-        reply = QMessageBox.question(
+        ok = themed_message(
             None,
-            "Decompress",
-            f"Restore to {self.node_count} independent nodes?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
+            t("k_composite_decompress_confirm_title"),
+            t("k_composite_decompress_confirm_text").format(n=self.node_count),
+            "question",
         )
-        if reply != QMessageBox.StandardButton.Yes:
+        if not ok:
             return
         mgr = self._get_manager()
         if mgr:
             ok, msg = mgr.decompress(self.comp_id)
             if not ok:
-                QMessageBox.warning(None, "Decompress Failed", msg)
+                themed_message(None, t("k_title_error"), msg, "error")
 
     def _set_runtime(self, mode):
         mgr = self._get_manager()
@@ -354,7 +354,7 @@ class CompositeNodeItem(QGraphicsRectItem):
         else:
             ok, msg = mgr.start_process_mode(self.comp_id)
         if not ok:
-            QMessageBox.warning(None, "Start Failed", msg)
+            themed_message(None, t("k_title_error"), msg, "error")
 
     def _stop(self):
         mgr = self._get_manager()

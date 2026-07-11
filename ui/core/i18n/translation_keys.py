@@ -782,6 +782,27 @@ class TranslationKeys:
     _COMPOSITE_MULTI_ENTRY = "_k_composite_multi_entry"
     COMPOSITE_COLLAPSE_BLOCKED_TITLE = "k_composite_collapse_blocked_title"
 
+    # Resource Limit
+    RESOURCE_LIMITS = "k_resource_limits"
+    RL_PRIORITY = "k_rl_priority"
+    RL_PRIORITY_LOW = "k_rl_priority_low"
+    RL_PRIORITY_BELOW_NORMAL = "k_rl_priority_below_normal"
+    RL_PRIORITY_NORMAL = "k_rl_priority_normal"
+    RL_PRIORITY_ABOVE_NORMAL = "k_rl_priority_above_normal"
+    RL_PRIORITY_HIGH = "k_rl_priority_high"
+    RL_CPU_LIMIT = "k_rl_cpu_limit"
+    RL_MEMORY_LIMIT = "k_rl_memory_limit"
+    RL_CPU_CORES = "k_rl_cpu_cores"
+    RL_ALL_CORES = "k_rl_all_cores"
+    RL_UNLIMITED = "k_rl_unlimited"
+    RL_APPLY = "k_rl_apply"
+    RL_APPLIED = "k_rl_applied"
+    RL_CLEARED = "k_rl_cleared"
+    RL_SAVE_FAILED = "k_rl_save_failed"
+    RL_CPU_TOOLTIP = "k_rl_cpu_tooltip"
+    RL_MEMORY_TOOLTIP = "k_rl_memory_tooltip"
+    RL_AFFINITY_TOOLTIP = "k_rl_affinity_tooltip"
+
     # ═══════════════════════════════════════════════════════════════
     # 类方法 / 验证
     # ═══════════════════════════════════════════════════════════════

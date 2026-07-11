@@ -136,6 +136,9 @@ class ResourceLimit(ABC):
     def __enter__(self) -> ResourceLimit:
         return self
 
+    def __exit__(self, *args: object) -> None:
+        return None  # no cleanup needed by default
+
 
 # ── Linux: cgroups v2 ─────────────────────────────────────────
 

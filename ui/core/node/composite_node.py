@@ -32,6 +32,7 @@ from ui.core.node.composite_env import (
 )
 from ui.core.node.composite_orchestrator import render_orchestrator_script
 from ui.core.node.language_detector import LanguageDetector
+from ui.core.utils.dialog_utils import themed_message
 
 # ── 与 NodeGroupManager 的绑定规则 ──
 # 复合节点组命名: __composite__{comp_id}
@@ -281,10 +282,14 @@ class CompositeNode:
         }
 
     def _validate_dag_single_entry(self, node_names: list, edges_list: list, nodes_data: dict) -> tuple[bool, str]:
-        """Validate DAG has exactly one entry node (in_degree==0, empty listen_upper_file).
+        """Validate DAG has exactly one entry node (in_degree==0).
 
         防错机制：复合节点必须为单入口 DAG（A→B→C 或 A→B 同时 A→C）。
         多入口 DAG（如 A→C 且 B→C）不允许创建或折叠。
+
+        仅检查 DAG 入度结构，不检查 listen_upper_file。
+        listen_upper_file 在展开态由 _port_routing 注入，不代表 DAG 结构，
+        且折叠时 _sync_configs_for_collapse 会将其清除。
 
         Returns:
             (is_valid, error_message)
@@ -294,13 +299,7 @@ class CompositeNode:
             if e.get("from") in node_names and e.get("to") in node_names:
                 in_degree[e["to"]] += 1
 
-        candidates = []
-        for n in node_names:
-            if in_degree[n] == 0:
-                nd = nodes_data.get(n, {})
-                config = nd.get("config", {})
-                if not config.get("listen_upper_file", ""):
-                    candidates.append(n)
+        candidates = [n for n in node_names if in_degree[n] == 0]
 
         if len(candidates) == 0:
             return False, t(TK._COMPOSITE_NO_ENTRY)
@@ -457,9 +456,7 @@ class CompositeNode:
         nodes_data = self._canvas.parent_window.nodes_data if self._canvas.parent_window else {}
         is_valid, err_msg = self._validate_dag_single_entry(node_names, edges_list, nodes_data)
         if not is_valid:
-            from PySide6.QtWidgets import QMessageBox
-
-            QMessageBox.warning(None, t(TK.COMPOSITE_COLLAPSE_BLOCKED_TITLE), err_msg)
+            themed_message(None, t(TK.COMPOSITE_COLLAPSE_BLOCKED_TITLE), err_msg, "warning")
             logger.warning("collapse blocked for %s: %s", comp_id, err_msg)
             return
 
@@ -538,6 +535,21 @@ class CompositeNode:
                 saved_edges.append({"edge": edge, "direction": "input", "port_name": port_name})
 
         nodes_data = self._canvas.parent_window.nodes_data if self._canvas.parent_window else {}
+
+        # ── 刷新 nodes_data：_sync_configs_for_collapse 已清除 config.json，
+        #     但 nodes_data 内存缓存仍保留旧的 listen_upper_file。
+        #     不刷新会导致 _identify_ports 跳过入口节点 → 0 端口 → 连线被移除。 ──
+        for n in node_names:
+            nd = nodes_data.get(n, {})
+            cfg = nd.get("config", {})
+            if cfg:
+                listen = cfg.get("listen_upper_file", "")
+                if listen:
+                    # 检查 listen 是否指向外部节点（非本 composite 内部）
+                    upstream = self._extract_node_from_path(listen)
+                    if upstream and upstream not in node_names:
+                        cfg["listen_upper_file"] = ""
+
         new_ports = self._identify_ports(node_names, edges_list, nodes_data)
 
         comp = self._composites.get(comp_id)
@@ -742,6 +754,9 @@ class CompositeNode:
                             target_anchor=internal_item.input_anchor,
                             source_anchor=getattr(edge, "_source_anchor", None),
                         )
+                        # Preserve waypoints from original edge
+                        if hasattr(edge, "_waypoints") and edge._waypoints:
+                            temp._waypoints = list(edge._waypoints)
                         self._canvas.scene.addItem(temp)
                         self._canvas.edges.append(temp)
                         temp.update_path()
@@ -764,6 +779,9 @@ class CompositeNode:
                             target_anchor=getattr(edge, "_target_anchor", None),
                             source_anchor=internal_item.output_anchor,
                         )
+                        # Preserve waypoints from original edge
+                        if hasattr(edge, "_waypoints") and edge._waypoints:
+                            temp._waypoints = list(edge._waypoints)
                         self._canvas.scene.addItem(temp)
                         self._canvas.edges.append(temp)
                         temp.update_path()
@@ -1188,9 +1206,7 @@ class CompositeNode:
         msg = worker._merge_msg
 
         if not ok:
-            from PySide6.QtWidgets import QMessageBox
-
-            QMessageBox.warning(None, "Composite Env Failed", f"Failed to set up composite environment:\n{msg}")
+            themed_message(None, t("k_title_error"), f"Failed to set up composite environment:\n{msg}", "error")
             return
 
         # Phase 3: Canvas operations (must run on main thread — Qt rule)

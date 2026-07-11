@@ -19,7 +19,6 @@
   "k_project_no_nodes_dir": "Nodes directory not found",
   "k_project_no_project": "Please open or create a project first",
   "k_project_nodes_not_exist": "nodes/ directory does not exist",
-
   "k_node_create": "New Node",
   "k_node_creating": "Creating Node",
   "k_node_init": "Initializing...",
@@ -57,7 +56,6 @@
   "k_node_input_new_name": "Enter new node name:",
   "k_node_input_new_group_name": "Enter group name:",
   "k_node_no_ungrouped": "No ungrouped nodes",
-
   "k_group_create": "Create Group",
   "k_group_create_group": "Create Node Group",
   "k_group_create_new": "Create New Group",
@@ -76,11 +74,9 @@
   "k_group_lock_no_rename": "Mounted groups cannot be renamed",
   "k_group_lock_no_delete": "Mounted groups cannot be deleted; unmount the external node first",
   "k_group_ext_no_delete": "Use 'Unmount' for external nodes; deletion is prohibited",
-
   "k_select_all": "Select All",
   "k_select_clear": "Clear Selection",
   "k_select_cancel": "Cancel Selection",
-
   "k_canvas_start_connection": "Start Connection",
   "k_canvas_clear_connections": "Clear All Connections",
   "k_canvas_clear_connections_desc": "Remove all node connections",
@@ -101,14 +97,12 @@
   "k_canvas_edge_exists": "Connection already exists",
   "k_canvas_monitor": "Node Monitor",
   "k_canvas_add_to": "Add to Canvas",
-
   "k_config_edit": "Edit Config",
   "k_config_refresh": "Refresh Config",
   "k_config_save": "Save Config",
   "k_config_saved": "Config saved",
   "k_config_save_success": "✅ config.json saved",
   "k_config_save_unformatted": "✅ Saved (unformatted)",
-
   "k_log_viewer": "Node Log",
   "k_log_file_label": "Log file:",
   "k_log_refresh": "Refresh Log",
@@ -118,7 +112,6 @@
   "k_log_no_file": "⚠️ config.json file does not exist",
   "k_log_refresh_success": "✅ Log file list refreshed",
   "k_log_no_clear": "No log files to clear",
-
   "k_node_info": "Node Info",
   "k_node_control": "Node Control",
   "k_quick_actions": "Quick Actions",
@@ -132,7 +125,6 @@
   "k_node_style_circular": "Node",
   "k_view_log": "View Log",
   "k_edit_config": "Edit Config",
-
   "k_properties": "Properties",
   "k_no_selection": "No element selected",
   "k_custom_appearance": "Custom Appearance",
@@ -145,7 +137,6 @@
   "k_upstream_node": "Upstream Node:",
   "k_downstream_node": "Downstream Node:",
   "k_upstream_path": "Upstream Output Path:",
-
   "k_field_node_name": "Node Name:",
   "k_field_listen_file": "Listen File:",
   "k_field_output_file": "Output File:",
@@ -169,7 +160,6 @@
   "k_field_toast_opacity": "Toast Opacity:",
   "k_field_dock_active": "Floating Active Border:",
   "k_field_dock_inactive": "Floating Inactive Border:",
-
   "k_color_settings": "Color Settings",
   "k_color_settings_desc": "Customize canvas and node colors",
   "k_color_canvas_bg": "Canvas Background",
@@ -187,7 +177,6 @@
   "k_color_select_group": "Select Group Color",
   "k_color_applied": "Color settings applied and saved",
   "k_color_reset_done": "Default color settings restored (Dark theme)",
-
   "k_node_monitor": "Node Monitor(Floating)",
   "k_node_monitor_dock": "Node Monitor",
   "k_node_monitor_dock_desc": "Dockable node log monitoring panel",
@@ -196,7 +185,6 @@
   "k_resource_monitor_desc": "Real-time monitoring of CPU, memory, disk, network usage and node resource consumption",
   "k_node_list_floating": "Node List(Floating)",
   "k_node_list_dock": "Node List",
-
   "k_sys_resources": "System Resources",
   "k_node_resources": "Node Resources",
   "k_node_name": "Node Name",
@@ -218,7 +206,6 @@
   "k_account": "Account",
   "k_multi_canvas": "Multi Canvas",
   "k_new": "New",
-
   "k_menu_file": "File(&F)",
   "k_menu_edit": "Edit(&E)",
   "k_menu_tools": "Tools(&T)",
@@ -232,7 +219,6 @@
   "k_menu_changelog": "View Changelog",
   "k_menu_changelog_desc": "View software changelog",
   "k_menu_open_project_desc": "Open an existing neural network project",
-
   "k_title_confirm": "Confirm",
   "k_title_warning": "Warning",
   "k_title_error": "Error",
@@ -253,7 +239,6 @@
   "k_title_vscode_not_found": "VSCode Not Found",
   "k_title_workspace_created": "Workspace Created",
   "k_title_config_viewer": "Node Configuration",
-
   "k_confirm_clear_connections": "Are you sure you want to clear all connections?\nThis will reset listen_upper_file configs for all nodes.",
   "k_action_unlock_edit": "Unlock Edit",
   "k_action_lock_edit": "Lock Edit",
@@ -263,17 +248,14 @@
   "k_action_close": "Close",
   "k_action_edit": "Edit",
   "k_action_live": "Live",
-
   "k_info_details": "Details",
   "k_info_actions": "Actions",
   "k_info_monitor": "Node Monitor",
   "k_info_monitor_hint": "Auto-refresh logs every 2 seconds",
   "k_info_config_saved": "Config saved",
   "k_info_details_title": "Node Details",
-
   "k_err_node_folder_missing": "# Invalid node path",
   "k_err_output_empty": "# output.json is empty",
-
   "k_log_load_node": "Refreshing node list",
   "k_log_close_start": "Starting close window detection...",
   "k_log_close_thread_wait": "Waiting for node creation thread to finish...",
@@ -290,11 +272,9 @@
   "k_log_node_registry_synced": "Node registry synced: active=%d, missing=%d, total=%d",
   "k_log_node_registry_fail": "Node registry sync failed: %s",
   "k_log_node_restored": "Restored mounted node: %s (mount_root=%s)",
-
   "k_infer_upstream_unresolved": "  → Cannot resolve upstream node (path may be outside nodes/ dir)",
   "k_infer_no_upstream": "  → No upstream connection (orphan node)",
   "k_infer_diag_title": "Connection Inference Diagnostic",
-
   "k_node_select_start": "Please select a node to start first",
   "k_node_select_stop": "Please select a node to stop first",
   "k_node_select_delete": "Please select a node to delete first",
@@ -310,15 +290,12 @@
   "k_group_config_load_fail": "Project path not set, cannot load group config",
   "k_group_config_save_fail": "Project path not set, cannot save group config",
   "k_group_cleared_all": "All node groups cleared",
-
   "k_style_rect": "Rect",
   "k_style_light_rect": "Light Rect",
-
   "k_status_saved": "Saved",
   "k_status_save_failed": "Save Failed",
   "k_status_updated": "Updated",
   "k_status_refreshed": "Refreshed",
-
   "k_lang_python": "Python",
   "k_lang_rust": "Rust",
   "k_lang_nodejs": "Node.js (WIP)",
@@ -328,16 +305,12 @@
   "k_lang_shell": "Shell (WIP)",
   "k_node_enter_name": "Enter node name ({lang}):",
   "k_node_lang_unsupported": "{lang} node creation not yet supported, only Python and Rust are available",
-
   "k_menu_restart": "Restart(&R)",
   "k_menu_restart_desc": "Restart application",
-
   "k_ok": "OK",
   "k_cancel": "Cancel",
-
   "k_project_select_parent_dir": "Select parent directory",
   "k_project_input_name": "Enter project folder name:",
-
   "_k_node_canvas_exists": "Node {name} is already on the canvas",
   "_k_group_remove_from": "Remove from group '{group}'",
   "_k_selected_count": "{count} nodes selected",
@@ -388,7 +361,6 @@
   "_k_stopped_ungrouped": "Stopped {count} ungrouped nodes",
   "_k_auto_deleted_groups": "Auto-deleted {count} empty node groups",
   "_k_project_name": "Project: {name}",
-
   "_k_node_running": "Node {name} is already running",
   "_k_node_starting": "Starting node {name}...",
   "_k_node_started": "Node {name} started",
@@ -408,7 +380,6 @@
   "_k_about_text": "BNOS - Bionic Neural Network Program Operating System\nVersion: 1.0.0\n\nA PySide6-based desktop visual node orchestration platform.\n\nCore Features:\n• Project Management: VSCode-style open/create\n• Visual Orchestration: Drag & drop + connection lines\n• Multi-language: Python, Rust, etc.\n• Environment Isolation: Per-node venv\n• Config Editor: Direct JSON editing\n• Real-time Monitor: Log viewing\n• State Persistence: Auto-save/restore",
   "_k_changelog_not_found": "The changelog file was not found. Please check the docs/changelogs/ directory.",
   "_k_changelog_read_error": "Failed to read the changelog file. Please check file permissions.",
-
   "_k_panel": "Panel",
   "_k_folder_picker_header": "📁 Folders",
   "_k_folder_picker_path": "Path",
@@ -498,7 +469,6 @@
   "_k_connected_to": "➤ Connected: {name} ↔ {name2}",
   "_k_canvas_remove_node_confirm": "Are you sure you want to delete node '{name}' from the canvas?\n\nThis will:\n1. Remove the node from the canvas\n2. Delete all related connections\n3. Clear listen_upper_file config of upstream/downstream nodes",
   "_k_app_name": "BNOS Console",
-
   "_k_splash_starting": "[*] BNOS is starting...",
   "_k_splash_config": "[+] Config loaded (lang: %s)",
   "_k_splash_logger": "[+] Logger ready",
@@ -508,7 +478,6 @@
   "_k_delete_selected_graphics": "Delete Selected Graphics",
   "_k_splash_done": "[+] BNOS launched successfully",
   "_k_splash_subtitle": "Bionic Neural Network Program Operating System",
-
   "_k_settings_title": "Settings",
   "_k_settings_language": "Language",
   "_k_settings_lang_label": "Current Language:",
@@ -549,7 +518,6 @@
   "_k_no_preview": "No file selected",
   "_k_file_too_large": "⚠️ File too large to preview (over 1MB)",
   "_k_preview_error": "Preview failed: {error}",
-  
   "k_name": "Name",
   "k_type": "Type",
   "k_size": "Size",
@@ -558,30 +526,25 @@
   "k_canvas_open_terminal_powershell": "PowerShell",
   "k_canvas_open_terminal_cmd": "Cmd",
   "k_canvas_open_terminal_default": "Default Terminal",
-
   "k_terminal_dock_title": "Terminal",
   "k_terminal_new": "New Terminal",
   "k_terminal_type_powershell": "PowerShell",
   "k_terminal_type_cmd": "Cmd",
   "k_terminal_type_bash": "Bash",
   "k_terminal_input_hint": "Enter command...",
-
   "k_view_toggle_terminal": "Terminal",
   "k_menu_toggle_terminal": "Show/Hide Terminal Dock",
-
   "k_edit_undo": "Undo",
   "k_edit_redo": "Redo",
   "k_edit_can_undo": "Can Undo",
   "k_edit_cannot_undo": "Nothing to Undo",
   "k_edit_clear_history": "Clear",
   "k_view_history_panel": "History",
-
   "k_performance": "Performance",
   "k_performance_panel": "Performance Panel",
   "k_template": "Preset Node Library",
   "k_template_selector": "Preset Node Library",
   "k_select_template": "Preset Node Library",
-
   "k_peak_cpu": "Peak CPU",
   "k_disk": "Disk",
   "k_network": "Network",
@@ -606,7 +569,6 @@
   "k_disk_total": "Total Disk",
   "k_network_in": "Network In",
   "k_network_out": "Network Out",
-
   "k_import": "Import",
   "k_export": "Export",
   "k_import_to_project": "Import to Current Project",
@@ -618,7 +580,6 @@
   "k_preset_details": "Details",
   "k_preset_library": "Preset Node Library",
   "k_no_description": "No description",
-
   "k_details": "Details",
   "k_system": "System",
   "k_nodes": "Nodes",
@@ -626,12 +587,10 @@
   "k_processes": "Processes",
   "k_alerts": "Alerts",
   "k_enable_alerts": "Enable Alerts",
-
   "k_save_as_template": "Save as Preset",
   "k_input_preset_description": "Enter node description (optional):",
   "_k_preset_saved": "Preset \"{name}\" saved",
   "_k_preset_imported": "Preset \"{name}\" imported",
-
   "k_composite_compress": "Compress to Composite",
   "k_composite_decompress": "Decompress Composite",
   "k_composite_canvas_unavailable": "Canvas unavailable",
@@ -670,5 +629,24 @@
   "k_composite_name_dialog_title": "Name Composite Node",
   "_k_composite_no_entry": "No entry node detected. Ensure at least one node has no upstream connections.",
   "_k_composite_multi_entry": "Detected {count} entry nodes ({nodes}). Composite must have exactly one entry. Supported DAG: A→B→C or A→B concurrently A→C, not A→C and B→C.",
-  "k_composite_collapse_blocked_title": "Cannot Collapse"
+  "k_composite_collapse_blocked_title": "Cannot Collapse",
+  "k_resource_limits": "Resource Limits",
+  "k_rl_priority": "Priority:",
+  "k_rl_priority_low": "Low",
+  "k_rl_priority_below_normal": "Below Normal",
+  "k_rl_priority_normal": "Normal",
+  "k_rl_priority_above_normal": "Above Normal",
+  "k_rl_priority_high": "High",
+  "k_rl_cpu_limit": "CPU Limit (%):",
+  "k_rl_memory_limit": "Memory Limit:",
+  "k_rl_cpu_cores": "CPU Cores:",
+  "k_rl_all_cores": "All cores",
+  "k_rl_unlimited": "Unlimited",
+  "k_rl_apply": "Apply Resource Limits",
+  "k_rl_applied": "Applied: ",
+  "k_rl_cleared": "Resource limits cleared (all defaults)",
+  "k_rl_save_failed": "Save failed: ",
+  "k_rl_cpu_tooltip": "100 = 1 core, 200 = 2 cores. 0 = unlimited. macOS not supported.",
+  "k_rl_memory_tooltip": "Hard memory limit. 0 = unlimited. macOS not supported.",
+  "k_rl_affinity_tooltip": "Bind to specific CPU cores. Leave empty for all cores. macOS not supported."
 }

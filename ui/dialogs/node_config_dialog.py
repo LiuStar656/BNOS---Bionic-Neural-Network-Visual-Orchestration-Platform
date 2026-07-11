@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSpinBox,
     QTextEdit,
     QVBoxLayout,
 )
@@ -208,6 +209,9 @@ class NodeConfigDialog(FloatingPanel):
 
         right_layout.addWidget(control_group)
 
+        # Resource limit configuration
+        right_layout.addWidget(self._create_resource_limit_group())
+
         # Quick actions
         quick_group = QGroupBox("Quick Actions")
         quick_layout = QVBoxLayout(quick_group)
@@ -239,6 +243,9 @@ class NodeConfigDialog(FloatingPanel):
         main_h_layout.addLayout(right_layout, 1)
 
         self.content_layout.addLayout(main_h_layout)
+
+        # Populate resource limit controls from loaded config
+        self._load_resource_limit_from_config()
 
     def _update_status_display(self):
         """Update status display label."""
@@ -344,6 +351,169 @@ class NodeConfigDialog(FloatingPanel):
 
             traceback.print_exc()
 
+    # ==================== Resource Limit UI ====================
+
+    _PRIORITY_OPTIONS: list[str] = ["low", "below_normal", "normal", "above_normal", "high"]
+
+    def _create_resource_limit_group(self) -> QGroupBox:
+        """Create resource limit configuration group."""
+        group = QGroupBox(t("k_resource_limits"))
+        layout = QVBoxLayout(group)
+        layout.setSpacing(6)
+
+        style_line = "QSpinBox { background: #2d2d2d; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 3px; padding: 2px; }"
+
+        # Priority
+        row_prio = QHBoxLayout()
+        row_prio.addWidget(QLabel(t("k_rl_priority")))
+        self._rl_priority = QComboBox()
+        self._rl_priority.setStyleSheet("""
+            QComboBox { background: #2d2d2d; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 3px; padding: 3px; }
+            QComboBox::drop-down { border: none; }
+        """)
+        for value in self._PRIORITY_OPTIONS:
+            label_key = f"k_rl_priority_{value}"
+            self._rl_priority.addItem(t(label_key), value)
+        self._rl_priority.setCurrentIndex(2)  # "normal"
+        row_prio.addWidget(self._rl_priority)
+        layout.addLayout(row_prio)
+
+        # CPU Percent
+        row_cpu = QHBoxLayout()
+        row_cpu.addWidget(QLabel(t("k_rl_cpu_limit")))
+        self._rl_cpu = QSpinBox()
+        self._rl_cpu.setRange(0, 10000)
+        self._rl_cpu.setSuffix(" %")
+        self._rl_cpu.setSpecialValueText(t("k_rl_unlimited"))
+        self._rl_cpu.setStyleSheet(style_line)
+        self._rl_cpu.setToolTip(t("k_rl_cpu_tooltip"))
+        row_cpu.addWidget(self._rl_cpu)
+        layout.addLayout(row_cpu)
+
+        # Memory MB
+        row_mem = QHBoxLayout()
+        row_mem.addWidget(QLabel(t("k_rl_memory_limit")))
+        self._rl_memory = QSpinBox()
+        self._rl_memory.setRange(0, 1048576)
+        self._rl_memory.setSuffix(" MB")
+        self._rl_memory.setSingleStep(128)
+        self._rl_memory.setSpecialValueText(t("k_rl_unlimited"))
+        self._rl_memory.setStyleSheet(style_line)
+        self._rl_memory.setToolTip(t("k_rl_memory_tooltip"))
+        row_mem.addWidget(self._rl_memory)
+        layout.addLayout(row_mem)
+
+        # CPU Affinity
+        row_aff = QHBoxLayout()
+        row_aff.addWidget(QLabel(t("k_rl_cpu_cores")))
+        self._rl_affinity = QLabel(t("k_rl_all_cores"))
+        self._rl_affinity.setStyleSheet("color: #888888; font-size: 11px;")
+        self._rl_affinity.setToolTip(t("k_rl_affinity_tooltip"))
+        row_aff.addWidget(self._rl_affinity)
+        row_aff.addStretch()
+        layout.addLayout(row_aff)
+
+        # Apply button
+        self._rl_apply_btn = QPushButton(t("k_rl_apply"))
+        self._rl_apply_btn.setStyleSheet("background-color: #3a6bc5; color: white; padding: 8px; font-weight: bold;")
+        self._rl_apply_btn.clicked.connect(self._apply_resource_limits)
+        layout.addWidget(self._rl_apply_btn)
+
+        # Status label
+        self._rl_status = QLabel("")
+        self._rl_status.setStyleSheet("color: #888888; font-size: 10px; padding-top: 2px;")
+        self._rl_status.setWordWrap(True)
+        layout.addWidget(self._rl_status)
+
+        return group
+
+    def _load_resource_limit_from_config(self) -> None:
+        """Populate resource limit controls from current config."""
+        rl = self.config.get("resource_limit", {}) if isinstance(self.config, dict) else {}
+        if not rl:
+            # Reset to defaults
+            self._rl_priority.setCurrentIndex(2)
+            self._rl_cpu.setValue(0)
+            self._rl_memory.setValue(0)
+            self._rl_affinity.setText(t("k_rl_all_cores"))
+            return
+
+        priority = rl.get("priority", "normal")
+        idx = self._rl_priority.findData(priority)
+        if idx >= 0:
+            self._rl_priority.setCurrentIndex(idx)
+        else:
+            self._rl_priority.setCurrentIndex(2)
+
+        self._rl_cpu.setValue(rl.get("cpu_percent", 0))
+        self._rl_memory.setValue(rl.get("memory_mb", 0))
+
+        affinity = rl.get("cpu_affinity")
+        if affinity and isinstance(affinity, list):
+            self._rl_affinity.setText(", ".join(str(c) for c in affinity))
+        else:
+            self._rl_affinity.setText(t("k_rl_all_cores"))
+
+    def _apply_resource_limits(self) -> None:
+        """Write resource limit configuration back to config.json."""
+        priority = self._rl_priority.currentData()
+        cpu = self._rl_cpu.value()
+        memory = self._rl_memory.value()
+
+        has_any = priority != "normal" or cpu > 0 or memory > 0
+
+        if not has_any:
+            # Remove resource_limit if all defaults
+            if isinstance(self.config, dict) and "resource_limit" in self.config:
+                del self.config["resource_limit"]
+                self._write_config_and_update_editor()
+            self._rl_status.setText(t("k_rl_cleared"))
+            self._rl_status.setStyleSheet("color: #888888; font-size: 10px;")
+            return
+
+        resource_limit: dict = {"priority": priority}
+        if cpu > 0:
+            resource_limit["cpu_percent"] = cpu
+        if memory > 0:
+            resource_limit["memory_mb"] = memory
+
+        self.config["resource_limit"] = resource_limit
+        self._write_config_and_update_editor()
+
+        parts = [f"{t('k_rl_priority').rstrip(':')}={t(f'k_rl_priority_{priority}')}"]
+        if cpu > 0:
+            parts.append(f"cpu={cpu}%")
+        if memory > 0:
+            parts.append(f"memory={memory}MB")
+        status_text = t("k_rl_applied") + ", ".join(parts)
+        self._rl_status.setText(status_text)
+        self._rl_status.setStyleSheet("color: #4CAF50; font-size: 10px;")
+
+        # Refresh to pick up any editor-side changes
+        self._load_resource_limit_from_config()
+
+    def _write_config_and_update_editor(self) -> None:
+        """Write current config to config.json and refresh the JSON editor."""
+        config_path = Path(self.node_path) / "config.json"
+        try:
+            formatted = json.dumps(self.config, indent=2, ensure_ascii=False)
+            config_path.write_text(formatted, encoding="utf-8")
+            # Update in-memory data
+            if self.parent_window and self.node_name in self.parent_window.nodes_data:
+                self.parent_window.nodes_data[self.node_name]["config"] = dict(self.config)
+            # Refresh editor display
+            self._ignore_external = True
+            self.config_text.blockSignals(True)
+            self.config_text.setPlainText(formatted)
+            self.config_text.blockSignals(False)
+            self._last_config_content = formatted
+            self._config_status.setText(t("k_status_saved"))
+            self._config_status.setStyleSheet("color: #4CAF50; font-size: 10px; background: transparent;")
+            QTimer.singleShot(500, self._reset_ignore_flag)
+        except Exception as e:
+            self._rl_status.setText(t("k_rl_save_failed") + str(e))
+            self._rl_status.setStyleSheet("color: #F44336; font-size: 10px;")
+
     # ==================== config.json two-way sync ====================
 
     def load_config_json(self):
@@ -351,6 +521,7 @@ class NodeConfigDialog(FloatingPanel):
         config_path = Path(self.node_path) / "config.json"
         try:
             if not config_path.exists():
+                self.config = {}
                 self.config_text.blockSignals(True)
                 self.config_text.setPlainText("{}")
                 self.config_text.blockSignals(False)
@@ -360,12 +531,14 @@ class NodeConfigDialog(FloatingPanel):
             raw = config_path.read_text(encoding="utf-8")
 
             if not raw.strip():
+                self.config = {}
                 formatted = "{}"
             else:
                 try:
-                    data = json.loads(raw)
-                    formatted = json.dumps(data, indent=2, ensure_ascii=False)
+                    self.config = json.loads(raw)
+                    formatted = json.dumps(self.config, indent=2, ensure_ascii=False)
                 except json.JSONDecodeError:
+                    self.config = {}
                     formatted = raw
 
             self._last_config_content = formatted
@@ -436,6 +609,7 @@ class NodeConfigDialog(FloatingPanel):
         if node_path != self.node_path or self._ignore_external:
             return
         self.load_config_json()
+        self._load_resource_limit_from_config()
         self._config_status.setText(t("k_status_updated"))
         self._config_status.setStyleSheet("color: #2196F3; font-size: 10px; background: transparent;")
 

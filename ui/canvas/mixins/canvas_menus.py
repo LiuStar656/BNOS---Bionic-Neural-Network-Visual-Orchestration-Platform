@@ -457,6 +457,4 @@ class CanvasMenu:
         else:
             ok, msg = mgr.start_process_mode(comp_id)
         if not ok:
-            from PySide6.QtWidgets import QMessageBox
-
-            QMessageBox.warning(None, "\u542f\u52a8\u5931\u8d25", msg)
+            themed_message(None, t("k_title_error"), msg, "error")

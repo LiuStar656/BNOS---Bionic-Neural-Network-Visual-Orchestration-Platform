@@ -85,6 +85,7 @@ with create_resource_limit(pid, config) as limit:
 |------|------|-------------|
 | `ui/core/system/resource_limit.py` | New | Core component (357 lines) |
 | `tests/test_resource_limit.py` | New | 21 test cases |
+| `ui/dialogs/node_config_dialog.py` | Updated | Added Resource Limits visual configuration panel (+170 lines) |
 | `docs/guides/config_json_开发规范.md` | Updated | Added Chapter 8 resource_limit docs |
 | `tools/config_json_开发规范.md` | Updated | Synced copy |
 
@@ -106,6 +107,37 @@ with create_resource_limit(pid, config) as limit:
 tests/test_resource_limit.py ............ 21 passed
 All 193 tests passing, zero regression
 ```
+
+---
+
+## GUI Visual Configuration
+
+Eliminates the need to manually edit `config.json`. A **Resource Limits** visual panel has been added to the node configuration dialog.
+
+### Panel Location
+
+Right sidebar of NodeConfigDialog, between "Node Control" and "Quick Actions".
+
+### Interactive Controls
+
+| Control | Type | Description |
+|---------|------|-------------|
+| Priority | `QComboBox` | 5-level dropdown (Low → High), default Normal |
+| CPU Limit | `QSpinBox` | 0 = Unlimited, 100 = 1 core, step 1 |
+| Memory Limit | `QSpinBox` | 0 = Unlimited, step 128 MB |
+| CPU Cores | `QLabel` | Displays "All cores" (affinity not yet exposed in GUI) |
+| Apply button | `QPushButton` | Click to write config.json and refresh editor |
+
+### Bidirectional Sync
+
+- **Open dialog** → auto-reads `resource_limit` from `config.json` into controls
+- **Click Apply** → writes to `config.json`, refreshes JSON editor, green status confirmation
+- **External change** (git pull, etc.) → polling_manager detects `config.json` change, panel auto-syncs
+- **All defaults** → Apply removes `resource_limit` field from JSON, keeping it clean
+
+### Platform Tooltips
+
+Each control's `tooltip` indicates macOS limitations, preventing users from wasting time on unsupported configs.
 
 ---
 

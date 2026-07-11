@@ -19,7 +19,6 @@
   "k_project_no_nodes_dir": "未找到节点目录",
   "k_project_no_project": "请先打开或新建项目",
   "k_project_nodes_not_exist": "nodes/ 目录不存在",
-
   "k_node_create": "新建节点",
   "k_node_creating": "创建节点",
   "k_node_init": "正在初始化...",
@@ -57,7 +56,6 @@
   "k_node_input_new_name": "请输入新的节点名称:",
   "k_node_input_new_group_name": "请输入组名称:",
   "k_node_no_ungrouped": "没有未分组的节点",
-
   "k_group_create": "创建分组",
   "k_group_create_group": "创建节点组",
   "k_group_create_new": "创建新组",
@@ -76,11 +74,9 @@
   "k_group_lock_no_rename": "挂载组禁止重命名",
   "k_group_lock_no_delete": "挂载组禁止删除，请先卸载外部节点",
   "k_group_ext_no_delete": "外部挂载节点请使用「卸载」功能，禁止删除",
-
   "k_select_all": "全选节点",
   "k_select_clear": "清除选择",
   "k_select_cancel": "取消选择",
-
   "k_canvas_start_connection": "开始连线",
   "k_canvas_clear_connections": "清空连线",
   "k_canvas_clear_connections_desc": "清空所有节点连线",
@@ -101,14 +97,12 @@
   "k_canvas_edge_exists": "该连线已存在",
   "k_canvas_monitor": "节点监测",
   "k_canvas_add_to": "添加画布",
-
   "k_config_edit": "配置编辑",
   "k_config_refresh": "刷新配置",
   "k_config_save": "保存配置",
   "k_config_saved": "配置已保存",
   "k_config_save_success": "✅ config.json 已保存",
   "k_config_save_unformatted": "✅ 已保存（未格式化）",
-
   "k_log_viewer": "节点日志",
   "k_log_file_label": "日志文件:",
   "k_log_refresh": "刷新日志",
@@ -118,7 +112,6 @@
   "k_log_no_file": "⚠️ config.json 文件不存在",
   "k_log_refresh_success": "✅ 日志文件列表已刷新",
   "k_log_no_clear": "没有可清空的日志文件",
-
   "k_node_info": "节点信息",
   "k_node_control": "节点控制",
   "k_quick_actions": "快捷操作",
@@ -132,7 +125,6 @@
   "k_node_style_circular": "节点模式",
   "k_view_log": "查看日志",
   "k_edit_config": "编辑配置",
-
   "k_properties": "属性配置",
   "k_no_selection": "未选中任何元素",
   "k_custom_appearance": "自定义外观",
@@ -145,7 +137,6 @@
   "k_upstream_node": "上游节点:",
   "k_downstream_node": "下游节点:",
   "k_upstream_path": "上游输出路径:",
-
   "k_field_node_name": "节点名称:",
   "k_field_listen_file": "监听文件:",
   "k_field_output_file": "输出文件:",
@@ -169,7 +160,6 @@
   "k_field_toast_opacity": "通知透明度:",
   "k_field_dock_active": "漂浮选中边框:",
   "k_field_dock_inactive": "漂浮未选中边框:",
-
   "k_color_settings": "颜色设置",
   "k_color_settings_desc": "自定义画布和节点颜色",
   "k_color_canvas_bg": "画布背景",
@@ -187,7 +177,6 @@
   "k_color_select_group": "选择组颜色",
   "k_color_applied": "颜色设置已应用并保存",
   "k_color_reset_done": "已恢复默认颜色设置（深色主题）",
-
   "k_node_monitor": "节点监测(浮动)",
   "k_node_monitor_dock": "节点监测",
   "k_node_monitor_dock_desc": "停靠式节点日志监测面板",
@@ -196,7 +185,6 @@
   "k_resource_monitor_desc": "实时监控系统CPU、内存、磁盘、网络占用及节点资源消耗",
   "k_node_list_floating": "节点列表(浮动)",
   "k_node_list_dock": "节点列表",
-
   "k_sys_resources": "系统资源",
   "k_node_resources": "节点资源",
   "k_node_name": "节点名称",
@@ -221,7 +209,6 @@
   "k_account": "账户",
   "k_multi_canvas": "多画布管理",
   "k_new": "新建",
-
   "k_menu_file": "文件(&F)",
   "k_menu_edit": "编辑(&E)",
   "k_menu_tools": "工具(&T)",
@@ -235,7 +222,6 @@
   "k_menu_changelog": "查看更新日志",
   "k_menu_changelog_desc": "查看软件版本更新日志",
   "k_menu_open_project_desc": "打开现有的神经网络项目",
-
   "k_title_confirm": "确认",
   "k_title_warning": "警告",
   "k_title_error": "错误",
@@ -256,7 +242,6 @@
   "k_title_vscode_not_found": "VSCode 未检测到",
   "k_title_workspace_created": "工作区已创建",
   "k_title_config_viewer": "节点配置",
-
   "k_confirm_clear_connections": "确定要清空所有连线吗？\n这将重置所有节点的 listen_upper_file 配置。",
   "k_status_running_task": "运行中",
   "k_status_stopped_task": "已停止",
@@ -269,17 +254,14 @@
   "k_action_close": "关闭",
   "k_action_edit": "编辑",
   "k_action_live": "实时",
-
   "k_info_details": "信息",
   "k_info_actions": "操作",
   "k_info_monitor": "节点监测",
   "k_info_monitor_hint": "日志每 2 秒自动刷新",
   "k_info_config_saved": "配置已保存",
   "k_info_details_title": "节点详情",
-
   "k_err_node_folder_missing": "# 节点路径无效",
   "k_err_output_empty": "# output.json 为空",
-
   "k_log_load_node": "刷新节点列表",
   "k_log_close_start": "开始关闭窗口检测...",
   "k_log_close_thread_wait": "等待节点创建线程完成...",
@@ -296,11 +278,9 @@
   "k_log_node_registry_synced": "节点注册表已同步: active=%d, missing=%d, total=%d",
   "k_log_node_registry_fail": "节点注册表同步失败: %s",
   "k_log_node_restored": "恢复挂载节点: %s (mount_root=%s)",
-
   "k_infer_upstream_unresolved": "  → 无法解析上游节点（路径可能不在 nodes/ 目录下）",
   "k_infer_no_upstream": "  → 无上游连接（孤立节点）",
   "k_infer_diag_title": "连线反推诊断报告",
-
   "k_node_select_start": "请先选中要启动的节点",
   "k_node_select_stop": "请先选中要停止的节点",
   "k_node_select_delete": "请先选中要删除的节点",
@@ -316,17 +296,14 @@
   "k_group_config_load_fail": "未设置项目路径，无法加载节点组配置",
   "k_group_config_save_fail": "未设置项目路径，无法保存节点组配置",
   "k_group_cleared_all": "已清空所有节点组",
-
   "k_style_rect": "方形",
   "k_style_light_rect": "浅色方块",
-
   "k_status_saved": "已保存",
   "k_status_save_failed": "保存失败",
   "k_status_updated": "已更新",
   "k_status_refreshed": "已刷新",
   "k_status_running_app": "运行中",
   "k_status_stopped_app": "已停止",
-
   "k_lang_python": "Python",
   "k_lang_rust": "Rust",
   "k_lang_nodejs": "Node.js (开发中)",
@@ -336,16 +313,12 @@
   "k_lang_shell": "Shell (开发中)",
   "k_node_enter_name": "请输入节点名称（{lang}）:",
   "k_node_lang_unsupported": "暂不支持创建 {lang} 节点，仅 Python 和 Rust 可用",
-
   "k_menu_restart": "重启(&R)",
   "k_menu_restart_desc": "重启应用程序",
-
   "k_ok": "确定",
   "k_cancel": "取消",
-
   "k_project_select_parent_dir": "选择上级目录",
   "k_project_input_name": "请输入项目文件夹名称:",
-
   "_k_node_canvas_exists": "节点 {name} 已在画布中",
   "_k_group_remove_from": "从组 '{group}' 移除选中节点",
   "_k_selected_count": "已选 {count} 个节点",
@@ -396,7 +369,6 @@
   "_k_stopped_ungrouped": "已停止 {count} 个未分组节点",
   "_k_auto_deleted_groups": "已自动删除 {count} 个空节点组",
   "_k_project_name": "项目: {name}",
-
   "_k_node_running": "节点 {name} 已在运行中",
   "_k_node_starting": "正在启动节点 {name}...",
   "_k_node_started": "节点 {name} 已启动",
@@ -416,7 +388,6 @@
   "_k_about_text": "BNOS - Bionic Neural Network Program Operating System\n版本: 1.0.0\n仿生神经网络程序操作系统\n\n一款基于 PySide6 的纯桌面端可视化节点编排平台。\n\n核心特性:\n• 项目管理：仿 VSCode 模式，新建/打开\n• 可视化编排：自由拖拽 + 连线\n• 多语言支持：Python、Rust 等\n• 环境隔离：每个节点独立 venv\n• 配置编辑：直接编辑 JSON\n• 实时监控：日志查看\n• 状态持久化：自动保存/恢复",
   "_k_changelog_not_found": "未找到更新日志文件，请检查 docs/changelogs/ 目录。",
   "_k_changelog_read_error": "读取更新日志文件失败，请检查文件权限。",
-
   "_k_panel": "面板",
   "_k_folder_picker_header": "📁 文件夹",
   "_k_folder_picker_path": "路径",
@@ -506,7 +477,6 @@
   "_k_connected_to": "➤ 已连接: {name} ↔ {name2}",
   "_k_canvas_remove_node_confirm": "确定要从画布中删除节点 '{name}' 吗？\n\n这将：\n1. 从画布中移除该节点\n2. 删除所有相关连线\n3. 清除上下游节点的 listen_upper_file 配置",
   "_k_app_name": "BNOS Console",
-
   "_k_splash_starting": "[*] BNOS 正在启动...",
   "_k_splash_config": "[+] 配置已加载 (语言: %s)",
   "_k_splash_logger": "[+] 日志模块就绪",
@@ -516,7 +486,6 @@
   "_k_delete_selected_graphics": "删除选中图形",
   "_k_splash_done": "[+] BNOS 启动完成",
   "_k_splash_subtitle": "仿生神经网络程序操作系统",
-
   "_k_settings_title": "设置",
   "_k_settings_language": "语言",
   "_k_settings_lang_label": "当前语言:",
@@ -557,32 +526,26 @@
   "_k_no_preview": "未选择文件",
   "_k_file_too_large": "⚠️ 文件过大，无法预览（超过1MB）",
   "_k_preview_error": "预览失败: {error}",
-  
   "k_type": "类型",
-
   "k_date": "日期",
   "k_canvas_open_terminal": "在命令行中打开项目根目录",
   "k_canvas_open_terminal_powershell": "PowerShell",
   "k_canvas_open_terminal_cmd": "Cmd",
   "k_canvas_open_terminal_default": "默认终端",
-
   "k_terminal_dock_title": "终端",
   "k_terminal_new": "新终端",
   "k_terminal_type_powershell": "PowerShell",
   "k_terminal_type_cmd": "Cmd",
   "k_terminal_type_bash": "Bash",
   "k_terminal_input_hint": "输入命令...",
-
   "k_view_toggle_terminal": "终端",
   "k_menu_toggle_terminal": "显示/隐藏终端Dock",
-
   "k_edit_undo": "撤销",
   "k_edit_redo": "重做",
   "k_edit_can_undo": "可撤销",
   "k_edit_cannot_undo": "无可撤销操作",
   "k_edit_clear_history": "清空",
   "k_view_history_panel": "历史记录",
-
   "k_stop": "停止",
   "k_start": "启动",
   "k_add": "添加",
@@ -593,7 +556,6 @@
   "k_mode": "模式",
   "k_action": "动作",
   "k_pattern": "匹配模式",
-
   "k_performance": "性能分析",
   "k_performance_panel": "性能分析面板",
   "k_system": "系统",
@@ -617,7 +579,6 @@
   "k_disk_total": "磁盘总量",
   "k_network_in": "网络入站",
   "k_network_out": "网络出站",
-
   "k_preset_library": "预设节点库",
   "k_select_template": "预设节点库",
   "k_preset_info": "预设信息",
@@ -629,16 +590,13 @@
   "k_import_to_project": "导入到当前项目",
   "k_select_preset_first": "请先选择一个预设",
   "k_delete": "删除",
-  
   "k_saved_at": "保存时间",
   "k_source_project": "来源项目",
   "k_size": "大小",
-
   "k_save_as_template": "保存为预设节点",
   "k_input_preset_description": "请输入节点描述（可选）:",
   "_k_preset_saved": "预设节点 \"{name}\" 已保存",
   "_k_preset_imported": "预设节点 \"{name}\" 已导入",
-
   "k_composite_compress": "压缩为复合节点",
   "k_composite_decompress": "解耦复合节点",
   "k_composite_canvas_unavailable": "画布不可用",
@@ -677,5 +635,24 @@
   "k_composite_name_dialog_title": "命名复合节点",
   "_k_composite_no_entry": "未检测到入口节点，请确保至少有一个节点没有上游连接。",
   "_k_composite_multi_entry": "检测到 {count} 个入口节点（{nodes}），复合节点必须有且仅有一个入口。支持的 DAG 结构：A→B→C 或 A→B 同时 A→C，不允许 A→C 且 B→C。",
-  "k_composite_collapse_blocked_title": "无法折叠"
+  "k_composite_collapse_blocked_title": "无法折叠",
+  "k_resource_limits": "资源限制",
+  "k_rl_priority": "优先级:",
+  "k_rl_priority_low": "低",
+  "k_rl_priority_below_normal": "低于正常",
+  "k_rl_priority_normal": "正常",
+  "k_rl_priority_above_normal": "高于正常",
+  "k_rl_priority_high": "高",
+  "k_rl_cpu_limit": "CPU 限制(%):",
+  "k_rl_memory_limit": "内存限制:",
+  "k_rl_cpu_cores": "CPU 核心:",
+  "k_rl_all_cores": "全部核心",
+  "k_rl_unlimited": "无限制",
+  "k_rl_apply": "应用资源限制",
+  "k_rl_applied": "已应用: ",
+  "k_rl_cleared": "资源限制已清除（全部默认值）",
+  "k_rl_save_failed": "保存失败: ",
+  "k_rl_cpu_tooltip": "100 = 1 核, 200 = 2 核。0 = 无限制。macOS 不支持。",
+  "k_rl_memory_tooltip": "内存硬限制。0 = 无限制。macOS 不支持。",
+  "k_rl_affinity_tooltip": "绑定到指定 CPU 核心。留空使用全部核心。macOS 不支持。"
 }

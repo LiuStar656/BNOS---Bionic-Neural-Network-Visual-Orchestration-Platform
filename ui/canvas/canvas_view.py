@@ -531,10 +531,18 @@ class NodeCanvas(QGraphicsView):
                     tgt_port = ed.get("target_port")
                     src_anchor = None
                     tgt_anchor = None
-                    if src_port and hasattr(source_node, "anchor_manager"):
-                        src_anchor = source_node.anchor_manager.get_output(src_port)
-                    if tgt_port and hasattr(target_node, "anchor_manager"):
-                        tgt_anchor = target_node.anchor_manager.get_input(tgt_port)
+
+                    # 查找锚点：普通节点用 anchor_manager，复合节点用 find_anchor_by_port
+                    if src_port:
+                        if hasattr(source_node, "anchor_manager"):
+                            src_anchor = source_node.anchor_manager.get_output(src_port)
+                        elif hasattr(source_node, "find_anchor_by_port"):
+                            src_anchor = source_node.find_anchor_by_port(src_port, "output")
+                    if tgt_port:
+                        if hasattr(target_node, "anchor_manager"):
+                            tgt_anchor = target_node.anchor_manager.get_input(tgt_port)
+                        elif hasattr(target_node, "find_anchor_by_port"):
+                            tgt_anchor = target_node.find_anchor_by_port(tgt_port, "input")
 
                     if tgt_port and tgt_port != "default" and tgt_anchor is None:
                         continue
