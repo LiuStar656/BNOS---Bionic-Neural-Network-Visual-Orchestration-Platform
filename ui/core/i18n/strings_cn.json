@@ -674,5 +674,8 @@
   "k_composite_decompress_confirm_text": "将复合节点还原为 {n} 个独立节点，\n复合节点的 Python 虚拟环境将被删除，\n子节点将恢复使用各自的独立环境。\n\n确定要继续吗？",
   "k_composite_compress_failed": "压缩失败",
   "k_composite_name_prompt": "复合节点名称（留空则自动生成名称）：",
-  "k_composite_name_dialog_title": "命名复合节点"
+  "k_composite_name_dialog_title": "命名复合节点",
+  "_k_composite_no_entry": "未检测到入口节点，请确保至少有一个节点没有上游连接。",
+  "_k_composite_multi_entry": "检测到 {count} 个入口节点（{nodes}），复合节点必须有且仅有一个入口。支持的 DAG 结构：A→B→C 或 A→B 同时 A→C，不允许 A→C 且 B→C。",
+  "k_composite_collapse_blocked_title": "无法折叠"
 }

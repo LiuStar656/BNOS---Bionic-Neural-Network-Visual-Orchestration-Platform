@@ -106,8 +106,36 @@ if __name__ == "__main__":
     pid_path = os.path.join(PROJECT_ROOT, ".pid")
     with open(pid_path, "w") as f: f.write(str(pid))
     print(f"[{comp_id}] PID={{pid}} 就绪")
+
+    # ── 从 _port_routing 读取外部输入 ──
+    external_input = None
+    clusters_path = os.path.join(PROJECT_ROOT, "node_clusters.json")
+    if os.path.exists(clusters_path):
+        try:
+            with open(clusters_path, "r", encoding="utf-8") as f:
+                clusters = json.load(f)
+            comp_data = clusters.get("composites", {{}}).get("{comp_id}", {{}})
+            routing = comp_data.get("_port_routing", {{}})
+            input_routes = routing.get("input", {{}})
+            if input_routes:
+                external_input = {{}}
+                for port_name, route in input_routes.items():
+                    src_path = route.get("source_output_path", "")
+                    if src_path and os.path.exists(src_path):
+                        try:
+                            with open(src_path, "r", encoding="utf-8") as f:
+                                src_data = json.load(f)
+                            # 提取 data 字段作为输入
+                            src_payload = src_data.get("data", src_data)
+                            external_input[port_name] = src_payload
+                            print(f"[{comp_id}] 读取外部输入 {{port_name}} ← {{src_path}}")
+                        except Exception as e:
+                            print(f"[{comp_id}] 读取外部输入失败 {{port_name}}({{src_path}}): {{e}}")
+        except Exception as e:
+            print(f"[{comp_id}] 读取 node_clusters.json 失败: {{e}}")
+
     runner = DagRunner()
-    result = runner.run()
+    result = runner.run(external_input=external_input)
     print(f"[{comp_id}] 完成")
     try: os.remove(pid_path)
     except OSError: pass

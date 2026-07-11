@@ -24,6 +24,10 @@ class NodeGeometryHandler:
 
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             if self._node.canvas:
+                # 批量更新模式下跳过逐节点连线刷新（由调用方统一处理）
+                if getattr(self._node.canvas, '_batch_updating', False):
+                    return super(self._node.__class__, self._node).itemChange(change, value)
+
                 # 1. 遍历所有锚点（包括多端口场景），更新所有连线
                 all_edges = set()
 

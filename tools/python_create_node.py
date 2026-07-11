@@ -132,7 +132,7 @@ def create_node():
                 "name": f"node_python_{node_name}",
                 "entry": entry_script,
                 "config": {
-                    "listen_upper_file": "../data/upper_data.json",
+                    "listen_upper_file": "",
                     "output_file": "./output.json"
                 }
             }

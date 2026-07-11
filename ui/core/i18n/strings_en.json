@@ -667,5 +667,8 @@
   "k_composite_decompress_confirm_text": "Restore composite node to {n} independent nodes.\nThe composite node's Python virtual environment\nwill be deleted.\n\nAre you sure you want to continue?",
   "k_composite_compress_failed": "Compression Failed",
   "k_composite_name_prompt": "Composite node name (leave blank for auto-generated name):",
-  "k_composite_name_dialog_title": "Name Composite Node"
+  "k_composite_name_dialog_title": "Name Composite Node",
+  "_k_composite_no_entry": "No entry node detected. Ensure at least one node has no upstream connections.",
+  "_k_composite_multi_entry": "Detected {count} entry nodes ({nodes}). Composite must have exactly one entry. Supported DAG: A→B→C or A→B concurrently A→C, not A→C and B→C.",
+  "k_composite_collapse_blocked_title": "Cannot Collapse"
 }

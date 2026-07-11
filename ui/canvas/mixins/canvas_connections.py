@@ -115,56 +115,16 @@ class CanvasConnections:
         if not source_name or not target_name:
             return
 
-        if self.canvas.parent_window and target_name in self.canvas.parent_window.nodes_data:
-            target_info = self.canvas.parent_window.nodes_data[target_name]
-            source_data = self.canvas.parent_window.nodes_data.get(source_name, {})
-            source_path = source_data.get('path', '')
-            if not source_path:
-                logger.warning("create_edge: 源节点 %s 无 path，跳过配置更新", source_name)
-                return
-            source_output_path = os.path.abspath(os.path.join(source_path, "output.json"))
+        # Update config.json for real nodes (skip composite nodes which have comp_id as name)
+        is_composite_source = source_name.startswith("composite_") if source_name else False
+        is_composite_target = target_name.startswith("composite_") if target_name else False
 
-            target_config = target_info['config']
-
-            if target_anchor and hasattr(target_anchor, 'port_name'):
-                port_name = target_anchor.port_name
-                if port_name and port_name != "default":
-                    if 'port_mappings' not in target_config:
-                        target_config['port_mappings'] = {}
-                    target_config['port_mappings'][port_name] = source_output_path
-                    logger.info("create_edge: 配置端口映射 %s -> %s", port_name, source_output_path)
-                else:
-                    target_config['listen_upper_file'] = source_output_path
-                    logger.info("create_edge: listen_upper_file=%s", source_output_path)
-            else:
-                target_config['listen_upper_file'] = source_output_path
-                logger.info("create_edge: 使用旧版单锚点逻辑，listen_upper_file=%s", source_output_path)
-
-            if source_anchor and hasattr(source_anchor, 'port_name'):
-                source_port_name = source_anchor.port_name
-                if source_name in self.canvas.parent_window.nodes_data:
-                    source_info = self.canvas.parent_window.nodes_data[source_name]
-                    source_config = source_info.get('config', {})
-                    if 'out_connections' not in source_config:
-                        source_config['out_connections'] = {}
-                    source_config['out_connections'][source_port_name] = f"{target_name}|{target_anchor.port_name if target_anchor and hasattr(target_anchor, 'port_name') else 'default'}"
-                    try:
-                        # S18: source_info 可能为空字典，使用 .get 防御
-                        sc_path = os.path.join(source_info.get('path', ''), "config.json")
-                        if source_info.get('path'):
-                            with open(sc_path, 'w', encoding='utf-8') as f:
-                                json.dump(source_config, f, indent=2, ensure_ascii=False)
-                    except Exception as e:
-                        logger.error("保存上游节点出向连接配置失败: %s", e)
-
-            config_path = os.path.join(target_info['path'], "config.json")
-            try:
-                with open(config_path, 'w', encoding='utf-8') as f:
-                    json.dump(target_config, f, indent=2, ensure_ascii=False)
-                logger.info("已配置 %s 监听 %s 的输出", target_name, source_name)
-                logger.debug("   listen_upper_file: %s", source_output_path)
-            except Exception as e:
-                logger.error("保存配置失败: %s", e)
+        if not is_composite_source and not is_composite_target:
+            self._update_node_config_edge(source_name, target_name, source_anchor, target_anchor)
+        else:
+            self._update_composite_config_edge(
+                source_name, target_name, is_composite_source, is_composite_target,
+                source_anchor, target_anchor)
 
         tgt_port_name = target_anchor.port_name if (target_anchor and hasattr(target_anchor, 'port_name')) else None
         src_port_name = source_anchor.port_name if (source_anchor and hasattr(source_anchor, 'port_name')) else None
@@ -186,6 +146,216 @@ class CanvasConnections:
         # 自动录制命令
         self.canvas._record_create_edge(source_name, target_name)
 
+    def _update_node_config_edge(self, source_name, target_name, source_anchor, target_anchor):
+        """Write config.json for a regular node→node edge."""
+        if not (self.canvas.parent_window and target_name in self.canvas.parent_window.nodes_data):
+            return
+        target_info = self.canvas.parent_window.nodes_data[target_name]
+        source_data = self.canvas.parent_window.nodes_data.get(source_name, {})
+        source_path = source_data.get('path', '')
+        if not source_path:
+            logger.warning("create_edge: source node %s has no path, skipping config", source_name)
+            return
+        source_output_path = os.path.abspath(os.path.join(source_path, "output.json"))
+        target_config = target_info['config']
+
+        if target_anchor and hasattr(target_anchor, 'port_name'):
+            port_name = target_anchor.port_name
+            if port_name and port_name != "default":
+                target_config.setdefault('port_mappings', {})[port_name] = source_output_path
+                logger.info("create_edge: port mapping %s -> %s", port_name, source_output_path)
+            else:
+                target_config['listen_upper_file'] = source_output_path
+                logger.info("create_edge: listen_upper_file=%s", source_output_path)
+        else:
+            target_config['listen_upper_file'] = source_output_path
+            logger.info("create_edge: legacy single-anchor, listen_upper_file=%s", source_output_path)
+
+        if source_anchor and hasattr(source_anchor, 'port_name'):
+            source_port_name = source_anchor.port_name
+            if source_name in self.canvas.parent_window.nodes_data:
+                source_info = self.canvas.parent_window.nodes_data[source_name]
+                source_config = source_info.get('config', {})
+                source_config.setdefault('out_connections', {})
+                tgt_port = target_anchor.port_name if (target_anchor and hasattr(target_anchor, 'port_name')) else 'default'
+                source_config['out_connections'][source_port_name] = f"{target_name}|{tgt_port}"
+                try:
+                    sc_path = os.path.join(source_info.get('path', ''), "config.json")
+                    if source_info.get('path'):
+                        with open(sc_path, 'w', encoding='utf-8') as f:
+                            json.dump(source_config, f, indent=2, ensure_ascii=False)
+                except Exception as e:
+                    logger.error("save upstream out_connections failed: %s", e)
+
+        config_path = os.path.join(target_info['path'], "config.json")
+        try:
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(target_config, f, indent=2, ensure_ascii=False)
+            logger.info("configured %s to listen to %s", target_name, source_name)
+        except Exception as e:
+            logger.error("save config failed: %s", e)
+
+    def _update_composite_config_edge(self, source_name, target_name,
+                                       is_composite_source, is_composite_target,
+                                       source_anchor, target_anchor):
+        """Write config for edges involving composite nodes.
+
+        composite output → external node:
+            Set target's listen_upper_file / port_mappings to internal node's output.json
+
+        external node → composite input:
+            Set internal node's listen_upper_file to external node's output.json
+        """
+        manager = getattr(self.canvas, '_composite_manager', None)
+        if not manager:
+            # 尝试懒初始化：检查 canvas_view 上的 _composite_manager 或尝试恢复
+            from ui.core.node.composite_node import CompositeNode
+            project_path = (self.canvas.parent_window.current_project_path
+                            if self.canvas.parent_window else None)
+            if project_path:
+                group_manager = None
+                if (hasattr(self.canvas.parent_window, 'node_list_panel')
+                        and self.canvas.parent_window.node_list_panel):
+                    group_manager = self.canvas.parent_window.node_list_panel.group_manager
+                manager = CompositeNode(project_path, self.canvas, group_manager)
+                self.canvas._composite_manager = manager
+                logger.info("lazy-initialized composite manager for edge config update")
+            else:
+                logger.warning("create_edge: composite manager not available and no project path, "
+                               "skipping config update for %s → %s", source_name, target_name)
+                return
+        nodes_data = self.canvas.parent_window.nodes_data if self.canvas.parent_window else {}
+        if not nodes_data:
+            logger.warning("create_edge: parent_window.nodes_data unavailable, skipping "
+                           "composite config update for %s → %s", source_name, target_name)
+            return
+
+        if is_composite_source and not is_composite_target:
+            # Composite output port → external target node
+            port_name = getattr(source_anchor, 'port_name', '') or 'default'
+            internal_name = manager._find_internal_by_port(source_name, port_name, "output")
+            if not internal_name or internal_name not in nodes_data:
+                logger.warning("create_edge: composite output port %s/%s not mapped to internal node "
+                               "(composite=%s, available output_ports=%s)",
+                               source_name, port_name,
+                               manager._composites.get(source_name, {}).get("output_ports", []))
+                return
+            internal_info = nodes_data[internal_name]
+            internal_path = internal_info.get('path', '')
+            if not internal_path:
+                logger.warning("create_edge: internal node %s has no path, composite config skipped",
+                               internal_name)
+                return
+            source_output_path = os.path.abspath(os.path.join(internal_path, "output.json"))
+
+            # Update external target's config
+            target_info = nodes_data.get(target_name)
+            if not target_info:
+                logger.warning("create_edge: target %s not in nodes_data, composite config skipped",
+                               target_name)
+                return
+            target_config = target_info['config']
+            if target_anchor and hasattr(target_anchor, 'port_name'):
+                tpn = target_anchor.port_name
+                if tpn and tpn != "default":
+                    target_config.setdefault('port_mappings', {})[tpn] = source_output_path
+                else:
+                    target_config['listen_upper_file'] = source_output_path
+            else:
+                target_config['listen_upper_file'] = source_output_path
+
+            config_path = os.path.join(target_info['path'], "config.json")
+            try:
+                with open(config_path, 'w', encoding='utf-8') as f:
+                    json.dump(target_config, f, indent=2, ensure_ascii=False)
+                logger.info("composite→external: %s config updated → %s (via %s)",
+                            target_name, source_output_path, internal_name)
+            except Exception as e:
+                logger.error("save composite edge config failed for %s: %s", target_name, e)
+                return
+
+            # Record output routing in _port_routing (not internal node's config.json)
+            tgt_port = target_anchor.port_name if (target_anchor and hasattr(target_anchor, 'port_name')) else 'default'
+            manager.set_output_routing(source_name, port_name, None, target_name, tgt_port)
+            logger.info("composite→external: _port_routing output[%s] → %s|%s",
+                        port_name, target_name, tgt_port)
+
+        elif is_composite_target and not is_composite_source:
+            # External source node → composite input port
+            port_name = getattr(target_anchor, 'port_name', '') or 'default'
+            internal_name = manager._find_internal_by_port(target_name, port_name, "input")
+            if not internal_name or internal_name not in nodes_data:
+                logger.warning("create_edge: composite input port %s/%s not mapped to internal node "
+                               "(composite=%s, available input_ports=%s)",
+                               target_name, port_name,
+                               manager._composites.get(target_name, {}).get("input_ports", []))
+                return
+            source_data = nodes_data.get(source_name, {})
+            source_path = source_data.get('path', '')
+            if not source_path:
+                logger.warning("create_edge: source %s has no path, composite config skipped",
+                               source_name)
+                return
+            source_output_path = os.path.abspath(os.path.join(source_path, "output.json"))
+
+            # Record input routing in _port_routing (NOT internal node's listen_upper_file)
+            # This prevents the composite's input port from disappearing due to
+            # _identify_ports detecting a non-empty listen_upper_file.
+            manager.set_input_routing(target_name, port_name, source_output_path)
+            logger.info("external→composite: _port_routing input[%s] ← %s",
+                        port_name, source_output_path)
+
+            # Also update source node's out_connections
+            spn = source_anchor.port_name if (source_anchor and hasattr(source_anchor, 'port_name')) else 'default'
+            source_config = source_data.get('config', {})
+            source_config.setdefault('out_connections', {})
+            source_config['out_connections'][spn] = f"{internal_name}|{port_name}"
+            try:
+                sc_path = os.path.join(source_path, "config.json")
+                with open(sc_path, 'w', encoding='utf-8') as f:
+                    json.dump(source_config, f, indent=2, ensure_ascii=False)
+                logger.info("external→composite: source %s out_connections[%s]=%s",
+                            source_name, spn, source_config['out_connections'][spn])
+            except Exception as e:
+                logger.error("save source out_connections failed: %s", e)
+
+        elif is_composite_source and is_composite_target:
+            # Composite output port → composite input port
+            # Use _port_routing exclusively — no internal node config.json writes
+            src_port_name = getattr(source_anchor, 'port_name', '') or 'default'
+            tgt_port_name = getattr(target_anchor, 'port_name', '') or 'default'
+
+            src_internal = manager._find_internal_by_port(source_name, src_port_name, "output")
+            tgt_internal = manager._find_internal_by_port(target_name, tgt_port_name, "input")
+
+            if not src_internal or src_internal not in nodes_data:
+                logger.warning("create_edge: composite→composite source port %s/%s not mapped",
+                               source_name, src_port_name)
+                return
+            if not tgt_internal or tgt_internal not in nodes_data:
+                logger.warning("create_edge: composite→composite target port %s/%s not mapped",
+                               target_name, tgt_port_name)
+                return
+
+            src_internal_info = nodes_data[src_internal]
+            src_path = src_internal_info.get('path', '')
+            if not src_path:
+                logger.warning("create_edge: composite→composite missing source path for %s",
+                               src_internal)
+                return
+
+            src_output_path = os.path.abspath(os.path.join(src_path, "output.json"))
+
+            # Record output routing: source composite output port → target internal node
+            manager.set_output_routing(source_name, src_port_name, target_name,
+                                       tgt_internal, tgt_port_name)
+
+            # Record input routing: target composite input port ← source output.json
+            manager.set_input_routing(target_name, tgt_port_name, src_output_path)
+
+            logger.info("composite→composite: _port_routing %s output[%s] → %s input[%s]",
+                        source_name, src_port_name, target_name, tgt_port_name)
+
     def remove_edge(self, edge):
         """移除连线（支持多输入/输出端口）"""
         if edge in self.canvas.edges:
@@ -205,43 +375,52 @@ class CanvasConnections:
             if edge not in self.canvas.edges:
                 return
 
-            if target_name and self.canvas.parent_window and target_name in self.canvas.parent_window.nodes_data:
-                target_info = self.canvas.parent_window.nodes_data[target_name]
-                target_config = target_info['config']
+            # ── Clean config.json for composite-involved edges ──
+            is_comp_src = source_name.startswith("composite_") if source_name else False
+            is_comp_tgt = target_name.startswith("composite_") if target_name else False
+            manager = getattr(self.canvas, '_composite_manager', None)
+            nodes_data = self.canvas.parent_window.nodes_data if self.canvas.parent_window else {}
 
-                if edge.end_anchor and hasattr(edge.end_anchor, 'port_name'):
-                    port_name = edge.end_anchor.port_name
-                    if port_name and port_name != "default":
-                        if 'port_mappings' in target_config and port_name in target_config['port_mappings']:
-                            del target_config['port_mappings'][port_name]
-                            logger.debug("已移除端口映射: %s", port_name)
-                    else:
-                        target_config['listen_upper_file'] = ""
-                        logger.debug("已清空 listen_upper_file")
-                else:
-                    target_config['listen_upper_file'] = ""
+            if is_comp_src and not is_comp_tgt:
+                # Composite output → external: clear _port_routing
+                if manager and edge.start_anchor:
+                    port_name = getattr(edge.start_anchor, 'port_name', '')
+                    if port_name:
+                        manager.clear_output_routing(source_name, port_name)
+                        logger.info("remove composite→external: cleared _port_routing output[%s]", port_name)
+                # Also clean external target (normal path below)
+                if target_name and target_name in nodes_data:
+                    self._clean_target_config(nodes_data, target_name, edge)
 
-                config_path = os.path.join(target_info['path'], "config.json")
-                try:
-                    with open(config_path, 'w', encoding='utf-8') as f:
-                        json.dump(target_config, f, indent=2, ensure_ascii=False)
-                    logger.info("已清空 %s 的监听配置及端口映射", target_name)
-                except Exception as e:
-                    logger.error("保存配置失败: %s", e)
+            elif is_comp_tgt and not is_comp_src:
+                # External → composite input: clear _port_routing
+                if manager and edge.end_anchor:
+                    port_name = getattr(edge.end_anchor, 'port_name', '')
+                    if port_name:
+                        manager.clear_input_routing(target_name, port_name)
+                        logger.info("remove external→composite: cleared _port_routing input[%s]", port_name)
+                # Also clean external source's out_connections (normal path below)
+                if source_name and source_name in nodes_data:
+                    self._clean_source_out_connections(nodes_data, source_name, edge)
 
-            if source_name and self.canvas.parent_window and source_name in self.canvas.parent_window.nodes_data:
-                source_info = self.canvas.parent_window.nodes_data[source_name]
-                source_config = source_info.get('config', {})
-                if 'out_connections' in source_config and edge.start_anchor and hasattr(edge.start_anchor, 'port_name'):
-                    sp = edge.start_anchor.port_name
-                    if sp in source_config['out_connections']:
-                        del source_config['out_connections'][sp]
-                    try:
-                        sc_path = os.path.join(source_info['path'], "config.json")
-                        with open(sc_path, 'w', encoding='utf-8') as f:
-                            json.dump(source_config, f, indent=2, ensure_ascii=False)
-                    except Exception as e:
-                        logger.error("保存上游节点出向连接配置失败: %s", e)
+            elif is_comp_src and is_comp_tgt:
+                # Composite → composite: clear both _port_routing entries
+                if manager:
+                    src_port = getattr(edge.start_anchor, 'port_name', '')
+                    tgt_port = getattr(edge.end_anchor, 'port_name', '')
+                    if src_port:
+                        manager.clear_output_routing(source_name, src_port)
+                    if tgt_port:
+                        manager.clear_input_routing(target_name, tgt_port)
+                    logger.info("remove composite→composite: cleared _port_routing %s output[%s] and %s input[%s]",
+                                source_name, src_port, target_name, tgt_port)
+
+            elif not is_comp_src and not is_comp_tgt:
+                # Normal node→node edge
+                if target_name and target_name in nodes_data:
+                    self._clean_target_config(nodes_data, target_name, edge)
+                if source_name and source_name in nodes_data:
+                    self._clean_source_out_connections(nodes_data, source_name, edge)
 
             edge.remove_from_scene()
             self.canvas.edges.remove(edge)
@@ -249,6 +428,46 @@ class CanvasConnections:
             if self.canvas.parent_window and self.canvas.parent_window.current_project_path:
                 self.canvas._save_timer.stop()
                 self.canvas._save_timer.start(500)
+
+    def _clean_target_config(self, nodes_data, target_name, edge):
+        """Clear listen_upper_file / port_mappings for a target node on edge removal."""
+        target_info = nodes_data[target_name]
+        target_config = target_info['config']
+
+        if edge.end_anchor and hasattr(edge.end_anchor, 'port_name'):
+            port_name = edge.end_anchor.port_name
+            if port_name and port_name != "default":
+                if 'port_mappings' in target_config and port_name in target_config['port_mappings']:
+                    del target_config['port_mappings'][port_name]
+                    logger.debug("已移除端口映射: %s", port_name)
+            else:
+                target_config['listen_upper_file'] = ""
+                logger.debug("已清空 listen_upper_file")
+        else:
+            target_config['listen_upper_file'] = ""
+
+        config_path = os.path.join(target_info['path'], "config.json")
+        try:
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(target_config, f, indent=2, ensure_ascii=False)
+            logger.info("已清空 %s 的监听配置及端口映射", target_name)
+        except Exception as e:
+            logger.error("保存配置失败: %s", e)
+
+    def _clean_source_out_connections(self, nodes_data, source_name, edge):
+        """Clear out_connections entry for a source node on edge removal."""
+        source_info = nodes_data[source_name]
+        source_config = source_info.get('config', {})
+        if 'out_connections' in source_config and edge.start_anchor and hasattr(edge.start_anchor, 'port_name'):
+            sp = edge.start_anchor.port_name
+            if sp in source_config['out_connections']:
+                del source_config['out_connections'][sp]
+            try:
+                sc_path = os.path.join(source_info['path'], "config.json")
+                with open(sc_path, 'w', encoding='utf-8') as f:
+                    json.dump(source_config, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                logger.error("保存上游节点出向连接配置失败: %s", e)
 
     def cancel_connection(self):
         """取消连线"""

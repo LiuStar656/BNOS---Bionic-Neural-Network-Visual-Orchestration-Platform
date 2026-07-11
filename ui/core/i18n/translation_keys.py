@@ -777,6 +777,9 @@ class TranslationKeys:
     COMPOSITE_COMPRESS_FAILED = "k_composite_compress_failed"
     COMPOSITE_NAME_PROMPT = "k_composite_name_prompt"
     COMPOSITE_NAME_DIALOG_TITLE = "k_composite_name_dialog_title"
+    _COMPOSITE_NO_ENTRY = "_k_composite_no_entry"
+    _COMPOSITE_MULTI_ENTRY = "_k_composite_multi_entry"
+    COMPOSITE_COLLAPSE_BLOCKED_TITLE = "k_composite_collapse_blocked_title"
 
     # ═══════════════════════════════════════════════════════════════
     # 类方法 / 验证

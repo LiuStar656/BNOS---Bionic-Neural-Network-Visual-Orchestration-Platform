@@ -23,6 +23,7 @@ from ui.core.config.app_config import AppConfig
 from ui.canvas.items.node_item import NodeItem
 from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.anchor_item import AnchorItem
+from ui.canvas.items.composite_node_item import CompositeNodeItem
 
 
 class EventHandlers:
@@ -115,6 +116,10 @@ class EventHandlers:
         # 默认处理（拖拽平移等）
         super(type(self.canvas), self.canvas).mouseMoveEvent(event)
 
+        # Group movement: if a node in an expanded composite was dragged,
+        # move all sibling nodes by the same delta
+        self._sync_composite_group_movement()
+
     def mousePressEvent(self, event):
         """鼠标按下事件 - 处理空格+左键平移、左键长按框选"""
         if self.canvas.draw_layer.mouse_press(event):
@@ -133,27 +138,28 @@ class EventHandlers:
                     clicked_anchor = probe
                     parent = probe.parentItem()
                     while parent is not None:
-                        if isinstance(parent, NodeItem):
+                        if isinstance(parent, (NodeItem, CompositeNodeItem)):
                             target_node = parent
                             break
                         parent = parent.parentItem()
                     break
-                if isinstance(probe, NodeItem):
+                if isinstance(probe, (NodeItem, CompositeNodeItem)):
                     target_node = probe
                     break
                 if isinstance(probe, EdgeItem):
                     target_node = probe.end_node
                     break
-            # 兜底：如果没精确点中 AnchorItem，但命中了 NodeItem
+            # Fallback: if anchor not precisely clicked but node/composite hit
             if target_node is not None and clicked_anchor is None:
                 local_pos = target_node.mapFromScene(scene_pos)
                 clicked_anchor = target_node.find_nearest_input_anchor(
                     local_pos, max_dist=60
                 )
-                if clicked_anchor is None and target_node.anchor_manager.input_anchors:
-                    input_list = list(target_node.anchor_manager.input_anchors.values())
-                    if len(input_list) == 1:
-                        clicked_anchor = input_list[0]
+                if clicked_anchor is None and hasattr(target_node, 'anchor_manager'):
+                    if target_node.anchor_manager.input_anchors:
+                        input_list = list(target_node.anchor_manager.input_anchors.values())
+                        if len(input_list) == 1:
+                            clicked_anchor = input_list[0]
             logger.debug(
                 "mousePress: item=%s, target_node=%s, anchor=%s (port=%s), connect_source=%s",
                 type(item).__name__,
@@ -205,7 +211,7 @@ class EventHandlers:
             is_interactive = False
             probe = item
             while probe is not None:
-                if isinstance(probe, (NodeItem, EdgeItem, AnchorItem)):
+                if isinstance(probe, (NodeItem, EdgeItem, AnchorItem, CompositeNodeItem)):
                     is_interactive = True
                     break
                 probe = probe.parentItem()
@@ -234,6 +240,30 @@ class EventHandlers:
             self.canvas.scene.clearSelection()
             event.accept()
             return
+
+        # 点击复合节点的锚点 → 开始/完成连线
+        if event.button() == Qt.MouseButton.LeftButton and isinstance(item, AnchorItem):
+            comp_parent = item.parentItem()
+            if isinstance(comp_parent, CompositeNodeItem):
+                anchor = item
+                if getattr(anchor, 'port_type', '') == 'output':
+                    # Start connection from composite output
+                    logger.debug("CompositeNodeItem[%s]: output anchor %s clicked",
+                                 comp_parent.comp_id, getattr(anchor, 'port_name', ''))
+                    self.canvas.start_connection_from_output(comp_parent, anchor)
+                    event.accept()
+                    return
+                elif self.canvas.is_connecting and getattr(anchor, 'port_type', '') == 'input':
+                    # Complete connection to composite input
+                    logger.debug("CompositeNodeItem[%s]: input anchor %s connected",
+                                 comp_parent.comp_id, getattr(anchor, 'port_name', ''))
+                    if self.canvas.connect_source != comp_parent:
+                        self.canvas.complete_connection_to_input(comp_parent, anchor)
+                    event.accept()
+                    return
+
+        # Pre-set drag anchor for expanded composite internal nodes
+        self._prepare_composite_drag_anchor(item)
 
         # 其他情况：交给默认处理或子项处理
         super(type(self.canvas), self.canvas).mousePressEvent(event)
@@ -287,6 +317,127 @@ class EventHandlers:
             return
 
         super(type(self.canvas), self.canvas).mouseReleaseEvent(event)
+
+        # Clear drag anchor positions for all composites
+        self._clear_composite_drag_anchors()
+
+    # ── Composite group movement ──
+
+    def _prepare_composite_drag_anchor(self, item):
+        """If the pressed item is a NodeItem in an expanded composite,
+        pre-snapshot all sibling positions as drag anchors.
+
+        Called from mousePressEvent BEFORE the drag starts, so the
+        first mouseMoveEvent already has valid anchors.
+        """
+        if not isinstance(item, NodeItem):
+            return
+        node_name = getattr(item, 'node_name', None)
+        if not node_name:
+            return
+        mgr = getattr(self.canvas, '_composite_manager', None)
+        if not mgr:
+            return
+
+        for comp_id, comp in mgr._composites.items():
+            if not comp.get("_expanded"):
+                continue
+            node_names = comp.get("nodes", [])
+            if node_name not in node_names:
+                continue
+            # Found the composite this node belongs to
+            anchor = {}
+            for n in node_names:
+                node_item = self.canvas.nodes.get(n)
+                if node_item and node_item.isVisible():
+                    anchor[n] = (node_item.pos().x(), node_item.pos().y())
+            comp["_drag_anchor_positions"] = anchor
+            return
+
+    def _sync_composite_group_movement(self):
+        """When an expanded composite node's internal node is dragged,
+        move all sibling nodes and the group frame by the same delta.
+
+        Anchor positions are pre-set in mousePressEvent and updated
+        every frame to avoid feedback loops.
+        """
+        mgr = getattr(self.canvas, '_composite_manager', None)
+        if not mgr:
+            return
+
+        if getattr(self.canvas, '_group_moving', False):
+            return
+
+        for comp_id, comp in mgr._composites.items():
+            if not comp.get("_expanded"):
+                continue
+
+            node_names = comp.get("nodes", [])
+            if not node_names:
+                continue
+
+            anchor = comp.get("_drag_anchor_positions")
+            if not anchor:
+                continue
+
+            # Find which node was moved (position differs from anchor)
+            drag_dx = drag_dy = 0
+            dragged_node = None
+            for n in node_names:
+                item = self.canvas.nodes.get(n)
+                if not item or not item.isVisible():
+                    continue
+                orig = anchor.get(n)
+                if orig is None:
+                    continue
+                dx = item.pos().x() - orig[0]
+                dy = item.pos().y() - orig[1]
+                if abs(dx) > 0.1 or abs(dy) > 0.1:
+                    dragged_node = n
+                    drag_dx = dx
+                    drag_dy = dy
+                    break
+
+            if dragged_node is None:
+                continue
+
+            # Apply the SAME delta to ALL siblings (skip dragged node, already moved by Qt)
+            self.canvas._group_moving = True
+            try:
+                for n in node_names:
+                    if n == dragged_node:
+                        # Already positioned by Qt's drag mechanism — just update anchor
+                        item = self.canvas.nodes.get(n)
+                        if item and item.isVisible():
+                            anchor[n] = (item.pos().x(), item.pos().y())
+                        continue
+                    orig = anchor.get(n)
+                    if orig is None:
+                        continue
+                    item = self.canvas.nodes.get(n)
+                    if item and item.isVisible():
+                        item.setPos(orig[0] + drag_dx, orig[1] + drag_dy)
+                        # Update anchor to reflect applied position
+                        anchor[n] = (orig[0] + drag_dx, orig[1] + drag_dy)
+
+                # Update group frame bounds
+                frame_key = f"__frame__{comp_id}"
+                frame = self.canvas.nodes.get(frame_key)
+                if frame and hasattr(frame, 'update_for_items'):
+                    visible_items = [self.canvas.nodes[n] for n in node_names
+                                     if n in self.canvas.nodes and self.canvas.nodes[n].isVisible()]
+                    frame.update_for_items(visible_items)
+            finally:
+                self.canvas._group_moving = False
+
+    def _clear_composite_drag_anchors(self):
+        """Clear drag anchor positions for all expanded composites."""
+        mgr = getattr(self.canvas, '_composite_manager', None)
+        if not mgr:
+            return
+        for comp in mgr._composites.values():
+            if "_drag_anchor_positions" in comp:
+                del comp["_drag_anchor_positions"]
 
     def mouseDoubleClickEvent(self, event):
         """鼠标双击事件 - 双击节点打开配置对话框"""

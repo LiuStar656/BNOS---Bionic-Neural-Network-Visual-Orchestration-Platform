@@ -8,7 +8,12 @@
 
 Click on dates below to view detailed updates for that date:
 
-### [2026-07-11](./2026-07-11/)
+### [2026-07-12](./2026-07-12/)
+- **_port_routing Port Routing Mechanism**: Routing info migrated from internal node config.json to `_port_routing` field in node_clusters.json, decoupling port routing from node configuration; resolves the core issue of `listen_upper_file` causing input ports to disappear; node `main.py` requires zero changes
+- **Composite Node Connection & Collapse Fixes**: Expand/collapse edge update and jitter fixes (added `update_path()` calls, `_batch_updating` flag, skip double `setPos` on dragged nodes); config write diagnostics enhancement; `_port_routing` residue cleanup
+- **Single-Entry DAG Validation**: New `_validate_dag_single_entry` method, rejects multi-entry DAGs on compress and collapse; supports A→B→C or A→B concurrently A→C; disallows multi-entry DAGs
+- **i18n**: 3 new CN/EN translation keys (entry detection, multi-entry rejection, collapse blocked title)
+- **Composite Node UI Interaction & Edge System Round 2 Fixes**: Right-click menu expand/collapse; composite output anchor edge creation; expanded UI interaction fix (CompositeGroupFrame shape override); edge residue cleanup after collapse (multi-composite safety); edge config.json bidirectional sync and expand/collapse re-alignment; port identification following config.json; edge anchor invalidation fix after collapse (save→refresh→rebind); internal node drag fluttering fix (preset anchors + per-frame update); PermissionError save retry; SelectedNodesList serialization fix; AnchorItem parameter matching fix
 - **Composite Node System**: Multi-node compression into virtual nodes, DAG topological sort orchestration, decompression support, canvas-specific rendering, node list integration
 - **Global Defensive Mechanisms**: 40 defenses across process management, file persistence, signal lifecycle, resource cleanup, path security, thread safety, config validation, concurrency control
 - **Project File Lock**: `.bnos_project.lock` prevents multiple instances opening the same project, preventing data corruption
@@ -178,4 +183,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-07-11
+**Last Updated**: 2026-07-12

@@ -361,6 +361,16 @@ class CanvasMenu:
 
         menu.addSeparator()
 
+        # 展开/折叠
+        comp_data = mgr._composites.get(comp_id, {})
+        is_expanded = comp_data.get("_expanded", False)
+        expand_action = menu.addAction(
+            "\u6298\u53e0" if is_expanded else "\u5c55\u5f00"
+        )
+        expand_action.triggered.connect(lambda: mgr.toggle_expand(comp_id))
+
+        menu.addSeparator()
+
         # 运行时模式
         runtime_menu = menu.addMenu("\u8fd0\u884c\u65f6\u6a21\u5f0f")
         current_runtime = mgr.get_runtime(comp_id) or "inprocess"

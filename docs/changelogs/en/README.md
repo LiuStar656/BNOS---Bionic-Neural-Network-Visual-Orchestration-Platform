@@ -5,6 +5,20 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-12】V2.0.27 - _port_routing Port Routing Refactoring & Composite Node UI Interaction Round 2 Fixes</strong></summary>
+
+[View Full Update](./2026-07-12/README.md)
+
+**Main Updates:**
+- **_port_routing Port Routing Mechanism**: Routing info migrated from internal node config.json to `_port_routing` field in node_clusters.json, decoupling port routing from node configuration. Resolves the core issue of `listen_upper_file` causing input ports to disappear. Node `main.py` requires zero changes.
+- **Composite Node Connection & Collapse Fixes**: Expand/collapse edge update and jitter fixes (added `update_path()` calls, `_batch_updating` flag, skip double `setPos` on dragged nodes); config write diagnostics enhancement; `_port_routing` residue cleanup
+- **Single-Entry DAG Validation**: New `_validate_dag_single_entry` method, rejects multi-entry DAGs on compress and collapse. Supports A→B→C or A→B concurrently A→C; disallows multi-entry DAGs.
+- **i18n**: 3 new CN/EN translation keys (entry detection, multi-entry rejection, collapse blocked title)
+- **Composite Node UI Interaction & Edge System Round 2 Fixes**: Right-click menu expand/collapse replacing double-click; composite output anchor edge creation; expanded UI interaction fix (CompositeGroupFrame shape override covering only collapse button); edge residue cleanup after collapse (multi-composite safety); edge config.json bidirectional sync with re-alignment on every expand/collapse; port identification following config.json; edge anchor invalidation fix after collapse (save→refresh→rebind edges); internal node drag fluttering fix (mousePressEvent preset anchors + per-frame update eliminates feedback loop); PermissionError save 3-retry mechanism; SelectedNodesList serialization fix; AnchorItem parameter matching fix
+
+</details>
+
+<details>
 <summary><strong>【2026-07-11】V2.0.26 - Composite Node System, Global Defensive Mechanisms, Project File Lock & Architecture Debt Fixes</strong></summary>
 
 [View Full Update](./2026-07-11/README.md) | [01_Composite_Node](./2026-07-11/01_Composite_Node_System.md) | [02_Defensive_Mechanisms](./2026-07-11/02_Global_Defensive_Mechanisms.md) | [03_File_Lock_Fixes](./2026-07-11/03_Project_File_Lock_and_Bug_Fixes.md) | [04_Arch_Debt](./2026-07-11/04_Architecture_Debt_Fixes.md)
@@ -412,3 +426,5 @@ This changelog uses a **"Single Index Page + Version-Separate MD Sub-Files"** ar
 1. Click the triangle on the left of the date to expand/collapse the version summary
 2. Click the "View Full Update" link to enter the detailed update page for that date
 3. Each date folder contains all update entries for that date, supporting independent browsing and archiving
+
+**Last Updated**: 2026-07-12

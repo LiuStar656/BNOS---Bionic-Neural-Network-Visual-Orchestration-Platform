@@ -452,13 +452,15 @@ class NodeCanvas(QGraphicsView):
                 if item:
                     item.setVisible(False)
 
-            # 创建复合节点 Item
+            # Create composite node Item with ports
             comp_item = CompositeNodeItem(
                 comp_id=comp_id,
                 node_count=len(node_names),
                 node_names=node_names,
                 display_name=comp.get("display_name", ""),
-                canvas=self
+                canvas=self,
+                input_ports=comp.get("input_ports", []),
+                output_ports=comp.get("output_ports", []),
             )
             comp_item.setPos(pos.get("x", 0), pos.get("y", 0))
             self.scene.addItem(comp_item)

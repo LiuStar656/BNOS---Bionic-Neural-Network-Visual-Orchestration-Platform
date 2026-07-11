@@ -1,66 +1,197 @@
 """
 ui/canvas/items/composite_node_item.py
-复合节点的画布元素。
-外观：虚线边框 + 青绿配色 + 内部节点数标记 + ⊞ 图标。
-
-继承 QGraphicsRectItem，与 NodeItem 平级作为画布可拖拽元素。
+Composite node canvas element.
+Appearance: dashed border + teal color + node count + ⊞ icon + anchor ports.
 """
-import os
-
-from PySide6.QtCore import Qt, QRectF
+from PySide6.QtCore import Qt, QRectF, QPointF
 from PySide6.QtGui import QColor, QPen, QBrush, QPainter, QFont
 from PySide6.QtWidgets import (
     QGraphicsRectItem, QGraphicsItem, QStyleOptionGraphicsItem, QWidget,
     QMenu, QMessageBox,
 )
 
+from ui.canvas.items.anchor_item import AnchorItem
+
+ANCHOR_RADIUS = 5
+ANCHOR_SPACING = 22
+PADDING_TOP = 35
+PADDING_BOTTOM = 12
+BASE_WIDTH = 180
+
 
 class CompositeNodeItem(QGraphicsRectItem):
-    """复合节点画布元素。"""
+    """Composite node canvas element with input/output anchors."""
 
-    WIDTH = 180
-    HEIGHT = 85
     BORDER_COLOR = QColor("#4ec9b0")
     FILL_COLOR = QColor("#1e3a3a")
     SELECTED_BORDER = QColor("#6ee9d0")
+    INPUT_ANCHOR_COLOR = QColor("#4fc34f")
+    OUTPUT_ANCHOR_COLOR = QColor("#f06060")
 
     def __init__(self, comp_id: str, node_count: int, node_names: list,
-                 display_name: str = "", canvas=None, parent=None):
+                 display_name: str = "", canvas=None, parent=None,
+                 input_ports: list = None, output_ports: list = None):
         super().__init__(parent)
         self.comp_id = comp_id
         self.node_count = node_count
         self.node_names = node_names
         self.display_name = display_name
         self._canvas = canvas
+        self._input_ports = input_ports or []
+        self._output_ports = output_ports or []
+        self._anchors = []
+        self._is_expanded = False
 
-        self.setRect(0, 0, self.WIDTH, self.HEIGHT)
+        self._calc_geometry()
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
         self.setZValue(10)
+        self.setAcceptHoverEvents(True)
 
         self._pen = QPen(self.BORDER_COLOR, 2, Qt.PenStyle.DashLine)
         self._brush = QBrush(self.FILL_COLOR)
         self._font_bold = QFont("Segoe UI", 11, QFont.Weight.Bold)
         self._font_small = QFont("Segoe UI", 9)
 
-    # ── S14: 拖拽位置持久化 ──
+        self._create_anchors()
+
+    def _calc_geometry(self):
+        port_rows = max(len(self._input_ports), len(self._output_ports), 1)
+        self._height = max(60, PADDING_TOP + port_rows * ANCHOR_SPACING + PADDING_BOTTOM)
+        self.setRect(0, 0, BASE_WIDTH, self._height)
+
+    def _create_anchors(self):
+        for a in self._anchors:
+            if a.scene():
+                a.scene().removeItem(a)
+        self._anchors.clear()
+
+        in_count = len(self._input_ports)
+        out_count = len(self._output_ports)
+
+        # Input anchors (left side)
+        for i in range(in_count):
+            y = PADDING_TOP + i * ANCHOR_SPACING
+            anchor = AnchorItem(
+                0, y,
+                anchor_type="input",
+                port_name=self._input_ports[i]["port_name"],
+                port_type="input",
+                size=ANCHOR_RADIUS * 2,
+                parent=self,
+            )
+            anchor.setBrush(QBrush(self.INPUT_ANCHOR_COLOR))
+            anchor.setPen(QPen(QColor("#3a7a3a"), 1))
+            self._anchors.append(anchor)
+
+        # Output anchors (right side)
+        for i in range(out_count):
+            y = PADDING_TOP + i * ANCHOR_SPACING
+            anchor = AnchorItem(
+                BASE_WIDTH, y,
+                anchor_type="output",
+                port_name=self._output_ports[i]["port_name"],
+                port_type="output",
+                size=ANCHOR_RADIUS * 2,
+                parent=self,
+            )
+            anchor.setBrush(QBrush(self.OUTPUT_ANCHOR_COLOR))
+            anchor.setPen(QPen(QColor("#8a3a3a"), 1))
+            self._anchors.append(anchor)
+
+    def update_ports(self, input_ports: list, output_ports: list):
+        self._input_ports = input_ports
+        self._output_ports = output_ports
+        self._calc_geometry()
+        self._create_anchors()
+        self.update()
+
+    def find_anchor_by_port(self, port_name: str, port_type: str):
+        """Find an anchor by port_name and type ('input' or 'output')."""
+        for a in self._anchors:
+            if getattr(a, 'port_name', '') == port_name and getattr(a, 'port_type', '') == port_type:
+                return a
+        return None
+
+    # ── Compatibility with connection system ──
+
+    @property
+    def node_name(self) -> str:
+        """Compatibility: connection system expects node_name."""
+        return self.comp_id
+
+    @property
+    def input_anchor(self):
+        """Return first visible input anchor (for connection system)."""
+        for a in self._anchors:
+            if getattr(a, 'port_type', '') == 'input' and a.isVisible():
+                return a
+        return None
+
+    @property
+    def output_anchor(self):
+        """Return first visible output anchor (for connection system)."""
+        for a in self._anchors:
+            if getattr(a, 'port_type', '') == 'output' and a.isVisible():
+                return a
+        return None
+
+    def find_nearest_input_anchor(self, local_pos, max_dist=60):
+        """Compatibility: find nearest input anchor for connection target."""
+        best = None
+        best_dist = max_dist
+        for a in self._anchors:
+            if getattr(a, 'port_type', '') == 'input':
+                d = (a.pos() - local_pos).manhattanLength()
+                if d < best_dist:
+                    best_dist = d
+                    best = a
+        return best
+
+    def find_nearest_output_anchor(self, local_pos, max_dist=60):
+        """Find nearest output anchor for starting a connection."""
+        best = None
+        best_dist = max_dist
+        for a in self._anchors:
+            if getattr(a, 'port_type', '') == 'output':
+                d = (a.pos() - local_pos).manhattanLength()
+                if d < best_dist:
+                    best_dist = d
+                    best = a
+        return best
+
+    # ── Expand/collapse state ──
+
+    @property
+    def is_expanded(self) -> bool:
+        return self._is_expanded
+
+    @is_expanded.setter
+    def is_expanded(self, val: bool):
+        self._is_expanded = val
+        self.update()
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
-            if self._canvas and hasattr(self._canvas, '_composite_manager'):
-                mgr = self._canvas._composite_manager
-                comp = mgr._composites.get(self.comp_id)
-                if comp:
-                    comp["canvas_position"] = {"x": value.x(), "y": value.y()}
-                    mgr.save()
+            if self._canvas:
+                # Update connected edges so lines follow the composite node
+                for edge in self._canvas.edges:
+                    if edge.start_node is self or edge.end_node is self:
+                        edge.update_path()
+                if hasattr(self._canvas, '_composite_manager'):
+                    mgr = self._canvas._composite_manager
+                    comp = mgr._composites.get(self.comp_id)
+                    if comp:
+                        comp["canvas_position"] = {"x": value.x(), "y": value.y()}
+                        mgr.save_debounced()
         return super().itemChange(change, value)
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget = None):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         rect = self.rect()
 
-        # 背景
+        # Background
         painter.setBrush(self._brush)
         if self.isSelected():
             painter.setPen(QPen(self.SELECTED_BORDER, 2.5, Qt.PenStyle.DashLine))
@@ -68,30 +199,31 @@ class CompositeNodeItem(QGraphicsRectItem):
             painter.setPen(self._pen)
         painter.drawRoundedRect(rect, 8, 8)
 
-        # 图标区域（左侧 ⊞）
-        icon_rect = QRectF(rect.x() + 8, rect.y() + 12, 28, 28)
+        # Icon area (left ⊞)
+        icon_rect = QRectF(rect.x() + 8, rect.y() + 8, 24, 24)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor("#4ec9b0"))
         painter.drawRoundedRect(icon_rect, 4, 4)
 
         painter.setPen(QColor("#1e1e1e"))
-        painter.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        painter.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         painter.drawText(icon_rect, Qt.AlignmentFlag.AlignCenter, "\u229e")
 
-        # 名称
-        name_rect = QRectF(icon_rect.right() + 8, rect.y() + 10,
-                           rect.width() - icon_rect.right() - 16, 22)
+        # Name
+        name_rect = QRectF(icon_rect.right() + 6, rect.y() + 7,
+                           rect.width() - icon_rect.right() - 16, 20)
         painter.setPen(QColor("#4ec9b0"))
         painter.setFont(self._font_bold)
         if self.display_name:
             label = self.display_name
         else:
             short_id = self.comp_id.replace("composite_", "")[:6]
-            label = f"复合节点 {short_id}"
+            label = f"Composite {short_id}"
+        elided = self._font_bold
         painter.drawText(name_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, label)
 
-        # 节点数 + 运行时模式
-        sub_rect = QRectF(name_rect.x(), name_rect.bottom() + 2, name_rect.width(), 20)
+        # Node count
+        sub_rect = QRectF(name_rect.x(), name_rect.bottom(), name_rect.width(), 18)
         painter.setPen(QColor("#888"))
         painter.setFont(self._font_small)
 
@@ -100,37 +232,57 @@ class CompositeNodeItem(QGraphicsRectItem):
             runtime = self._canvas._composite_manager.get_runtime(self.comp_id) or "inprocess"
 
         painter.drawText(sub_rect, Qt.AlignmentFlag.AlignLeft,
-                         f"{self.node_count} \u4e2a\u8282\u70b9 \u00b7 {runtime}")
+                         f"{self.node_count} nodes  {runtime}")
 
-        # 底部节点名列表（缩略）
-        detail_rect = QRectF(rect.x() + 8, sub_rect.bottom() + 2,
-                             rect.width() - 16, 18)
-        painter.setPen(QColor("#666"))
-        painter.setFont(QFont("Segoe UI", 8))
-        names = ", ".join(self.node_names[:3])
-        if len(self.node_names) > 3:
-            names += f" +{len(self.node_names) - 3}"
-        painter.drawText(detail_rect, Qt.AlignmentFlag.AlignLeft, names)
+        # Port labels
+        painter.setFont(QFont("Segoe UI", 7))
+        in_count = len(self._input_ports)
+        out_count = len(self._output_ports)
 
-    # ── 右键菜单 ──
+        for i, port in enumerate(self._input_ports):
+            y = PADDING_TOP + i * ANCHOR_SPACING + 4
+            painter.setPen(QColor("#4fc34f"))
+            painter.drawText(QRectF(6, y - 3, 70, 12),
+                             Qt.AlignmentFlag.AlignLeft,
+                             port.get("display_name", "")[:10])
+
+        for i, port in enumerate(self._output_ports):
+            y = PADDING_TOP + i * ANCHOR_SPACING + 4
+            painter.setPen(QColor("#f06060"))
+            painter.drawText(QRectF(BASE_WIDTH - 76, y - 3, 70, 12),
+                             Qt.AlignmentFlag.AlignRight,
+                             port.get("display_name", "")[:10])
+
+    # ── Mouse events ──
 
     def contextMenuEvent(self, event):
-        """复合节点右键菜单。"""
         menu = QMenu()
         menu.setStyleSheet("QMenu { background: #2b2b2b; color: #ccc; }")
 
-        decompress_action = menu.addAction("\u89e3\u8026\u4e3a\u72ec\u7acb\u8282\u70b9")
+        # Read expanded state from manager (authoritative), not self._is_expanded
+        mgr = self._get_manager()
+        is_expanded = False
+        if mgr:
+            comp = mgr._composites.get(self.comp_id)
+            if comp:
+                is_expanded = comp.get("_expanded", False)
+
+        expand_action = menu.addAction(
+            "Collapse" if is_expanded else "Expand"
+        )
+        expand_action.triggered.connect(self._toggle_expand)
+
+        decompress_action = menu.addAction("Decompress")
         decompress_action.triggered.connect(self._decompress)
 
         menu.addSeparator()
 
-        runtime_menu = menu.addMenu("\u8fd0\u884c\u65f6\u6a21\u5f0f")
-
+        runtime_menu = menu.addMenu("Runtime Mode")
         mgr = self._get_manager()
         current_runtime = mgr.get_runtime(self.comp_id) if mgr else "inprocess"
 
-        proc_action = runtime_menu.addAction("\u72ec\u7acb\u8fdb\u7a0b (process)")
-        inproc_action = runtime_menu.addAction("\u5355\u8fdb\u7a0b (inprocess)")
+        proc_action = runtime_menu.addAction("Process (separate)")
+        inproc_action = runtime_menu.addAction("In-process (single)")
         proc_action.setCheckable(True)
         inproc_action.setCheckable(True)
         if current_runtime == "process":
@@ -142,12 +294,18 @@ class CompositeNodeItem(QGraphicsRectItem):
 
         menu.addSeparator()
 
-        start_action = menu.addAction("\u542f\u52a8\u590d\u5408\u8282\u70b9")
-        stop_action = menu.addAction("\u505c\u6b62\u590d\u5408\u8282\u70b9")
+        start_action = menu.addAction("Start")
+        stop_action = menu.addAction("Stop")
         start_action.triggered.connect(self._start)
         stop_action.triggered.connect(self._stop)
 
         menu.exec(event.screenPos())
+
+    def _toggle_expand(self):
+        if self._canvas and hasattr(self._canvas, '_composite_manager'):
+            mgr = self._canvas._composite_manager
+            if hasattr(mgr, 'toggle_expand'):
+                mgr.toggle_expand(self.comp_id)
 
     def _get_manager(self):
         if self._canvas and hasattr(self._canvas, '_composite_manager'):
@@ -156,8 +314,8 @@ class CompositeNodeItem(QGraphicsRectItem):
 
     def _decompress(self):
         reply = QMessageBox.question(
-            None, "\u786e\u8ba4\u89e3\u8026",
-            f"\u5c06\u590d\u5408\u8282\u70b9\u8fd8\u539f\u4e3a {self.node_count} \u4e2a\u72ec\u7acb\u8282\u70b9\uff0c\n\u786e\u5b9a\u8981\u7ee7\u7eed\u5417\uff1f",
+            None, "Decompress",
+            f"Restore to {self.node_count} independent nodes?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -167,7 +325,7 @@ class CompositeNodeItem(QGraphicsRectItem):
         if mgr:
             ok, msg = mgr.decompress(self.comp_id)
             if not ok:
-                QMessageBox.warning(None, "\u89e3\u8026\u5931\u8d25", msg)
+                QMessageBox.warning(None, "Decompress Failed", msg)
 
     def _set_runtime(self, mode):
         mgr = self._get_manager()
@@ -185,7 +343,7 @@ class CompositeNodeItem(QGraphicsRectItem):
         else:
             ok, msg = mgr.start_process_mode(self.comp_id)
         if not ok:
-            QMessageBox.warning(None, "\u542f\u52a8\u5931\u8d25", msg)
+            QMessageBox.warning(None, "Start Failed", msg)
 
     def _stop(self):
         mgr = self._get_manager()
