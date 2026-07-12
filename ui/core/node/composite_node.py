@@ -1301,6 +1301,9 @@ class CompositeNode:
             original_positions,
         )
 
+        # 同步 pipeline.json（从 composite.json 提取 DAG）
+        self._sync_pipeline(comp_id)
+
         # Canvas
         self._canvas_compress(comp_id, node_names, cx, cy, display_name, ports)
 
@@ -1356,7 +1359,7 @@ class CompositeNode:
         except OSError:
             pass
 
-        remove_comp_env(self._project_path, comp_id, comp.get("display_name", ""), logger)
+        remove_comp_env(self._project_path, comp_id, logger)
 
         # 清理 composite_nodes/<comp_id>/ (日志存档后删除)
         self._decompress_cleanup(comp_id)
@@ -1503,17 +1506,20 @@ class CompositeNode:
     # ── Orchestrator 生成与启动 ──
 
     def generate_orchestrator(self, comp_id: str) -> str:
-        """生成 orchestrator.py 并返回路径。"""
-        nodes_list = self.get_nodes(comp_id)
-        dag = self.get_dag(comp_id)
-        ports = self.get_external_ports(comp_id)
+        """生成 orchestrator.py 到 composite_nodes/<comp_id>/ 并返回路径。
 
-        node_modules = []
-        for name in nodes_list:
-            node_modules.append({"name": name, "module": f"nodes.{name}.main", "path": f"./nodes/{name}"})
+        orchestrator.py 是通用编排引擎（从 pipeline.json 读取 DAG），
+        首次生成后 DAG 变更仅需更新 pipeline.json 而非重新生成此脚本。
+        """
+        comp_dir = self._comp_config_dir(self._project_path, comp_id)
+        comp_dir.mkdir(parents=True, exist_ok=True)
 
-        code = render_orchestrator_script(comp_id=comp_id, node_modules=node_modules, dag=dag, external_ports=ports)
-        orch_path = Path(self._project_path) / f"orchestrator_{comp_id}.py"
+        # 1. 同步 pipeline.json（从 composite.json 提取 DAG）
+        self._sync_pipeline(comp_id)
+
+        # 2. 生成 orchestrator.py
+        code = render_orchestrator_script(comp_id=comp_id)
+        orch_path = comp_dir / "orchestrator.py"
         try:
             with orch_path.open("w", encoding="utf-8") as f:
                 f.write(code)
@@ -1832,10 +1838,8 @@ class CompositeNode:
                     pass
 
     def _comp_venv_dir(self, comp_id: str) -> str:
-        """获取复合节点的 venv 目录路径。"""
-        comp = self._composites.get(comp_id, {})
-        display_name = comp.get("display_name", "")
-        return comp_venv_path(self._project_path, comp_id, display_name)
+        """获取复合节点的 venv 目录路径 — composite_nodes/{comp_id}/venv/。"""
+        return comp_venv_path(self._project_path, comp_id)
 
     # ── composite_nodes/ 目录管理 ──
 
@@ -1859,6 +1863,42 @@ class CompositeNode:
         """返回 composite_nodes/<comp_id>/logs/ 目录路径。"""
         return Path(project_path) / COMPOSITE_NODES_DIR / comp_id / "logs"
 
+    @staticmethod
+    def _comp_pipeline_path(project_path: str, comp_id: str) -> Path:
+        """返回 composite_nodes/<comp_id>/pipeline.json 路径。"""
+        return Path(project_path) / COMPOSITE_NODES_DIR / comp_id / "pipeline.json"
+
+    @staticmethod
+    def _comp_output_dir(project_path: str, comp_id: str) -> Path:
+        """返回 composite_nodes/<comp_id>/output/ 目录路径。"""
+        return Path(project_path) / COMPOSITE_NODES_DIR / comp_id / "output"
+
+    def _sync_pipeline(self, comp_id: str):
+        """从 composite.json 同步生成 pipeline.json（纯 DAG 拓扑）。
+
+        pipeline.json 是 orchestrator.py 的运行时数据源，
+        DAG 变更时仅需更新此文件，不必重新生成 orchestrator.py。
+        """
+        cfg = self._load_composite_config(comp_id)
+        if not cfg:
+            return
+        pipeline = {
+            "comp_id": comp_id,
+            "generated_at": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "nodes": [
+                {
+                    "name": n["name"],
+                    "path": n.get("path", f"nodes/{n['name']}"),
+                    "module": f"nodes.{n['name']}.main",
+                }
+                for n in cfg.get("nodes", [])
+            ],
+            "edges": cfg.get("edges", []),
+        }
+        pipeline_path = self._comp_pipeline_path(self._project_path, comp_id)
+        with pipeline_path.open("w", encoding="utf-8") as f:
+            json.dump(pipeline, f, ensure_ascii=False, indent=2)
+
     def _create_comp_config_dir(
         self,
         comp_id: str,
@@ -1881,8 +1921,10 @@ class CompositeNode:
         """
         comp_dir = self._comp_config_dir(self._project_path, comp_id)
         logs_dir = comp_dir / "logs"
+        output_dir = comp_dir / "output"
         comp_dir.mkdir(parents=True, exist_ok=True)
         logs_dir.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. composite.json
         composite_config = {
@@ -2132,6 +2174,22 @@ class CompositeNode:
                     orig,
                 )
                 logger.info("已迁移复合节点 %s", comp_id)
+                # 迁移旧 venv（从 nodes/{name}_venv/ 移动到 composite_nodes/comp_id/venv/）
+                new_venv_path = self._comp_config_dir(self._project_path, comp_id) / "venv"
+                if not new_venv_path.exists():
+                    old_venv_candidates = [
+                        Path(self._project_path) / "nodes" / f"{display_name}_venv" / "venv" if display_name else None,
+                        Path(self._project_path) / "nodes" / f"__comp__{comp_id}_venv" / "venv",
+                    ]
+                    for old_venv in old_venv_candidates:
+                        if old_venv and old_venv.exists():
+                            try:
+                                old_parent = old_venv.parent
+                                shutil.move(str(old_parent), str(new_venv_path.parent))
+                                logger.info("已迁移复合节点 venv: %s → %s", old_parent, new_venv_path.parent)
+                                break
+                            except OSError:
+                                pass
 
     @staticmethod
     def is_composite_group(group_name: str) -> bool:

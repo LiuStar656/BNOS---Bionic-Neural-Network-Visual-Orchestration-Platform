@@ -13,15 +13,15 @@ from pathlib import Path
 from ui.core.i18n.i18n import t
 from ui.core.i18n.translation_keys import TK
 
+COMPOSITE_NODES_DIR = "composite_nodes"
+
 
 def comp_venv_path(project_path: str, comp_id: str, display_name: str = "") -> str:
     """获取复合节点的 venv 目录路径。
 
-    venv 路径: nodes/{display_name}_venv/（无命名时使用 nodes/__comp__{comp_id}_venv/）
+    venv 路径: composite_nodes/{comp_id}/venv/
     """
-    if display_name:
-        return str(Path(project_path) / "nodes" / f"{display_name}_venv")
-    return str(Path(project_path) / "nodes" / f"__comp__{comp_id}_venv")
+    return str(Path(project_path) / COMPOSITE_NODES_DIR / comp_id / "venv")
 
 
 def get_python_exe(comp_dir: str) -> str | None:
@@ -140,11 +140,11 @@ def merge_requirements(
             pass
 
 
-def remove_comp_env(project_path: str, comp_id: str, display_name: str, logger) -> None:
+def remove_comp_env(project_path: str, comp_id: str, logger) -> None:
     """删除复合节点的独立 venv 目录。"""
     import shutil
 
-    comp_dir = Path(comp_venv_path(project_path, comp_id, display_name))
+    comp_dir = Path(comp_venv_path(project_path, comp_id))
     if comp_dir.is_dir():
         try:
             shutil.rmtree(comp_dir, ignore_errors=True)
