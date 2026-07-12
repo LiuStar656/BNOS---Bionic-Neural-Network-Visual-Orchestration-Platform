@@ -197,7 +197,7 @@ class AnchorManager:
             if config:
                 for p in NodeConfigParser.parse_input_ports(config):
                     config_ports[p.name] = p
-        except Exception:
+        except (AttributeError, RuntimeError):
             pass
 
         # —— 5. 生成主输入锚点（根据 config.json 中 listen_upper_file 字段动态决定）——
@@ -317,7 +317,7 @@ class AnchorManager:
                     new_anchor.add_edge(edge)
                     edge.update_path()
                     migrated_edge_ids.add(id(edge))
-                except Exception:
+                except (AttributeError, RuntimeError):
                     pass
 
         # 输出端
@@ -336,7 +336,7 @@ class AnchorManager:
                     new_anchor.add_edge(edge)
                     edge.update_path()
                     migrated_edge_ids.add(id(edge))
-                except Exception:
+                except (AttributeError, RuntimeError):
                     pass
 
         # —— 8b. 兜底：从 canvas.edges 扫描到的 edge 兜底迁移 ——
@@ -370,7 +370,7 @@ class AnchorManager:
                     edge.start_anchor = new_anchor
                     new_anchor.add_edge(edge)
                     edge.update_path()
-            except Exception:
+            except (AttributeError, RuntimeError):
                 pass
 
     # =============================================================
@@ -452,7 +452,7 @@ class AnchorManager:
                 scene = item.scene()
                 if scene is not None:
                     scene.removeItem(item)
-            except Exception:
+            except (AttributeError, RuntimeError):
                 pass
         container.clear()
 
@@ -474,13 +474,13 @@ class AnchorManager:
                             edge.end_anchor = default_in
                             default_in.add_edge(edge)
                             edge.update_path()
-                        except Exception:
+                        except (AttributeError, RuntimeError):
                             pass
                 if hasattr(item, "clear_edges"):
                     item.clear_edges()
                 if item.scene() is not None:
                     item.scene().removeItem(item)
-            except Exception:
+            except (AttributeError, RuntimeError):
                 pass
 
         # —— 输出端：非 default 锚点的 edges 迁移到 default 输出锚点 ——
@@ -496,13 +496,13 @@ class AnchorManager:
                             edge.start_anchor = default_out
                             default_out.add_edge(edge)
                             edge.update_path()
-                        except Exception:
+                        except (AttributeError, RuntimeError):
                             pass
                 if hasattr(item, "clear_edges"):
                     item.clear_edges()
                 if item.scene() is not None:
                     item.scene().removeItem(item)
-            except Exception:
+            except (AttributeError, RuntimeError):
                 pass
 
         # —— 清理 labels ——
@@ -512,7 +512,7 @@ class AnchorManager:
                     item = self.input_labels.pop(name)
                     if item.scene() is not None:
                         item.scene().removeItem(item)
-                except Exception:
+                except (AttributeError, RuntimeError):
                     pass
         for name in list(self.output_labels.keys()):
             if name != "default":
@@ -520,7 +520,7 @@ class AnchorManager:
                     item = self.output_labels.pop(name)
                     if item.scene() is not None:
                         item.scene().removeItem(item)
-                except Exception:
+                except (AttributeError, RuntimeError):
                     pass
 
     def _layout_anchors(

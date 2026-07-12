@@ -99,7 +99,7 @@ class LifecycleManaged:
             from ui.core.system.update_scheduler import update_scheduler
 
             update_scheduler.unsubscribe(self)
-        except Exception:
+        except RuntimeError:
             pass
 
         self._resources.clear()

@@ -187,6 +187,7 @@ class NodeCanvas(QGraphicsView):
         self.output_anchor_color = "#007acc"
         self.edge_color = "#007acc"
         self.edge_width = 2
+        self.edge_snap_enabled = True  # 连线正交吸附
         self.dock_floating_border_color = "#007acc"
         self.dock_floating_border_inactive = "#3c3c3c"
 

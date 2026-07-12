@@ -286,6 +286,16 @@ class CanvasMenu:
         menu.addSeparator()
         ActionFactory.create_action(self.canvas, "canvas.clear_connections", menu=menu)
         menu.addSeparator()
+
+        # 连线吸附开关
+        snap_enabled = getattr(self.canvas, "edge_snap_enabled", True)
+        snap_text = t("k_canvas_edge_snap_on") if snap_enabled else t("k_canvas_edge_snap_off")
+        a_snap = QAction(snap_text, menu)
+        a_snap.setCheckable(True)
+        a_snap.setChecked(snap_enabled)
+        a_snap.triggered.connect(self._toggle_edge_snap)
+        menu.addAction(a_snap)
+
         ActionFactory.create_action(self.canvas, "canvas.reset_view", menu=menu)
         menu.addSeparator()
 
@@ -308,6 +318,10 @@ class CanvasMenu:
 
     # ---- 终端 ----
 
+    def _toggle_edge_snap(self, checked: bool):
+        """切换连线正交吸附"""
+        self.canvas.edge_snap_enabled = checked
+
     def _open_project_terminal(self, terminal_type="default"):
         """在项目根目录打开终端"""
         try:
@@ -320,7 +334,7 @@ class CanvasMenu:
             else:
                 target_dir = get_project_root()
             open_terminal_in_directory(target_dir, terminal_type, self.canvas)
-        except Exception:
+        except RuntimeError:
             pass
 
     # ---- 节点样式切换 ----

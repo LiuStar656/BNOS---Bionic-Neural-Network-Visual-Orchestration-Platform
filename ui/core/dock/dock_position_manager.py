@@ -58,7 +58,7 @@ class DockPositionManager(QObject):
         try:
             if cls._CONFIG_FILE.exists():
                 return json.loads(cls._CONFIG_FILE.read_text(encoding="utf-8"))
-        except Exception:
+        except (ValueError, OSError):
             pass
         return {}
 
@@ -66,7 +66,7 @@ class DockPositionManager(QObject):
     def _save_all_positions(cls, data):
         try:
             cls._CONFIG_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        except Exception:
+        except (ValueError, OSError):
             pass
 
     def _persist_docked_area(self, area):

@@ -129,7 +129,7 @@ class UpdateScheduler(QObject):
                         sub.callback()
                     except RuntimeError:
                         self.unsubscribe(sub.owner)
-                    except Exception:
+                    except OSError:
                         pass
         finally:
             self._busy = False

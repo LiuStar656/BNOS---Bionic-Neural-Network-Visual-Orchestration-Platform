@@ -233,7 +233,7 @@ class IDEScanner:
                 path = result.stdout.strip()
                 if path and Path(path).is_file():
                     return path
-        except Exception:
+        except OSError:
             pass
         return None
 
@@ -258,7 +258,7 @@ class IDEScanner:
                     lines = result.stdout.strip().split("\n")
                     if lines and lines[0].strip():
                         return lines[0].strip()
-            except Exception:
+            except OSError:
                 pass
         return None
 
@@ -312,7 +312,7 @@ class IDEScanner:
                 kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
             subprocess.Popen([exe, path], **kwargs)
             return True
-        except Exception:
+        except OSError:
             return False
 
     @staticmethod

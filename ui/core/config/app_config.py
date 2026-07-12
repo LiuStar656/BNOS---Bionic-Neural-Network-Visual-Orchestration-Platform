@@ -153,7 +153,7 @@ class AppConfig:
                     import shutil
 
                     shutil.copy2(str(config_file), str(config_file) + ".bak")
-                except Exception:
+                except (ValueError, OSError):
                     pass
         except Exception as e:
             logger.error("加载配置失败: %s", e)

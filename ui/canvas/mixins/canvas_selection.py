@@ -114,7 +114,7 @@ class SelectionManager:
 
             if history_manager.state.is_recording:
                 history_manager.record_only(CreateNodeCommand(node_name, self.canvas))
-        except Exception:
+        except (AttributeError, RuntimeError):
             pass
 
     def _record_delete_node(self, node_name: str):
@@ -127,7 +127,7 @@ class SelectionManager:
 
             if history_manager.state.is_recording:
                 history_manager.execute_command(DeleteNodeCommand(node_name, self.canvas, self.canvas.parent_window))
-        except Exception:
+        except (AttributeError, RuntimeError):
             pass
 
     def _record_create_edge(self, src_name: str, tgt_name: str):
@@ -140,7 +140,7 @@ class SelectionManager:
 
             if history_manager.state.is_recording:
                 history_manager.record_only(CreateEdgeCommand(src_name, tgt_name, self.canvas))
-        except Exception:
+        except (AttributeError, RuntimeError):
             pass
 
     def _record_delete_edge(self, src_name: str, tgt_name: str, target_port_name=None, source_port_name=None):
@@ -155,5 +155,5 @@ class SelectionManager:
                 history_manager.execute_command(
                     DeleteEdgeCommand(src_name, tgt_name, target_port_name, source_port_name, None, self.canvas)
                 )
-        except Exception:
+        except (AttributeError, RuntimeError):
             pass

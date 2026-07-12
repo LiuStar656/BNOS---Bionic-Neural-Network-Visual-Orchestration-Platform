@@ -140,7 +140,7 @@ def _get_drives():
                         label = f"{letter}:"
                         drives.append((p, label))
                 bitmap >>= 1
-    except Exception:
+    except RuntimeError:
         pass
     if not drives:
         drives.append(("/", "/"))

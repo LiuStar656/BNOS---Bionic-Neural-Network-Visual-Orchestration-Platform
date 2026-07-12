@@ -235,3 +235,83 @@ See full details in [07_Node_Resource_Limiting.md](./07_Node_Resource_Limiting.m
 - **config.json fields**: `priority` / `cpu_affinity` / `cpu_percent` / `memory_mb` — all optional
 - **22 new tests**: Factory function, priority mapping, context manager, graceful degradation, macOS fallback, config edge cases
 - **Docs updated**: `config_json_开发规范` new Chapter 8 with 7 usage scenario recommendations
+
+---
+
+## 08 Composite Node Monitoring & Log Fix
+
+See full details in [04_Composite_Node_Monitoring_Log_Fix.md](./04_Composite_Node_Monitoring_Log_Fix.md).
+
+### Summary
+
+- **Monitoring black hole fixed**: `CompositeNodeItem` integrates `NodeStatusWidget`; collapsed composite nodes show CPU/MEM/status light
+- **Log black hole fixed**: `stdout/stderr=PIPE` → file output (`composite_output.log` / `composite_error.log`); View Log supports composite dual logs
+- **PID fallback**: `get_node_pid()` falls back to `__composite_{id}.pid` for composite nodes
+
+---
+
+## 09 Composite Node Robustness Enhancement
+
+See full details in [05_Composite_Node_Robustness_Enhancement.md](./05_Composite_Node_Robustness_Enhancement.md).
+
+### Summary
+
+- **Drag performance (P0)**: Removed per-frame anchor write-back; batch persist on `mouseRelease`
+- **Disk exceptions (P0)**: 3 try/except blocks (`PermissionError`/`OSError`) + themed_message dialogs
+- **Config conflict detection (P1)**: Snapshot on expand → compare on collapse → log warning
+- **Orchestrator checkpoint (P1)**: `_try_read_cache()` skips completed nodes via `output.json`
+- **Distributed transport (P2)**: `TransportHandler` ABC placeholder
+
+---
+
+## 10 BNOS Build Driver Engine Design
+
+See full details in [06_BNOS_Build_Driver_Engine_Design.md](./06_BNOS_Build_Driver_Engine_Design.md).
+
+### Summary
+
+- **Concept**: Export mode → driver layer injection; engine isolated from source files
+- **Commands**: `bnos build` / `--force` / `--clean` / `--update` / `--docker`
+- **Runtime**: `python -m bnos_runtime.engine pipeline.json` (no GUI needed)
+
+---
+
+## 11 `except Exception: pass` Governance
+
+See full details in [07_Except_Exception_Pass_Governance.md](./07_Except_Exception_Pass_Governance.md).
+
+### Summary
+
+- **Scale**: 100 patterns → 0 across 26 files
+- **Types**: `OSError`, `ProcessLookupError`, `NoSuchProcess`/`AccessDenied`, `RuntimeError`, `ValueError`
+
+---
+
+## 12 Orthogonal Edge Snapping
+
+See full details in [08_Orthogonal_Edge_Snapping.md](./08_Orthogonal_Edge_Snapping.md).
+
+### Summary
+
+- **Feature**: Waypoint drag snaps to 90°/180° intersections
+- **Toggle**: Shift disables; right-click menu global toggle; `SNAP_THRESHOLD = 20px`
+
+---
+
+## 13 Composite Node Dialog Style Unification
+
+See full details in [09_Composite_Node_Dialog_Style_Unification.md](./09_Composite_Node_Dialog_Style_Unification.md).
+
+### Summary
+
+- **6 QMessageBox** → `themed_message()` — dark rounded borderless consistent with BNOS theme
+
+---
+
+## 14 Node Config Dialog I18n
+
+See full details in [10_Node_Config_Dialog_I18n.md](./10_Node_Config_Dialog_I18n.md).
+
+### Summary
+
+- **20 hardcoded strings** → `t(TK.KEY)`; Resource Limits section fully i18n'd; +19 keys

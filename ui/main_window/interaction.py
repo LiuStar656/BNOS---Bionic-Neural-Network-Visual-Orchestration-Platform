@@ -137,7 +137,7 @@ class MainWindowInteractionMixin:
                         self.node_list_panel.delete_group(g)
                     if grps:
                         return
-            except Exception:
+            except (AttributeError, RuntimeError):
                 pass
 
         if self.canvas:

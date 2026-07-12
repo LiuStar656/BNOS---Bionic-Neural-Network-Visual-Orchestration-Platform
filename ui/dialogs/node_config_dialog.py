@@ -586,7 +586,7 @@ class NodeConfigDialog(FloatingPanel):
             if self.parent_window and self.node_name in self.parent_window.nodes_data:
                 try:
                     self.parent_window.nodes_data[self.node_name]["config"] = data
-                except Exception:
+                except (AttributeError, KeyError):
                     pass
                 if hasattr(self.parent_window, "canvas"):
                     self.parent_window.canvas.sync_node_display(self.node_name)
@@ -637,7 +637,7 @@ class NodeConfigDialog(FloatingPanel):
                 self.output_text.setPlainText(content)
             scrollbar = self.output_text.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum())
-        except Exception:
+        except (AttributeError, RuntimeError):
             pass
 
     def load_log_files(self):
@@ -674,7 +674,7 @@ class NodeConfigDialog(FloatingPanel):
                 polling_manager.watch_log(self.node_path, self._current_log_file)
                 self._load_log_content(self._current_log_file)
 
-        except Exception:
+        except OSError:
             pass
 
     def on_log_file_changed(self, index):

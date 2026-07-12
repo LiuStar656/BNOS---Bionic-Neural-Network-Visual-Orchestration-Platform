@@ -71,7 +71,7 @@ class ManagedProcess(QObject):
                 else:
                     self.process.terminate()
                     self.process.wait(timeout=5)
-            except Exception:
+            except (ProcessLookupError, OSError):
                 pass
             self.process = None
         self.stopped.emit(self.id)

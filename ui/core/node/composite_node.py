@@ -76,6 +76,7 @@ class CompositeNode:
         self._composites: dict[str, dict] = {}
         self._config_path = Path(project_path) / "node_clusters.json"
         self._active_processes: dict[str, subprocess.Popen] = {}
+        self._composite_log_files: dict[str, tuple] = {}
         self.load()
 
     # ── 持久化 ──
@@ -791,6 +792,8 @@ class CompositeNode:
 
         # ── Sync config.json for expanded state ──
         self._sync_configs_for_expand(comp_id, node_names, port_to_internal)
+        # 配置快照 — 折叠时用于检测外部修改
+        self._snapshot_internal_configs(comp_id, node_names)
 
     def _morph_internal_to_composite_edges(self, comp_id: str, comp_item, node_names: list):
         """During collapse: remove temporary internal-node edges and show
@@ -831,9 +834,43 @@ class CompositeNode:
         comp["_morphed_edges"] = []
 
         # ── Sync config.json for collapsed state ──
+        conflicts = self._check_config_conflicts(comp_id, node_names)
+        if conflicts:
+            logger.warning(
+                "[%s] 折叠时检测到外部 config 修改: %s",
+                comp_id,
+                ", ".join(conflicts),
+            )
         self._sync_configs_for_collapse(comp_id, node_names)
 
     # ── Config sync on expand / collapse ──
+
+    def _snapshot_internal_configs(self, comp_id: str, node_names: list):
+        """展开时缓存内部节点 config.json 原始内容，折叠时用于检测外部修改。"""
+        snap = {}
+        for n in node_names:
+            cfg_path = Path(self._project_path) / "nodes" / n / "config.json"
+            try:
+                snap[n] = cfg_path.read_text(encoding="utf-8")
+            except Exception:
+                snap[n] = None
+        self._composites[comp_id]["_config_snapshot"] = snap
+
+    def _check_config_conflicts(self, comp_id: str, node_names: list) -> list[str]:
+        """对比展开快照与当前磁盘内容，返回被外部修改的节点名列表。"""
+        snap = self._composites.get(comp_id, {}).get("_config_snapshot", {})
+        if not snap:
+            return []
+        conflicts = []
+        for n in node_names:
+            cfg_path = Path(self._project_path) / "nodes" / n / "config.json"
+            try:
+                current = cfg_path.read_text(encoding="utf-8")
+            except Exception:
+                current = None
+            if snap.get(n) is not None and current != snap[n]:
+                conflicts.append(n)
+        return conflicts
 
     def _sync_configs_for_expand(self, comp_id: str, node_names: list, port_to_internal: dict):
         """On expand: update internal node configs to reflect direct external connections.
@@ -1278,11 +1315,11 @@ class CompositeNode:
         if group_name and self._group_manager:
             try:
                 self._group_manager.unlock_group(group_name)
-            except Exception:
+            except (RuntimeError, ValueError, KeyError):
                 pass
             try:
                 self._group_manager.delete_group(group_name)
-            except Exception:
+            except (RuntimeError, ValueError, KeyError):
                 pass
 
         # 清除
@@ -1451,8 +1488,12 @@ class CompositeNode:
 
         code = render_orchestrator_script(comp_id=comp_id, node_modules=node_modules, dag=dag, external_ports=ports)
         orch_path = Path(self._project_path) / f"orchestrator_{comp_id}.py"
-        with orch_path.open("w", encoding="utf-8") as f:
-            f.write(code)
+        try:
+            with orch_path.open("w", encoding="utf-8") as f:
+                f.write(code)
+        except (PermissionError, OSError) as e:
+            logger.error("生成 orchestrator 失败: %s", e)
+            raise RuntimeError(t(TK._COMPOSITE_WRITE_ORCH_FAILED).format(path=str(orch_path), err=str(e))) from e
 
         self._composites[comp_id]["orchestrator_path"] = str(orch_path)
         self.save()
@@ -1484,16 +1525,28 @@ class CompositeNode:
         if not Path(python_exe).exists():
             python_exe = sys.executable
 
+        # 复合节点日志目录
+        log_dir = Path(comp_dir) / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            _out_f = open(log_dir / "composite_output.log", "w", encoding="utf-8")
+            _err_f = open(log_dir / "composite_error.log", "w", encoding="utf-8")
+        except (PermissionError, OSError) as e:
+            logger.error("[%s] 无法打开日志文件: %s", comp_id, e)
+            return False, t(TK._COMPOSITE_LOG_OPEN_FAILED).format(err=str(e))
+
         proc = None
         try:
             proc = subprocess.Popen(
                 [python_exe, orch_path],
                 cwd=project_root,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=_out_f,
+                stderr=_err_f,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
             )
             self._active_processes[virtual_name] = proc
+            # 保存文件句柄供 stop 时关闭
+            self._composite_log_files[comp_id] = (_out_f, _err_f)
             logger.info("[%s] 复合节点已启动 PID=%d", comp_id, proc.pid)
 
             # 启动后健康检查 — 检测进程是否立刻 crash
@@ -1504,10 +1557,14 @@ class CompositeNode:
             if ret is not None:
                 stderr_output = ""
                 try:
-                    stderr_output = proc.stderr.read().decode("utf-8", errors="replace") if proc.stderr else ""
-                except Exception:
+                    _err_f.flush()
+                    stderr_output = (log_dir / "composite_error.log").read_text(encoding="utf-8", errors="replace")
+                except OSError:
                     pass
                 self._active_processes.pop(virtual_name, None)
+                self._composite_log_files.pop(comp_id, (None, None))
+                _out_f.close()
+                _err_f.close()
                 return False, t(TK._COMPOSITE_CRASH).format(code=ret) + f"\n{stderr_output[:500]}"
 
             # 写入 PID 文件供 BNOS 检测
@@ -1522,7 +1579,7 @@ class CompositeNode:
                 try:
                     proc.kill()
                     proc.wait(timeout=5)
-                except Exception:
+                except (ProcessLookupError, OSError):
                     pass
             self._active_processes.pop(virtual_name, None)
             logger.error("[%s] 启动失败: %s", comp_id, e)
@@ -1548,10 +1605,19 @@ class CompositeNode:
             except Exception:
                 try:
                     proc.kill()
-                except Exception:
+                except (ProcessLookupError, OSError):
                     pass
             del self._active_processes[virtual_name]
             logger.info("[%s] 复合节点已停止", comp_id)
+
+        # 关闭日志文件句柄
+        log_files = self._composite_log_files.pop(comp_id, (None, None))
+        for fh in log_files:
+            if fh is not None:
+                try:
+                    fh.close()
+                except OSError:
+                    pass
 
         # 清理 PID 文件
         pid_file = Path(self._project_path) / f"__composite_{comp_id}.pid"
@@ -1561,6 +1627,41 @@ class CompositeNode:
             pass
 
         return True, t(TK.COMPOSITE_STOPPED)
+
+    def execute(self, comp_id: str) -> bool:
+        """统一执行入口，根据 comp 配置的 transport 字段路由到本地或远程。"""
+        comp = self._composites.get(comp_id)
+        if not comp:
+            logger.error("execute: 复合节点 %s 不存在", comp_id)
+            return False
+
+        transport = comp.get("transport", "local")
+        if transport == "local":
+            return self._execute_local(comp_id)
+        else:
+            from ui.core.system.transports import get_transport_handler
+
+            handler = get_transport_handler(transport)
+            return handler.execute(comp_id, comp)
+
+    def _execute_local(self, comp_id: str) -> bool:
+        """当前逻辑：决定 inprocess vs process 模式并启动。"""
+        runtime = self.get_runtime(comp_id) or "inprocess"
+        if runtime == "inprocess":
+            ok, msg = self.start_inprocess(comp_id)
+        else:
+            ok, msg = self.start_process_mode(comp_id)
+        if not ok:
+            logger.error("_execute_local %s: %s", comp_id, msg)
+        return ok
+
+    @staticmethod
+    def composite_log_paths(comp_dir: str | Path) -> list[Path]:
+        """返回复合节点的日志文件列表。"""
+        p = Path(comp_dir) / "logs"
+        out_log = p / "composite_output.log"
+        err_log = p / "composite_error.log"
+        return [f for f in (out_log, err_log) if f.exists()]
 
     def is_running(self, comp_id: str) -> bool:
         """检查复合节点是否在运行。"""
@@ -1606,7 +1707,7 @@ class CompositeNode:
             if current_group and not current_group.startswith(GROUP_PREFIX):
                 try:
                     self._group_manager.remove_nodes_from_group(current_group, [n])
-                except Exception:
+                except (RuntimeError, ValueError, KeyError):
                     pass
 
     def _comp_venv_dir(self, comp_id: str) -> str:
@@ -1631,7 +1732,7 @@ class CompositeNode:
             for n in self.get_nodes(comp_id):
                 try:
                     node_control_service.stop_node(n)
-                except Exception:
+                except (RuntimeError, KeyError, OSError):
                     pass
 
     def _canvas_compress(

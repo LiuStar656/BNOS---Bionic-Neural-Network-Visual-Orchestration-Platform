@@ -28,7 +28,7 @@ def _rotate_log(path: str, max_bytes: int = _MAX_LOG_BYTES):
             with p.open("wb") as f:
                 f.write(b"[... truncated ...]\n")
                 f.write(tail)
-    except Exception:
+    except OSError:
         pass
 
 
@@ -66,7 +66,7 @@ def _read_tail(path: str, lines: int = 50) -> str:
             all_lines = f.readlines()
             tail = all_lines[-lines:] if len(all_lines) > lines else all_lines
             return "".join(tail).rstrip() or "(empty)"
-    except Exception:
+    except OSError:
         return "(cannot read log)"
 
 
@@ -99,7 +99,7 @@ def _write_pid(node_path, pid):
         # 2. 标准格式：.pid（保持兼容性）
         with _pid_file(node_path).open("w") as f:
             f.write(str(pid))
-    except Exception:
+    except OSError:
         pass
 
 
@@ -112,7 +112,7 @@ def _delete_pid(node_path):
         named_pf = _named_pid_file(node_path)
         if named_pf.exists():
             named_pf.unlink()
-    except Exception:
+    except OSError:
         pass
 
 
@@ -495,7 +495,7 @@ def start_node_process(node_info):
         try:
             out_fp.close()
             err_fp.close()
-        except Exception:
+        except OSError:
             pass
         error_msg = f"启动异常: {str(e)}"
         logger.error(error_msg)
@@ -627,7 +627,7 @@ def _read_pid(node_path):
         except (ValueError, TypeError):
             logger.warning("[F09] .pid 文件内容无效: %s", named_pf)
             return None
-        except Exception:
+        except OSError:
             pass
 
     # 回退到标准格式
@@ -642,7 +642,7 @@ def _read_pid(node_path):
         except (ValueError, TypeError):
             logger.warning("[F09] .pid 文件内容无效: %s", pf)
             return None
-        except Exception:
+        except OSError:
             pass
 
     return None

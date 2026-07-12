@@ -137,7 +137,7 @@ class NodeItem(QGraphicsRectItem):
             try:
                 if pw and pw.widget():
                     pw.widget().deleteLater()
-            except Exception:
+            except RuntimeError:
                 pass
         self._proxy_widgets.clear()
         self._param_widgets.clear()

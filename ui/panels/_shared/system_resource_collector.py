@@ -31,7 +31,7 @@ class SystemResourceCollector:
             io = psutil.net_io_counters()
             self._last_net_sent = io.bytes_sent
             self._last_net_recv = io.bytes_recv
-        except Exception:
+        except (psutil.AccessDenied, OSError):
             pass
 
     # ──── 系统级资源采集 ────
@@ -90,7 +90,7 @@ class SystemResourceCollector:
             try:
                 with pid_file.open() as f:
                     return int(f.read().strip())
-            except Exception:
+            except (ValueError, OSError):
                 pass
         return None
 
@@ -123,20 +123,20 @@ class SystemResourceCollector:
                     try:
                         cpu_total += child.cpu_percent()
                         mem_total += child.memory_info().rss
-                    except Exception:
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
                         pass
 
                 try:
                     cpu_total += process.cpu_percent()
                     mem_total += process.memory_info().rss
-                except Exception:
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
 
                 stats["cpu"] = cpu_total
                 stats["memory"] = mem_total / (1024**2)  # MB
                 stats["memory_rss"] = mem_total
                 stats["status"] = "running"  # 进程存在 → 强制为 running
-            except Exception:
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 stats["status"] = "stopped"
         else:
             stats["status"] = "stopped"
@@ -166,7 +166,7 @@ class SystemResourceCollector:
 
     @staticmethod
     def get_node_pid(node_path: str) -> int | None:
-        """根据节点路径获取进程 PID（优先 .pid 文件）"""
+        """根据节点路径获取进程 PID（优先 .pid 文件，回退到复合节点 PID）"""
         pid_file = Path(node_path) / ".pid"
         if not pid_file.exists():
             pid_file = Path(node_path) / "pid"
@@ -174,8 +174,22 @@ class SystemResourceCollector:
             try:
                 with pid_file.open() as f:
                     return int(f.read().strip())
-            except Exception:
+            except (ValueError, OSError):
                 pass
+
+        # 回退：复合节点 PID 文件（位于项目根目录，不在节点目录下）
+        try:
+            p = Path(node_path)
+            comp_id = p.name  # 节点目录名即 comp_id
+            # 向上找项目根目录：通过 node_clusters.json 的存在性验证
+            for parent in p.parents:
+                if (parent / "node_clusters.json").exists():
+                    comp_pid = parent / f"__composite_{comp_id}.pid"
+                    if comp_pid.exists():
+                        return int(comp_pid.read_text().strip())
+                    break
+        except (ValueError, OSError):
+            pass
         return None
 
     @staticmethod
@@ -197,17 +211,17 @@ class SystemResourceCollector:
                 try:
                     cpu_total += child.cpu_percent()
                     mem_total += child.memory_info().rss
-                except Exception:
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
 
             try:
                 cpu_total += process.cpu_percent()
                 mem_total += process.memory_info().rss
-            except Exception:
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
 
             return cpu_total, mem_total / (1024**2)
-        except Exception:
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
             return None, None
 
 

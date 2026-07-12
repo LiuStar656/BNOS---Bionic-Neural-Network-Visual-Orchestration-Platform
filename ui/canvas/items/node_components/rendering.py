@@ -60,14 +60,14 @@ class NodeRendering:
                 custom_color = QColor(config["custom_bg_color"])
                 if custom_color.isValid():
                     self._node.setBrush(custom_color)
-            except Exception:
+            except RuntimeError:
                 pass
         if "custom_border_color" in config:
             try:
                 custom_color = QColor(config["custom_border_color"])
                 if custom_color.isValid():
                     self._node.setPen(QPen(custom_color, 2))
-            except Exception:
+            except RuntimeError:
                 pass
 
         # 应用自定义文字色
@@ -76,5 +76,5 @@ class NodeRendering:
                 custom_color = QColor(config["custom_text_color"])
                 if custom_color.isValid():
                     self._node.name_text.setDefaultTextColor(custom_color)
-            except Exception:
+            except RuntimeError:
                 pass

@@ -214,7 +214,7 @@ class SettingsDialog(FloatingPanel):
             presets = [(1000, 1000), (2000, 2000), (3000, 3000), (4000, 4000), (5000, 5000)]
             idx = presets.index((width, height)) if (width, height) in presets else 5
             self._canvas_preset.setCurrentIndex(idx)
-        except Exception:
+        except (ValueError, IndexError):
             pass
 
     def _on_preset_changed(self, idx):
@@ -328,24 +328,24 @@ class SettingsDialog(FloatingPanel):
                     "rendering", {"canvas_width": new_width, "canvas_height": new_height, "antialiasing": new_aa}
                 )
                 self.main_window.app_config.save()
-            except Exception:
+            except OSError:
                 pass
 
         if lang_changed or proc_changed or render_changed:
             if lang_changed:
                 try:
                     self.main_window.app_config.set("language", lang)
-                except Exception:
+                except OSError:
                     pass
             if proc_changed:
                 self.main_window.CANVAS_PROCESS_MODE = proc_mode
                 try:
                     self.main_window.app_config.set("process_mode", proc_mode)
-                except Exception:
+                except OSError:
                     pass
             try:
                 self.main_window.app_config.save()
-            except Exception:
+            except OSError:
                 pass
             themed_message(self, t("_k_settings_restart_title"), t("_k_settings_restart_msg"), "info")
             self.close()

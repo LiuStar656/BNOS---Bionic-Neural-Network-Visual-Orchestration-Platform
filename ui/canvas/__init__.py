@@ -36,7 +36,7 @@ def _register_alias(alias_name: str, real_name: str) -> None:
     """把 alias_name 注册到 sys.modules，使其等价于 real_name 指向的模块。"""
     try:
         real = __import__(real_name, fromlist=["_"])
-    except Exception:
+    except RuntimeError:
         return
     # 用 sys.modules 做别名；避免重复注册
     sys.modules.setdefault(alias_name, real)

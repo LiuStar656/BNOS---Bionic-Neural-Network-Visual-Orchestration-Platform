@@ -43,7 +43,7 @@ class SafeStreamHandler(logging.StreamHandler):
             record.msg = msg
             try:
                 super().emit(record)
-            except Exception:
+            except OSError:
                 pass
 
 
@@ -136,7 +136,7 @@ def _cleanup_old_logs(log_dir: Path, keep_days: int = 7):
         for f in log_dir.glob("bnos.log.*"):
             if f.stat().st_mtime < cutoff:
                 f.unlink()
-    except Exception:
+    except OSError:
         pass
 
 

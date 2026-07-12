@@ -23,6 +23,13 @@
 - **进程日志捕获与DI容器增强**：子进程输出从 DEVNULL 改为持久化日志文件，启动失败自动读取日志尾部；DI 容器重构为复合键存储，新增命名注册、作用域控制（singleton/transient）、服务列表查询
 - **国际化集中管理**：创建翻译 key 集中注册表（translation_keys.py），270+ key 以类属性暴露，提供 IDE 自动补全和重构支持；新增 validate_all_keys() 一致性检查；补全 8 个英文渲染设置翻译
 - **Core目录组件分类重组**：ui/core/ 45 个模块按功能拆分为 node/dock/system/services/project/config/i18n 七个子目录，150+ 处 import 路径同步更新，修复重组过程中引入的编码损坏和 UnboundLocalError
+- **复合节点监控与日志修复**：折叠态聚合 CPU/MEM 显示（psutil 进程树），PIPE→文件日志落盘，View Log 支持复合双日志，get_node_pid() 回退 __composite_{id}.pid
+- **复合节点健壮性增强**：拖拽性能（mouseRelease 批量持久化），磁盘异常防护（PermissionError/OSError），config 冲突校验（展开快照→折叠对比），编排器断点续跑（output.json 缓存跳过），分布式传输接口预埋
+- **BNOS Build 驱动引擎方案**：导出模式→驱动层注入；引擎与源文件完全隔离；新增 --clean/--update/--docker 命令；独立/复合节点混合支持
+- **except Exception: pass 全面治理**：100 处清零，26 文件修改；替换为精确类型（OSError、ProcessLookupError、psutil.NoSuchProcess、RuntimeError 等）
+- **连线正交吸附功能**：拖拽折叠点吸附 90°/180° 直角交点；Shift 临时禁用；右键菜单开关；SNAP_THRESHOLD = 20px
+- **复合节点防错窗口风格统一**：6 处 QMessageBox → themed_message()（确认/折叠/失败）；深色圆角无边框与 BNOS 主题一致；复用 i18n 标准键
+- **节点配置对话框国际化**：20 处硬编码中英文字符串 → `t(TK.KEY)`；Resource Limits 区域全面国际化；+19 键
 - **Bug 修复**：GROUP_PREFIX AttributeError、blockSignals 双击/右键失效、clear_box_selection 方法名错误、node_list_context UnboundLocalError、status_manager C++ 对象已删除 RuntimeError、app_config 类型校验兼容、QProcess destroyed while running、无 config.json 目录被误加载为节点
 
 ### [2026-07-08](./2026-07-08/)

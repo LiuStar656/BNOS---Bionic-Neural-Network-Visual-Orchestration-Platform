@@ -29,7 +29,7 @@ class _ProxyAwareComboBox(QComboBox):
                 if isinstance(parent, QGraphicsProxyWidget):
                     proxy = parent
                     break
-            except Exception:
+            except RuntimeError:
                 pass
             parent = parent.parent() if hasattr(parent, "parent") else None
 

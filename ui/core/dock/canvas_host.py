@@ -507,14 +507,14 @@ class CanvasHost(QMainWindow):
                     from ui.core.project.project_manager import remove_project_lock
 
                     remove_project_lock(normalized_path)
-                except Exception:
+                except RuntimeError:
                     pass
                 # 清理 canvas 数据映射
                 for key in list(self._canvas_data_map.keys()):
                     try:
                         if key == dock or (hasattr(dock, "get_content_widget") and key == dock.get_content_widget()):
                             del self._canvas_data_map[key]
-                    except Exception:
+                    except RuntimeError:
                         pass
                 logger.info("[CanvasHost] 已移除画布 dock: %s", project_path)
             except Exception as e:

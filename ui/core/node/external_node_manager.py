@@ -132,7 +132,7 @@ def _unmount_node_async(main_window, node_name):
             registry.load()
             registry.unregister_node(node_name)
             registry.save()
-        except Exception:
+        except OSError:
             pass
 
         # 从组中移除

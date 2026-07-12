@@ -251,7 +251,7 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
             if mgr:
                 comp = mgr._composites.get(comp_id, {})
                 return comp.get("display_name", "")
-        except Exception:
+        except OSError:
             pass
         return ""
 

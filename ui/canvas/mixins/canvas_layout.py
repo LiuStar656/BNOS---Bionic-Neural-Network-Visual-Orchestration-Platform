@@ -142,7 +142,7 @@ class CanvasLayout:
         if hasattr(self.canvas, "_save_timer") and self.canvas._save_timer:
             try:
                 self.canvas._save_timer.stop()
-            except Exception:
+            except RuntimeError:
                 pass
 
         layout_data = {"nodes": {}, "edges": []}  # 默认空数据
@@ -246,7 +246,7 @@ class CanvasLayout:
                                     if color.isValid():
                                         action(color)
                                         config[cfg_key] = cc[key]
-                                except Exception:
+                                except RuntimeError:
                                     pass
                 elif (
                     self.canvas.parent_window
@@ -288,7 +288,7 @@ class CanvasLayout:
                                 color = QColor(cc[key])
                                 if color.isValid():
                                     action(color)
-                            except Exception:
+                            except RuntimeError:
                                 pass
                 self.canvas.scene.addItem(node)
                 self.canvas.nodes[node_name] = node
@@ -611,7 +611,7 @@ class CanvasLayout:
                 # 刷新路径
                 try:
                     edge.update_path()
-                except Exception:
+                except RuntimeError:
                     pass
 
         if fixed_count > 0:

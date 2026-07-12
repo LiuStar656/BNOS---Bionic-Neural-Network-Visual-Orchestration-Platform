@@ -51,6 +51,12 @@ class DagRunner:
             inp = self._build_input(node_name, ctx)
             if external_input and node_name == self._find_entry_node():
                 inp["data"].update(external_input)
+            # 断点续跑：检查 output.json 缓存
+            cached = self._try_read_cache(node_name)
+            if cached is not None:
+                print(f"[{comp_id}] SKIP {{node_name}} (cached)")
+                ctx[node_name] = cached
+                continue
             try:
                 out = self._modules[node_name].process(inp)
                 ctx[node_name] = out
@@ -84,6 +90,19 @@ class DagRunner:
                 else: inp["data"].update(upstream)
         return inp
 
+    def _try_read_cache(self, node_name):
+        for n in NODES:
+            if n["name"] == node_name:
+                path = PROJECT_ROOT / n["path"] / "output.json"
+                if path.exists():
+                    try:
+                        data = json.loads(path.read_text(encoding="utf-8"))
+                        if "run_id" in data:
+                            return {{k: v for k, v in data.items() if k != "run_id"}}
+                    except (ValueError, OSError):
+                        pass
+        return None
+
     def _find_entry_node(self):
         targets = set(e["to"] for e in DAG)
         for e in DAG:
@@ -100,7 +119,10 @@ class DagRunner:
                 if "code" not in output: output["code"] = 0
                 output["run_id"] = self._run_id
                 output["timestamp"] = self._run_ts
-                path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
+                try:
+                    path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
+                except OSError as e:
+                    print(f"[{comp_id}] WARN 写入 output.json 失败: {{e}}", file=sys.stderr)
                 break
 
 if __name__ == "__main__":

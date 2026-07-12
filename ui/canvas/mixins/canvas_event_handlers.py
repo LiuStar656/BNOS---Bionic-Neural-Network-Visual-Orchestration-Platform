@@ -309,6 +309,8 @@ class EventHandlers:
 
         super(type(self.canvas), self.canvas).mouseReleaseEvent(event)
 
+        # 拖拽结束 → 批量写入复合节点内部位置
+        self._commit_composite_drag_positions()
         # Clear drag anchor positions for all composites
         self._clear_composite_drag_anchors()
 
@@ -397,19 +399,15 @@ class EventHandlers:
             try:
                 for n in node_names:
                     if n == dragged_node:
-                        # Already positioned by Qt's drag mechanism — just update anchor
-                        item = self.canvas.nodes.get(n)
-                        if item and item.isVisible():
-                            anchor[n] = (item.pos().x(), item.pos().y())
                         continue
                     orig = anchor.get(n)
                     if orig is None:
                         continue
                     item = self.canvas.nodes.get(n)
                     if item and item.isVisible():
-                        item.setPos(orig[0] + drag_dx, orig[1] + drag_dy)
-                        # Update anchor to reflect applied position
-                        anchor[n] = (orig[0] + drag_dx, orig[1] + drag_dy)
+                        new_x = orig[0] + drag_dx
+                        new_y = orig[1] + drag_dy
+                        item.setPos(new_x, new_y)
 
                 # Update group frame bounds
                 frame_key = f"__frame__{comp_id}"
@@ -432,6 +430,24 @@ class EventHandlers:
         for comp in mgr._composites.values():
             if "_drag_anchor_positions" in comp:
                 del comp["_drag_anchor_positions"]
+
+    def _commit_composite_drag_positions(self):
+        """拖拽释放后批量写入内部节点最终位置到 node_clusters.json。"""
+        mgr = getattr(self.canvas, "_composite_manager", None)
+        if not mgr:
+            return
+        any_changed = False
+        for _comp_id, comp in mgr._composites.items():
+            if not comp.get("_expanded"):
+                continue
+            for n in comp.get("nodes", []):
+                item = self.canvas.nodes.get(n)
+                if item and item.isVisible():
+                    comp_pos = comp.setdefault("_internal_positions", {})
+                    comp_pos[n] = {"x": item.pos().x(), "y": item.pos().y()}
+                    any_changed = True
+        if any_changed and hasattr(mgr, "save"):
+            mgr.save()
 
     def mouseDoubleClickEvent(self, event):
         """鼠标双击事件 - 双击节点打开配置对话框"""

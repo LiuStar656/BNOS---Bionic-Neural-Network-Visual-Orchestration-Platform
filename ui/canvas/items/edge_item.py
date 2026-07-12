@@ -87,6 +87,7 @@ class EdgeItem(QGraphicsPathItem):
     WAYPOINT_RADIUS = 6  # 已有折叠点渲染半径
     WAYPOINT_HIT_RADIUS = 14  # 已有折叠点拖拽判定半径
     LONG_PRESS_MS = 250
+    SNAP_THRESHOLD = 20  # 正交吸附距离阈值（像素）
 
     def __init__(
         self,
@@ -150,7 +151,7 @@ class EdgeItem(QGraphicsPathItem):
         try:
             if self.canvas and hasattr(self.canvas, "viewport"):
                 return self.canvas.viewport().devicePixelRatio()
-        except Exception:
+        except (AttributeError, RuntimeError):
             pass
         try:
             from PySide6.QtWidgets import QApplication
@@ -160,7 +161,7 @@ class EdgeItem(QGraphicsPathItem):
                 screen = app.primaryScreen()
                 if screen:
                     return screen.devicePixelRatio()
-        except Exception:
+        except (AttributeError, RuntimeError):
             pass
         return 1.0
 
@@ -283,13 +284,13 @@ class EdgeItem(QGraphicsPathItem):
             self.start_anchor = start_anchor
             try:
                 start_anchor.add_edge(self)
-            except Exception:
+            except (AttributeError, RuntimeError):
                 pass
         if end_anchor is not None and end_anchor is not self.end_anchor:
             self.end_anchor = end_anchor
             try:
                 end_anchor.add_edge(self)
-            except Exception:
+            except (AttributeError, RuntimeError):
                 pass
 
         if start_anchor is None or end_anchor is None:
@@ -313,6 +314,30 @@ class EdgeItem(QGraphicsPathItem):
 
     # ── 相对坐标系统：折叠点以投影比例存储，随节点移动 ──
     # _waypoints_rel: [(t, off_x, off_y), ...]  其中 t∈[0,1] 是沿 src→dst 的投影比例
+
+    @staticmethod
+    def _snap_orthogonal(src: QPointF, dst: QPointF, mouse_pos: QPointF, threshold: float) -> QPointF | None:
+        """正交吸附：计算使 prev→wp 和 wp→next 均为水平/垂直的吸附点。
+
+        返回吸附后的 QPointF，或 None（鼠标距离所有吸附候选都太远）。
+        """
+        # 4 个候选：prev 的水平/垂直 × next 的水平/垂直
+        candidates = [
+            QPointF(src.x(), dst.y()),  # prev 垂直, next 水平
+            QPointF(dst.x(), src.y()),  # prev 水平, next 垂直
+        ]
+
+        best = None
+        best_dist = float("inf")
+        for c in candidates:
+            d = QLineF(mouse_pos, c).length()
+            if d < best_dist:
+                best_dist = d
+                best = c
+
+        if best is not None and best_dist <= threshold:
+            return best
+        return None
 
     @staticmethod
     def _encode_rel(src: QPointF, dst: QPointF, wp_abs: QPointF):
@@ -628,7 +653,21 @@ class EdgeItem(QGraphicsPathItem):
             wp_idx = self._drag_wp_index
             if 0 <= wp_idx < len(self._waypoints):
                 src, dst = self._endpoints()
-                self._waypoints[wp_idx] = self._encode_rel(src, dst, event.scenePos())
+                mouse_pos = event.scenePos()
+
+                # 正交吸附：Shift 按下时临时禁用
+                snap_enabled = getattr(self.canvas, "edge_snap_enabled", True)
+                shift_held = event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+                if snap_enabled and not shift_held:
+                    # 前后相邻点
+                    pts = self._all_points()
+                    prev = pts[wp_idx]  # 当前 waypoint 的前驱（pts 包含 src 作为 pts[0]）
+                    nxt = pts[wp_idx + 2]  # 跳过 self → 再下一个就是后驱
+                    snapped = self._snap_orthogonal(prev, nxt, mouse_pos, self.SNAP_THRESHOLD)
+                    if snapped is not None:
+                        mouse_pos = snapped
+
+                self._waypoints[wp_idx] = self._encode_rel(src, dst, mouse_pos)
                 self.update_path()
             return
 

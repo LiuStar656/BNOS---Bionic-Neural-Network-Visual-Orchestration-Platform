@@ -83,5 +83,5 @@ class NodeStatusManager:
         if self._node._status_widget:
             try:
                 self._node._status_widget.stop_timer()
-            except Exception:
+            except RuntimeError:
                 pass

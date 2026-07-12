@@ -125,18 +125,49 @@ class NodeListOperationsMixin:
         if node_name not in self.nodes_data:
             return
         node_path = self.nodes_data[node_name]["path"]
-        log_file = Path(node_path) / "logs" / "listener.log"
-        if not log_file.exists():
+        log_files = self._get_log_files(node_name, Path(node_path))
+
+        if not log_files:
             themed_message(self, t("k_title_info"), t("k_node_no_log"), "info")
             return
         try:
-            with log_file.open(encoding="utf-8") as f:
-                log_content = f.read()
+            all_content = []
+            for lf, label in log_files:
+                with lf.open(encoding="utf-8") as f:
+                    content = f.read()
+                if content:
+                    all_content.append(f"{'=' * 60}\n{label}\n{'=' * 60}\n{content}")
+
+            if not all_content:
+                themed_message(self, t("k_title_info"), t("k_node_no_log"), "info")
+                return
+
             from ui.core.utils.log_viewer import show_log_dialog
 
-            show_log_dialog(self, f"节点日志 - {node_name}", log_content)
+            show_log_dialog(self, f"节点日志 - {node_name}", "\n\n".join(all_content))
         except Exception as e:
             themed_message(self, t("k_title_error"), t("_k_log_read_fail").format(err=str(e)), "error")
+
+    @staticmethod
+    def _get_log_files(node_name: str, node_path: Path) -> list[tuple[Path, str]]:
+        """返回节点的日志文件列表 (路径, 标签)。
+
+        复合节点返回 composite_output.log + composite_error.log。
+        普通节点返回 listener.log。
+        """
+        log_dir = node_path / "logs"
+        composite_clusters = node_path / "node_clusters.json"
+        if composite_clusters.exists():
+            results = []
+            for fname, label in [("composite_output.log", "stdout"), ("composite_error.log", "stderr")]:
+                fp = log_dir / fname
+                if fp.exists():
+                    results.append((fp, f"{fname} ({label})"))
+            return results
+        listener = log_dir / "listener.log"
+        if listener.exists():
+            return [(listener, f"listener.log ({node_name})")]
+        return []
 
     def edit_node_config(self, node_name):
         """编辑节点配置"""
@@ -269,7 +300,7 @@ class NodeListOperationsMixin:
                     try:
                         process.kill()
                         process.wait()
-                    except Exception:
+                    except OSError:
                         pass
             success, msg = self._force_delete_directory(node_path)
             if not success:
@@ -294,7 +325,7 @@ class NodeListOperationsMixin:
                     registry.load()
                     registry.unregister_node(node_name)
                     registry.save()
-            except Exception:
+            except OSError:
                 pass
             if self.parent_window and hasattr(self.parent_window, "canvas") and self.parent_window.canvas:
                 self.parent_window.canvas.remove_node_from_canvas(node_name)
@@ -653,15 +684,15 @@ class NodeListOperationsMixin:
             if node_name not in self.nodes_data:
                 continue
             node_path = self.nodes_data[node_name]["path"]
-            log_file = Path(node_path) / "logs" / "listener.log"
-            if not log_file.exists():
-                continue
-            try:
-                with log_file.open(encoding="utf-8") as f:
-                    log_content = f.read()
-                all_logs.append(f"{'=' * 60}\n节点: {node_name}\n{'=' * 60}\n{log_content}\n")
-            except Exception as e:
-                logger.warning("读取节点 %s 日志失败: %s", node_name, e)
+            log_files = self._get_log_files(node_name, Path(node_path))
+            for lf, label in log_files:
+                try:
+                    with lf.open(encoding="utf-8") as f:
+                        log_content = f.read()
+                    if log_content:
+                        all_logs.append(f"{'=' * 60}\n{node_name}: {label}\n{'=' * 60}\n{log_content}")
+                except Exception as e:
+                    logger.warning("读取节点 %s 日志失败: %s", node_name, e)
         if not all_logs:
             themed_message(self, t("k_title_info"), t("k_node_no_log_available"), "info")
             return

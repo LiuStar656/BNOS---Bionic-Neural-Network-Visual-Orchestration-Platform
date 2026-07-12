@@ -45,7 +45,7 @@ class NodeConfigManager:
 
                 with open(cfg_path, encoding="utf-8") as f:
                     merged = json.load(f)
-        except Exception:
+        except (ValueError, OSError):
             pass
         # 运行时字段：用内存中的值覆盖（这些值是执行过程中动态更新的）
         mem_config = pw.nodes_data.get(self._node.node_name, {}).get("config", {})
@@ -78,7 +78,7 @@ class NodeConfigManager:
                 for key in ("parameters", "input_ports", "output_ports"):
                     if key in disk_config and key not in saved_config:
                         saved_config[key] = disk_config[key]
-        except Exception:
+        except (ValueError, OSError):
             pass
         pw.nodes_data[self._node.node_name]["config"] = saved_config
         try:
@@ -100,7 +100,7 @@ class NodeConfigManager:
         if pw and hasattr(pw, "polling_manager"):
             try:
                 pw.polling_manager.config_file_changed.connect(self._on_external_config_change)
-            except Exception:
+            except (ValueError, OSError):
                 pass  # 重复连接忽略
 
     def _on_external_config_change(self, node_name: str):

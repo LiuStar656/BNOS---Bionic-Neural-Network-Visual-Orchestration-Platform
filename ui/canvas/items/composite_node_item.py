@@ -6,11 +6,15 @@ Appearance: dashed border + teal color + node count + ⊞ icon + anchor ports.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRectF, Qt
+from pathlib import Path
+
+import psutil
+from PySide6.QtCore import QRectF, Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
     QGraphicsItem,
     QGraphicsRectItem,
+    QGraphicsTextItem,
     QMenu,
     QStyleOptionGraphicsItem,
     QWidget,
@@ -69,6 +73,21 @@ class CompositeNodeItem(QGraphicsRectItem):
         self._brush = QBrush(self.FILL_COLOR)
         self._font_bold = QFont("Segoe UI", 11, QFont.Weight.Bold)
         self._font_small = QFont("Segoe UI", 9)
+
+        # 资源监控 — 画布上小型 CPU/MEM 文本
+        self._status_indicator = QGraphicsTextItem(self)
+        self._status_indicator.setZValue(4)
+        self._status_indicator.setVisible(False)
+        self._status_cpu_text = QGraphicsTextItem(self)
+        self._status_cpu_text.setZValue(4)
+        self._status_cpu_text.setDefaultTextColor(QColor("#4ecdc4"))
+        self._status_cpu_text.setVisible(False)
+        self._status_mem_text = QGraphicsTextItem(self)
+        self._status_mem_text.setZValue(4)
+        self._status_mem_text.setDefaultTextColor(QColor("#ff6b6b"))
+        self._status_mem_text.setVisible(False)
+        self._monitoring_timer = QTimer()
+        self._monitoring_timer.timeout.connect(self._poll_composite_status)
 
         self._create_anchors()
 
@@ -355,8 +374,93 @@ class CompositeNodeItem(QGraphicsRectItem):
             ok, msg = mgr.start_process_mode(self.comp_id)
         if not ok:
             themed_message(None, t("k_title_error"), msg, "error")
+        else:
+            self._start_monitoring()
 
     def _stop(self):
         mgr = self._get_manager()
         if mgr:
             mgr.stop_composite(self.comp_id)
+        self._stop_monitoring()
+
+    # ── 资源监控 ──
+
+    def _get_composite_pid(self) -> int | None:
+        """读取复合节点 orchestrator 进程 PID。"""
+        mgr = self._get_manager()
+        if not mgr:
+            return None
+        pid_file = Path(mgr._project_path) / f"__composite_{self.comp_id}.pid"
+        if not pid_file.exists():
+            return None
+        try:
+            return int(pid_file.read_text().strip())
+        except Exception:
+            return None
+
+    def _start_monitoring(self):
+        """启动复合节点资源监控（1 秒轮询）。"""
+        if not self._is_expanded:
+            self._layout_status_widgets()
+        self._monitoring_timer.start(1000)
+
+    def _stop_monitoring(self):
+        """停止监控并隐藏状态文本。"""
+        self._monitoring_timer.stop()
+        self._status_indicator.setVisible(False)
+        self._status_cpu_text.setVisible(False)
+        self._status_mem_text.setVisible(False)
+
+    def _poll_composite_status(self):
+        """轮询复合节点资源（psutil 进程树聚合）。"""
+        pid = self._get_composite_pid()
+        if pid is None or not psutil.pid_exists(pid):
+            self._stop_monitoring()
+            return
+
+        try:
+            proc = psutil.Process(pid)
+            cpu_total = 0.0
+            mem_total = 0
+
+            for child in proc.children(recursive=True):
+                try:
+                    cpu_total += child.cpu_percent()
+                    mem_total += child.memory_info().rss
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            try:
+                cpu_total += proc.cpu_percent()
+                mem_total += proc.memory_info().rss
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+
+            self._status_indicator.setHtml('<span style="color:#4CAF50;font-size:10px;">● running</span>')
+            self._status_cpu_text.setPlainText(f"CPU: {cpu_total:.0f}%")
+            mem_mb = mem_total / (1024 * 1024)
+            if mem_mb >= 1024:
+                self._status_mem_text.setPlainText(f"MEM: {mem_mb / 1024:.2f} GB")
+            else:
+                self._status_mem_text.setPlainText(f"MEM: {mem_mb:.0f} MB")
+
+            visible = not self._is_expanded
+            self._status_indicator.setVisible(visible)
+            self._status_cpu_text.setVisible(visible)
+            self._status_mem_text.setVisible(visible)
+        except Exception:
+            self._stop_monitoring()
+
+    def _layout_status_widgets(self):
+        """布局 CPU/MEM 文本 — 显示在复合节点矩形底部。"""
+        font = QFont("Arial", 7)
+        font.setBold(True)
+        self._status_indicator.setFont(font)
+        self._status_cpu_text.setFont(font)
+        self._status_mem_text.setFont(font)
+
+        y_base = self._height + 2
+        # 状态指示符
+        self._status_indicator.setPos(8, y_base)
+        # CPU 文本靠左，状态指示符右侧
+        self._status_cpu_text.setPos(70, y_base)
+        self._status_mem_text.setPos(130, y_base)
