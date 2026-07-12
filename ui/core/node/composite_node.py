@@ -2274,13 +2274,126 @@ class CompositeNode:
         self._canvas.scene.addItem(comp_item)
         self._canvas.nodes[comp_id] = comp_item
 
+        # Create new edges from composite node to external nodes
+        from ui.canvas.items.edge_item import EdgeItem
+
+        for info in external_edge_info:
+            # Determine if this is composite output → external or external → composite input
+            src_in = info["src"] in node_set
+            tgt_in = info["tgt"] in node_set
+
+            if src_in and not tgt_in:
+                # Composite output → external target
+                # Find the output port that corresponds to the internal source node
+                for port in output_ports:
+                    if port["internal_node"] == info["src"]:
+                        source_anchor = comp_item.find_anchor_by_port(port["port_name"], "output")
+                        if source_anchor:
+                            target_item = self._canvas.nodes.get(info["tgt"])
+                            if target_item:
+                                new_edge = EdgeItem(
+                                    comp_item,
+                                    target_item,
+                                    self._canvas,
+                                    source_anchor=source_anchor,
+                                    target_anchor=target_item.input_anchor,
+                                )
+                                self._canvas.scene.addItem(new_edge)
+                                self._canvas.edges.append(new_edge)
+                                new_edge.update_path()
+                                break
+
+            elif not src_in and tgt_in:
+                # External source → composite input
+                for port in input_ports:
+                    if port["internal_node"] == info["tgt"]:
+                        target_anchor = comp_item.find_anchor_by_port(port["port_name"], "input")
+                        if target_anchor:
+                            source_item = self._canvas.nodes.get(info["src"])
+                            if source_item:
+                                new_edge = EdgeItem(
+                                    source_item,
+                                    comp_item,
+                                    self._canvas,
+                                    source_anchor=source_item.output_anchor,
+                                    target_anchor=target_anchor,
+                                )
+                                self._canvas.scene.addItem(new_edge)
+                                self._canvas.edges.append(new_edge)
+                                new_edge.update_path()
+                                break
+
     def _canvas_decompress(self, comp_id: str, node_names: list, positions: dict):
-        """Canvas: remove composite node, restore original nodes and internal edges."""
-        set(node_names)
+        """Canvas: remove composite node, restore original nodes and internal edges.
+
+        Also remaps any edges that were connected to the composite node's ports
+        (created AFTER compression) to the corresponding internal nodes, so they
+        don't become ghost edges when comp_item is removed from the scene.
+        """
+
+        from ui.canvas.items.edge_item import EdgeItem
+
+        comp = self._composites.get(comp_id, {})
+        comp_item = self._canvas.nodes.get(comp_id)
+
+        # ── Fix: remap edges connected to composite node's ports BEFORE removing comp_item ──
+        if comp_item:
+            for edge in list(self._canvas.edges):
+                # External node → composite input port
+                if edge.end_node is comp_item:
+                    tgt_anchor = getattr(edge, "_target_anchor", None)
+                    port_name = getattr(tgt_anchor, "port_name", "")
+                    internal_name = self._find_internal_by_port(comp_id, port_name, "input")
+                    if internal_name:
+                        internal_item = self._canvas.nodes.get(internal_name)
+                        if internal_item:
+                            new_edge = EdgeItem(
+                                edge.start_node,
+                                internal_item,
+                                self._canvas,
+                                target_anchor=internal_item.input_anchor,
+                                source_anchor=getattr(edge, "_source_anchor", None),
+                            )
+                            if hasattr(edge, "_waypoints") and edge._waypoints:
+                                new_edge._waypoints = list(edge._waypoints)
+                            self._canvas.scene.addItem(new_edge)
+                            self._canvas.edges.append(new_edge)
+                            new_edge.update_path()
+                            # Remove old ghost edge
+                            if edge in self._canvas.edges:
+                                self._canvas.edges.remove(edge)
+                            if edge.scene():
+                                edge.scene().removeItem(edge)
+
+                # Composite output port → external node
+                elif edge.start_node is comp_item:
+                    src_anchor = getattr(edge, "_source_anchor", None)
+                    port_name = getattr(src_anchor, "port_name", "")
+                    internal_name = self._find_internal_by_port(comp_id, port_name, "output")
+                    if internal_name:
+                        internal_item = self._canvas.nodes.get(internal_name)
+                        if internal_item:
+                            new_edge = EdgeItem(
+                                internal_item,
+                                edge.end_node,
+                                self._canvas,
+                                target_anchor=getattr(edge, "_target_anchor", None),
+                                source_anchor=internal_item.output_anchor,
+                            )
+                            if hasattr(edge, "_waypoints") and edge._waypoints:
+                                new_edge._waypoints = list(edge._waypoints)
+                            self._canvas.scene.addItem(new_edge)
+                            self._canvas.edges.append(new_edge)
+                            new_edge.update_path()
+                            # Remove old ghost edge
+                            if edge in self._canvas.edges:
+                                self._canvas.edges.remove(edge)
+                            if edge.scene():
+                                edge.scene().removeItem(edge)
 
         # 移除复合节点
-        comp_item = self._canvas.nodes.pop(comp_id, None)
         if comp_item:
+            self._canvas.nodes.pop(comp_id, None)
             self._canvas.scene.removeItem(comp_item)
 
         # 还原原始节点位置
@@ -2292,7 +2405,6 @@ class CompositeNode:
                 item.setVisible(True)
 
         # Restore internal edges (hidden during compression)
-        comp = self._composites.get(comp_id, {})
         for info in comp.get("_internal_edges", []):
             for edge in self._canvas.edges:
                 src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
