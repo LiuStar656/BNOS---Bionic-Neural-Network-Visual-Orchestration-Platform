@@ -615,6 +615,7 @@
   "_k_composite_started_n": "Started {n} independent processes",
   "k_composite_stopped": "Composite node stopped",
   "_k_composite_crash": "Composite node exited immediately after start (exit={code})",
+  "_k_composite_finished": "Composite node completed",
   "_k_composite_write_orch_failed": "Failed to write orchestrator script: {path}\nError: {err}",
   "_k_composite_log_open_failed": "Failed to open composite node log file: {err}",
   "k_composite_start_failed": "Composite node start failed",

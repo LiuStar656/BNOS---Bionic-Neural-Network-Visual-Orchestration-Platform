@@ -766,6 +766,7 @@ class TranslationKeys:
     _COMPOSITE_STARTED_N = "_k_composite_started_n"
     COMPOSITE_STOPPED = "k_composite_stopped"
     _COMPOSITE_CRASH = "_k_composite_crash"
+    _COMPOSITE_FINISHED = "_k_composite_finished"
     _COMPOSITE_WRITE_ORCH_FAILED = "_k_composite_write_orch_failed"
     _COMPOSITE_LOG_OPEN_FAILED = "_k_composite_log_open_failed"
     COMPOSITE_START_FAILED = "k_composite_start_failed"

@@ -621,6 +621,7 @@
   "_k_composite_started_n": "已启动 {n} 个独立进程",
   "k_composite_stopped": "复合节点已停止",
   "_k_composite_crash": "复合节点启动后立即退出 (exit={code})",
+  "_k_composite_finished": "复合节点已完成",
   "_k_composite_write_orch_failed": "无法写入编排器脚本: {path}\n错误: {err}",
   "_k_composite_log_open_failed": "无法打开复合节点日志文件: {err}",
   "k_composite_start_failed": "复合节点启动失败",

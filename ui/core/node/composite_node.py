@@ -1554,7 +1554,7 @@ class CompositeNode:
 
             time.sleep(0.3)
             ret = proc.poll()
-            if ret is not None:
+            if ret is not None and ret != 0:
                 stderr_output = ""
                 try:
                     _err_f.flush()
@@ -1568,10 +1568,14 @@ class CompositeNode:
                 return False, t(TK._COMPOSITE_CRASH).format(code=ret) + f"\n{stderr_output[:500]}"
 
             # 写入 PID 文件供 BNOS 检测
+            # 注：编排器是批量执行器，可能在 300ms 内已完成（ret==0），此时 PID 已死但写入供记录
             pid_file = Path(project_root) / f"__composite_{comp_id}.pid"
             with pid_file.open("w") as f:
                 f.write(str(proc.pid))
 
+            if ret == 0:
+                # 编排器已在 300ms 内正常完成
+                return True, t(TK._COMPOSITE_FINISHED)
             return True, t(TK._COMPOSITE_STARTED).format(pid=proc.pid)
         except Exception as e:
             # S03: 异常时确保 kill 子进程，防止僵尸进程

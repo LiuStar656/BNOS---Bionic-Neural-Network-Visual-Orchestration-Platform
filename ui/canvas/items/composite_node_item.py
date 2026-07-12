@@ -414,8 +414,17 @@ class CompositeNodeItem(QGraphicsRectItem):
     def _poll_composite_status(self):
         """轮询复合节点资源（psutil 进程树聚合）。"""
         pid = self._get_composite_pid()
-        if pid is None or not psutil.pid_exists(pid):
+        if pid is None:
             self._stop_monitoring()
+            return
+        if not psutil.pid_exists(pid):
+            # 进程已退出 — 显示完成状态而非消失
+            self._monitoring_timer.stop()
+            self._status_indicator.setText("\u2713")
+            self._status_indicator.setStyleSheet("color: #4ec9b0; font-weight: bold; font-size: 14px;")
+            self._status_indicator.setVisible(True)
+            self._status_cpu_text.setVisible(False)
+            self._status_mem_text.setVisible(False)
             return
 
         try:
