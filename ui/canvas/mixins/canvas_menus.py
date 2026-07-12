@@ -108,16 +108,29 @@ class CanvasMenu:
         ActionFactory.create_action(self.canvas, "node.stop", ctx, menu)
         menu.addSeparator()
 
-        # 批量移除（动态文本 — 保留 menu.addAction 但走 ActionRegistry）
-        a = QAction(t("_k_batch_remove_selected").replace("{count}", str(count)), menu)
-        a.triggered.connect(lambda: self._dispatch("canvas.batch_remove"))
-        menu.addAction(a)
+        # 批量移除
+        ActionFactory.create_action(
+            self.canvas,
+            "canvas.batch_remove",
+            ctx,
+            menu,
+            label=t("_k_batch_remove_selected").replace("{count}", str(count)),
+        )
 
         menu.addSeparator()
 
         # ── 复合节点操作 ──
-        compress_action = menu.addAction(f"\u229e \u538b\u7f29\u4e3a\u590d\u5408\u8282\u70b9 ({count} nodes)")
-        compress_action.triggered.connect(lambda: self._on_compress_to_composite(self.canvas.box_selected_nodes))
+        compress_ctx = ActionContext(
+            node_list=self.canvas.box_selected_nodes,
+            extra={"canvas": self.canvas},
+        )
+        ActionFactory.create_action(
+            self.canvas,
+            "canvas.compress_to_composite",
+            compress_ctx,
+            menu,
+            label=f"\u229e \u538b\u7f29\u4e3a\u590d\u5408\u8282\u70b9 ({count})",
+        )
 
         # 如果所有选中节点已在某复合节点中，显示"解耦"
         if hasattr(self.canvas, "_composite_manager") and self.canvas._composite_manager:
@@ -129,8 +142,17 @@ class CanvasMenu:
                     comp_ids.add(cid)
             if comp_ids:
                 for cid in comp_ids:
-                    decompress_action = menu.addAction(f"\u293a \u89e3\u8026\u590d\u5408\u8282\u70b9 {cid}")
-                    decompress_action.triggered.connect(lambda checked, c=cid: mgr.decompress(c))
+                    decomp_ctx = ActionContext(
+                        node_name=cid,
+                        extra={"canvas": self.canvas, "comp_id": cid},
+                    )
+                    ActionFactory.create_action(
+                        self.canvas,
+                        "canvas.decompress_composite",
+                        decomp_ctx,
+                        menu,
+                        label=f"\u293a \u89e3\u8026\u590d\u5408\u8282\u70b9 {cid}",
+                    )
 
         menu.addSeparator()
         ActionFactory.create_action(self.canvas, "canvas.clear_listen_config", menu=menu)
@@ -154,6 +176,11 @@ class CanvasMenu:
             else:
                 ActionFactory.create_action(self.canvas, "node.start", ctx, menu)
             menu.addSeparator()
+
+        # 重命名
+        rename_ctx = self._make_ctx(node_name=node_name)
+        ActionFactory.create_action(self.canvas, "node.rename", rename_ctx, menu)
+        menu.addSeparator()
 
         # 开始连线
         ActionFactory.create_action(self.canvas, "canvas.start_connection", self._make_ctx(node_name=node_name), menu)
@@ -230,6 +257,12 @@ class CanvasMenu:
 
     # ---- 空白画布菜单 ----
 
+    def rename_node(self, old_name):
+        """画布节点重命名 — 委托给主窗口"""
+        parent_win = getattr(self.canvas, "parent_window", None)
+        if parent_win and hasattr(parent_win, "rename_node"):
+            parent_win.rename_node(old_name)
+
     def _show_canvas_menu(self, event):
         menu = QMenu(self.canvas)
 
@@ -299,12 +332,16 @@ class CanvasMenu:
         ActionFactory.create_action(self.canvas, "canvas.reset_view", menu=menu)
         menu.addSeparator()
 
-        # 绘画工具栏（动态文本 — 保留 menu.addAction，路由到 ActionRegistry）
+        # 绘画工具栏
         toolbar_visible = self.canvas.draw_layer._toolbar_visible if hasattr(self.canvas, "draw_layer") else False
-        action_text = t("k_canvas_hide_draw_toolbar") if toolbar_visible else t("k_canvas_show_draw_toolbar")
-        a = QAction(action_text, menu)
-        a.triggered.connect(lambda: self._dispatch("canvas.toggle_draw_toolbar"))
-        menu.addAction(a)
+        draw_label = t("k_canvas_hide_draw_toolbar") if toolbar_visible else t("k_canvas_show_draw_toolbar")
+        ActionFactory.create_action(
+            self.canvas,
+            "canvas.toggle_draw_toolbar",
+            self._make_ctx(),
+            menu,
+            label=draw_label,
+        )
 
         menu.addSeparator()
 

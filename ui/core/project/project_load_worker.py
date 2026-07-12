@@ -61,12 +61,15 @@ class ProjectLoadWorker(QThread):
                     continue
 
                 config_path = node_path / "config.json"
-                if not config_path.is_file():
-                    logger.info("跳过非节点目录（无 config.json）: %s", item.name)
+                unified_path = node_path / "node_config.json"
+                if not config_path.is_file() and not unified_path.is_file():
+                    logger.info("跳过非节点目录（无 config.json / node_config.json）: %s", item.name)
                     continue
 
                 try:
-                    config = json.loads(config_path.read_text(encoding="utf-8"))
+                    # 优先读取 node_config.json，回退 config.json
+                    actual_config_path = unified_path if unified_path.is_file() else config_path
+                    config = json.loads(actual_config_path.read_text(encoding="utf-8"))
                     node_name = config.get("node_name", item.name)
 
                     expected_path = (self._nodes_dir / item.name).resolve()
@@ -111,9 +114,13 @@ class ProjectLoadWorker(QThread):
                     if m_name not in nodes_data and m_info.get("status") == "active":
                         m_path = m_info.get("path", "")
                         m_config_path = Path(m_path) / "config.json"
+                        m_unified_path = Path(m_path) / "node_config.json"
                         m_mount_root = m_info.get("mount_root", "")
                         try:
-                            if m_config_path.exists():
+                            # 优先读取 node_config.json，回退 config.json
+                            if m_unified_path.exists():
+                                m_config = json.loads(m_unified_path.read_text(encoding="utf-8"))
+                            elif m_config_path.exists():
                                 m_config = json.loads(m_config_path.read_text(encoding="utf-8"))
                             else:
                                 m_config = {"node_name": m_name}

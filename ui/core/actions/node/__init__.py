@@ -14,7 +14,18 @@
 
 from __future__ import annotations
 
-from . import _batch, _context_menu, _group, _ide, _lifecycle, _selection, _style, _template, _ungrouped
+from . import (
+    _batch,
+    _context_menu,
+    _group,
+    _ide,
+    _lifecycle,
+    _selection,
+    _style,
+    _template,
+    _ungrouped,
+    composite_actions,
+)
 
 
 def register_node_actions(main_window):
@@ -29,6 +40,7 @@ def register_node_actions(main_window):
         _ide,
         _style,
         _template,
+        composite_actions,
     ]
     for mod in modules:
         mod.register(main_window)

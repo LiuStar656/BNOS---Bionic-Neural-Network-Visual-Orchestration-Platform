@@ -121,7 +121,22 @@ def _is_pid_alive(pid):
     try:
         if os.name == "nt":
             import ctypes
+            import subprocess
 
+            # 方法1：使用 tasklist 检查进程是否存在（更可靠）
+            try:
+                result = subprocess.run(
+                    ["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"], capture_output=True, text=True, timeout=2
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    # tasklist 返回 CSV 格式："PID","Name",...
+                    lines = result.stdout.strip().split("\n")
+                    if len(lines) > 1 and str(pid) in lines[0]:
+                        return True
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+
+            # 方法2：使用 OpenProcess 作为备选（但正确处理权限）
             kernel32 = ctypes.windll.kernel32
             handle = kernel32.OpenProcess(0x0400, False, pid)  # PROCESS_QUERY_INFORMATION
             if handle:
@@ -138,30 +153,33 @@ def _is_pid_alive(pid):
 # ---- 进程扫描兜底（处理 PID 文件丢失 / start.bat 孤儿进程） ----
 
 
-def _python_exe_for_node(node_path, start_config=None, node_name=None):
+def _python_exe_for_node(node_path, config=None, node_name=None):
     """获取节点虚拟环境中的 Python 解释器路径
 
-    优先从 start.json 的 python_exe 字段读取，若未配置则回退到默认路径。
+    优先从配置的 python_exe 字段读取，若未配置则回退到默认路径。
+    node_config.json 和 start.json 格式均支持。
 
     Args:
         node_path: 节点路径
-        start_config: start.json 配置（可选）
+        config: node_config.json 或 start.json 配置（可选）
         node_name: 节点名称（可选，用于在多节点配置中查找）
 
     Returns:
         str: Python 解释器路径
     """
-    # 优先从 start_config 中读取 python_exe 配置
-    if start_config and "nodes" in start_config and isinstance(start_config["nodes"], list):
-        for n in start_config["nodes"]:
-            if (node_name and n.get("name") == node_name) or n.get("path") == node_path:
-                if "python_exe" in n and n["python_exe"]:
-                    logger.debug("从 start.json 获取 Python 解释器: %s", n["python_exe"])
-                    return str(Path(n["python_exe"]))
-    elif start_config and "python_exe" in start_config and start_config["python_exe"]:
-        # 单节点格式
-        logger.debug("从 start.json 获取 Python 解释器: %s", start_config["python_exe"])
-        return str(Path(start_config["python_exe"]))
+    # 优先从配置中读取 python_exe 字段
+    if config:
+        # node_config.json / start.json 单节点格式
+        if "python_exe" in config and config["python_exe"]:
+            logger.debug("从配置获取 Python 解释器: %s", config["python_exe"])
+            return str(Path(config["python_exe"]))
+        # start.json 多节点格式
+        if "nodes" in config and isinstance(config["nodes"], list):
+            for n in config["nodes"]:
+                if (node_name and n.get("name") == node_name) or n.get("path") == node_path:
+                    if "python_exe" in n and n["python_exe"]:
+                        logger.debug("从配置获取 Python 解释器: %s", n["python_exe"])
+                        return str(Path(n["python_exe"]))
 
     # 回退到默认路径
     if os.name == "nt":
@@ -321,21 +339,34 @@ def _kill_all_node_processes(node_path):
 # ---- 核心 API ----
 
 
-def _load_start_json(node_path):
-    """加载节点目录下的 start.json 配置文件"""
-    start_json_path = Path(node_path) / "start.json"
-    if not start_json_path.exists():
-        logger.debug("start.json 不存在: %s", start_json_path)
-        return None
+def _load_node_runtime_config(node_path):
+    """加载节点运行时配置（优先 node_config.json，回退 start.json）"""
+    import json
 
-    try:
-        import json
+    node_path_obj = Path(node_path)
 
-        with start_json_path.open(encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        logger.warning("读取 start.json 失败: %s", e)
-        return None
+    # 1. 优先读取统一配置 node_config.json
+    unified_path = node_path_obj / "node_config.json"
+    if unified_path.exists():
+        try:
+            with unified_path.open(encoding="utf-8") as f:
+                cfg = json.load(f)
+            logger.debug("使用 node_config.json 配置启动节点")
+            return cfg
+        except Exception as e:
+            logger.warning("读取 node_config.json 失败: %s", e)
+
+    # 2. 回退到旧格式 start.json
+    start_json_path = node_path_obj / "start.json"
+    if start_json_path.exists():
+        try:
+            with start_json_path.open(encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning("读取 start.json 失败: %s", e)
+
+    logger.debug("无可用配置文件: %s", node_path)
+    return None
 
 
 def _check_directory_permissions(node_path):
@@ -381,46 +412,47 @@ def start_node_process(node_info):
     logger.debug("启动前清理残留进程: %s", node_name)
     _kill_all_node_processes(node_path)
 
-    # 2. 读取 start.json 配置（必须存在）
-    start_config = _load_start_json(node_path)
-    if not start_config:
-        error_msg = f"start.json 配置文件不存在或读取失败: {node_path}"
+    # 2. 读取配置文件（优先 node_config.json，回退 start.json）
+    config = _load_node_runtime_config(node_path)
+    if not config:
+        error_msg = f"配置文件不存在或读取失败（需要 node_config.json 或 start.json）: {node_path}"
         logger.error(error_msg)
         return False, error_msg
 
-    logger.info("使用 start.json 配置启动节点")
+    logger.info(
+        "使用 %s 配置启动节点", "node_config.json" if Path(node_path, "node_config.json").exists() else "start.json"
+    )
 
-    # 提取节点配置（支持单节点和多节点格式）
-    if "nodes" in start_config and isinstance(start_config["nodes"], list):
-        # 查找当前节点的配置
-        node_config = None
-        for n in start_config["nodes"]:
+    # 提取节点运行时配置（支持统一格式和旧格式）
+    if "nodes" in config and isinstance(config["nodes"], list):
+        # 旧格式 start.json 多节点
+        node_runtime = None
+        for n in config["nodes"]:
             if n.get("name") == node_name or n.get("path") == node_path:
-                node_config = n
+                node_runtime = n
                 break
-        if node_config:
-            # 更新 node_info 中的配置
-            if "config" in node_config:
-                node_info["config"] = node_config["config"]
-                logger.debug("从 start.json 加载配置: %s", node_config["config"])
-    elif "config" in start_config:
-        # 单节点格式
-        node_info["config"] = start_config["config"]
-        logger.debug("从 start.json 加载配置: %s", start_config["config"])
+        if node_runtime and "config" in node_runtime:
+            node_info["config"] = node_runtime["config"]
+            logger.debug("从配置文件加载运行时配置: %s", node_runtime["config"])
+    elif "config" in config:
+        # 旧格式 start.json 单节点
+        node_info["config"] = config["config"]
+        logger.debug("从配置文件加载运行时配置: %s", config["config"])
+    elif "entry" in config:
+        # 统一格式 node_config.json：运行时字段已在配置中
+        logger.debug("使用 node_config.json 统一配置启动")
 
     # 3. 定位虚拟环境 Python 解释器
-    python_exe = _python_exe_for_node(node_path, start_config, node_name)
+    python_exe = _python_exe_for_node(node_path, config, node_name)
 
-    # 4. 从 start.json 读取入口脚本（默认 listener.py）
-    entry_script = "listener.py"
-    if "nodes" in start_config and isinstance(start_config["nodes"], list):
-        for n in start_config["nodes"]:
+    # 4. 从配置读取入口脚本（默认 listener.py，支持 node_config.json 和 start.json）
+    entry_script = config.get("entry", "listener.py") if isinstance(config, dict) else "listener.py"
+    if "nodes" in config and isinstance(config["nodes"], list):
+        for n in config["nodes"]:
             if n.get("name") == node_name or n.get("path") == node_path:
                 if "entry" in n and n["entry"]:
                     entry_script = n["entry"]
                     break
-    elif "entry" in start_config:
-        entry_script = start_config["entry"]
 
     entry_py = str(node_path_obj / entry_script)
 

@@ -446,14 +446,36 @@ class BNOSMainWindow(
         if not reply:
             return
 
-        # 清空所有下游节点的 listen_upper_file
-        for _node_name, node_info in self.nodes_data.items():
+        # 收集所有复合节点的内部节点名称，避免清空其内部连线关系
+        composite_internal_nodes = set()
+        if self.canvas:
+            mgr = getattr(self.canvas, "_composite_manager", None)
+            if mgr:
+                for _comp_id, comp in mgr._composites.items():
+                    for n in comp.get("nodes", []):
+                        composite_internal_nodes.add(n)
+
+        from ui.core.config.config_merger import get_config_path
+
+        # 清空所有非复合内部的节点 listen_upper_file / port_mappings / out_connections
+        for node_name, node_info in self.nodes_data.items():
+            if node_name in composite_internal_nodes:
+                continue
+
             config = node_info["config"]
             config["listen_upper_file"] = ""
 
-            config_path = os.path.join(node_info["path"], "config.json")
-            with open(config_path, "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=2, ensure_ascii=False)
+            # Clear port_mappings and out_connections too
+            for _k in ("port_mappings", "out_connections"):
+                if _k in config:
+                    config[_k].clear()
+
+            try:
+                config_path = get_config_path(node_info["path"])
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+            except Exception:
+                pass
 
         if self.canvas:
             self.canvas.clear_edges()

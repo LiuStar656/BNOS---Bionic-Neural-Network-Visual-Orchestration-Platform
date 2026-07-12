@@ -424,7 +424,10 @@ class PollingManager(QObject):
 
         changed = []  # [(node_path, new_mtime, new_content, should_notify)]
         for node_path, (last_mtime, last_content) in watchers_snapshot:
-            config_path = Path(node_path) / "config.json"
+            # 优先监视 node_config.json，回退 config.json
+            from ui.core.config.config_merger import get_config_path as _gcp
+
+            config_path = Path(_gcp(node_path))
             try:
                 if not config_path.exists():
                     continue
@@ -597,8 +600,10 @@ class PollingManager(QObject):
             self._log_watchers.pop(key, None)
 
     def watch_config(self, node_path: str):
-        """订阅节点 config.json"""
-        config_path = Path(node_path) / "config.json"
+        """订阅节点配置文件（优先 node_config.json，回退 config.json）"""
+        from ui.core.config.config_merger import get_config_path as _gcp
+
+        config_path = Path(_gcp(node_path))
         try:
             if config_path.exists():
                 mtime = config_path.stat().st_mtime

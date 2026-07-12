@@ -38,11 +38,13 @@ def _mount_node_async(main_window, folder_path):
     """异步执行挂载（内部方法）"""
     try:
         folder_path = os.path.abspath(folder_path)
-        config_path = os.path.join(folder_path, "config.json")
+        from ui.core.config.config_merger import get_config_path
+
+        config_path = get_config_path(folder_path)
 
         if not os.path.exists(config_path):
             QTimer.singleShot(
-                10, lambda: main_window.show_toast(f"所选文件夹中未找到 config.json:\n{folder_path}", "warning")
+                10, lambda: main_window.show_toast(f"所选文件夹中未找到配置文件:\n{folder_path}", "warning")
             )
             return
 

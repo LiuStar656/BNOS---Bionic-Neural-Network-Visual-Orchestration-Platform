@@ -151,9 +151,14 @@ class NodeListContextMixin:
         ActionFactory.add_disabled_label(menu, t("_k_selected_count").format(count=n))
         menu.addSeparator()
 
-        # 批量添加画布（动态名称，手动创建 action 但走 ActionRegistry）
-        batch_add = menu.addAction(t("_k_add_n_to_canvas").format(count=n))
-        batch_add.triggered.connect(lambda: self._dispatch("node.batch_add_to_canvas"))
+        # 批量添加画布
+        ActionFactory.create_action(
+            self,
+            "node.batch_add_to_canvas",
+            ctx,
+            menu,
+            label=t("_k_add_n_to_canvas").format(count=n),
+        )
         menu.addSeparator()
 
         # 移动到组子菜单
@@ -161,16 +166,28 @@ class NodeListContextMixin:
         groups = self.group_manager.get_all_groups()
         if groups:
             for gn in sorted(groups.keys()):
-                action = move_menu.addAction(gn)
-                action.triggered.connect(lambda checked, gn=gn: self._dispatch("group.batch_move_to", group_name=gn))
+                move_ctx = self._make_ctx(node_list=selected_nodes, group_name=gn)
+                ActionFactory.create_action(
+                    self,
+                    "group.batch_move_to",
+                    move_ctx,
+                    move_menu,
+                    label=gn,
+                )
         else:
             move_menu.addAction(t("k_group_no_available")).setEnabled(False)
 
         # 从共同组中批量移除
         common_group = self._get_common_group(selected_nodes)
         if common_group:
-            action = menu.addAction(t("_k_group_remove_from").format(group=common_group))
-            action.triggered.connect(lambda: self._dispatch("group.batch_remove_from", group_name=common_group))
+            remove_ctx = self._make_ctx(node_list=selected_nodes, group_name=common_group)
+            ActionFactory.create_action(
+                self,
+                "group.batch_remove_from",
+                remove_ctx,
+                menu,
+                label=t("_k_group_remove_from").format(group=common_group),
+            )
 
         menu.addSeparator()
 
@@ -180,24 +197,42 @@ class NodeListContextMixin:
 
         menu.addSeparator()
 
-        # 批量打开文件夹 / 查看日志
-        batch_open = menu.addAction(t("_k_open_n_dirs").format(count=n))
-        batch_open.triggered.connect(lambda: self._dispatch("node.batch_open_folders"))
+        # 批量打开文件夹 / 查看日志 / 编辑配置 / 删除
+        ActionFactory.create_action(
+            self,
+            "node.batch_open_folders",
+            ctx,
+            menu,
+            label=t("_k_open_n_dirs").format(count=n),
+        )
 
-        batch_log = menu.addAction(t("_k_view_n_logs").format(count=n))
-        batch_log.triggered.connect(lambda: self._dispatch("node.batch_view_logs"))
+        ActionFactory.create_action(
+            self,
+            "node.batch_view_logs",
+            ctx,
+            menu,
+            label=t("_k_view_n_logs").format(count=n),
+        )
 
         menu.addSeparator()
 
-        # 批量编辑配置
-        batch_edit = menu.addAction(t("_k_edit_n_configs").format(count=n))
-        batch_edit.triggered.connect(lambda: self._dispatch("node.batch_edit_configs"))
+        ActionFactory.create_action(
+            self,
+            "node.batch_edit_configs",
+            ctx,
+            menu,
+            label=t("_k_edit_n_configs").format(count=n),
+        )
 
         menu.addSeparator()
 
-        # 批量删除
-        batch_del = menu.addAction(t("_k_delete_n_nodes").format(count=n))
-        batch_del.triggered.connect(lambda: self._dispatch("node.batch_delete"))
+        ActionFactory.create_action(
+            self,
+            "node.batch_delete",
+            ctx,
+            menu,
+            label=t("_k_delete_n_nodes").format(count=n),
+        )
 
     def export_single_node(self, node_name):
         """导出单个节点（委托给主窗口）"""
@@ -219,14 +254,24 @@ class NodeListContextMixin:
         active_count = sum(1 for n in group_nodes if self.nodes_data.get(n, {}).get("status") in ("running", "idle"))
         stopped_count = len(group_nodes) - active_count
 
-        # 启动 / 停止组节点（动态名称，手动创建但走 Registry）
+        # 启动 / 停止组节点
         group_ctx = self._make_ctx(group_name=group_name)
         if stopped_count > 0:
-            action = menu.addAction(t("_k_start_group_nodes").format(count=stopped_count))
-            action.triggered.connect(lambda: self._dispatch("group.start", group_name=group_name))
+            ActionFactory.create_action(
+                self,
+                "group.start",
+                group_ctx,
+                menu,
+                label=t("_k_start_group_nodes").format(count=stopped_count),
+            )
         if active_count > 0:
-            action = menu.addAction(t("_k_stop_group_nodes").format(count=active_count))
-            action.triggered.connect(lambda: self._dispatch("group.stop", group_name=group_name))
+            ActionFactory.create_action(
+                self,
+                "group.stop",
+                group_ctx,
+                menu,
+                label=t("_k_stop_group_nodes").format(count=active_count),
+            )
 
         menu.addSeparator()
 

@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPainterPath, QPen
 
 from ui.canvas.items.edge_item import EdgeItem, TempEdgeItem
+from ui.core.config.config_merger import get_config_path
 from ui.core.i18n import t
 from ui.core.logger import logger
 from ui.core.utils.dialog_utils import themed_message
@@ -200,16 +201,16 @@ class CanvasConnections:
                 )
                 source_config["out_connections"][source_port_name] = f"{target_name}|{tgt_port}"
                 try:
-                    sc_path = Path(source_info.get("path", "")) / "config.json"
+                    sc_path = get_config_path(source_info.get("path", ""))
                     if source_info.get("path"):
-                        with sc_path.open("w", encoding="utf-8") as f:
+                        with open(sc_path, "w", encoding="utf-8") as f:
                             json.dump(source_config, f, indent=2, ensure_ascii=False)
                 except Exception as e:
                     logger.error("save upstream out_connections failed: %s", e)
 
-        config_path = Path(target_info["path"]) / "config.json"
+        config_path = get_config_path(target_info["path"])
         try:
-            with config_path.open("w", encoding="utf-8") as f:
+            with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(target_config, f, indent=2, ensure_ascii=False)
             logger.info("configured %s to listen to %s", target_name, source_name)
         except Exception as e:
@@ -291,9 +292,9 @@ class CanvasConnections:
             else:
                 target_config["listen_upper_file"] = source_output_path
 
-            config_path = Path(target_info["path"]) / "config.json"
+            config_path = get_config_path(target_info["path"])
             try:
-                with config_path.open("w", encoding="utf-8") as f:
+                with open(config_path, "w", encoding="utf-8") as f:
                     json.dump(target_config, f, indent=2, ensure_ascii=False)
                 logger.info(
                     "composite→external: %s config updated → %s (via %s)",
@@ -342,8 +343,8 @@ class CanvasConnections:
             source_config.setdefault("out_connections", {})
             source_config["out_connections"][spn] = f"{internal_name}|{port_name}"
             try:
-                sc_path = Path(source_path) / "config.json"
-                with sc_path.open("w", encoding="utf-8") as f:
+                sc_path = get_config_path(source_path)
+                with open(sc_path, "w", encoding="utf-8") as f:
                     json.dump(source_config, f, indent=2, ensure_ascii=False)
                 logger.info(
                     "external→composite: source %s out_connections[%s]=%s",
@@ -491,9 +492,9 @@ class CanvasConnections:
         else:
             target_config["listen_upper_file"] = ""
 
-        config_path = Path(target_info["path"]) / "config.json"
+        config_path = get_config_path(target_info["path"])
         try:
-            with config_path.open("w", encoding="utf-8") as f:
+            with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(target_config, f, indent=2, ensure_ascii=False)
             logger.info("已清空 %s 的监听配置及端口映射", target_name)
         except Exception as e:
@@ -508,8 +509,8 @@ class CanvasConnections:
             if sp in source_config["out_connections"]:
                 del source_config["out_connections"][sp]
             try:
-                sc_path = Path(source_info["path"]) / "config.json"
-                with sc_path.open("w", encoding="utf-8") as f:
+                sc_path = get_config_path(source_info["path"])
+                with open(sc_path, "w", encoding="utf-8") as f:
                     json.dump(source_config, f, indent=2, ensure_ascii=False)
             except Exception as e:
                 logger.error("保存上游节点出向连接配置失败: %s", e)
@@ -525,13 +526,17 @@ class CanvasConnections:
         self.canvas.viewport().setCursor(Qt.CursorShape.ArrowCursor)
 
     def clear_edges(self):
-        """清空所有连线 — 遍历所有锚点（包括多输入锚点）"""
+        """清空所有连线 — 跳过复合节点内部的隐藏连线"""
         for edge in self.canvas.edges[:]:
+            if not edge.isVisible():
+                continue  # 跳过复合节点内部隐藏边
             self.remove_edge(edge)
-        self.canvas.edges.clear()
+        self.canvas.edges = [e for e in self.canvas.edges if not e.isVisible()]
 
-        # 清空所有节点所有锚点的连线引用
+        # 清空所有可见节点所有锚点的连线引用
         for node in self.canvas.nodes.values():
+            if not node.isVisible():
+                continue  # 跳过复合节点内部隐藏节点
             if hasattr(node, "all_input_anchors") and callable(getattr(node, "all_input_anchors", None)):
                 for anchor in node.all_input_anchors():
                     if anchor is not None:

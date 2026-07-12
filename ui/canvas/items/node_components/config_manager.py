@@ -24,11 +24,14 @@ class NodeConfigManager:
         return None
 
     def get_node_config(self):
-        """获取当前节点的 config 字典（合并磁盘 config.json + 内存运行时状态）
+        """获取当前节点的 config 字典（支持 node_config.json + 向后兼容）
 
-        解决 start.json 启动时整体替换 node_info['config'] 导致 parameters/input_ports
-        元数据丢失的问题——始终从磁盘加载完整 config.json，仅对运行时字段
-        （listen_upper_file/output_file/out_connections 等）用内存值覆盖。
+        配置优先级：
+        1. node_config.json（新格式）
+        2. config.json + start.json（旧格式，向后兼容）
+        3. 内存运行时状态（动态更新）
+
+        解决配置文件分离导致的元数据丢失问题，支持统一配置格式。
         """
         pw = self.get_parent_window()
         if not pw:
@@ -36,23 +39,110 @@ class NodeConfigManager:
         path = pw.nodes_data.get(self._node.node_name, {}).get("path", "")
         if not path:
             return None
-        # 从磁盘加载完整 config.json（始终包含 parameters/input_ports）
+
+        # 尝试加载 node_config.json（新格式）
+        unified_path = os.path.join(path, "node_config.json")
+        if os.path.exists(unified_path):
+            return self._load_unified_config(unified_path)
+
+        # 向后兼容：加载 config.json + start.json
+        return self._load_legacy_config(path)
+
+    def _load_unified_config(self, unified_path: str) -> dict:
+        """加载 node_config.json（统一配置格式）"""
+        import json
+
+        try:
+            with open(unified_path, encoding="utf-8") as f:
+                config = json.load(f)
+
+            # 运行时字段：用内存中的值覆盖
+            pw = self.get_parent_window()
+            if pw:
+                mem_config = pw.nodes_data.get(self._node.node_name, {}).get("config", {})
+                runtime_keys = (
+                    "listen_upper_file",
+                    "output_file",
+                    "out_connections",
+                    "filter",
+                    "output_type",
+                    "port_mappings",
+                )
+                for key in runtime_keys:
+                    if key in mem_config:
+                        config[key] = mem_config[key]
+
+            return config
+        except (ValueError, OSError) as e:
+            logger.warning("加载 node_config.json 失败: %s", e)
+            return {}
+
+    def _load_legacy_config(self, path: str) -> dict:
+        """加载旧格式配置（config.json + start.json）"""
+        import json
+
+        # 加载 config.json
         cfg_path = os.path.join(path, "config.json")
-        merged = {}
+        config = {}
         try:
             if os.path.exists(cfg_path):
-                import json
-
                 with open(cfg_path, encoding="utf-8") as f:
-                    merged = json.load(f)
-        except (ValueError, OSError):
-            pass
-        # 运行时字段：用内存中的值覆盖（这些值是执行过程中动态更新的）
-        mem_config = pw.nodes_data.get(self._node.node_name, {}).get("config", {})
-        for key in ("listen_upper_file", "output_file", "out_connections", "filter", "output_type", "port_mappings"):
-            if key in mem_config:
-                merged[key] = mem_config[key]
-        return merged
+                    config = json.load(f)
+        except (ValueError, OSError) as e:
+            logger.warning("加载 config.json 失败: %s", e)
+
+        # 合并 start.json（向后兼容）
+        start_path = os.path.join(path, "start.json")
+        if os.path.exists(start_path):
+            try:
+                with open(start_path, encoding="utf-8") as f:
+                    start_config = json.load(f)
+
+                # 处理 start.json 的多节点格式
+                if "nodes" in start_config and isinstance(start_config["nodes"], list):
+                    for node in start_config["nodes"]:
+                        if node.get("name") == config.get("node_name"):
+                            # 合并启动配置
+                            config.update(
+                                {"entry": node.get("entry", "listener.py"), "python_exe": node.get("python_exe", "")}
+                            )
+
+                            # 合并运行时配置
+                            if "config" in node:
+                                config.update(node["config"])
+                            break
+
+                # 处理单节点格式
+                elif start_config.get("name") == config.get("node_name"):
+                    config.update(
+                        {
+                            "entry": start_config.get("entry", "listener.py"),
+                            "python_exe": start_config.get("python_exe", ""),
+                        }
+                    )
+                    if "config" in start_config:
+                        config.update(start_config["config"])
+
+            except (ValueError, OSError) as e:
+                logger.warning("加载 start.json 失败: %s", e)
+
+        # 运行时字段：用内存中的值覆盖
+        pw = self.get_parent_window()
+        if pw:
+            mem_config = pw.nodes_data.get(self._node.node_name, {}).get("config", {})
+            runtime_keys = (
+                "listen_upper_file",
+                "output_file",
+                "out_connections",
+                "filter",
+                "output_type",
+                "port_mappings",
+            )
+            for key in runtime_keys:
+                if key in mem_config:
+                    config[key] = mem_config[key]
+
+        return config
 
     def save_node_config(self, config: dict):
         """保存 config 到文件并同步内存（保护 parameters/input_ports 不被覆盖丢失）

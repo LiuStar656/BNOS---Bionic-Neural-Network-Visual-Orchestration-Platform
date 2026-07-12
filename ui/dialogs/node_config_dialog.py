@@ -517,8 +517,10 @@ class NodeConfigDialog(FloatingPanel):
     # ==================== config.json two-way sync ====================
 
     def load_config_json(self):
-        """Load config.json from file into editor (without triggering textChanged save)."""
-        config_path = Path(self.node_path) / "config.json"
+        """Load primary config file (node_config.json / config.json) from file into editor."""
+        from ui.core.config.config_merger import get_config_path
+
+        config_path = Path(get_config_path(self.node_path))
         try:
             if not config_path.exists():
                 self.config = {}
@@ -554,11 +556,13 @@ class NodeConfigDialog(FloatingPanel):
         self._save_timer.start(800)
 
     def _write_config_to_file(self):
-        """Write editor content to config.json (debounced save)."""
+        """Write editor content to primary config file (node_config.json / config.json)."""
         if self._ignore_external:
             return
 
-        config_path = Path(self.node_path) / "config.json"
+        from ui.core.config.config_merger import get_config_path
+
+        config_path = Path(get_config_path(self.node_path))
         content = self.config_text.toPlainText().strip()
 
         if not content:

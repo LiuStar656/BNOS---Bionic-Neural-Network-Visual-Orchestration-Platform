@@ -50,6 +50,21 @@ class MainWindowNodeControlMixin:
             self.show_toast(t("k_node_lang_unsupported").replace("{lang}", language), "warning")
             return
 
+        # 防重复检测：检查节点名称是否已存在
+        full_node_name = f"{lang_key}_node_{node_name}"
+        nodes_data = getattr(self, "nodes_data", {})
+        if full_node_name in nodes_data or node_name in nodes_data:
+            self.show_toast(t("_k_node_name_exists").format(name=node_name), "warning")
+            return
+
+        import os as _os
+
+        nodes_dir = _os.path.join(self.current_project_path, "nodes")
+        candidate_dir = _os.path.join(nodes_dir, full_node_name)
+        if _os.path.exists(candidate_dir):
+            self.show_toast(t("_k_node_name_exists").format(name=node_name), "warning")
+            return
+
         self._start_async_node_creation(node_name, lang_key, language)
 
     def _start_async_node_creation(self, node_name, lang_key, display_language):
@@ -293,6 +308,11 @@ class MainWindowNodeControlMixin:
                 self, i18n_t("k_title_error"), i18n_t("_k_stop_fail").format(name=node_name, err=err_msg or ""), "error"
             )
             node_control_service._notify(node_name, NodeStatus.ERROR)
+
+    def rename_node(self, old_name: str):
+        """重命名节点（主窗口实现）"""
+        if hasattr(self, "node_list_panel") and self.node_list_panel:
+            self.node_list_panel.rename_node(old_name)
 
 
 class NodeStopWorker(QThread):

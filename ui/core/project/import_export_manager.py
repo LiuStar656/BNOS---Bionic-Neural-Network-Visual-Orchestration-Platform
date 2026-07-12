@@ -55,7 +55,22 @@ def _repair_portable_venv(node_dir):
         except Exception as e:
             logger.warning(f"[portable-venv] 修复 pyvenv.cfg 失败: {e}")
 
-    # 3. 清理 start.json：删除写入时带入的绝对路径（老版本节点兼容处理）
+    # 3. 清理 node_config.json：删除写入时带入的绝对路径
+    unified_json_path = node_dir / "node_config.json"
+    if unified_json_path.is_file():
+        try:
+            with unified_json_path.open(encoding="utf-8") as f:
+                cfg = json.load(f)
+
+            if "python_exe" in cfg and cfg["python_exe"]:
+                del cfg["python_exe"]
+                with unified_json_path.open("w", encoding="utf-8") as f:
+                    json.dump(cfg, f, indent=2, ensure_ascii=False)
+                logger.info("[portable-venv] 已清理 node_config.json 中的绝对路径")
+        except Exception as e:
+            logger.warning(f"[portable-venv] 清理 node_config.json 失败: {e}")
+
+    # 4. 清理 start.json：删除写入时带入的绝对路径（老版本节点兼容处理）
     start_json_path = node_dir / "start.json"
     if start_json_path.is_file():
         try:

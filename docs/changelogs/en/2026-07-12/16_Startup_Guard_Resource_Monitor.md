@@ -1,4 +1,4 @@
-# 12 Startup Guards & Resource Monitor Two-Layer Architecture
+# 16 Startup Guards & Resource Monitor Two-Layer Architecture
 
 ## Overview
 

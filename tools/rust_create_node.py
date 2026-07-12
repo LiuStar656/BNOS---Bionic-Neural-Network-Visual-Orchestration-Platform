@@ -581,13 +581,36 @@ impl OutputPacket {
 
 
 def create_config_json(node_name: str) -> str:
-    """生成 config.json 文件内容"""
+    """生成 config.json 文件内容（向后兼容）"""
     config = {
         "node_name": f"node_rust_{node_name}",
         "listen_upper_file": "../data/upper_data.json",
         "output_file": "./output.json",
         "filter": {},
         "output_type": "",
+        "parameters": [],
+        "input_ports": [],
+        "output_ports": [],
+        "port_mappings": {},
+        "resource_limit": {"memory_mb": 1024, "cpu_percent": 100},
+    }
+    return json.dumps(config, indent=2, ensure_ascii=False)
+
+
+def create_unified_config_json(node_name: str) -> str:
+    """生成统一的 node_config.json 文件内容（新格式）"""
+    config = {
+        "node_name": f"node_rust_{node_name}",
+        "entry": "listener.rs",
+        "listen_upper_file": "../data/upper_data.json",
+        "output_file": "./output.json",
+        "filter": {},
+        "output_type": "",
+        "parameters": [],
+        "input_ports": [],
+        "output_ports": [],
+        "port_mappings": {},
+        "resource_limit": {"memory_mb": 1024, "cpu_percent": 100},
     }
     return json.dumps(config, indent=2, ensure_ascii=False)
 
@@ -997,7 +1020,8 @@ def generate_node(node_name: str, output_dir: str = None):
         "src/main.rs": create_main_rs(node_name),
         "src/listener.rs": create_listener_rs(node_name),
         "src/packet.rs": create_packet_rs(),
-        "config.json": create_config_json(node_name),
+        "config.json": create_config_json(node_name),  # 向后兼容
+        "node_config.json": create_unified_config_json(node_name),  # 新格式
         "start.bat": create_start_bat(node_name),
         "start.sh": create_start_sh(node_name),
         ".gitignore": create_gitignore(),

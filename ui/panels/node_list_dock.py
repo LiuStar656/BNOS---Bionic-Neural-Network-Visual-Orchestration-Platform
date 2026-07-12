@@ -2,6 +2,7 @@
 节点列表Dock面板 - 用于QDockWidget的无标题栏版本
 包含完整的节点管理功能：分组、右键菜单、拖拽等
 """
+# ruff: noqa: T201
 
 from __future__ import annotations
 
@@ -318,9 +319,36 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
         delete_next(0)
 
     def rename_node(self, old_name):
-        """重命名节点（委托给主窗口）"""
-        if self.parent_window and hasattr(self.parent_window, "rename_node"):
-            self.parent_window.rename_node(old_name)
+        """重命名节点（跳过主窗口循环，直接查找浮动面板委托）"""
+        print(f"[Dock.rename_node] called: old_name={old_name}, has_parent_window={bool(self.parent_window)}")
+
+        if self.parent_window:
+            # 遍历主窗口子控件，找到 NodeListPanel 实例（非 Dock）
+            from .node_list_panel import NodeListPanel
+
+            children = list(self.parent_window.findChildren(NodeListPanel))
+            print(f"[Dock.rename_node] found {len(children)} NodeListPanel children")
+            for child in children:
+                print(f"[Dock.rename_node]   child={type(child).__name__} is_self={child is self}")
+            for child in children:
+                if hasattr(child, "rename_node"):
+                    print(f"[Dock.rename_node] → delegating to {type(child).__name__}.rename_node")
+                    child.rename_node(old_name)
+                    return
+            # 如果没有浮动面板，尝试通过主窗口 rename_node（非 dock 路径）
+            nlp = getattr(self.parent_window, "node_list_panel", None)
+            print(f"[Dock.rename_node] node_list_panel={type(nlp).__name__ if nlp else 'None'} is_self={nlp is self}")
+            if nlp is not None and nlp is not self:
+                if hasattr(self.parent_window, "rename_node"):
+                    print("[Dock.rename_node] → delegating to parent_window.rename_node")
+                    self.parent_window.rename_node(old_name)
+                    return
+
+        # 最终回退：直接在自身执行重命名逻辑（Dock 作为唯一面板时）
+        print("[Dock.rename_node] fallback: executing rename directly on self")
+        from .node_list_panel import NodeListPanel
+
+        NodeListPanel.rename_node(self, old_name)
 
     def start_group_nodes(self, group_name):
         """启动组内所有节点"""

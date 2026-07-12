@@ -16,9 +16,10 @@ class LanguageDetector:
     Detects the programming language of a BNOS node.
 
     Detection priority (high to low):
-      1. start.json 'entry' field extension
-      2. Signature files (requirements.txt, Cargo.toml, package.json, etc.)
-      3. Main source file existence check
+      1. node_config.json 'entry' field extension（统一配置）
+      2. start.json 'entry' field extension（旧格式兼容）
+      3. Signature files (requirements.txt, Cargo.toml, package.json, etc.)
+      4. Main source file existence check
     """
 
     # Language signature files: filename -> language
@@ -68,7 +69,22 @@ class LanguageDetector:
         if not node_path or not Path(node_path).is_dir():
             return "Unknown"
 
-        # 1. Check start.json entry field
+        # 1. Check node_config.json entry field (unified config)
+        unified_json = Path(node_path) / "node_config.json"
+        if unified_json.is_file():
+            try:
+                with unified_json.open(encoding="utf-8") as f:
+                    data = json.load(f)
+                entry = data.get("entry", "")
+                if entry:
+                    ext = Path(entry).suffix
+                    lang = LanguageDetector.ENTRY_EXT_MAP.get(ext.lower())
+                    if lang:
+                        return lang
+            except (json.JSONDecodeError, OSError):
+                pass
+
+        # 2. Check start.json entry field (legacy format)
         start_json = Path(node_path) / "start.json"
         if start_json.is_file():
             try:

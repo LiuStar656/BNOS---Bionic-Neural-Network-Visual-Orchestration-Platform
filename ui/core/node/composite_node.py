@@ -24,6 +24,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QPointF, QThread
 
+from ui.core.config.config_merger import get_config_path
 from ui.core.i18n.i18n import t
 from ui.core.i18n.translation_keys import TK
 from ui.core.logger import logger
@@ -236,8 +237,10 @@ class CompositeNode:
     def _identify_ports(self, node_names: list, edges_list: list, nodes_data: dict) -> dict:
         """Identify input and output ports for a composite node.
 
-        Input port (exactly one): the node whose listen_upper_file is empty
-            AND has in-degree 0 (no internal upstream).
+        Input ports: main port + sub-ports derived from the entry node's
+            ``input_ports`` config (only ports with source="node").
+            The entry node is the DAG node with in-degree 0 and empty
+            listen_upper_file.
 
         Output ports (one per DAG leaf): internal nodes with out-degree 0.
 
@@ -254,7 +257,7 @@ class CompositeNode:
                 out_degree[e["from"]] += 1
                 in_degree[e["to"]] += 1
 
-        # Input port: first node with in_degree 0 and empty listen_upper_file
+        # ── Input ports: main + sub-ports from entry node's input_ports config ──
         input_ports = []
         for n in node_names:
             if in_degree[n] == 0:
@@ -262,18 +265,43 @@ class CompositeNode:
                 config = nd.get("config", {})
                 listen = config.get("listen_upper_file", "")
                 if not listen:
+                    entry_node = n
+                    # Main input port (always present)
                     input_ports.append(
                         {
                             "internal_node": n,
                             "type": "input",
-                            "port_name": f"{n}_in",
-                            "display_name": n,
+                            "port_name": "data",
+                            "display_name": "数据输入",
+                            "entry_port": None,
                         }
                     )
-                    break  # Only one input port
+
+                    # Sub-ports from entry node's input_ports config
+                    entry_config = self._read_node_config(entry_node)
+                    entry_input_ports = entry_config.get("input_ports", [])
+                    if isinstance(entry_input_ports, list):
+                        for port in entry_input_ports:
+                            if not isinstance(port, dict):
+                                continue
+                            if port.get("source") == "node":
+                                port_name = port.get("name", "")
+                                if not port_name:
+                                    continue
+                                input_ports.append(
+                                    {
+                                        "internal_node": n,
+                                        "type": "input",
+                                        "port_name": port_name,
+                                        "display_name": port.get("label", port_name),
+                                        "entry_port": port_name,
+                                    }
+                                )
+                    break  # Single-entry DAG — found and processed
 
         # Output ports: all DAG leaf nodes (out_degree 0)
         output_ports = []
+        port_nodes_seen = set()
         for n in node_names:
             if out_degree[n] == 0:
                 output_ports.append(
@@ -284,11 +312,63 @@ class CompositeNode:
                         "display_name": n,
                     }
                 )
+                port_nodes_seen.add(n)
+
+        # Non-terminal nodes with external out_connections → fan-out ports
+        # 展开态下内部非叶子节点连了外部节点 → 折叠后为其创建输出端口
+        for n in node_names:
+            if n in port_nodes_seen:
+                continue
+            nd = nodes_data.get(n, {})
+            cfg = nd.get("config", {})
+            out_conns = cfg.get("out_connections", {})
+            if not isinstance(out_conns, dict):
+                continue
+            has_external = False
+            for target in out_conns.values():
+                if isinstance(target, str) and target:
+                    ext_node = target.split("|")[0]
+                    if ext_node and ext_node not in node_set:
+                        has_external = True
+                        break
+            if has_external:
+                output_ports.append(
+                    {
+                        "internal_node": n,
+                        "type": "output",
+                        "port_name": f"{n}_out",
+                        "display_name": n,
+                    }
+                )
+                port_nodes_seen.add(n)
 
         return {
             "input_ports": input_ports,
             "output_ports": output_ports,
         }
+
+    def _read_node_config(self, node_name: str) -> dict:
+        """Read the node's unified/legacy config, returning a dict."""
+        config_dir = self._find_node_config_dir(node_name)
+        if not config_dir:
+            return {}
+
+        config_path = Path(get_config_path(str(config_dir)))
+        if not config_path or not config_path.exists():
+            return {}
+
+        try:
+            return json.loads(config_path.read_text(encoding="utf-8")) or {}
+        except (json.JSONDecodeError, OSError):
+            return {}
+
+    def _find_node_config_dir(self, node_name: str):
+        """Locate a node directory by name under nodes/ or composite_nodes/."""
+        for base in ["nodes", "composite_nodes"]:
+            candidate = Path(self._project_path) / base / node_name
+            if candidate.is_dir():
+                return candidate
+        return None
 
     def _validate_dag_single_entry(self, node_names: list, edges_list: list, nodes_data: dict) -> tuple[bool, str]:
         """Validate DAG has exactly one entry node (in_degree==0).
@@ -537,10 +617,14 @@ class CompositeNode:
         saved_edges = []
         for edge in list(self._canvas.edges):
             if edge.start_node is comp_item:
-                port_name = getattr(getattr(edge, "_source_anchor", None), "port_name", "")
+                port_name = getattr(getattr(edge, "_source_anchor", None), "port_name", "") or getattr(
+                    edge, "_desired_source_port_name", ""
+                )
                 saved_edges.append({"edge": edge, "direction": "output", "port_name": port_name})
             elif edge.end_node is comp_item:
-                port_name = getattr(getattr(edge, "_target_anchor", None), "port_name", "")
+                port_name = getattr(getattr(edge, "_target_anchor", None), "port_name", "") or getattr(
+                    edge, "_desired_target_port_name", ""
+                )
                 saved_edges.append({"edge": edge, "direction": "input", "port_name": port_name})
 
         nodes_data = self._canvas.parent_window.nodes_data if self._canvas.parent_window else {}
@@ -575,15 +659,15 @@ class CompositeNode:
                 new_anchor = comp_item.find_anchor_by_port(info["port_name"], "output")
                 if new_anchor:
                     edge._source_anchor = new_anchor
+                    edge.start_anchor = new_anchor  # sync public attr
                     edge.update_path()
                 else:
-                    # Port removed — remove the edge
-                    if edge in self._canvas.edges:
-                        self._canvas.edges.remove(edge)
-                    if edge.scene():
-                        edge.scene().removeItem(edge)
+                    # Port not found → fallback to node center connection
+                    edge._source_anchor = None
+                    edge.start_anchor = None  # sync public attr
+                    edge.update_path()
                     logger.info(
-                        "collapse: removed stale output edge %s (port %s gone)",
+                        "collapse: output edge %s port %s missing — connected to node center",
                         getattr(edge, "edge_id", ""),
                         info["port_name"],
                     )
@@ -591,14 +675,15 @@ class CompositeNode:
                 new_anchor = comp_item.find_anchor_by_port(info["port_name"], "input")
                 if new_anchor:
                     edge._target_anchor = new_anchor
+                    edge.end_anchor = new_anchor  # sync public attr
                     edge.update_path()
                 else:
-                    if edge in self._canvas.edges:
-                        self._canvas.edges.remove(edge)
-                    if edge.scene():
-                        edge.scene().removeItem(edge)
+                    # Port not found → fallback to node center connection
+                    edge._target_anchor = None
+                    edge.end_anchor = None  # sync public attr
+                    edge.update_path()
                     logger.info(
-                        "collapse: removed stale input edge %s (port %s gone)",
+                        "collapse: input edge %s port %s missing — connected to node center",
                         getattr(edge, "edge_id", ""),
                         info["port_name"],
                     )
@@ -829,15 +914,35 @@ class CompositeNode:
             original.setAcceptedMouseButtons(Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton)
             original.update_path()
 
-        # Hide any NEW internal↔external edges added while expanded
-        # (these will be captured as ports by _refresh_ports_on_collapse)
+        # Morph NEW internal↔external edges to composite↔external edges.
+        # Must happen BEFORE _refresh_ports_on_collapse so the saved-edges
+        # collector can find and rebind them to correct composite ports.
+        # NOTE: edge.start_anchor / edge.end_anchor are separate attrs from
+        # edge._source_anchor / edge._target_anchor, and _endpoints() reads
+        # the public attrs first. Both must be synced to avoid stale anchor refs.
         for edge in self._canvas.edges:
             src_name = edge.start_node.node_name if hasattr(edge.start_node, "node_name") else ""
             tgt_name = edge.end_node.node_name if hasattr(edge.end_node, "node_name") else ""
             if (src_name in node_set) != (tgt_name in node_set):
                 if edge.isVisible():
-                    edge.setVisible(False)
-                    edge.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+                    if src_name in node_set:
+                        # Internal → external: remap to composite → external
+                        edge._desired_source_port_name = f"{src_name}_out"
+                        edge.start_node = comp_item
+                        edge._source_anchor = None
+                        edge.start_anchor = None
+                        edge.update_path()
+                        logger.info("collapse morph: %s→%s → comp→%s", src_name, tgt_name, tgt_name)
+                    else:
+                        # External → internal: remap to external → composite
+                        old_anchor = getattr(edge, "_target_anchor", None)
+                        port_name = getattr(old_anchor, "port_name", "data")
+                        edge._desired_target_port_name = port_name
+                        edge.end_node = comp_item
+                        edge._target_anchor = None
+                        edge.end_anchor = None
+                        edge.update_path()
+                        logger.info("collapse morph: %s→%s → %s→comp", src_name, tgt_name, src_name)
 
         comp["_morphed_edges"] = []
 
@@ -854,10 +959,10 @@ class CompositeNode:
     # ── Config sync on expand / collapse ──
 
     def _snapshot_internal_configs(self, comp_id: str, node_names: list):
-        """展开时缓存内部节点 config.json 原始内容，折叠时用于检测外部修改。"""
+        """展开时缓存内部节点配置原始内容，折叠时用于检测外部修改。"""
         snap = {}
         for n in node_names:
-            cfg_path = Path(self._project_path) / "nodes" / n / "config.json"
+            cfg_path = Path(get_config_path(str(Path(self._project_path) / "nodes" / n)))
             try:
                 snap[n] = cfg_path.read_text(encoding="utf-8")
             except Exception:
@@ -871,7 +976,7 @@ class CompositeNode:
             return []
         conflicts = []
         for n in node_names:
-            cfg_path = Path(self._project_path) / "nodes" / n / "config.json"
+            cfg_path = Path(get_config_path(str(Path(self._project_path) / "nodes" / n)))
             try:
                 current = cfg_path.read_text(encoding="utf-8")
             except Exception:
@@ -969,7 +1074,7 @@ class CompositeNode:
 
         # Apply input connections
         for internal_name, entries in in_conns.items():
-            config_path = nodes_dir / internal_name / "config.json"
+            config_path = Path(get_config_path(str(nodes_dir / internal_name)))
             try:
                 with config_path.open(encoding="utf-8") as f:
                     cfg = _json.load(f)
@@ -985,7 +1090,7 @@ class CompositeNode:
 
         # Apply output connections
         for internal_name, entries in out_conns.items():
-            config_path = nodes_dir / internal_name / "config.json"
+            config_path = Path(get_config_path(str(nodes_dir / internal_name)))
             try:
                 with config_path.open(encoding="utf-8") as f:
                     cfg = _json.load(f)
@@ -1025,7 +1130,7 @@ class CompositeNode:
 
         # ── Phase 1: sync external refs back to _port_routing ──
         for node_name in node_names:
-            config_path = nodes_dir / node_name / "config.json"
+            config_path = Path(get_config_path(str(nodes_dir / node_name)))
             try:
                 with config_path.open(encoding="utf-8") as f:
                     cfg = _json.load(f)
@@ -1044,6 +1149,22 @@ class CompositeNode:
                             "collapse sync: _port_routing input[%s] ← %s (from %s)", port_name, listen, node_name
                         )
 
+            # Input direction (sub-ports): port_mappings pointing externally
+            port_mappings = cfg.get("port_mappings", {})
+            if isinstance(port_mappings, dict):
+                for pm_port, pm_path in port_mappings.items():
+                    if not isinstance(pm_path, str) or not pm_path:
+                        continue
+                    pm_upstream = self._extract_node_from_path(pm_path)
+                    if pm_upstream and pm_upstream not in node_set:
+                        self.set_input_routing(comp_id, pm_port, pm_path)
+                        logger.info(
+                            "collapse sync: _port_routing input[%s] ← %s (port_mappings from %s)",
+                            pm_port,
+                            pm_path,
+                            node_name,
+                        )
+
             # Output direction: out_connections pointing externally
             out_conns = cfg.get("out_connections", {})
             for _port_key, target in out_conns.items():
@@ -1052,19 +1173,22 @@ class CompositeNode:
                     if ext_node and ext_node not in node_set:
                         tgt_port = target.split("|")[1] if "|" in target else "default"
                         port_name = internal_to_output_port.get(node_name, "")
-                        if port_name:
-                            self.set_output_routing(comp_id, port_name, None, ext_node, tgt_port)
-                            logger.info(
-                                "collapse sync: _port_routing output[%s] → %s|%s (from %s)",
-                                port_name,
-                                ext_node,
-                                tgt_port,
-                                node_name,
-                            )
+                        if not port_name:
+                            # 非叶子节点有外部连接 → 动态生成端口名（与 _identify_ports 一致）
+                            port_name = f"{node_name}_out"
+                            internal_to_output_port[node_name] = port_name
+                        self.set_output_routing(comp_id, port_name, None, ext_node, tgt_port)
+                        logger.info(
+                            "collapse sync: _port_routing output[%s] → %s|%s (from %s)",
+                            port_name,
+                            ext_node,
+                            tgt_port,
+                            node_name,
+                        )
 
         # ── Phase 2: clear external refs from internal configs ──
         for node_name in node_names:
-            config_path = nodes_dir / node_name / "config.json"
+            config_path = Path(get_config_path(str(nodes_dir / node_name)))
             try:
                 with config_path.open(encoding="utf-8") as f:
                     cfg = _json.load(f)
@@ -1081,6 +1205,20 @@ class CompositeNode:
                     cfg["listen_upper_file"] = ""
                     changed = True
                     logger.info("collapse sync: %s listen_upper_file cleared (was → %s)", node_name, upstream)
+
+            # Remove port_mappings entries pointing externally
+            pmappings = cfg.get("port_mappings", {})
+            pm_to_remove = []
+            if isinstance(pmappings, dict):
+                for pm_port, pm_path in pmappings.items():
+                    if isinstance(pm_path, str):
+                        pm_upstream = self._extract_node_from_path(pm_path)
+                        if pm_upstream and pm_upstream not in node_set:
+                            pm_to_remove.append(pm_port)
+                for pm_port in pm_to_remove:
+                    del pmappings[pm_port]
+                    changed = True
+                    logger.info("collapse sync: %s port_mappings[%s] removed (was → external)", node_name, pm_port)
 
             # Remove out_connections entries pointing externally
             out_conns = cfg.get("out_connections", {})

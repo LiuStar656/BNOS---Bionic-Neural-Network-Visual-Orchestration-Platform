@@ -263,7 +263,9 @@ class PropertyPanel(QWidget):
             return
 
         try:
-            config_path = Path(self.current_node_path) / "config.json"
+            from ui.core.config.config_merger import get_config_path
+
+            config_path = Path(get_config_path(self.current_node_path))
 
             # 读取当前配置
             config = {}

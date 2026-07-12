@@ -2,6 +2,7 @@
 节点列表面板 - 常驻半透明悬浮窗，显示项目中的所有节点
 支持多选、分组管理、批量操作（所有操作通过右键菜单）
 """
+# ruff: noqa: T201, I001
 
 from __future__ import annotations
 
@@ -207,14 +208,97 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
     # ==================== 独有方法（实现与 Mixin 不同）====================
 
     def rename_node(self, old_name):
-        """重命名节点"""
+        """重命名节点 — 仅允许修改最后一个下划线后面的后缀"""
+        print(f"[NodeListPanel.rename_node] called: old_name={old_name}")
+
         if old_name not in self.nodes_data:
+            print(f"[NodeListPanel.rename_node] {old_name} NOT in nodes_data, aborting")
             return
 
-        from ui.core.dock.floating_panel import themed_input_dialog
+        from PySide6.QtWidgets import (
+            QDialog,
+            QLineEdit,
+            QHBoxLayout,
+            QVBoxLayout,
+            QLabel,
+            QPushButton,
+            QSpacerItem,
+            QSizePolicy,
+        )
+        from PySide6.QtCore import Qt
 
-        new_name = themed_input_dialog(self, t("k_node_rename"), t("k_node_input_new_name"), old_name)
-        if not new_name:
+        # 拆分前缀和后缀：最后一个下划线之前为固定前缀，之后为可编辑后缀
+        last_underscore = old_name.rfind("_")
+        if last_underscore >= 0:
+            prefix = old_name[: last_underscore + 1]  # 含末尾下划线
+            suffix = old_name[last_underscore + 1 :]
+            read_only_prefix = True
+        else:
+            prefix = ""
+            suffix = old_name
+            read_only_prefix = False
+
+        print("[NodeListPanel.rename_node] showing rename dialog...")
+        dlg = QDialog(self)
+        dlg.setWindowTitle(t("k_node_rename"))
+        dlg.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        dlg.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        dlg.setMinimumWidth(380)
+        # 继承父窗口主题样式
+        if self.styleSheet():
+            dlg.setStyleSheet(self.styleSheet())
+
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(16, 14, 16, 10)
+        layout.setSpacing(8)
+
+        title_label = QLabel(t("k_node_rename"))
+        title_label.setStyleSheet("font-size: 13px; font-weight: bold; color: #ccc;")
+        layout.addWidget(title_label)
+
+        layout.addWidget(QLabel(t("k_node_input_new_name")))
+
+        row = QHBoxLayout()
+        row.setSpacing(4)
+        if read_only_prefix:
+            prefix_label = QLabel(prefix)
+            prefix_label.setStyleSheet(
+                "color: #888; background: #2a2a2a; border: 1px solid #444; "
+                "border-right: none; border-radius: 3px 0 0 3px; padding: 4px 8px;"
+            )
+            row.addWidget(prefix_label)
+
+        line_edit = QLineEdit(suffix)
+        line_edit.selectAll()
+        if read_only_prefix:
+            line_edit.setStyleSheet("border: 1px solid #444; border-radius: 0 3px 3px 0; padding: 4px 8px;")
+        else:
+            line_edit.setStyleSheet("border: 1px solid #444; border-radius: 3px; padding: 4px 8px;")
+        row.addWidget(line_edit, 1)
+        layout.addLayout(row)
+
+        # 按钮行（i18n）
+        btn_layout = QHBoxLayout()
+        btn_layout.addItem(QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+
+        cancel_btn = QPushButton(t("k_cancel"))
+        cancel_btn.setFixedWidth(70)
+        cancel_btn.clicked.connect(dlg.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        ok_btn = QPushButton(t("k_ok"))
+        ok_btn.setFixedWidth(70)
+        ok_btn.setDefault(True)
+        ok_btn.clicked.connect(dlg.accept)
+        btn_layout.addWidget(ok_btn)
+
+        layout.addLayout(btn_layout)
+
+        ok = dlg.exec() == QDialog.DialogCode.Accepted
+        suffix_input = line_edit.text().strip() if ok else ""
+        new_name = (prefix + suffix_input) if read_only_prefix else suffix_input
+        print(f"[NodeListPanel.rename_node] dialog returned ok={ok}, new_name={new_name}")
+        if not ok or not new_name:
             return
 
         import re
@@ -238,12 +322,53 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
 
             os.rename(old_path, new_path)
 
-            config_path = os.path.join(new_path, "config.json")
+            # 读取主配置文件（优先 node_config.json，回退 config.json）
+            from ui.core.config.config_merger import get_config_path
+
+            config_path = get_config_path(new_path)
             with open(config_path, encoding="utf-8") as f:
                 config = json.load(f)
             config["node_name"] = new_name
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
+
+            # 同步更新旧格式 config.json（如果主配置是 node_config.json，双写）
+            if os.path.basename(config_path) == "node_config.json":
+                legacy_config_path = os.path.join(new_path, "config.json")
+                if os.path.exists(legacy_config_path):
+                    with open(legacy_config_path, encoding="utf-8") as f:
+                        legacy = json.load(f)
+                    legacy["node_name"] = new_name
+                    with open(legacy_config_path, "w", encoding="utf-8") as f:
+                        json.dump(legacy, f, indent=2, ensure_ascii=False)
+
+            # 更新 node_config.json（统一配置）中的节点名称
+            unified_config_path = os.path.join(new_path, "node_config.json")
+            if os.path.exists(unified_config_path):
+                with open(unified_config_path, encoding="utf-8") as f:
+                    unified = json.load(f)
+                if unified.get("node_name") == old_name:
+                    unified["node_name"] = new_name
+                    with open(unified_config_path, "w", encoding="utf-8") as f:
+                        json.dump(unified, f, indent=2, ensure_ascii=False)
+
+            # 更新 start.json 中的节点名称引用（旧格式兼容）
+            start_json_path = os.path.join(new_path, "start.json")
+            if os.path.exists(start_json_path):
+                with open(start_json_path, encoding="utf-8") as f:
+                    start_config = json.load(f)
+
+                # 支持两种格式：{"name": "node_name"} 或 {"nodes": [{"name": "node_name"}]}
+                if "nodes" in start_config and isinstance(start_config["nodes"], list):
+                    for node in start_config["nodes"]:
+                        if node.get("name") == old_name:
+                            node["name"] = new_name
+                            break
+                elif start_config.get("name") == old_name:
+                    start_config["name"] = new_name
+
+                with open(start_json_path, "w", encoding="utf-8") as f:
+                    json.dump(start_config, f, indent=2, ensure_ascii=False)
 
             node_info["path"] = new_path
             node_info["config"] = config

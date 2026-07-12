@@ -1,6 +1,7 @@
 """
 Action 创建工厂模块 — 从统一注册表创建 QAction
 """
+# ruff: noqa: T201
 
 from __future__ import annotations
 
@@ -18,15 +19,28 @@ class ActionFactory:
 
     @staticmethod
     def create_action(
-        parent, action_id: str, context: ActionContext | None = None, menu: QMenu | None = None
+        parent,
+        action_id: str,
+        context: ActionContext | None = None,
+        menu: QMenu | None = None,
+        label: str | None = None,
     ) -> QAction | None:
-        """创建 QAction（从统一注册表）"""
+        """创建 QAction（从统一注册表）
+
+        Args:
+            parent: 父级 QObject
+            action_id: 注册的 action ID
+            context: ActionContext（可选）
+            menu: 目标 QMenu（如果提供，自动 addAction）
+            label: 覆盖默认 i18n 显示文本（用于动态文本如计数）
+        """
 
         action_def = ActionRegistry.get(action_id)
         if not action_def:
             return None
 
-        action = QAction(t(action_def.name_i18n), parent)
+        display_text = label if label is not None else t(action_def.name_i18n)
+        action = QAction(display_text, parent)
 
         if action_def.shortcut_id and menu is None:
             if hasattr(parent, "shortcut_mgr"):
@@ -44,6 +58,7 @@ class ActionFactory:
             action.setToolTip(t(action_def.description_i18n))
 
         def on_triggered(checked=False):
+            print(f"[ActionFactory] triggered: action_id={action_id}")
             ActionRegistry.execute(action_id, current_context)
 
         action.triggered.connect(on_triggered)

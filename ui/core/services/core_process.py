@@ -231,9 +231,11 @@ class CoreProcessApp:
                 continue
 
             node_name = entry.name
-            config_path = entry / "config.json"
+            from ui.core.config.config_merger import get_config_path
+
+            config_path = Path(get_config_path(str(entry)))
             if not config_path.is_file():
-                logger.info("跳过非节点目录（无 config.json）: %s", node_name)
+                logger.info("跳过非节点目录（无配置文件）: %s", node_name)
                 continue
 
             try:

@@ -1,4 +1,4 @@
-# 11 Composite Node Config & Resource Group
+# 15 Composite Node Config & Resource Group
 
 ## Overview
 

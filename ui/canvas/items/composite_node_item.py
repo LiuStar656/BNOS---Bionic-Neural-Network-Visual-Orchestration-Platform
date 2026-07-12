@@ -20,11 +20,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ui.canvas.items.anchor_item import AnchorItem
+from ui.canvas.items.anchor_item import ANCHOR_SIZE, ANCHOR_SIZE_SMALL, AnchorItem
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
 
-ANCHOR_RADIUS = 5
 ANCHOR_SPACING = 22
 PADDING_TOP = 35
 PADDING_BOTTOM = 12
@@ -92,7 +91,9 @@ class CompositeNodeItem(QGraphicsRectItem):
         self._create_anchors()
 
     def _calc_geometry(self):
-        port_rows = max(len(self._input_ports), len(self._output_ports), 1)
+        # Main input row + sub-input rows + output rows
+        sub_in = max(len(self._input_ports) - 1, 0)  # sub-ports beyond main "data"
+        port_rows = max(1 + sub_in, len(self._output_ports), 1)
         self._height = max(60, PADDING_TOP + port_rows * ANCHOR_SPACING + PADDING_BOTTOM)
         self.setRect(0, 0, BASE_WIDTH, self._height)
 
@@ -105,32 +106,52 @@ class CompositeNodeItem(QGraphicsRectItem):
         in_count = len(self._input_ports)
         out_count = len(self._output_ports)
 
-        # Input anchors (left side)
-        for i in range(in_count):
-            y = PADDING_TOP + i * ANCHOR_SPACING
+        # ── Input anchors (left side) ──
+        # Main input anchor: 16px, positioned first
+        if in_count > 0:
+            main_port = self._input_ports[0]
+            y = PADDING_TOP
             anchor = AnchorItem(
                 0,
                 y,
                 anchor_type="input",
-                port_name=self._input_ports[i]["port_name"],
+                port_name=main_port.get("port_name", "data"),
                 port_type="input",
-                size=ANCHOR_RADIUS * 2,
+                size=ANCHOR_SIZE,
+                parent=self,
+            )
+            anchor.setBrush(QBrush(self.INPUT_ANCHOR_COLOR))
+            anchor.setPen(QPen(QColor("#3a7a3a"), 1.5))
+            self._anchors.append(anchor)
+
+        # Sub-port input anchors (10px), from index 1 onwards
+        for i in range(1, in_count):
+            y = PADDING_TOP + i * ANCHOR_SPACING
+            port = self._input_ports[i]
+            anchor = AnchorItem(
+                0,
+                y,
+                anchor_type="input",
+                port_name=port.get("port_name", ""),
+                port_type="input",
+                size=ANCHOR_SIZE_SMALL,
                 parent=self,
             )
             anchor.setBrush(QBrush(self.INPUT_ANCHOR_COLOR))
             anchor.setPen(QPen(QColor("#3a7a3a"), 1))
             self._anchors.append(anchor)
 
-        # Output anchors (right side)
+        # ── Output anchors (right side) ──
         for i in range(out_count):
             y = PADDING_TOP + i * ANCHOR_SPACING
+            port = self._output_ports[i]
             anchor = AnchorItem(
                 BASE_WIDTH,
                 y,
                 anchor_type="output",
-                port_name=self._output_ports[i]["port_name"],
+                port_name=port.get("port_name", ""),
                 port_type="output",
-                size=ANCHOR_RADIUS * 2,
+                size=ANCHOR_SIZE_SMALL,
                 parent=self,
             )
             anchor.setBrush(QBrush(self.OUTPUT_ANCHOR_COLOR))

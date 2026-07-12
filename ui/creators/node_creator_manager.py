@@ -94,7 +94,7 @@ class NodeCreatorManager:
                             if input_index == 1:
                                 return node_name
                             elif input_index > 1:
-                                return "y"  # 覆盖确认
+                                return "n"  # 安全：不自动覆盖（防重复检测已在调用前完成）
                             return ""
 
                         builtins.input = mock_input
@@ -194,6 +194,14 @@ class NodeCreatorManager:
 
         if not re.match(r"^[a-zA-Z0-9_-]+$", node_name):
             logger.warning("节点名称只能包含字母、数字、下划线和连字符")
+            return False
+
+        # 防重复检测：检查目标目录是否已存在
+        import os as _os2
+
+        full_node_dir = _os2.path.join(_os2.getcwd(), f"{lang}_node_{node_name}")
+        if _os2.path.exists(full_node_dir):
+            logger.warning("节点目录已存在，取消创建: %s", full_node_dir)
             return False
 
         try:
