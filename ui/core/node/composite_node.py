@@ -370,6 +370,34 @@ class CompositeNode:
                 return candidate
         return None
 
+    def _extract_entry_filter_rules(self, node_names: list, edges_list: list, nodes_data: dict) -> dict | None:
+        """提取入口节点的过滤规则（filter + input_ports）。
+
+        用于复合节点轮询时做数据类型匹配，规则等同入口节点的 node_config.json。
+
+        Returns:
+            dict with entry_node / filter / input_ports, or None if no entry found.
+        """
+        node_set = set(node_names)
+        in_degree = {n: 0 for n in node_names}
+        for e in edges_list:
+            if e.get("from") in node_set and e.get("to") in node_set:
+                in_degree[e["to"]] += 1
+
+        for n in node_names:
+            if in_degree[n] == 0:
+                nd = nodes_data.get(n, {})
+                config = nd.get("config", {})
+                listen = config.get("listen_upper_file", "")
+                if not listen:
+                    entry_config = self._read_node_config(n)
+                    return {
+                        "entry_node": n,
+                        "filter": entry_config.get("filter", {}),
+                        "input_ports": entry_config.get("input_ports", []),
+                    }
+        return None
+
     def _validate_dag_single_entry(self, node_names: list, edges_list: list, nodes_data: dict) -> tuple[bool, str]:
         """Validate DAG has exactly one entry node (in_degree==0).
 
@@ -594,6 +622,22 @@ class CompositeNode:
 
         # Refresh ports (in case connections changed while expanded)
         self._refresh_ports_on_collapse(comp_id, comp_item, node_names)
+
+        # ── 同步入口节点过滤规则 ──
+        # 用户可能在展开时修改了入口节点的 config.json 过滤规则，
+        # 折叠后重新提取以确保 composite.json 和 pipeline.json 中的规则是最新的。
+        new_rules = self._extract_entry_filter_rules(node_names, edges_list, nodes_data)
+        if new_rules:
+            comp["input_filter_rules"] = new_rules
+            # 同步到 composite.json
+            comp_cfg = self._load_composite_config(comp_id)
+            if comp_cfg:
+                comp_cfg["input_filter_rules"] = new_rules
+                self._write_composite_config(comp_id, comp_cfg)
+                # 同步到 pipeline.json
+                self._sync_pipeline(comp_id)
+            # 写入 .pipe 信号文件，通知运行中的编排器重新加载 pipeline.json
+            self._touch_pipe_signal(comp_id)
 
         comp["_expanded"] = False
         self.save()
@@ -1357,6 +1401,9 @@ class CompositeNode:
         if not is_valid:
             return False, err_msg, None
 
+        # ── 提取入口节点过滤规则 ──
+        input_filter_rules = self._extract_entry_filter_rules(node_names, edges_list, nodes_data)
+
         # ── Phase 2: Launch background thread for heavy I/O ──
         worker = _CompressWorker(
             self._project_path,
@@ -1376,6 +1423,7 @@ class CompositeNode:
             "original_positions": original_positions,
             "common_lang": common_lang,
             "edges_list": edges_list,
+            "input_filter_rules": input_filter_rules,
         }
         worker.finished.connect(lambda: self._on_compress_worker_done(worker))
         worker.start()
@@ -1402,6 +1450,7 @@ class CompositeNode:
         ports = data["ports"]
         original_positions = data["original_positions"]
         common_lang = data["common_lang"]
+        input_filter_rules = data.get("input_filter_rules")
 
         # NodeGroupManager integration
         group_name = f"{GROUP_PREFIX}{comp_id}"
@@ -1422,6 +1471,7 @@ class CompositeNode:
             "input_ports": ports.get("input_ports", []),
             "output_ports": ports.get("output_ports", []),
             "language": common_lang if common_lang != "Unknown" else "Python",
+            "input_filter_rules": input_filter_rules,
         }
         self.save()
 
@@ -1437,6 +1487,7 @@ class CompositeNode:
             cx,
             cy,
             original_positions,
+            input_filter_rules,
         )
 
         # 同步 pipeline.json（从 composite.json 提取 DAG）
@@ -1647,7 +1698,8 @@ class CompositeNode:
         """生成 orchestrator.py 到 composite_nodes/<comp_id>/ 并返回路径。
 
         orchestrator.py 是通用编排引擎（从 pipeline.json 读取 DAG），
-        首次生成后 DAG 变更仅需更新 pipeline.json 而非重新生成此脚本。
+        采用 while True 常驻轮询模式。首次生成后 DAG 变更仅需更新
+        pipeline.json 并写入 .pipe 信号文件，编排器会自动热加载。
         """
         comp_dir = self._comp_config_dir(self._project_path, comp_id)
         comp_dir.mkdir(parents=True, exist_ok=True)
@@ -1740,7 +1792,7 @@ class CompositeNode:
                 return False, t(TK._COMPOSITE_CRASH).format(code=ret) + f"\n{stderr_output[:500]}"
 
             # 写入 PID 文件供 BNOS 检测
-            # 注：编排器是批量执行器，可能在 300ms 内已完成（ret==0），此时 PID 已死但写入供记录
+            # 编排器是常驻轮询进程（while True），300ms 后应仍在运行
             pid_file = Path(project_root) / f"__composite_{comp_id}.pid"
             with pid_file.open("w") as f:
                 f.write(str(proc.pid))
@@ -2006,6 +2058,17 @@ class CompositeNode:
         """返回 composite_nodes/<comp_id>/pipeline.json 路径。"""
         return Path(project_path) / COMPOSITE_NODES_DIR / comp_id / "pipeline.json"
 
+    def _touch_pipe_signal(self, comp_id: str):
+        """在 composite_nodes/<comp_id>/ 写入 .pipe 信号文件。
+
+        运行中的编排器检测到此文件后会自动重新加载 pipeline.json。
+        """
+        pipe_path = self._comp_config_dir(self._project_path, comp_id) / ".pipe"
+        try:
+            pipe_path.write_text("", encoding="utf-8")
+        except OSError:
+            pass
+
     @staticmethod
     def _comp_output_dir(project_path: str, comp_id: str) -> Path:
         """返回 composite_nodes/<comp_id>/output/ 目录路径。"""
@@ -2032,6 +2095,7 @@ class CompositeNode:
                 for n in cfg.get("nodes", [])
             ],
             "edges": cfg.get("edges", []),
+            "input_filter_rules": cfg.get("input_filter_rules", {}),
         }
         pipeline_path = self._comp_pipeline_path(self._project_path, comp_id)
         with pipeline_path.open("w", encoding="utf-8") as f:
@@ -2048,6 +2112,7 @@ class CompositeNode:
         cx: float,
         cy: float,
         original_positions: dict,
+        input_filter_rules: dict | None = None,
     ):
         """创建 composite_nodes/<comp_id>/ 完整的目录结构并写入所有文件。
 
@@ -2098,6 +2163,7 @@ class CompositeNode:
                 "position": {"x": cx, "y": cy},
                 "original_positions": original_positions,
             },
+            "input_filter_rules": input_filter_rules or {},
         }
         self._write_composite_config(comp_id, composite_config)
 
