@@ -28,6 +28,8 @@
 - **BNOS Build 驱动引擎方案**：导出模式→驱动层注入；引擎与源文件完全隔离；新增 --clean/--update/--docker 命令；独立/复合节点混合支持
 - **except Exception: pass 全面治理**：100 处清零，26 文件修改；替换为精确类型（OSError、ProcessLookupError、psutil.NoSuchProcess、RuntimeError 等）
 - **连线正交吸附功能**：拖拽折叠点吸附 90°/180° 直角交点；Shift 临时禁用；右键菜单开关；SNAP_THRESHOLD = 20px
+- **复合节点配置文件与资源组**：composite.json Schema 定义与自愈恢复；压缩时创建 composite_nodes/<id>/ 完整目录结构；node_registry.json 运行时登记簿；日志路径从 venv 迁移到 composite_nodes/<id>/logs/；解压缩日志存档（.archive/）；复合节点 venv 生命周期绑定
+- **启动守卫与资源监测双层架构**：独立节点启动前检查所属复合节点运行状态（三选一弹窗）；复合节点启动前检查子节点独立运行状态（自动停止）；资源面板 orchestrator PID 独立监测行；子节点 [sub] 缩进行（进程内 vs 独立运行区分）
 - **复合节点防错窗口风格统一**：6 处 QMessageBox → themed_message()（确认/折叠/失败）；深色圆角无边框与 BNOS 主题一致；复用 i18n 标准键
 - **节点配置对话框国际化**：20 处硬编码中英文字符串 → `t(TK.KEY)`；Resource Limits 区域全面国际化；+19 键
 - **Bug 修复**：GROUP_PREFIX AttributeError、blockSignals 双击/右键失效、clear_box_selection 方法名错误、node_list_context UnboundLocalError、status_manager C++ 对象已删除 RuntimeError、app_config 类型校验兼容、QProcess destroyed while running、无 config.json 目录被误加载为节点

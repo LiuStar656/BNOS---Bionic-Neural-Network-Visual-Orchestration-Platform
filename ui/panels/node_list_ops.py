@@ -152,18 +152,38 @@ class NodeListOperationsMixin:
     def _get_log_files(node_name: str, node_path: Path) -> list[tuple[Path, str]]:
         """返回节点的日志文件列表 (路径, 标签)。
 
-        复合节点返回 composite_output.log + composite_error.log。
+        复合节点返回 composite_output.log + composite_error.log（从 composite_nodes/<id>/logs/ 查找）。
         普通节点返回 listener.log。
         """
         log_dir = node_path / "logs"
-        composite_clusters = node_path / "node_clusters.json"
-        if composite_clusters.exists():
-            results = []
-            for fname, label in [("composite_output.log", "stdout"), ("composite_error.log", "stderr")]:
-                fp = log_dir / fname
-                if fp.exists():
-                    results.append((fp, f"{fname} ({label})"))
-            return results
+
+        # 复合节点：检查 composite_nodes/<comp_id>/logs/
+        composite_logs_dir = node_path / "composite_nodes"
+        if composite_logs_dir.exists():
+            for comp_dir in composite_logs_dir.iterdir():
+                if comp_dir.is_dir() and not comp_dir.name.startswith("."):
+                    comp_logs = comp_dir / "logs"
+                    results = []
+                    for fname, label in [("composite_output.log", "stdout"), ("composite_error.log", "stderr")]:
+                        fp = comp_logs / fname
+                        if fp.exists():
+                            results.append((fp, f"{fname} ({label})"))
+                    if results:
+                        return results
+
+        # 旧版复合节点（venv 路径下的日志）
+        for venv_log_dir in log_dir.parent.glob("*_venv/logs"):
+            composite_log = venv_log_dir / "composite_output.log"
+            composite_err = venv_log_dir / "composite_error.log"
+            if composite_log.exists() or composite_err.exists():
+                results = []
+                for fname, label in [("composite_output.log", "stdout"), ("composite_error.log", "stderr")]:
+                    fp = venv_log_dir / fname
+                    if fp.exists():
+                        results.append((fp, f"{fname} ({label})"))
+                return results
+
+        # 普通节点
         listener = log_dir / "listener.log"
         if listener.exists():
             return [(listener, f"listener.log ({node_name})")]

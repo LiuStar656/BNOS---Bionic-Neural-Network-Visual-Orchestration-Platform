@@ -224,6 +224,88 @@ class SystemResourceCollector:
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             return None, None
 
+    # ──── 复合节点资源组采集 ────
+
+    @staticmethod
+    def get_composite_pid(project_path: str, comp_id: str) -> int | None:
+        """获取复合节点的 orchestrator PID。
+
+        查找顺序:
+          1. __composite_{comp_id}.pid（项目根目录）
+          2. composite_nodes/<comp_id>/ 下的 node_registry.json 中各子节点 PID
+        """
+        # 方式 1: 项目根目录 pid 文件
+        pid_file = Path(project_path) / f"__composite_{comp_id}.pid"
+        if pid_file.exists():
+            try:
+                return int(pid_file.read_text().strip())
+            except (ValueError, OSError):
+                pass
+        return None
+
+    def collect_group_stats(self, project_path: str, comp_id: str, node_names: list[str], nodes_data: dict) -> dict:
+        """采集复合节点资源组的总资源使用量。
+
+        使用 orchestrator PID 进程树聚合所有子进程资源。
+
+        Args:
+            project_path: 项目根目录
+            comp_id: 复合节点 ID
+            node_names: 子节点名称列表
+            nodes_data: 节点数据字典 {name: node_info}
+
+        Returns:
+            {
+                'cpu': float,           # 总 CPU %
+                'memory': float,        # 总内存 MB
+                'memory_formatted': str, # 格式化显示
+                'status': str,          # 'running' | 'stopped'
+                'child_count': int,     # 子节点数量
+            }
+        """
+        result = {
+            "cpu": 0.0,
+            "memory": 0.0,
+            "memory_formatted": "0 MB",
+            "status": "stopped",
+            "child_count": len(node_names),
+        }
+
+        pid = self.get_composite_pid(project_path, comp_id)
+        if pid and psutil.pid_exists(pid):
+            cpu, mem = self.collect_process_resources(pid)
+            if cpu is not None and mem is not None:
+                result["cpu"] = cpu
+                result["memory"] = mem
+                result["memory_formatted"] = self._format_memory(mem)
+                result["status"] = "running"
+                return result
+
+        # 回退：聚合各独立运行子节点的资源
+        cpu_total = 0.0
+        mem_total = 0.0
+        any_running = False
+        for n in node_names:
+            if n in nodes_data:
+                stats = self.collect_single_node_stats(nodes_data[n], n)
+                if stats["status"] == "running":
+                    cpu_total += stats["cpu"]
+                    mem_total += stats["memory"]
+                    any_running = True
+        if any_running:
+            result["cpu"] = cpu_total
+            result["memory"] = mem_total
+            result["memory_formatted"] = self._format_memory(mem_total)
+            result["status"] = "running"
+        return result
+
+    @staticmethod
+    def _format_memory(memory_mb: float) -> str:
+        """格式化内存大小为人类可读字符串。"""
+        if memory_mb < 1024:
+            return f"{memory_mb:.1f} MB"
+        return f"{memory_mb / 1024:.2f} GB"
+
 
 # 全局单例（供两个面板共享，避免各自维护 psutil 状态）
 shared_resource_collector = SystemResourceCollector()

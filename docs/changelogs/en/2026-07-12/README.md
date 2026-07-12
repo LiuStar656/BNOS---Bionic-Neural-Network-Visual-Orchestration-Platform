@@ -13,6 +13,15 @@
 - [05 Composite Node UI Interaction & Edge System Round 2 Fixes](#05-composite-node-ui-interaction--edge-system-round-2-fixes)
 - [06 Code Standardization Overhaul](#06-code-standardization-overhaul)
 - [07 Node Resource Limiting](#07-node-resource-limiting)
+- [08 Composite Node Monitoring & Log Fix](#08-composite-node-monitoring--log-fix)
+- [09 Composite Node Robustness Enhancement](#09-composite-node-robustness-enhancement)
+- [10 BNOS Build Driver Engine Design](#10-bnos-build-driver-engine-design)
+- [11 `except Exception: pass` Governance](#11-except-exception-pass-governance)
+- [12 Orthogonal Edge Snapping](#12-orthogonal-edge-snapping)
+- [13 Composite Node Dialog Style Unification](#13-composite-node-dialog-style-unification)
+- [14 Node Config Dialog I18n](#14-node-config-dialog-i18n)
+- [15 Composite Node Config & Resource Group](#15-composite-node-config--resource-group)
+- [16 Startup Guards & Two-Layer Resource Monitor](#16-startup-guards--two-layer-resource-monitor)
 
 ---
 
@@ -314,4 +323,51 @@ See full details in [10_Node_Config_Dialog_I18n.md](./10_Node_Config_Dialog_I18n
 
 ### Summary
 
-- **20 hardcoded strings** → `t(TK.KEY)`; Resource Limits section fully i18n'd; +19 keys
+- **20 hardcoded strings** -> `t(TK.KEY)`; Resource Limits section fully i18n'd; +19 keys
+
+---
+
+## 15 Composite Node Config & Resource Group
+
+See full details in [11_Composite_Node_Config_Resource_Group.md](./11_Composite_Node_Config_Resource_Group.md).
+
+### Summary
+
+- **composite.json** Schema (identity + DAG + ports + resource budget); self-healing from node_clusters.json
+- **node_registry.json** runtime registry (status, PID, launch origin, independent runs)
+- **Compress**: creates `composite_nodes/<id>/` with full directory structure
+- **Startup**: auto-migrates composites missing config files
+- **Decompress**: logs archived to `.archive/<id>_<fingerprint>_<timestamp>/`, then deleted
+- **Log path** migrated from `{name}_venv/logs/` to `composite_nodes/<id>/logs/`
+- Composite venv lifecycle-bound: decompress = deletion
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `ui/core/node/composite_node.py` | +280 lines (10 new methods) |
+| `ui/panels/node_list_ops.py` | _get_log_files path fix |
+
+---
+
+## 16 Startup Guards & Two-Layer Resource Monitor
+
+See full details in [12_Startup_Guard_Resource_Monitor.md](./12_Startup_Guard_Resource_Monitor.md).
+
+### Summary
+
+- **Startup guards (bidirectional)**: standalone checks composite running + 3-choice dialog; composite checks sub-nodes + auto-stop
+- **Resource monitor two-layer**: orchestrator PID independent row; sub-node `[sub]` indented rows
+- **Running**: sub-nodes in orchestrator process, display `--` (no double counting)
+- **Stopped**: sub-nodes running independently show individual PID resources
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `ui/core/node/composite_node.py` | +3 methods (check_subnode_start / check_composite_start / stop_conflicting_subnodes) |
+| `ui/main_window/node.py` | start_selected_node_by_name guard |
+| `ui/panels/resource_monitor.py` | _update_node_stats + _refresh_node_table rewrite |
+| `ui/panels/resource_monitor_dock.py` | same |
+| `ui/panels/_shared/system_resource_collector.py` | +3 methods |
+| `ui/core/i18n/translation_keys.py` + strings | +2 keys

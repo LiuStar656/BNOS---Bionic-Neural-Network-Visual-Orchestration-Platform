@@ -20,6 +20,8 @@
 - [12 连线正交吸附功能](#12-连线正交吸附功能)
 - [13 复合节点防错窗口风格统一](#13-复合节点防错窗口风格统一)
 - [14 节点配置对话框国际化](#14-节点配置对话框国际化)
+- [15 复合节点配置文件与资源组](#15-复合节点配置文件与资源组)
+- [16 启动守卫与资源监测双层架构](#16-启动守卫与资源监测双层架构)
 
 ---
 
@@ -291,6 +293,53 @@
 ### 摘要
 
 - **20 处硬编码字符串** → `t(TK.KEY)`；Resource Limits 区域全面国际化；+19 键
+
+---
+
+## 15 复合节点配置文件与资源组
+
+详见 [11_复合节点配置文件与资源组.md](./11_复合节点配置文件与资源组.md)。
+
+### 摘要
+
+- **composite.json** Schema 定义（身份 + DAG + 端口 + 资源预算），损坏时从 node_clusters.json 自愈恢复
+- **node_registry.json** 运行时登记簿（子节点状态、PID、启动来源、独立运行次数）
+- **压缩时**创建 `composite_nodes/<id>/` 完整目录结构（配置 + 注册表 + 日志目录）
+- **启动时**自动迁移已有复合节点（补全缺失的 composite.json）
+- **解压缩时**日志存档到 `.archive/<id>_<fingerprint>_<timestamp>/`，删除整个配置目录
+- **日志路径**从 `{name}_venv/logs/` 迁移到 `composite_nodes/<id>/logs/`，不再依赖 display_name
+- 复合节点 venv 绑定生命周期：解压缩 = 删除
+
+### 修改文件
+
+| 文件 | 改动 |
+|------|------|
+| `ui/core/node/composite_node.py` | +280 行（10 个新方法） |
+| `ui/panels/node_list_ops.py` | _get_log_files 路径修复 |
+
+---
+
+## 16 启动守卫与资源监测双层架构
+
+详见 [12_启动守卫与资源监测双层架构.md](./12_启动守卫与资源监测双层架构.md)。
+
+### 摘要
+
+- **启动守卫（双向互斥）**：独立节点启动 → 检查所属复合节点是否运行中（三选一弹窗）；复合节点启动 → 检查子节点是否独立运行中（自动停止后启动）
+- **资源监测双层**：复合节点 orchestrator 进程独立监测行（含 PID + CPU + 内存）；子节点 `[sub]` 缩进行
+- **运行中**：子节点在 orchestrator 进程内，显示 `—` 资源（不重复计算）
+- **停止中**：子节点如独立运行则显示各自 PID 资源
+
+### 修改文件
+
+| 文件 | 改动 |
+|------|------|
+| `ui/core/node/composite_node.py` | +3 方法（check_subnode_start / check_composite_start / stop_conflicting_subnodes） |
+| `ui/main_window/node.py` | start_selected_node_by_name 守卫检查 |
+| `ui/panels/resource_monitor.py` | _update_node_stats + _refresh_node_table 重写 |
+| `ui/panels/resource_monitor_dock.py` | 同上 |
+| `ui/panels/_shared/system_resource_collector.py` | +3 方法（get_composite_pid / collect_group_stats / _format_memory） |
+| `ui/core/i18n/translation_keys.py` + strings | +2 键 |
 
 ---
 

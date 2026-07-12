@@ -12,8 +12,11 @@ ui/core/composite_node.py
 
 from __future__ import annotations
 
+import datetime
+import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import uuid
@@ -43,6 +46,9 @@ from ui.core.utils.dialog_utils import themed_message
 
 GROUP_PREFIX = "__composite__"
 GROUP_COLOR = "#4ec9b0"
+COMPOSITE_NODES_DIR = "composite_nodes"  # 复合节点专属目录
+ARCHIVE_DIR = ".archive"  # 日志存档子目录
+ARCHIVE_MAX_COUNT = 10  # 最大存档数
 
 
 class CompositeNode:
@@ -95,6 +101,8 @@ class CompositeNode:
             except Exception as e:
                 logger.warning("加载 node_clusters.json 失败: %s", e)
                 self._composites = {}
+        # 迁移已有复合节点（缺失 composite.json 的自动创建）
+        self._migrate_existing_composites()
 
     def save(self):
         """Atomic write to node_clusters.json (immediate, not debounced).
@@ -1229,6 +1237,7 @@ class CompositeNode:
             "ports": ports,
             "original_positions": original_positions,
             "common_lang": common_lang,
+            "edges_list": edges_list,
         }
         worker.finished.connect(lambda: self._on_compress_worker_done(worker))
         worker.start()
@@ -1277,6 +1286,20 @@ class CompositeNode:
             "language": common_lang if common_lang != "Unknown" else "Python",
         }
         self.save()
+
+        # 创建 composite_nodes/<comp_id>/ 完整目录结构
+        edges_list = data.get("edges_list", [])
+        self._create_comp_config_dir(
+            comp_id,
+            node_names,
+            edges_list,
+            ports,
+            display_name,
+            common_lang,
+            cx,
+            cy,
+            original_positions,
+        )
 
         # Canvas
         self._canvas_compress(comp_id, node_names, cx, cy, display_name, ports)
@@ -1334,6 +1357,9 @@ class CompositeNode:
             pass
 
         remove_comp_env(self._project_path, comp_id, comp.get("display_name", ""), logger)
+
+        # 清理 composite_nodes/<comp_id>/ (日志存档后删除)
+        self._decompress_cleanup(comp_id)
 
         return True, t(TK._COMPOSITE_DECOMPRESSED).format(n=len(node_names))
 
@@ -1510,6 +1536,8 @@ class CompositeNode:
             if proc.poll() is None:
                 return False, t(TK.COMPOSITE_ALREADY_RUNNING)
 
+        # 上游调用方应已执行 check_composite_start 守卫
+
         # 查找 Python 解释器 — 优先使用复合节点独立 venv
         project_root = self._project_path
         comp_dir = self._comp_venv_dir(comp_id)
@@ -1525,8 +1553,8 @@ class CompositeNode:
         if not Path(python_exe).exists():
             python_exe = sys.executable
 
-        # 复合节点日志目录
-        log_dir = Path(comp_dir) / "logs"
+        # 复合节点日志目录 — 使用 composite_nodes/<id>/logs/
+        log_dir = self._comp_logs_dir(self._project_path, comp_id)
         log_dir.mkdir(parents=True, exist_ok=True)
         try:
             _out_f = open(log_dir / "composite_output.log", "w", encoding="utf-8")
@@ -1641,6 +1669,11 @@ class CompositeNode:
 
         transport = comp.get("transport", "local")
         if transport == "local":
+            # 启动守卫: 检查子节点是否独立运行中
+            allowed, msg, conflicts = self.check_composite_start(comp_id)
+            if not allowed:
+                themed_message(None, t("k_title_warning"), msg, "warning")
+                return False
             return self._execute_local(comp_id)
         else:
             from ui.core.system.transports import get_transport_handler
@@ -1661,8 +1694,17 @@ class CompositeNode:
 
     @staticmethod
     def composite_log_paths(comp_dir: str | Path) -> list[Path]:
-        """返回复合节点的日志文件列表。"""
-        p = Path(comp_dir) / "logs"
+        """返回复合节点的日志文件列表。优先查找 composite_nodes/<id>/logs/。"""
+        p = Path(comp_dir)
+        # 尝试 composite_nodes/<comp_id>/logs/ 路径
+        if p.name != "logs":
+            logs_from_comp_nodes = p / COMPOSITE_NODES_DIR
+            if logs_from_comp_nodes.exists():
+                candidate = logs_from_comp_nodes / "logs"
+                if candidate.exists():
+                    p = candidate
+            else:
+                p = p / "logs"
         out_log = p / "composite_output.log"
         err_log = p / "composite_error.log"
         return [f for f in (out_log, err_log) if f.exists()]
@@ -1680,6 +1722,81 @@ class CompositeNode:
             if node_name in c.get("nodes", []):
                 return cid
         return None
+
+    # ── 启动守卫 ──
+
+    def check_subnode_start(self, node_name: str) -> tuple[bool, str, str | None]:
+        """启动独立节点前检查：是否属于运行中的复合节点。
+
+        Returns:
+            (allowed, message, owner_comp_id | None)
+            - allowed=True: 可以启动
+            - allowed=False: 被运行中的复合节点阻止
+        """
+        owner = self._find_composite_of_node(node_name)
+        if not owner:
+            return True, "", None
+
+        if self.is_running(owner):
+            comp = self._composites.get(owner, {})
+            comp_display = comp.get("display_name") or owner
+            return False, t(TK._START_SUBNODE_CONFLICT).format(node=node_name, composite=comp_display), owner
+        return True, "", owner
+
+    def check_composite_start(self, comp_id: str) -> tuple[bool, str, list[tuple[str, int]]]:
+        """启动复合节点前检查：子节点是否独立运行中。
+
+        Returns:
+            (allowed, message, conflicts)
+            - allowed=True: 可以启动
+            - allowed=False: 有子节点独立运行中
+            - conflicts: [(node_name, pid), ...]
+        """
+        import psutil
+
+        node_names = self.get_nodes(comp_id)
+        conflicts = []
+
+        for n in node_names:
+            # 检查 PID 文件
+            pid_file = Path(self._project_path) / "nodes" / n / ".pid"
+            if pid_file.exists():
+                try:
+                    pid = int(pid_file.read_text().strip())
+                    if psutil.pid_exists(pid):
+                        conflicts.append((n, pid))
+                except (OSError, ValueError):
+                    pass
+
+        if conflicts:
+            details = "\n".join(f"  - {n} (PID={p})" for n, p in conflicts)
+            comp = self._composites.get(comp_id, {})
+            comp_display = comp.get("display_name") or comp_id
+            return False, t(TK._START_COMPOSITE_CONFLICT).format(composite=comp_display, details=details), conflicts
+
+        return True, "", []
+
+    def stop_conflicting_subnodes(self, conflicts: list[tuple[str, int]]):
+        """停止与复合节点冲突的独立运行子节点。"""
+        import psutil
+
+        for name, pid in conflicts:
+            try:
+                proc = psutil.Process(pid)
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except psutil.TimeoutExpired:
+                    proc.kill()
+                logger.info("启动守卫: 已停止独立进程 %s (PID=%d)", name, pid)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, ProcessLookupError, OSError):
+                logger.info("启动守卫: 进程 %s (PID=%d) 已不存在", name, pid)
+            # 清理 PID 文件
+            pid_file = Path(self._project_path) / "nodes" / name / ".pid"
+            try:
+                pid_file.unlink()
+            except OSError:
+                pass
 
     def _find_internal_by_port(self, comp_id: str, port_name: str, port_type: str = "output") -> str | None:
         """Given a composite's port name, return the internal node it maps to.
@@ -1719,6 +1836,302 @@ class CompositeNode:
         comp = self._composites.get(comp_id, {})
         display_name = comp.get("display_name", "")
         return comp_venv_path(self._project_path, comp_id, display_name)
+
+    # ── composite_nodes/ 目录管理 ──
+
+    @staticmethod
+    def _comp_config_dir(project_path: str, comp_id: str) -> Path:
+        """返回 composite_nodes/<comp_id>/ 目录路径。"""
+        return Path(project_path) / COMPOSITE_NODES_DIR / comp_id
+
+    @staticmethod
+    def _comp_config_path(project_path: str, comp_id: str) -> Path:
+        """返回 composite_nodes/<comp_id>/composite.json 路径。"""
+        return Path(project_path) / COMPOSITE_NODES_DIR / comp_id / "composite.json"
+
+    @staticmethod
+    def _comp_registry_path(project_path: str, comp_id: str) -> Path:
+        """返回 composite_nodes/<comp_id>/node_registry.json 路径。"""
+        return Path(project_path) / COMPOSITE_NODES_DIR / comp_id / "node_registry.json"
+
+    @staticmethod
+    def _comp_logs_dir(project_path: str, comp_id: str) -> Path:
+        """返回 composite_nodes/<comp_id>/logs/ 目录路径。"""
+        return Path(project_path) / COMPOSITE_NODES_DIR / comp_id / "logs"
+
+    def _create_comp_config_dir(
+        self,
+        comp_id: str,
+        node_names: list[str],
+        edges_list: list[dict],
+        ports: dict,
+        display_name: str,
+        common_lang: str,
+        cx: float,
+        cy: float,
+        original_positions: dict,
+    ):
+        """创建 composite_nodes/<comp_id>/ 完整的目录结构并写入所有文件。
+
+        目录结构:
+          composite_nodes/<comp_id>/
+            composite.json
+            node_registry.json
+            logs/
+        """
+        comp_dir = self._comp_config_dir(self._project_path, comp_id)
+        logs_dir = comp_dir / "logs"
+        comp_dir.mkdir(parents=True, exist_ok=True)
+        logs_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. composite.json
+        composite_config = {
+            "comp_id": comp_id,
+            "display_name": display_name,
+            "language": common_lang,
+            "version": 1,
+            "runtime": {
+                "mode": self._composites.get(comp_id, {}).get("runtime", "inprocess"),
+                "python_exe": None,
+            },
+            "nodes": [
+                {
+                    "name": n,
+                    "path": f"nodes/{n}",
+                    "order": i,
+                    "entry": "listener.py",
+                    "resource_limit": {},
+                }
+                for i, n in enumerate(node_names)
+            ],
+            "edges": edges_list,
+            "ports": {
+                "input": ports.get("input_ports", []),
+                "output": ports.get("output_ports", []),
+            },
+            "resource_group": {
+                "group_id": f"grp_{comp_id.replace('composite_', '')}",
+                "enabled": True,
+                "composite_resource_limit": {},
+            },
+            "canvas_meta": {
+                "position": {"x": cx, "y": cy},
+                "original_positions": original_positions,
+            },
+        }
+        self._write_composite_config(comp_id, composite_config)
+
+        # 2. node_registry.json
+        now_ts = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        registry = {
+            "group_id": composite_config["resource_group"]["group_id"],
+            "composite_name": display_name or comp_id,
+            "comp_id": comp_id,
+            "registered_at": now_ts,
+            "nodes": {
+                n: {
+                    "path": f"nodes/{n}",
+                    "status": "idle",
+                    "last_pid": None,
+                    "launched_by": None,
+                    "last_started": None,
+                    "independent_runs": 0,
+                }
+                for n in node_names
+            },
+        }
+        self._write_registry(comp_id, registry)
+
+    def _write_composite_config(self, comp_id: str, config: dict):
+        """写入 composite.json。"""
+        cfg_path = self._comp_config_path(self._project_path, comp_id)
+        with cfg_path.open("w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+
+    def _load_composite_config(self, comp_id: str) -> dict | None:
+        """加载 composite.json，损坏时从 node_clusters.json 重建。"""
+        cfg_path = self._comp_config_path(self._project_path, comp_id)
+        try:
+            with cfg_path.open(encoding="utf-8") as f:
+                data = json.load(f)
+            if "nodes" not in data or "comp_id" not in data:
+                raise ValueError("缺少必填字段 nodes / comp_id")
+            return data
+        except (OSError, ValueError, json.JSONDecodeError):
+            logger.warning("composite.json 损坏，从 node_clusters.json 重建 %s", comp_id)
+            return self._rebuild_composite_config(comp_id)
+
+    def _rebuild_composite_config(self, comp_id: str) -> dict | None:
+        """从 node_clusters.json 条目重建 composite.json。"""
+        comp = self._composites.get(comp_id)
+        if not comp:
+            return None
+        node_names = comp.get("nodes", [])
+        ports = {
+            "input": comp.get("input_ports", []),
+            "output": comp.get("output_ports", []),
+        }
+        edges = comp.get("_internal_edges", [])
+        display_name = comp.get("display_name", "")
+        common_lang = comp.get("language", "Python")
+        pos = comp.get("canvas_position", {"x": 0, "y": 0})
+        orig = comp.get("original_positions", {})
+        # Recreate directory and config
+        self._create_comp_config_dir(
+            comp_id,
+            node_names,
+            edges,
+            ports,
+            display_name,
+            common_lang,
+            pos["x"],
+            pos["y"],
+            orig,
+        )
+        return self._load_composite_config(comp_id)
+
+    def _write_registry(self, comp_id: str, registry: dict):
+        """写入 node_registry.json。"""
+        reg_path = self._comp_registry_path(self._project_path, comp_id)
+        with reg_path.open("w", encoding="utf-8") as f:
+            json.dump(registry, f, ensure_ascii=False, indent=2)
+
+    def _load_registry(self, comp_id: str) -> dict | None:
+        """加载 node_registry.json。"""
+        reg_path = self._comp_registry_path(self._project_path, comp_id)
+        try:
+            with reg_path.open(encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    def _update_registry_node(
+        self,
+        comp_id: str,
+        node_name: str,
+        status: str | None = None,
+        pid: int | None = None,
+        launched_by: str | None = None,
+    ):
+        """更新 node_registry.json 中某个节点的运行时状态。"""
+        registry = self._load_registry(comp_id)
+        if not registry or node_name not in registry.get("nodes", {}):
+            return
+        entry = registry["nodes"][node_name]
+        if status is not None:
+            entry["status"] = status
+        if pid is not None:
+            entry["last_pid"] = pid
+        if launched_by is not None:
+            entry["launched_by"] = launched_by
+        if status == "running" and launched_by == "user":
+            entry["independent_runs"] = entry.get("independent_runs", 0) + 1
+            entry["last_started"] = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        if status == "idle":
+            entry["last_pid"] = None
+            entry["launched_by"] = None
+        self._write_registry(comp_id, registry)
+
+    @staticmethod
+    def _compute_structure_fingerprint(comp: dict) -> str:
+        """对复合节点的 nodes[] + edges[] 做 SHA256 前 8 位。
+
+        相同结构 → 相同指纹；结构变化 → 指纹不同。
+        """
+        nodes = sorted(comp.get("nodes", []))
+        edges = sorted((e.get("from", ""), e.get("to", "")) for e in comp.get("edges", comp.get("_internal_edges", [])))
+        payload = json.dumps({"nodes": nodes, "edges": edges}, sort_keys=True)
+        return hashlib.sha256(payload.encode()).hexdigest()[:8]
+
+    def _decompress_cleanup(self, comp_id: str):
+        """解压缩时清理 composite_nodes/<comp_id>/，日志先存档。
+
+        规则:
+          - logs/ → 存档到 .archive/<comp_id>_<fingerprint>_<timestamp>/
+          - venv/ → 直接删除（已在 remove_comp_env 处理）
+          - 其他所有文件 → 删除
+          - node_clusters.json 条目 → 调用方处理
+        """
+        comp_dir = self._comp_config_dir(self._project_path, comp_id)
+        logs_dir = comp_dir / "logs"
+
+        # 存档日志
+        if logs_dir.exists():
+            log_files = list(logs_dir.glob("*.log"))
+            if log_files:
+                comp = self._composites.get(comp_id, {})
+                fingerprint = self._compute_structure_fingerprint(comp)
+                ts = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+                archive_dir = (
+                    Path(self._project_path) / COMPOSITE_NODES_DIR / ARCHIVE_DIR / f"{comp_id}_{fingerprint}_{ts}"
+                )
+                archive_dir.mkdir(parents=True, exist_ok=True)
+
+                # 同时存档 composite.json 快照
+                cfg_src = comp_dir / "composite.json"
+                if cfg_src.exists():
+                    try:
+                        shutil.copy2(cfg_src, archive_dir / "composite.json")
+                    except OSError:
+                        pass
+                for lf in log_files:
+                    try:
+                        shutil.copy2(lf, archive_dir / lf.name)
+                    except OSError:
+                        pass
+                self._prune_archives(comp_id)
+
+        # 删除整个复合节点配置目录
+        try:
+            shutil.rmtree(comp_dir, ignore_errors=True)
+        except OSError:
+            pass
+
+    def _prune_archives(self, comp_id: str):
+        """超出最大存档数的旧存档自动删除。"""
+        import os as _os
+
+        archive_base = Path(self._project_path) / COMPOSITE_NODES_DIR / ARCHIVE_DIR
+        if not archive_base.exists():
+            return
+        archives = sorted(
+            archive_base.glob(f"{comp_id}_*"),
+            key=lambda p: _os.path.getmtime(str(p)),
+            reverse=True,
+        )
+        for old in archives[ARCHIVE_MAX_COUNT:]:
+            try:
+                shutil.rmtree(old, ignore_errors=True)
+            except OSError:
+                pass
+
+    def _migrate_existing_composites(self):
+        """BNOS 启动时：为已有复合节点创建 composite.json + node_registry.json（如果缺失）。"""
+        for comp_id, comp in self._composites.items():
+            cfg_path = self._comp_config_path(self._project_path, comp_id)
+            if not cfg_path.exists():
+                node_names = comp.get("nodes", [])
+                edges = comp.get("_internal_edges", [])
+                ports = {
+                    "input": comp.get("input_ports", []),
+                    "output": comp.get("output_ports", []),
+                }
+                display_name = comp.get("display_name", "")
+                common_lang = comp.get("language", "Python")
+                pos = comp.get("canvas_position", {"x": 0, "y": 0})
+                orig = comp.get("original_positions", {})
+                self._create_comp_config_dir(
+                    comp_id,
+                    node_names,
+                    edges,
+                    ports,
+                    display_name,
+                    common_lang,
+                    pos["x"],
+                    pos["y"],
+                    orig,
+                )
+                logger.info("已迁移复合节点 %s", comp_id)
 
     @staticmethod
     def is_composite_group(group_name: str) -> bool:

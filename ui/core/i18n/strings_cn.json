@@ -622,6 +622,8 @@
   "k_composite_stopped": "复合节点已停止",
   "_k_composite_crash": "复合节点启动后立即退出 (exit={code})",
   "_k_composite_finished": "复合节点已完成",
+  "_k_start_subnode_conflict": "节点 '{node}' 属于复合节点 '{composite}'，\n该复合节点当前正在运行。\n独立启动将创建重复进程，可能导致数据竞争。\n\n请先停止复合节点后再启动此节点。",
+  "_k_start_composite_conflict": "复合节点 '{composite}' 的以下子节点正在独立运行中:\n{details}\n\n启动复合节点前需要停止这些独立进程。\n是否继续？",
   "_k_composite_write_orch_failed": "无法写入编排器脚本: {path}\n错误: {err}",
   "_k_composite_log_open_failed": "无法打开复合节点日志文件: {err}",
   "k_composite_start_failed": "复合节点启动失败",

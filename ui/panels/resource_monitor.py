@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import psutil
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
 from ui.core.dock.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.logger import logger
+from ui.core.node.composite_node import GROUP_COLOR  # 复合节点汇总行颜色
 from ui.core.system.polling_manager import polling_manager
 from ui.panels._shared.system_resource_collector import shared_resource_collector
 
@@ -229,7 +231,7 @@ class ResourceMonitor(FloatingPanel):
         self._update_node_stats()
 
     def _update_node_stats(self):
-        """更新节点资源占用表"""
+        """更新节点资源占用表（含复合节点 orchestrator 进程）。"""
         if not self.parent_window:
             return
 
@@ -241,44 +243,209 @@ class ResourceMonitor(FloatingPanel):
             return
 
         nodes_data = getattr(self.parent_window, "nodes_data", {})
-        canvas_names = set(canvas.nodes.keys())
-        current_names = set(self._node_stats.keys())
+        project_path = getattr(self.parent_window, "current_project_path", "")
+        comp_mgr = getattr(canvas, "_composite_manager", None)
+        composites = comp_mgr.get_all_composites() if comp_mgr else {}
 
+        canvas_names = set(canvas.nodes.keys())
+
+        # 复合节点子节点集合（用于从独立节点中排除）
+        all_comp_subnodes: set[str] = set()
+        for _comp_id, comp in composites.items():
+            all_comp_subnodes.update(comp.get("nodes", []))
+
+        # 清理画布上已不存在的节点
+        current_names = set(self._node_stats.keys())
         for name in current_names - canvas_names:
             if name in self._node_stats:
                 del self._node_stats[name]
 
+        # Phase 1: 复合节点单独监测（orchestrator PID）
+        for comp_id, comp in composites.items():
+            pid = shared_resource_collector.get_composite_pid(project_path, comp_id)
+            display = comp.get("display_name") or comp_id
+            if pid and psutil.pid_exists(pid):
+                cpu, mem = shared_resource_collector.collect_process_resources(pid)
+                if cpu is not None and mem is not None:
+                    self._node_stats[comp_id] = {
+                        "cpu": cpu,
+                        "memory": mem,
+                        "memory_rss": int(mem * 1024 * 1024),
+                        "name": display,
+                        "status": "running",
+                        "_is_composite": True,
+                        "_sub_nodes": comp.get("nodes", []),
+                        "_pid": pid,
+                    }
+                else:
+                    self._node_stats[comp_id] = {
+                        "cpu": 0.0,
+                        "memory": 0.0,
+                        "memory_rss": 0,
+                        "name": display,
+                        "status": "stopped",
+                        "_is_composite": True,
+                        "_sub_nodes": comp.get("nodes", []),
+                        "_pid": None,
+                    }
+            else:
+                self._node_stats[comp_id] = {
+                    "cpu": 0.0,
+                    "memory": 0.0,
+                    "memory_rss": 0,
+                    "name": display,
+                    "status": "stopped",
+                    "_is_composite": True,
+                    "_sub_nodes": comp.get("nodes", []),
+                    "_pid": None,
+                }
+
+        # Phase 2: 独立节点（普通节点 + 独立运行的子节点）
         for name in canvas_names:
+            # 跳过子节点 — 它们由复合节点行管理
+            if name in all_comp_subnodes:
+                continue
+            if name in composites:
+                continue  # 复合节点已在 Phase 1 处理
             if name in nodes_data:
                 node_info = nodes_data[name]
                 stats = shared_resource_collector.collect_single_node_stats(node_info, name)
+                stats["_is_composite"] = False
                 self._node_stats[name] = stats
                 self.node_state_updated.emit(name, stats["cpu"], stats["memory"])
 
         self._refresh_node_table()
 
     def _refresh_node_table(self):
-        self._node_table.setRowCount(len(self._node_stats))
-        for i, (name, stats) in enumerate(self._node_stats.items()):
-            name_item = QTableWidgetItem(name)
+        """刷新节点资源表。
+
+        层级结构:
+          ▶ composite: xxx                    ← 复合节点 orchestrator 进程
+            inference [sub]                   ← 子节点（在 orchestrator 内）
+            preprocess [sub]
+          standalone_node                     ← 普通节点
+            postprocess [sub: pipeline]       ← 子节点独立运行中
+        """
+        canvas = getattr(self.parent_window, "canvas", None)
+        comp_mgr = getattr(canvas, "_composite_manager", None)
+        composites = comp_mgr.get_all_composites() if comp_mgr else {}
+        nodes_data = getattr(self.parent_window, "nodes_data", {})
+
+        # 层级行列表
+        rows: list[dict] = []
+
+        visited_names: set[str] = set()
+
+        for comp_id, comp in composites.items():
+            stats = self._node_stats.get(comp_id, {})
+            display = comp.get("display_name") or comp_id
+            sub_nodes = comp.get("nodes", [])
+            is_running = stats.get("status") == "running"
+            pid = stats.get("_pid")
+
+            # 复合节点主行
+            pid_suffix = f"  PID={pid}" if pid else ""
+            rows.append(
+                {
+                    "name": f"▶ {display}{pid_suffix}",
+                    "cpu": f"{stats.get('cpu', 0.0):.1f}%" if is_running else "—",
+                    "memory": f"{stats.get('memory', 0.0):.1f} MB" if is_running else "—",
+                    "status": "running" if is_running else "stopped",
+                    "color": GROUP_COLOR,
+                    "bold": True,
+                }
+            )
+            visited_names.add(comp_id)
+
+            # 子节点行
+            for sn in sub_nodes:
+                if comp_mgr and comp_mgr.is_running(comp_id):
+                    # 运行中：子节点在 orchestrator 进程内，不独立显示资源
+                    rows.append(
+                        {
+                            "name": f"    {sn} [sub]",
+                            "cpu": "—",
+                            "memory": "—",
+                            "status": "managed",
+                            "color": "#4ec9b060",
+                            "bold": False,
+                        }
+                    )
+                else:
+                    # 停止中：子节点可能独立运行
+                    if sn in nodes_data:
+                        sn_stats = shared_resource_collector.collect_single_node_stats(nodes_data[sn], sn)
+                        sn_running = sn_stats.get("status") == "running"
+                        rows.append(
+                            {
+                                "name": f"    {sn} [sub]",
+                                "cpu": f"{sn_stats.get('cpu', 0.0):.1f}%" if sn_running else "—",
+                                "memory": f"{sn_stats.get('memory', 0.0):.1f} MB" if sn_running else "—",
+                                "status": "running" if sn_running else "stopped",
+                                "color": "#4ec9b060",
+                                "bold": False,
+                            }
+                        )
+                    else:
+                        rows.append(
+                            {
+                                "name": f"    {sn} [sub]",
+                                "cpu": "—",
+                                "memory": "—",
+                                "status": "unknown",
+                                "color": "#4ec9b060",
+                                "bold": False,
+                            }
+                        )
+                visited_names.add(sn)
+
+        # 独立节点（非子节点）
+        for name, stats in self._node_stats.items():
+            if name in visited_names:
+                continue
+            if stats.get("_is_composite"):
+                continue
+            rows.append(
+                {
+                    "name": name,
+                    "cpu": f"{stats.get('cpu', 0.0):.1f}%",
+                    "memory": f"{stats.get('memory', 0.0):.1f} MB",
+                    "status": stats.get("status", "stopped"),
+                    "color": None,
+                    "bold": False,
+                }
+            )
+
+        self._node_table.setRowCount(len(rows))
+        status_map = {
+            "running": t("k_status_running"),
+            "stopped": t("k_status_stopped"),
+            "managed": t("k_status_idle"),
+            "unknown": "?",
+        }
+
+        for i, r in enumerate(rows):
+            name_item = QTableWidgetItem(r["name"])
             name_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-            cpu_item = QTableWidgetItem(f"{stats['cpu']:.1f}%")
+            if r["color"]:
+                name_item.setForeground(QColor(r["color"]))
+            if r["bold"]:
+                font = name_item.font()
+                font.setBold(True)
+                name_item.setFont(font)
+
+            cpu_item = QTableWidgetItem(r["cpu"])
             cpu_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            mem_item = QTableWidgetItem(f"{stats['memory']:.1f} MB")
+            mem_item = QTableWidgetItem(r["memory"])
             mem_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
-            status_map = {
-                "running": t("k_status_running"),
-                "idle": t("k_status_idle"),
-                "stopped": t("k_status_stopped"),
-            }
-            status_item = QTableWidgetItem(status_map.get(stats["status"], stats["status"]))
+            status_item = QTableWidgetItem(status_map.get(r["status"], r["status"]))
             status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
 
-            if stats["status"] == "running":
+            if r["status"] == "running":
                 status_item.setForeground(QColor("#4CAF50"))
-            elif stats["status"] == "idle":
-                status_item.setForeground(QColor("#F0A030"))
+            elif r["status"] == "managed":
+                status_item.setForeground(QColor("#4ec9b080"))
             else:
                 status_item.setForeground(QColor("#999"))
 

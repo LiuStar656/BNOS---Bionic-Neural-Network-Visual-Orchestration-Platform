@@ -616,6 +616,8 @@
   "k_composite_stopped": "Composite node stopped",
   "_k_composite_crash": "Composite node exited immediately after start (exit={code})",
   "_k_composite_finished": "Composite node completed",
+  "_k_start_subnode_conflict": "Node '{node}' belongs to composite '{composite}',\nwhich is currently running.\nStarting independently would create a duplicate process and may cause data races.\n\nPlease stop the composite node first.",
+  "_k_start_composite_conflict": "The following sub-nodes of composite '{composite}' are running independently:\n{details}\n\nThese independent processes must be stopped before starting the composite.\nContinue?",
   "_k_composite_write_orch_failed": "Failed to write orchestrator script: {path}\nError: {err}",
   "_k_composite_log_open_failed": "Failed to open composite node log file: {err}",
   "k_composite_start_failed": "Composite node start failed",

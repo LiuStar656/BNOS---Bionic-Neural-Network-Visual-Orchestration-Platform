@@ -234,7 +234,7 @@ class ResourceMonitorDock(DockPanelBase):
         self._update_node_stats()
 
     def _update_node_stats(self):
-        """更新节点资源占用表"""
+        """更新节点资源占用表（含复合节点 orchestrator 进程）。"""
         if not self.parent_window:
             return
 
@@ -246,55 +246,206 @@ class ResourceMonitorDock(DockPanelBase):
             return
 
         nodes_data = getattr(self.parent_window, "nodes_data", {})
-        canvas_names = set(canvas.nodes.keys())
-        current_names = set(self._node_stats.keys())
+        project_path = getattr(self.parent_window, "current_project_path", "")
+        comp_mgr = getattr(canvas, "_composite_manager", None)
+        composites = comp_mgr.get_all_composites() if comp_mgr else {}
 
+        canvas_names = set(canvas.nodes.keys())
+
+        # 复合节点子节点集合
+        all_comp_subnodes: set[str] = set()
+        for _comp_id, comp in composites.items():
+            all_comp_subnodes.update(comp.get("nodes", []))
+
+        # 清理
+        current_names = set(self._node_stats.keys())
         for name in current_names - canvas_names:
             if name in self._node_stats:
                 del self._node_stats[name]
 
+        # Phase 1: 复合节点单独监测（orchestrator PID）
+        import psutil
+
+        for comp_id, comp in composites.items():
+            pid = shared_resource_collector.get_composite_pid(project_path, comp_id)
+            display = comp.get("display_name") or comp_id
+            if pid and psutil.pid_exists(pid):
+                cpu, mem = shared_resource_collector.collect_process_resources(pid)
+                if cpu is not None and mem is not None:
+                    self._node_stats[comp_id] = {
+                        "cpu": cpu,
+                        "memory": mem,
+                        "memory_rss": int(mem * 1024 * 1024),
+                        "name": display,
+                        "status": "running",
+                        "_is_composite": True,
+                        "_sub_nodes": comp.get("nodes", []),
+                        "_pid": pid,
+                    }
+                else:
+                    self._node_stats[comp_id] = {
+                        "cpu": 0.0,
+                        "memory": 0.0,
+                        "memory_rss": 0,
+                        "name": display,
+                        "status": "stopped",
+                        "_is_composite": True,
+                        "_sub_nodes": comp.get("nodes", []),
+                        "_pid": None,
+                    }
+            else:
+                self._node_stats[comp_id] = {
+                    "cpu": 0.0,
+                    "memory": 0.0,
+                    "memory_rss": 0,
+                    "name": display,
+                    "status": "stopped",
+                    "_is_composite": True,
+                    "_sub_nodes": comp.get("nodes", []),
+                    "_pid": None,
+                }
+
+        # Phase 2: 独立节点
         for name in canvas_names:
+            if name in all_comp_subnodes:
+                continue
+            if name in composites:
+                continue
             if name in nodes_data:
                 node_info = nodes_data[name]
                 stats = shared_resource_collector.collect_single_node_stats(node_info, name)
                 stats["name"] = node_info.get("name", name)
+                stats["_is_composite"] = False
                 self._node_stats[name] = stats
                 self.node_state_updated.emit(name, stats["cpu"], stats["memory"])
 
         self._update_node_table()
 
     def _update_node_table(self):
-        """更新节点表格"""
-        self._node_table.setRowCount(len(self._node_stats))
-        row = 0
-        for node_id, stats in self._node_stats.items():
-            name_item = QTableWidgetItem(stats.get("name", node_id))
-            name_item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
+        """更新节点表格。
 
-            cpu_item = QTableWidgetItem(f"{stats.get('cpu', 0.0):.1f}%")
+        层级结构:
+          ▶ composite: xxx                    ← 复合节点 orchestrator 进程
+            inference [sub]                   ← 子节点（在 orchestrator 内）
+          standalone_node                     ← 普通节点
+        """
+        from ui.core.node.composite_node import GROUP_COLOR
+
+        canvas = getattr(self.parent_window, "canvas", None)
+        comp_mgr = getattr(canvas, "_composite_manager", None)
+        composites = comp_mgr.get_all_composites() if comp_mgr else {}
+        nodes_data = getattr(self.parent_window, "nodes_data", {})
+
+        rows: list[dict] = []
+        visited_names: set[str] = set()
+
+        for comp_id, comp in composites.items():
+            stats = self._node_stats.get(comp_id, {})
+            display = comp.get("display_name") or comp_id
+            sub_nodes = comp.get("nodes", [])
+            is_running = stats.get("status") == "running"
+            pid = stats.get("_pid")
+
+            pid_suffix = f"  PID={pid}" if pid else ""
+            rows.append(
+                {
+                    "name": f"> {display}{pid_suffix}",
+                    "cpu": f"{stats.get('cpu', 0.0):.1f}%" if is_running else "—",
+                    "memory": f"{stats.get('memory', 0.0):.1f} MB" if is_running else "—",
+                    "status": "running" if is_running else "stopped",
+                    "color": GROUP_COLOR,
+                }
+            )
+            visited_names.add(comp_id)
+
+            for sn in sub_nodes:
+                if comp_mgr and comp_mgr.is_running(comp_id):
+                    rows.append(
+                        {
+                            "name": f"    {sn} [sub]",
+                            "cpu": "—",
+                            "memory": "—",
+                            "status": "managed",
+                            "color": "#4ec9b060",
+                        }
+                    )
+                else:
+                    if sn in nodes_data:
+                        sn_stats = shared_resource_collector.collect_single_node_stats(nodes_data[sn], sn)
+                        sn_running = sn_stats.get("status") == "running"
+                        rows.append(
+                            {
+                                "name": f"    {sn} [sub]",
+                                "cpu": f"{sn_stats.get('cpu', 0.0):.1f}%" if sn_running else "—",
+                                "memory": f"{sn_stats.get('memory', 0.0):.1f} MB" if sn_running else "—",
+                                "status": "running" if sn_running else "stopped",
+                                "color": "#4ec9b060",
+                            }
+                        )
+                    else:
+                        rows.append(
+                            {
+                                "name": f"    {sn} [sub]",
+                                "cpu": "—",
+                                "memory": "—",
+                                "status": "unknown",
+                                "color": "#4ec9b060",
+                            }
+                        )
+                visited_names.add(sn)
+
+        for name, stats in self._node_stats.items():
+            if name in visited_names:
+                continue
+            if stats.get("_is_composite"):
+                continue
+            rows.append(
+                {
+                    "name": stats.get("name", name),
+                    "cpu": f"{stats.get('cpu', 0.0):.1f}%",
+                    "memory": f"{stats.get('memory', 0.0):.1f} MB",
+                    "status": stats.get("status", "stopped"),
+                    "color": None,
+                }
+            )
+
+        self._node_table.setRowCount(len(rows))
+        status_map = {
+            "running": t("k_status_running"),
+            "stopped": t("k_status_stopped"),
+            "managed": t("k_status_idle"),
+            "unknown": "?",
+        }
+
+        for i, r in enumerate(rows):
+            name_item = QTableWidgetItem(r["name"])
+            name_item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
+            if r["color"]:
+                name_item.setForeground(QColor(r["color"]))
+
+            cpu_item = QTableWidgetItem(r["cpu"])
             cpu_item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
             cpu_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            mem_item = QTableWidgetItem(f"{stats.get('memory', 0.0):.1f} MB")
+            mem_item = QTableWidgetItem(r["memory"])
             mem_item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
             mem_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            status = stats.get("status", "stopped")
-            status_text = t("k_status_running") if status == "running" else t("k_status_stopped")
-            status_item = QTableWidgetItem(status_text)
+            status_item = QTableWidgetItem(status_map.get(r["status"], r["status"]))
             status_item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
             status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            if status == "running":
+            if r["status"] == "running":
                 status_item.setForeground(QColor("#4ec9b0"))
+            elif r["status"] == "managed":
+                status_item.setForeground(QColor("#4ec9b080"))
             else:
                 status_item.setForeground(QColor("#858585"))
 
-            self._node_table.setItem(row, 0, name_item)
-            self._node_table.setItem(row, 1, cpu_item)
-            self._node_table.setItem(row, 2, mem_item)
-            self._node_table.setItem(row, 3, status_item)
-            row += 1
+            self._node_table.setItem(i, 0, name_item)
+            self._node_table.setItem(i, 1, cpu_item)
+            self._node_table.setItem(i, 2, mem_item)
+            self._node_table.setItem(i, 3, status_item)
 
     def _on_node_status_changed(self, node_name, new_status):
         if node_name in self._node_stats:

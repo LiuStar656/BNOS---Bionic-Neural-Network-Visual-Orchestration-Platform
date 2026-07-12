@@ -74,6 +74,17 @@ class MainWindowNodeControlMixin:
             self.show_toast(t("_k_node_running").format(name=node_name), "info")
             return
 
+        # 启动守卫: 检查是否属于运行中的复合节点
+        comp_mgr = getattr(self.canvas, "_composite_manager", None)
+        if comp_mgr:
+            allowed, msg, owner = comp_mgr.check_subnode_start(node_name)
+            if not allowed:
+                self.show_toast(msg, "warning")
+                from ui.core.utils.dialog_utils import themed_message
+
+                themed_message(self, t("k_title_warning"), msg, "warning")
+                return
+
         if startup_queue.is_queued(node_name):
             status = startup_queue.get_status(node_name)
             if status == QueueStatus.BLOCKED:
