@@ -1,4 +1,4 @@
-# BNOS 文档中心
+﻿# BNOS 文档中心
 
 欢迎来到 BNOS 项目的文档中心。本目录按职能组织各类技术文档，方便快速定位和回溯。
 
@@ -25,7 +25,7 @@ docs/
 ### 📋 guides/
 - **用途**：开发规范、编码指南、最佳实践
 - **文件**：
-  - [config_json_开发规范.md](guides/config_json_开发规范.md) - config.json 配置文件开发规范
+  - [config_json_开发规范.md](guides/config_json_开发规范.md) - node_config.json 配置文件开发规范
 
 ### 🎨 design/
 - **用途**：架构设计、重构计划、开发方案

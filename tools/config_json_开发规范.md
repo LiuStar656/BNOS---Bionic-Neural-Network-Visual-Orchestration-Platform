@@ -1,13 +1,13 @@
-# config.json 多输入面板组件开发规范
+﻿# node_config.json 多输入面板组件开发规范
 
 ## 概述
 
-`config.json` 是每个节点的核心配置文件，位于 `nodes/<node_name>/` 目录下。它定义了节点的参数控件、输入/输出端口，直接驱动画布上的面板模式渲染和锚点生成。
+`node_config.json` 是每个节点的核心配置文件，位于 `nodes/<node_name>/` 目录下。它定义了节点的参数控件、输入/输出端口，直接驱动画布上的面板模式渲染和锚点生成。
 
 ### 执行流程
 
 ```
-config.json  (你在写)
+node_config.json  (你在写)
     │
     ▼
 NodeConfigParser        → 解析 parameters / input_ports / output_ports
@@ -326,7 +326,7 @@ WidgetRegistry 支持 11 种控件类型，每种有各自的专属字段：
 
 ## 五、完整参考示例
 
-以下是一个模拟 LLM 调用节点的完整 `config.json`：
+以下是一个模拟 LLM 调用节点的完整 `node_config.json`：
 
 ```jsonc
 {
@@ -494,7 +494,7 @@ WidgetRegistry 支持 11 种控件类型，每种有各自的专属字段：
 
 ## 七、开发检查清单
 
-新建节点 `config.json` 时请逐项确认：
+新建节点 `node_config.json` 时请逐项确认：
 
 - [ ] `node_name` 与目录名一致
 - [ ] 顶层字段包含 `parameters` / `input_ports` / `output_ports`（至少空数组 `[]`）
@@ -513,7 +513,7 @@ WidgetRegistry 支持 11 种控件类型，每种有各自的专属字段：
 
 ## 八、resource_limit — 节点资源限制
 
-`resource_limit` 是 config.json 的**可选**顶层字段，用于限制节点进程的 CPU 和内存占用。
+`resource_limit` 是 node_config.json 的**可选**顶层字段，用于限制节点进程的 CPU 和内存占用。
 底层实现根据操作系统自动选择：
 - **Linux**：cgroups v2（CPU 硬限制 + 内存硬限制）
 - **Windows**：Job Objects（CPU 硬限制 + 内存硬限制）
@@ -606,7 +606,7 @@ WidgetRegistry 支持 11 种控件类型，每种有各自的专属字段：
 
 ### 运行时效果
 
-当 `config.json` 包含 `resource_limit` 字段时，BNOS 节点启动流程自动调用：
+当 `node_config.json` 包含 `resource_limit` 字段时，BNOS 节点启动流程自动调用：
 
 ```python
 from ui.core.system.resource_limit import create_resource_limit

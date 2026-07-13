@@ -1,4 +1,4 @@
-# Standard Node Generator Development Guidelines
+﻿# Standard Node Generator Development Guidelines
 
 > For developing new language node generators (Go / Java / C++ / Shell, etc.)
 
@@ -11,7 +11,7 @@ Each node under `project/nodes/` must have the following structure:
 ```
 nodes/
 └── node_{lang}_{name}/
-    ├── config.json          # Node configuration (required)
+    ├── node_config.json          # Node configuration (required)
     ├── start.bat             # Windows launcher (required)
     ├── start.sh              # Linux/macOS launcher (required)
     ├── listener.{ext}        # Listener entry point (required, runs continuously)
@@ -24,7 +24,7 @@ nodes/
 
 ---
 
-## 2. config.json Specification
+## 2. node_config.json Specification
 
 ```json
 {
@@ -137,7 +137,7 @@ The listener is the core of each node and must run continuously (should not exit
 
 ### Minimum Requirements
 
-1. Read `config.json` to get `listen_upper_file` path
+1. Read `node_config.json` to get `listen_upper_file` path
 2. Monitor upstream node's `output.json` file for changes
 3. Invoke processing logic upon receiving new data
 4. Write results to this node's `output.json`
@@ -180,7 +180,7 @@ All tests must pass before a new language generator is considered complete:
 
 | Test | Steps | Expected Result |
 |------|-------|-----------------|
-| Create Node | GUI → New Node → Select language | Full directory created, config.json correct |
+| Create Node | GUI → New Node → Select language | Full directory created, node_config.json correct |
 | Build/Compile | First launch of node | Self-healing triggers, build succeeds |
 | Foreground Launch | Double-click `start.bat` | Full UI displayed, `pause` at end |
 | Background Launch | GUI starts node | Process runs in background, UI shows ● Running |
