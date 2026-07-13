@@ -19,6 +19,7 @@
 - [11 复合节点启动队列集成修复](./11_复合节点启动队列集成修复.md)
 - [12 多选右键菜单优化与复合节点支持](./12_多选右键菜单优化与复合节点支持.md)
 - [13 节点详情面板合并与复合节点配置窗口修复](./13_节点详情面板合并与复合节点配置窗口修复.md)
+- [14 README 重写与归档](./14_README重写与归档.md)
 
 ---
 
@@ -210,6 +211,22 @@
 
 ---
 
+## 14 README 重写与归档
+
+详见 [14_README重写与归档.md](./14_README重写与归档.md)。
+
+### 摘要
+
+- **README 重写（中英文）**：~1100 行 → ~220 行，9 章节结构，突出核心设计理念与架构层级
+- **复合节点系统专题**：新增独立章节，覆盖 DAG 压缩/展开折叠/编排器/端口路由/双模式运行时
+- **修正过时引用**：`bnos_gui.py` → `launcher.py` / `bnos_console.py`，`requirements_gui.txt` → 实际依赖
+- **架构图重绘**：双层启动 → ApplicationContext → 核心服务 → 节点系统的层级关系
+- **大幅精简**：删除 BNOS vs Low-Code 长表、删除详细操作指南，保留 5 步快速上手
+- **旧版归档**：`docs/archived/README_v1_archived.md` / `README_CN_v1_archived.md`（含归档标记）
+- **更新 changelogs**：新增 CN/EN changelog 条目，更新日期索引、总索引、INDEX 全部索引文件
+
+---
+
 ## 修改文件清单
 
 | 文件 | 改动 |
@@ -240,6 +257,19 @@
 | `ui/core/i18n/strings_cn.json` | 新增节点详情面板翻译 |
 | `ui/core/i18n/strings_en.json` | 新增节点详情面板翻译 |
 | `ui/core/i18n/translation_keys.py` | 新增翻译键常量 |
+
+| `README.md` | 重写：~1100 行 → ~220 行，9 章节结构 |
+| `README_CN.md` | 重写：~1100 行 → ~220 行，9 章节结构 |
+| `docs/archived/README_v1_archived.md` | 新增：旧版英文 README 归档（含归档标记） |
+| `docs/archived/README_CN_v1_archived.md` | 新增：旧版中文 README 归档（含归档标记） |
+| `docs/changelogs/cn/2026-07-13/14_README重写与归档.md` | 新增：本 changelog |
+| `docs/changelogs/en/2026-07-13/14_README_Rewrite_and_Archive.md` | 新增：英文 changelog |
+| `docs/changelogs/cn/2026-07-13/README.md` | 更新：日期索引新增条目 14 |
+| `docs/changelogs/en/2026-07-13/README.md` | 更新：日期索引新增条目 14 |
+| `docs/changelogs/cn/README.md` | 更新：总索引 details 折叠新增条目 |
+| `docs/changelogs/en/README.md` | 更新：总索引 details 折叠新增条目 |
+| `docs/changelogs/cn/INDEX.md` | 更新：日期索引新增条目 |
+| `docs/changelogs/en/INDEX.md` | 更新：日期索引新增条目 |
 
 ---
 

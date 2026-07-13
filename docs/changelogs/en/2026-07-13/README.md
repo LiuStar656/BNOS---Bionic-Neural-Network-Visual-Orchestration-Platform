@@ -19,6 +19,7 @@
 - [11 Composite Node Startup Queue Fix](./11_Composite_Node_Startup_Queue_Fix.md)
 - [12 Multi-Selection Context Menu Optimization](./12_Multi_Selection_Context_Menu_Optimization.md)
 - [13 Node Detail Panel Merge and Composite Node Config Window Fix](./13_Node_Detail_Panel_Merge_and_Composite_Node_Config_Window_Fix.md)
+- [14 README Rewrite and Archive](./14_README_Rewrite_and_Archive.md)
 
 ---
 
@@ -240,6 +241,19 @@ See [13_Node_Detail_Panel_Merge_and_Composite_Node_Config_Window_Fix.md](./13_No
 | `ui/core/i18n/strings_cn.json` | Added node detail panel translations |
 | `ui/core/i18n/strings_en.json` | Added node detail panel translations |
 | `ui/core/i18n/translation_keys.py` | Added new translation key constants |
+
+| `README.md` | Rewrite: ~1100 lines → ~220 lines, 9-section structure |
+| `README_CN.md` | Rewrite: ~1100 lines → ~220 lines, 9-section structure |
+| `docs/archived/README_v1_archived.md` | New: Archived v1 English README (with archive notice) |
+| `docs/archived/README_CN_v1_archived.md` | New: Archived v1 Chinese README (with archive notice) |
+| `docs/changelogs/cn/2026-07-13/14_README重写与归档.md` | New: This changelog (CN) |
+| `docs/changelogs/en/2026-07-13/14_README_Rewrite_and_Archive.md` | New: This changelog (EN) |
+| `docs/changelogs/cn/2026-07-13/README.md` | Update: Date index adds entry 14 |
+| `docs/changelogs/en/2026-07-13/README.md` | Update: Date index adds entry 14 |
+| `docs/changelogs/cn/README.md` | Update: Summary index details fold adds entry |
+| `docs/changelogs/en/README.md` | Update: Summary index details fold adds entry |
+| `docs/changelogs/cn/INDEX.md` | Update: Date index adds entry |
+| `docs/changelogs/en/INDEX.md` | Update: Date index adds entry |
 
 ---
 

@@ -5,7 +5,7 @@
 
 ---
 <details open>
-<summary><strong>【2026-07-13】V2.0.28 - Composite Node System Enhancement: Context Menu, Topology, Coordinate/Edge, Running Protection, UI, Startup Queue, Rename, Multi-Output, DAG Status</strong></summary>
+<summary><strong>【2026-07-13】V2.0.28 - Composite Node System Enhancement: Context Menu, DAG, Coordinates, Running Protection, UI, Queue, Rename, Multi-Output, DAG Status, README Rewrite</strong></summary>
 
 [View Full Update](./2026-07-13/README.md) | [01_Context_Menu](./2026-07-13/01_Composite_Node_Context_Menu_and_Input_Anchor_Detection.md) | [02_DAG_Fix](./2026-07-13/02_Composite_Node_Collapse_DAG_Topology_Fix.md) | [03_Coordinate_Fix](./2026-07-13/03_Composite_Node_Expand_Coordinate_and_Edge_Fix.md)
 
@@ -20,6 +20,7 @@
 - **Rename Feature**: Context menu option to edit display name
 - **Multi-Output Port Support**: Anchor manager prioritizes `output_ports` configuration
 - **DAG Status Tracking**: Per-node execution status, error info, and duration persisted to `status.json`
+- **README Rewrite & Archive**: ~1100 lines → ~220 lines, 9-section structure, new composite node section, fixed stale references, v1 archived to `docs/archived/`
 
 </details>
 

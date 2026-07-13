@@ -21,6 +21,8 @@ Click on dates below to view detailed updates for that date:
 - **DAG Run Status Tracking**: `DagRunner` records per-node execution status (ok/fail/pending), error info, and duration; writes to `status.json` after execution; parallel node failures also tracked
 - **Node Multi-Selection Fix**: Uses custom selection flag `_is_custom_selected` to bypass Qt's `SingleSelection` mode; normal click clears selection, Ctrl+click toggles selection, blank click cancels all selection
 - **Multi-Selection Context Menu Optimization**: `SelectedNodesList._sync` includes composite nodes; hides "Batch Remove" and "Compress to Composite" when composites are selected; start/stop actions support composite nodes; adds "Clear Selection" menu option
+- **Node Detail Panel Merge and Composite Node Config Window Fix**: Window merge; indentation fix; project path fix; composite restart expand fix; anti-concurrency protection; i18n support; menu optimization
+- **README Rewrite and Archive**: ~1100 lines → ~220 lines, 9-section structure, new composite node section, fixed stale references (`bnos_gui.py` → `launcher.py`), removed BNOS vs Low-Code table, v1 archived to `docs/archived/`
 
 ### [2026-07-12](./2026-07-12/)
 - **Code Standardization Overhaul**: 227-file toolchain setup (Ruff + Pre-commit + EditorConfig + Pylance); eliminated 8 real runtime bugs; unified 4 Logger styles; migrated `print()` to `logger.info()`; added `from __future__ import annotations` to 219 files; eliminated `# type: ignore` 8→0; `os.path` → `pathlib.Path` 691→156 (-77%); dead code removal; all-green ruff/pytest/Pylance verification
