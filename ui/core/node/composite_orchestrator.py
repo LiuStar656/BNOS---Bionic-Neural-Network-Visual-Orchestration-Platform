@@ -469,6 +469,33 @@ def _has_outputs():
         return False
     return any(f.suffix == ".json" for f in OUTPUT_DIR.iterdir())
 
+def _clear_stale_processed_flags():
+    """启动时清除上一轮残留的 _processed 标记，确保重启后能首次处理。"""
+    clusters_path = PROJECT_ROOT / "node_clusters.json"
+    if not clusters_path.exists():
+        return
+    try:
+        clusters = json.loads(clusters_path.read_text(encoding="utf-8"))
+        comp_data = clusters.get("composites", {{}}).get("{comp_id}", {{}})
+        routing = comp_data.get("_port_routing", {{}})
+        input_routes = routing.get("input", {{}})
+    except Exception:
+        return
+    for _port_name, route in input_routes.items():
+        src_path = route.get("source_output_path", "")
+        if not src_path:
+            continue
+        src_file = Path(src_path)
+        if not src_file.exists():
+            continue
+        try:
+            data = json.loads(src_file.read_text(encoding="utf-8"))
+            if data.pop(_PROCESSED_FLAG, None) is not None:
+                src_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+                log(f"已清除旧防重标记: {{src_path}}")
+        except Exception:
+            pass
+
 def main():
     _write_pid()
     log("=" * 50)
@@ -477,6 +504,9 @@ def main():
     log(f"过滤规则: {{MY_FILTER}}")
     log(f"防重标记: {{_PROCESSED_FLAG}}")
     log("=" * 50)
+
+    # ── 启动时清除上一轮残留的 _processed 标记 ──
+    _clear_stale_processed_flags()
 
     global RUNNING
 
@@ -533,7 +563,7 @@ def main():
                         final = dict(leaf_output)
                         final.pop("run_id", None)
                         final.pop("timestamp", None)
-                        final_path = COMP_DIR / "output.json"
+                        final_path = OUTPUT_DIR / "output.json"
                         try:
                             final_path.write_text(
                                 json.dumps(final, ensure_ascii=False, indent=2),

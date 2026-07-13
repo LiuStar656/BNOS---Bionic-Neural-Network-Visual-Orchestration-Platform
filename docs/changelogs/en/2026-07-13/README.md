@@ -20,6 +20,10 @@
 - [12 Multi-Selection Context Menu Optimization](./12_Multi_Selection_Context_Menu_Optimization.md)
 - [13 Node Detail Panel Merge and Composite Node Config Window Fix](./13_Node_Detail_Panel_Merge_and_Composite_Node_Config_Window_Fix.md)
 - [14 README Rewrite and Archive](./14_README_Rewrite_and_Archive.md)
+- [15 State Machine System](./15_State_Machine_System.md)
+- [16 Node Runtime State Machine Integration](./16_Node_Runtime_State_Machine_Integration.md)
+- [17 Composite Lifecycle State Machine Integration](./17_Composite_Lifecycle_State_Machine_Integration.md)
+- [18 Startup Queue Zombie Item Fix](./18_Startup_Queue_Zombie_Item_Fix.md)
 
 ---
 
@@ -211,6 +215,62 @@ See [13_Node_Detail_Panel_Merge_and_Composite_Node_Config_Window_Fix.md](./13_No
 
 ---
 
+## 15 State Machine System
+
+See [15_State_Machine_System.md](./15_State_Machine_System.md).
+
+### Summary
+
+- **State machine base**: Based on QObject + Signal, Transition dataclass with guard/action/wildcard support
+- **Phase 1 NodeRuntimeSM**: 6 states, 14 transitions, unifies 3 contradictory status value sets
+- **Phase 2 CompositeLifecycleSM**: 8 states, 15 transitions, is_active/is_restartable properties
+- **Phase 3 CanvasModeSM**: 6 modes, 14 transitions, mutual exclusion (CONNECTING ↔ PANNING)
+- **Phase 4 EdgeInteractionSM**: 6 states, 8 transitions, is_interacting property
+- **Tests**: 5 files, 52 tests all passing
+- **Location**: `ui/core/state/` independent package, zero business dependencies
+
+---
+
+## 16 Node Runtime State Machine Integration
+
+See [16_Node_Runtime_State_Machine_Integration.md](./16_Node_Runtime_State_Machine_Integration.md).
+
+### Summary
+
+- **Bridge layer**: `node_runtime_bridge.py` provides `ensure_sm` / `transition_state` / `get_state` compatible with `node_info["status"]`
+- **start_node_process**: SM start guard (illegal state rejected immediately) + start/start_ok/start_fail transitions
+- **stop_node_process**: SM stop guard + stop/stop_ok/stop_fail transitions
+- **check_running_processes**: child_resume/child_idle/crash SM events + zombie process handling
+- **detect_running_nodes**: Unified `get_state` read
+
+---
+
+## 17 Composite Lifecycle State Machine Integration
+
+See [17_Composite_Lifecycle_State_Machine_Integration.md](./17_Composite_Lifecycle_State_Machine_Integration.md).
+
+### Summary
+
+- **start_inprocess**: TOCTOU `is_restartable` guard; exception path resource leak fix (log file handle cleanup)
+- **stop_composite**: `is_active` guard + stop_ok/stop_fail transitions
+- **decompress**: decompress/remove_done lifecycle transitions + SM cleanup
+- **is_running**: Delegates to lifecycle SM (`is_active`), with Popen fallback
+
+---
+
+## 18 Startup Queue Zombie Item Fix
+
+See [18_Startup_Queue_Zombie_Item_Fix.md](./18_Startup_Queue_Zombie_Item_Fix.md).
+
+### Summary
+
+- **Root cause**: Completed items in `_on_node_start_complete` never removed from `self._queue`, `enqueue` falsely detected duplicates
+- **Fix**: `_remove_from_queue` called on SUCCESS/FAILED terminal states
+- **Defensive**: `enqueue` duplicate check only considers non-terminal items (excludes SUCCESS/FAILED/CANCELLED)
+- **Effect**: Composite nodes can now restart normally after being stopped
+
+---
+
 ## Modified Files
 
 | File | Change |
@@ -254,6 +314,20 @@ See [13_Node_Detail_Panel_Merge_and_Composite_Node_Config_Window_Fix.md](./13_No
 | `docs/changelogs/en/README.md` | Update: Summary index details fold adds entry |
 | `docs/changelogs/cn/INDEX.md` | Update: Date index adds entry |
 | `docs/changelogs/en/INDEX.md` | Update: Date index adds entry |
+
+| `ui/core/state/__init__.py` | New: exports StateMachine, Transition |
+| `ui/core/state/base.py` | New: state machine base class |
+| `ui/core/state/node_runtime.py` | New: NodeRuntimeSM |
+| `ui/core/state/composite_lifecycle.py` | New: CompositeLifecycleSM |
+| `ui/core/state/canvas_mode.py` | New: CanvasModeSM |
+| `ui/core/state/edge_interaction.py` | New: EdgeInteractionSM |
+| `ui/core/state/node_runtime_bridge.py` | New: bridge compatibility layer |
+| `ui/core/state/tests/test_base.py` | New: 11 tests |
+| `ui/core/state/tests/test_node_runtime.py` | New: 13 tests |
+| `ui/core/state/tests/test_composite_lifecycle.py` | New: 10 tests |
+| `ui/core/state/tests/test_canvas_mode.py` | New: 10 tests |
+| `ui/core/state/tests/test_edge_interaction.py` | New: 8 tests |
+| `ui/core/node/node_startup_queue.py` | `_remove_from_queue` cleanup terminal items; `enqueue` defensive hardening |
 
 ---
 

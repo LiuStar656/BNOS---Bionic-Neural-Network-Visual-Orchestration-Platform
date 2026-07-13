@@ -36,6 +36,7 @@ from ui.core.node.composite_env import (
 )
 from ui.core.node.composite_orchestrator import render_orchestrator_script
 from ui.core.node.language_detector import LanguageDetector
+from ui.core.state.composite_lifecycle import CompositeLifecycleSM
 from ui.core.utils.dialog_utils import themed_message
 
 # ── 与 NodeGroupManager 的绑定规则 ──
@@ -84,6 +85,7 @@ class CompositeNode:
         self._config_path = Path(project_path) / "node_clusters.json"
         self._active_processes: dict[str, subprocess.Popen] = {}
         self._composite_log_files: dict[str, tuple] = {}
+        self._lifecycle: dict[str, CompositeLifecycleSM] = {}
         self.load()
 
     # ── 持久化 ──
@@ -1628,6 +1630,8 @@ class CompositeNode:
             "language": common_lang if common_lang != "Unknown" else "Python",
             "input_filter_rules": input_filter_rules,
         }
+        # 创建生命周期状态机（初始状态: CREATED）
+        self._get_lifecycle(comp_id)
         self.save()
 
         # 创建 composite_nodes/<comp_id>/ 完整目录结构
@@ -1664,6 +1668,10 @@ class CompositeNode:
         comp = self._composites.get(comp_id)
         if not comp:
             return False, t(TK.COMPOSITE_NOT_FOUND)
+
+        # ── 状态机：进入移除流程 ──
+        lc = self._get_lifecycle(comp_id)
+        lc.handle("decompress")
 
         # Auto-collapse if expanded (clean up frame + show composite item)
         if comp.get("_expanded"):
@@ -1707,6 +1715,10 @@ class CompositeNode:
 
         # 清理 composite_nodes/<comp_id>/ (日志存档后删除)
         self._decompress_cleanup(comp_id)
+
+        # ── 状态机：标记已删除 ──
+        lc.handle("remove_done")
+        self._lifecycle.pop(comp_id, None)
 
         return True, t(TK._COMPOSITE_DECOMPRESSED).format(n=len(node_names))
 
@@ -1878,40 +1890,47 @@ class CompositeNode:
 
     def start_inprocess(self, comp_id: str) -> tuple[bool, str]:
         """启动 inprocess 模式复合节点。"""
+        lc = self._get_lifecycle(comp_id)
+
+        # ── 状态机守卫：防止 TOCTOU 重复启动 ──
+        if not lc.is_restartable:
+            return False, t(TK.COMPOSITE_ALREADY_RUNNING) if lc.is_active else t("k_err_unknown")
+        lc.handle("start")
+
         orch_path = self.generate_orchestrator(comp_id)
         virtual_name = f"__composite_{comp_id}"
 
-        # 检查是否已在运行
+        # ── 双重安全检查：_active_processes 是最终防线（状态机 + dict 双重保险）──
         if virtual_name in self._active_processes:
             proc = self._active_processes[virtual_name]
             if proc.poll() is None:
+                lc.handle("start_fail")  # 回退状态
                 return False, t(TK.COMPOSITE_ALREADY_RUNNING)
 
-        # 上游调用方应已执行 check_composite_start 守卫
-
-        # 查找 Python 解释器 — 优先使用复合节点独立 venv
+        # ── Python 解释器 ──
         project_root = self._project_path
         comp_dir = self._comp_venv_dir(comp_id)
         python_exe = get_python_exe(comp_dir) or ""
 
-        # 回退: 项目级 venv
         if not python_exe or not Path(python_exe).exists():
             if os.name == "nt":
                 python_exe = str(Path(project_root) / "venv" / "Scripts" / "python.exe")
             else:
                 python_exe = str(Path(project_root) / "venv" / "bin" / "python3")
-        # 最终回退: 当前 Python
         if not Path(python_exe).exists():
             python_exe = sys.executable
 
-        # 复合节点日志目录 — 使用 composite_nodes/<id>/logs/
+        # ── 日志文件 ──
         log_dir = self._comp_logs_dir(self._project_path, comp_id)
         log_dir.mkdir(parents=True, exist_ok=True)
+        _out_f = None
+        _err_f = None
         try:
             _out_f = open(log_dir / "composite_output.log", "w", encoding="utf-8")
             _err_f = open(log_dir / "composite_error.log", "w", encoding="utf-8")
         except (PermissionError, OSError) as e:
             logger.error("[%s] 无法打开日志文件: %s", comp_id, e)
+            lc.handle("start_fail")
             return False, t(TK._COMPOSITE_LOG_OPEN_FAILED).format(err=str(e))
 
         proc = None
@@ -1924,11 +1943,10 @@ class CompositeNode:
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
             )
             self._active_processes[virtual_name] = proc
-            # 保存文件句柄供 stop 时关闭
             self._composite_log_files[comp_id] = (_out_f, _err_f)
             logger.info("[%s] 复合节点已启动 PID=%d", comp_id, proc.pid)
 
-            # 启动后健康检查 — 检测进程是否立刻 crash
+            # ── 启动后健康检查 ──
             import time
 
             time.sleep(0.3)
@@ -1944,20 +1962,21 @@ class CompositeNode:
                 self._composite_log_files.pop(comp_id, (None, None))
                 _out_f.close()
                 _err_f.close()
+                lc.handle("start_timeout")
                 return False, t(TK._COMPOSITE_CRASH).format(code=ret) + f"\n{stderr_output[:500]}"
 
-            # 写入 PID 文件供 BNOS 检测
-            # 编排器是常驻轮询进程（while True），300ms 后应仍在运行
+            # ── PID 文件 ──
             pid_file = Path(project_root) / f"__composite_{comp_id}.pid"
             with pid_file.open("w") as f:
                 f.write(str(proc.pid))
 
+            lc.handle("start_ok")
             if ret == 0:
-                # 编排器已在 300ms 内正常完成
                 return True, t(TK._COMPOSITE_FINISHED)
             return True, t(TK._COMPOSITE_STARTED).format(pid=proc.pid)
         except Exception as e:
-            # S03: 异常时确保 kill 子进程，防止僵尸进程
+            # ── 异常路径：完整清理（修复之前的资源泄漏）──
+            lc.handle("start_fail")
             if proc is not None and proc.poll() is None:
                 try:
                     proc.kill()
@@ -1965,6 +1984,14 @@ class CompositeNode:
                 except (ProcessLookupError, OSError):
                     pass
             self._active_processes.pop(virtual_name, None)
+            # 清理日志文件句柄
+            log_files = self._composite_log_files.pop(comp_id, (None, None))
+            for fh in log_files:
+                if fh is not None:
+                    try:
+                        fh.close()
+                    except OSError:
+                        pass
             logger.error("[%s] 启动失败: %s", comp_id, e)
             return False, str(e)
 
@@ -1984,6 +2011,13 @@ class CompositeNode:
         被重建导致 _active_processes 为空），则从 PID 文件读取 PID 后强制 kill。
         Windows 上使用 taskkill /F /T 确保完整终止进程树。
         """
+        lc = self._get_lifecycle(comp_id)
+
+        # ── 状态机守卫：只在活跃状态时允许停止 ──
+        if not lc.is_active:
+            return False, t("k_err_not_running")
+        lc.handle("stop")
+
         virtual_name = f"__composite_{comp_id}"
         proc = self._active_processes.get(virtual_name)
         killed = False
@@ -2005,7 +2039,6 @@ class CompositeNode:
             logger.info("[%s] 复合节点已停止 (via Popen)", comp_id)
 
         # ── 路径 2: 兜底 — 从 PID 文件读取 PID 并强制终止 ──
-        # 场景: _composite_manager 被重建导致 _active_processes 丢失
         pid_paths = [
             Path(self._project_path) / f"__composite_{comp_id}.pid",
             self._comp_config_dir(self._project_path, comp_id) / ".pid",
@@ -2030,24 +2063,24 @@ class CompositeNode:
                 except OSError:
                     pass
 
-        # 清理 PID 文件 — 确保重启时 check_composite_start 不会误判
+        # 清理 PID 文件
         for pid_file in pid_paths:
             try:
                 pid_file.unlink(missing_ok=True)
             except OSError:
                 pass
-        # 清理子节点的 .pid 文件
-        sub_nodes = self.get_nodes(comp_id)
-        for n in sub_nodes:
-            sub_pid = Path(self._project_path) / "nodes" / n / ".pid"
-            try:
-                sub_pid.unlink(missing_ok=True)
-            except OSError:
-                pass
 
-        if not killed:
-            logger.warning("[%s] stop_composite: 未找到运行中的进程", comp_id)
-        return True, t(TK.COMPOSITE_STOPPED)
+        # ── 状态机：根据结果设置终态 ──
+        if killed:
+            lc.handle("stop_ok")
+        else:
+            lc.handle("stop_fail")
+
+        if killed:
+            msg = t(TK.COMPOSITE_STOPPED)
+        else:
+            msg = t(TK.COMPOSITE_STOP_FAILED)
+        return killed, msg
 
     @staticmethod
     def _kill_pid_force(pid: int) -> bool:
@@ -2136,8 +2169,18 @@ class CompositeNode:
         err_log = p / "composite_error.log"
         return [f for f in (out_log, err_log) if f.exists()]
 
+    def _get_lifecycle(self, comp_id: str) -> CompositeLifecycleSM:
+        """获取或创建复合节点生命周期状态机。"""
+        if comp_id not in self._lifecycle:
+            self._lifecycle[comp_id] = CompositeLifecycleSM(comp_id)
+        return self._lifecycle[comp_id]
+
     def is_running(self, comp_id: str) -> bool:
-        """检查复合节点是否在运行。"""
+        """检查复合节点是否在运行（委托生命周期状态机）。"""
+        lc = self._lifecycle.get(comp_id)
+        if lc is not None:
+            return lc.is_active
+        # 兜底：状态机尚未初始化时，回退到原来的检查方式
         virtual_name = f"__composite_{comp_id}"
         proc = self._active_processes.get(virtual_name)
         return proc is not None and proc.poll() is None
@@ -2207,7 +2250,10 @@ class CompositeNode:
             - allowed=False: 有子节点独立运行中
             - conflicts: [(node_name, pid), ...]
         """
-        import psutil
+        try:
+            import psutil
+        except ImportError:
+            psutil = None
 
         node_names = self.get_nodes(comp_id)
         conflicts = []
@@ -2218,7 +2264,7 @@ class CompositeNode:
             if pid_file.exists():
                 try:
                     pid = int(pid_file.read_text().strip())
-                    if psutil.pid_exists(pid):
+                    if psutil and psutil.pid_exists(pid):
                         conflicts.append((n, pid))
                 except (OSError, ValueError):
                     pass
@@ -2233,7 +2279,11 @@ class CompositeNode:
 
     def stop_conflicting_subnodes(self, conflicts: list[tuple[str, int]]):
         """停止与复合节点冲突的独立运行子节点。"""
-        import psutil
+        try:
+            import psutil
+        except ImportError:
+            logger.warning("psutil 不可用，无法停止冲突子节点")
+            return
 
         for name, pid in conflicts:
             try:

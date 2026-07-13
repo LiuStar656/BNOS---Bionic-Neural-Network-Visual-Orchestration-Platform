@@ -20,6 +20,10 @@
 - [12 多选右键菜单优化与复合节点支持](./12_多选右键菜单优化与复合节点支持.md)
 - [13 节点详情面板合并与复合节点配置窗口修复](./13_节点详情面板合并与复合节点配置窗口修复.md)
 - [14 README 重写与归档](./14_README重写与归档.md)
+- [15 状态机系统](./15_状态机系统.md)
+- [16 节点运行时状态机集成](./16_节点运行时状态机集成.md)
+- [17 复合节点生命周期状态机集成](./17_复合节点生命周期状态机集成.md)
+- [18 启动队列僵尸条目修复](./18_启动队列僵尸条目修复.md)
 
 ---
 
@@ -227,6 +231,62 @@
 
 ---
 
+## 15 状态机系统
+
+详见 [15_状态机系统.md](./15_状态机系统.md)。
+
+### 摘要
+
+- **状态机基类**：基于 QObject + Signal，Transition 数据类支持 guard/action/wildcard
+- **Phase 1 NodeRuntimeSM**：6 状态 14 转换，统一 3 套矛盾的状态值
+- **Phase 2 CompositeLifecycleSM**：8 状态 15 转换，is_active/is_restartable 属性
+- **Phase 3 CanvasModeSM**：6 模式 14 转换，互斥规则（CONNECTING ↔ PANNING）
+- **Phase 4 EdgeInteractionSM**：6 状态 8 转换，is_interacting 属性
+- **测试**：5 文件 52 项测试全部通过
+- **位置**：`ui/core/state/` 独立包，零业务依赖
+
+---
+
+## 16 节点运行时状态机集成
+
+详见 [16_节点运行时状态机集成.md](./16_节点运行时状态机集成.md)。
+
+### 摘要
+
+- **桥接层**：`node_runtime_bridge.py` 提供 `ensure_sm` / `transition_state` / `get_state` 兼容 `node_info["status"]`
+- **start_node_process**：SM 启动守卫（非法状态直接拒绝）+ start/start_ok/start_fail 转换
+- **stop_node_process**：SM 停止守卫 + stop/stop_ok/stop_fail 转换
+- **check_running_processes**：child_resume/child_idle/crash SM 事件 + 僵尸进程处理
+- **detect_running_nodes**：统一 `get_state` 读取
+
+---
+
+## 17 复合节点生命周期状态机集成
+
+详见 [17_复合节点生命周期状态机集成.md](./17_复合节点生命周期状态机集成.md)。
+
+### 摘要
+
+- **start_inprocess**：TOCTOU `is_restartable` 守卫；异常路径资源泄漏修复（日志文件句柄清理）
+- **stop_composite**：`is_active` 守卫 + stop_ok/stop_fail 转换
+- **decompress**：decompress/remove_done 生命周期转换 + SM 清理
+- **is_running**：委托生命周期 SM（`is_active`），含 Popen 兜底
+
+---
+
+## 18 启动队列僵尸条目修复
+
+详见 [18_启动队列僵尸条目修复.md](./18_启动队列僵尸条目修复.md)。
+
+### 摘要
+
+- **根因**：`_on_node_start_complete` 成功后未从 `self._queue` 移除条目，`enqueue` 误判重复
+- **修复**：SUCCESS/FAILED 后调用 `_remove_from_queue` 清理
+- **防御**：`enqueue` 重复检查只考虑非终态（排除 SUCCESS/FAILED/CANCELLED）
+- **效果**：复合节点停止后可正常再次启动
+
+---
+
 ## 修改文件清单
 
 | 文件 | 改动 |
@@ -269,6 +329,20 @@
 | `docs/changelogs/cn/README.md` | 更新：总索引 details 折叠新增条目 |
 | `docs/changelogs/en/README.md` | 更新：总索引 details 折叠新增条目 |
 | `docs/changelogs/cn/INDEX.md` | 更新：日期索引新增条目 |
+
+| `ui/core/state/__init__.py` | 新增：导出 StateMachine, Transition |
+| `ui/core/state/base.py` | 新增：状态机基类 |
+| `ui/core/state/node_runtime.py` | 新增：NodeRuntimeSM |
+| `ui/core/state/composite_lifecycle.py` | 新增：CompositeLifecycleSM |
+| `ui/core/state/canvas_mode.py` | 新增：CanvasModeSM |
+| `ui/core/state/edge_interaction.py` | 新增：EdgeInteractionSM |
+| `ui/core/state/node_runtime_bridge.py` | 新增：桥接兼容层 |
+| `ui/core/state/tests/test_base.py` | 新增：11 项测试 |
+| `ui/core/state/tests/test_node_runtime.py` | 新增：13 项测试 |
+| `ui/core/state/tests/test_composite_lifecycle.py` | 新增：10 项测试 |
+| `ui/core/state/tests/test_canvas_mode.py` | 新增：10 项测试 |
+| `ui/core/state/tests/test_edge_interaction.py` | 新增：8 项测试 |
+| `ui/core/node/node_startup_queue.py` | `_remove_from_queue` 清理终态条目；`enqueue` 防御性加固 |
 | `docs/changelogs/en/INDEX.md` | 更新：日期索引新增条目 |
 
 ---

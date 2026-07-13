@@ -5,9 +5,9 @@
 
 ---
 <details open>
-<summary><strong>【2026-07-13】V2.0.28 - Composite Node System Enhancement: Context Menu, DAG, Coordinates, Running Protection, UI, Queue, Rename, Multi-Output, DAG Status, README Rewrite</strong></summary>
+<summary><strong>【2026-07-13】V2.0.28 - Composite Node System Enhancement: Context Menu, DAG, Coordinates, Running Protection, UI, Queue, Rename, Multi-Output, DAG Status, README Rewrite, State Machine System, Startup Queue Fix</strong></summary>
 
-[View Full Update](./2026-07-13/README.md) | [01_Context_Menu](./2026-07-13/01_Composite_Node_Context_Menu_and_Input_Anchor_Detection.md) | [02_DAG_Fix](./2026-07-13/02_Composite_Node_Collapse_DAG_Topology_Fix.md) | [03_Coordinate_Fix](./2026-07-13/03_Composite_Node_Expand_Coordinate_and_Edge_Fix.md)
+[View Full Update](./2026-07-13/README.md) | [01_Context_Menu](./2026-07-13/01_Composite_Node_Context_Menu_and_Input_Anchor_Detection.md) | [02_DAG_Fix](./2026-07-13/02_Composite_Node_Collapse_DAG_Topology_Fix.md) | [03_Coordinate_Fix](./2026-07-13/03_Composite_Node_Expand_Coordinate_and_Edge_Fix.md) | [15_State_Machine](./2026-07-13/15_State_Machine_System.md)
 
 **Main Updates:**
 - **Context Menu Optimization**: Start/stop mutual exclusion, decompose grayed when running, expand/collapse running state double-check
@@ -21,6 +21,9 @@
 - **Multi-Output Port Support**: Anchor manager prioritizes `output_ports` configuration
 - **DAG Status Tracking**: Per-node execution status, error info, and duration persisted to `status.json`
 - **README Rewrite & Archive**: ~1100 lines → ~220 lines, 9-section structure, new composite node section, fixed stale references, v1 archived to `docs/archived/`
+- **State Machine System**: `ui/core/state/` independent package, 4 Phases with 52 tests all passing, covering node runtime, composite lifecycle, canvas mode, edge interaction
+- **State Machine Integration**: NodeRuntimeSM integrated into node_process.py; CompositeLifecycleSM integrated into composite_node.py; TOCTOU protection + resource leak fixes
+- **Startup Queue Fix**: Clean up terminal zombie items, composite nodes can now restart normally after being stopped
 
 </details>
 

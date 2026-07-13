@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path
 
 from ui.core.logger import logger
+from ui.core.state.node_runtime_bridge import get_state, transition_state
 
 # 单个日志文件最大字节数 (5MB)，超过后截断保留尾部
 _MAX_LOG_BYTES = 5 * 1024 * 1024
@@ -378,7 +379,7 @@ def check_node_not_running(node_name: str, nodes_data: dict) -> tuple[bool, str]
         (False, msg) — 运行中，msg 为提示信息
     """
     node_info = nodes_data.get(node_name, {})
-    status = node_info.get("status", "unknown")
+    status = get_state(node_info)
     if status in ("running", "starting"):
         return False, f"节点「{node_name}」正在运行中，请先停止后再操作"
     return True, ""
@@ -396,7 +397,12 @@ def start_node_process(node_info):
     logger.info("开始启动节点: %s", node_name)
     logger.debug("节点路径: %s", node_path)
 
-    # 0. 检查目录权限
+    # 0. 状态机：STOPPED/CRASHED → STARTING
+    if not transition_state(node_info, "start"):
+        logger.warning("节点 %s 当前状态 %s 不允许启动", node_name, get_state(node_info))
+        return False, f"节点「{node_name}」当前状态不允许启动"
+
+    # 0.1 检查目录权限
     perm_valid, perm_error = _check_directory_permissions(node_path)
     if not perm_valid:
         logger.error("节点目录权限检查失败: %s", perm_error)
@@ -483,6 +489,7 @@ def start_node_process(node_info):
             logger.error(error_msg)
             out_fp.close()
             err_fp.close()
+            transition_state(node_info, "start_fail")
             return False, error_msg
 
         # 子进程有自己独立的句柄副本，父进程可立即关闭
@@ -490,7 +497,7 @@ def start_node_process(node_info):
         err_fp.close()
 
         node_info["process"] = process
-        node_info["status"] = "running"
+        transition_state(node_info, "start_ok")
         _write_pid(node_path, process.pid)
         logger.info("节点已启动: %s PID=%d", node_name, process.pid)
         return True, None
@@ -503,6 +510,7 @@ def start_node_process(node_info):
             pass
         error_msg = f"启动异常: {str(e)}"
         logger.error(error_msg)
+        transition_state(node_info, "start_fail")
         return False, error_msg
 
 
@@ -517,6 +525,11 @@ def stop_node_process(node_info, force=False):
     """
     node_path = node_info["path"]
     node_name = Path(node_path).name
+
+    # 状态机：RUNNING/IDLE → STOPPING
+    if not transition_state(node_info, "stop"):
+        logger.warning("节点 %s 当前状态 %s 不允许停止", node_name, get_state(node_info))
+        return False, f"节点「{node_name}」当前状态不允许停止"
 
     process = node_info.get("process")
     pid = process.pid if process else _read_pid(node_path)
@@ -549,13 +562,14 @@ def stop_node_process(node_info, force=False):
             remaining = _find_node_processes(node_path)
             if remaining:
                 logger.error("兜底清理仍失败，%s 仍有 %d 个进程存活", node_name, len(remaining))
+                transition_state(node_info, "stop_fail")
                 return False, f"无法终止进程 (剩余 {len(remaining)} 个)"
         else:
             logger.debug("未发现 %s 的残留进程", node_name)
 
     # 确认死亡后才改状态
     node_info["process"] = None
-    node_info["status"] = "stopped"
+    transition_state(node_info, "stop_ok")
     _delete_pid(node_path)
     return True, None
 
@@ -587,7 +601,7 @@ def detect_running_nodes(nodes_data):
     """
     detected = []
     for name, info in nodes_data.items():
-        if info.get("status") == "running":
+        if get_state(info) == "running":
             continue  # 已标记运行，由 check_running_processes 验证
 
         node_path = info["path"]
@@ -595,7 +609,7 @@ def detect_running_nodes(nodes_data):
         # 优先通过 PID 文件检测
         pid = _read_pid(node_path)
         if pid is not None and _is_pid_alive(pid):
-            info["status"] = "running"
+            info["status"] = "running"  # 启动时发现后台进程，直接设状态（SM 在首次事件时重建）
             detected.append((name, pid))
             logger.info("检测到后台运行节点(PID文件): %s (PID: %d)", name, pid)
             continue
@@ -603,7 +617,7 @@ def detect_running_nodes(nodes_data):
         # 兜底：PID 文件不存在或 PID 已死，通过进程扫描检测
         orphan_pids = _find_node_processes(node_path)
         if orphan_pids:
-            info["status"] = "running"
+            info["status"] = "running"  # 启动时发现后台进程，直接设状态（SM 在首次事件时重建）
             detected.append((name, orphan_pids[0]))
             # 写入 PID 文件以便后续管理
             _write_pid(node_path, orphan_pids[0])
@@ -698,10 +712,11 @@ def check_running_processes(nodes_data):
       - 主路径仅 OpenProcess 调用，避免每轮 PowerShell 全量扫描
       - stopped 节点不触发昂贵的进程扫描
       - 僵尸进程（stopped 但 PID 存活）能被及时发现并修正
+      - 状态机驱动: child_resume / child_idle / crash 事件
     """
     dead_nodes = []
     for name, info in nodes_data.items():
-        current_status = info.get("status", "stopped")
+        current_status = get_state(info)
         node_path = info["path"]
 
         # 获取最优 PID 来源
@@ -711,10 +726,14 @@ def check_running_processes(nodes_data):
         # ── running / idle / stopping：PID 优先 ──
         if current_status in ("running", "idle", "stopping"):
             if pid and _is_pid_alive(pid):
-                new_status = "running" if _listener_has_active_child(pid) else "idle"
-                if current_status != new_status:
-                    info["status"] = new_status
-                    dead_nodes.append((name, None, new_status))
+                if _listener_has_active_child(pid):
+                    if current_status != "running":
+                        transition_state(info, "child_resume")
+                        dead_nodes.append((name, None, "running"))
+                else:
+                    if current_status != "idle":
+                        transition_state(info, "child_idle")
+                        dead_nodes.append((name, None, "idle"))
                 _write_pid(node_path, pid)
                 continue
 
@@ -723,14 +742,16 @@ def check_running_processes(nodes_data):
             if actual_pids:
                 actual_pid = actual_pids[0]
                 _write_pid(node_path, actual_pid)
-                new_status = "running" if _listener_has_active_child(actual_pid) else "idle"
-                if current_status != new_status:
-                    info["status"] = new_status
-                dead_nodes.append((name, None, new_status))
+                if _listener_has_active_child(actual_pid):
+                    transition_state(info, "child_resume")
+                    dead_nodes.append((name, None, "running"))
+                else:
+                    transition_state(info, "child_idle")
+                    dead_nodes.append((name, None, "idle"))
             else:
-                # 确认进程已退出
+                # 确认进程已退出 → 崩溃
                 info["process"] = None
-                info["status"] = "stopped"
+                transition_state(info, "crash")
                 _delete_pid(node_path)
                 dead_nodes.append((name, 0, "stopped"))
                 logger.info("节点 %s 进程已退出", name)
@@ -738,10 +759,12 @@ def check_running_processes(nodes_data):
         # ── stopped：仅 PID 文件检测僵尸（不触发进程扫描）──
         elif current_status == "stopped":
             if pid and _is_pid_alive(pid):
-                # 僵尸！状态是 stopped 但 PID 仍存活
+                # 僵尸！状态机与实际情况不同步，直接修正 dict 并重置 SM
                 new_status = "running" if _listener_has_active_child(pid) else "idle"
                 logger.warning("检测到僵尸进程: %s PID=%d，状态从 %s 修正为 %s", name, pid, current_status, new_status)
                 info["status"] = new_status
+                # 重置状态机以匹配实际状态（下次 start/stop 事件会通过 ensure_sm 重建）
+                info.pop("_sm", None)
                 dead_nodes.append((name, None, new_status))
             # 无 PID 文件且 status=stopped → 跳过（无扫描价值）
 

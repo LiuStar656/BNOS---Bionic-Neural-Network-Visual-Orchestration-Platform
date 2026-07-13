@@ -23,6 +23,10 @@ Click on dates below to view detailed updates for that date:
 - **Multi-Selection Context Menu Optimization**: `SelectedNodesList._sync` includes composite nodes; hides "Batch Remove" and "Compress to Composite" when composites are selected; start/stop actions support composite nodes; adds "Clear Selection" menu option
 - **Node Detail Panel Merge and Composite Node Config Window Fix**: Window merge; indentation fix; project path fix; composite restart expand fix; anti-concurrency protection; i18n support; menu optimization
 - **README Rewrite and Archive**: ~1100 lines → ~220 lines, 9-section structure, new composite node section, fixed stale references (`bnos_gui.py` → `launcher.py`), removed BNOS vs Low-Code table, v1 archived to `docs/archived/`
+- **State Machine System**: `ui/core/state/` independent package, QObject + Signal based, 4 Phases with 52 tests all passing, covering node runtime, composite lifecycle, canvas mode, edge interaction
+- **Node Runtime State Machine Integration**: NodeRuntimeSM integrated into node_process.py via bridge layer; unifies 3 contradictory status value sets; start/stop/crash event transitions
+- **Composite Lifecycle State Machine Integration**: CompositeLifecycleSM integrated into composite_node.py; TOCTOU guard + resource leak fix (log file handle cleanup)
+- **Startup Queue Zombie Item Fix**: `_remove_from_queue` cleans up terminal items, `enqueue` defensive check excludes terminal states, composite nodes can restart normally after being stopped
 
 ### [2026-07-12](./2026-07-12/)
 - **Code Standardization Overhaul**: 227-file toolchain setup (Ruff + Pre-commit + EditorConfig + Pylance); eliminated 8 real runtime bugs; unified 4 Logger styles; migrated `print()` to `logger.info()`; added `from __future__ import annotations` to 219 files; eliminated `# type: ignore` 8→0; `os.path` → `pathlib.Path` 691→156 (-77%); dead code removal; all-green ruff/pytest/Pylance verification

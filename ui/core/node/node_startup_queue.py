@@ -73,7 +73,13 @@ class NodeStartupQueueManager:
         self._canvas_layout = canvas_layout
 
     def enqueue(self, node_name: str, priority: int = 0, dependencies: list[str] = None) -> bool:
-        if node_name in [item.node_name for item in self._queue]:
+        # 检查是否已在队列中（仅检查非终态项；终态项由 _remove_from_queue 及时清理）
+        active_names = {
+            item.node_name
+            for item in self._queue
+            if item.status not in (QueueStatus.SUCCESS, QueueStatus.FAILED, QueueStatus.CANCELLED)
+        }
+        if node_name in active_names:
             return False
 
         item = QueueItem(node_name, priority)
@@ -368,6 +374,7 @@ class NodeStartupQueueManager:
             item.complete_time = time.time()
             logger.info(f"节点启动成功: {item.node_name}")
             self._notify("node_started", node_name=item.node_name)
+            self._remove_from_queue(item)
             self._schedule_next_process(delay=100)
         else:
             item.error_message = error
@@ -382,8 +389,16 @@ class NodeStartupQueueManager:
                 item.status = QueueStatus.FAILED
                 logger.error(f"节点启动失败（已达最大重试次数）: {item.node_name} - {error}")
                 self._notify("node_failed", node_name=item.node_name, error=error)
+                self._remove_from_queue(item)
 
             self._schedule_next_process()
+
+    def _remove_from_queue(self, item: QueueItem):
+        """从队列中移除已完成/失败的项，防止 enqueue 误判重复。"""
+        try:
+            self._queue.remove(item)
+        except ValueError:
+            pass
 
     def _handle_dependency_failure(self, failed_node):
         pass

@@ -23,6 +23,10 @@
 - **多选右键菜单优化与复合节点支持**：`SelectedNodesList._sync` 包含复合节点；选中包含复合节点时隐藏"批量移除"和"压缩为复合节点"选项；启动/停止动作支持复合节点；新增"清除选择"菜单选项
 - **节点详情面板合并与复合节点配置窗口修复**：窗口合并；修复缩进错误和项目路径属性名错误；复合节点重启后展开修复；防错保护；国际化支持；菜单优化
 - **README 重写与归档**：~1100 行 → ~220 行，9 章节架构，新增复合节点专题，修正过时引用（`bnos_gui.py` → `launcher.py`），删除 BNOS vs Low-Code 长表，旧版归档到 `docs/archived/`
+- **状态机系统**：`ui/core/state/` 独立包，基于 QObject + Signal，4 个 Phase 共 52 项测试全部通过，覆盖节点运行时、复合生命周期、画布模式、边交互
+- **节点运行时状态机集成**：NodeRuntimeSM 通过桥接层接入 node_process.py；统一 3 套矛盾状态值；启动/停止/崩溃事件转换
+- **复合节点生命周期状态机集成**：CompositeLifecycleSM 接入 composite_node.py；TOCTOU 守卫 + 资源泄漏修复（日志文件句柄清理）
+- **启动队列僵尸条目修复**：`_remove_from_queue` 清理终态条目，`enqueue` 防御性检查排除终态，复合节点停止后可正常再次启动
 
 ### [2026-07-12](./2026-07-12/)
 - **代码规范统一化整改**：全项目 227 文件工具链引入（Ruff + Pre-commit + EditorConfig + Pylance）；消除 8 个真实运行时 Bug；Logger 4 种写法统一；`print()` 迁移 `logger.info()`；219 文件新增 `from __future__ import annotations`；`# type: ignore` 清零；`os.path` → `pathlib.Path` 691→156（-77%）；死代码清理；最终 ruff/pytest/Pylance 全绿
