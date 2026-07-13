@@ -71,7 +71,7 @@ def auto_repair_build(node_dir: str) -> bool:
     在节点启动时调用，检测二进制文件是否缺失/损坏，自动重建
     """
     # 读取配置获取节点名称
-    config_path = os.path.join(node_dir, "config.json")
+    config_path = os.path.join(node_dir, "node_config.json")
     if not os.path.exists(config_path):
         return False
 
@@ -158,9 +158,9 @@ fn main() {
 
     // 尝试在多个位置查找配置文件
     let config_paths = vec![
-        node_dir.join("config.json"),                              // 与可执行文件同目录 (target/release/)
-        node_dir.parent().unwrap_or(node_dir).join("config.json"), // 父目录 (target/)
-        node_dir.parent().and_then(|p| p.parent()).unwrap_or(node_dir).join("config.json"), // 祖父目录 (项目根目录)
+        node_dir.join("node_config.json"),                              // 与可执行文件同目录 (target/release/)
+        node_dir.parent().unwrap_or(node_dir).join("node_config.json"), // 父目录 (target/)
+        node_dir.parent().and_then(|p| p.parent()).unwrap_or(node_dir).join("node_config.json"), // 祖父目录 (项目根目录)
     ];
 
     let mut config_str = None;
@@ -359,9 +359,9 @@ fn read_config() -> serde_json::Value {
 
     // 尝试在多个位置查找配置文件
     let config_paths = vec![
-        node_dir.join("config.json"),                              // 与可执行文件同目录 (target/release/)
-        node_dir.parent().unwrap_or(node_dir).join("config.json"), // 父目录 (target/)
-        node_dir.parent().and_then(|p| p.parent()).unwrap_or(node_dir).join("config.json"), // 祖父目录 (项目根目录)
+        node_dir.join("node_config.json"),                              // 与可执行文件同目录 (target/release/)
+        node_dir.parent().unwrap_or(node_dir).join("node_config.json"), // 父目录 (target/)
+        node_dir.parent().and_then(|p| p.parent()).unwrap_or(node_dir).join("node_config.json"), // 祖父目录 (项目根目录)
     ];
 
     for config_path in &config_paths {
@@ -580,25 +580,8 @@ impl OutputPacket {
 """
 
 
-def create_config_json(node_name: str) -> str:
-    """生成 config.json 文件内容（向后兼容）"""
-    config = {
-        "node_name": f"node_rust_{node_name}",
-        "listen_upper_file": "../data/upper_data.json",
-        "output_file": "./output.json",
-        "filter": {},
-        "output_type": "",
-        "parameters": [],
-        "input_ports": [],
-        "output_ports": [],
-        "port_mappings": {},
-        "resource_limit": {"memory_mb": 1024, "cpu_percent": 100},
-    }
-    return json.dumps(config, indent=2, ensure_ascii=False)
-
-
-def create_unified_config_json(node_name: str) -> str:
-    """生成统一的 node_config.json 文件内容（新格式）"""
+def create_node_config_json(node_name: str) -> str:
+    """生成 node_config.json 文件内容"""
     config = {
         "node_name": f"node_rust_{node_name}",
         "entry": "listener.rs",
@@ -792,7 +775,7 @@ BNOS (Bionic Neural Network Operating System) Rust 节点
 - **高性能**: 基于 Rust 语言，比 Python 快 10-100 倍
 - **内存安全**: 编译器保证内存安全，无数据竞争
 - **自愈能力**: 自动检测环境并修复缺失的编译产物
-- **灵活配置**: 通过 config.json 进行配置
+- **灵活配置**: 通过 node_config.json 进行配置
 - **持续监听**: 自动监控数据文件变化并处理
 
 ## 项目结构
@@ -804,7 +787,7 @@ BNOS (Bionic Neural Network Operating System) Rust 节点
 │   ├── listener.rs      # 监听器和自愈逻辑
 │   └── packet.rs        # 数据包定义
 ├── Cargo.toml           # Rust 项目配置
-├── config.json          # 节点配置
+├── node_config.json     # 节点配置
 ├── start.bat            # Windows 启动脚本
 ├── start.sh             # Linux/macOS 启动脚本
 ├── .gitignore           # Git 忽略配置
@@ -857,7 +840,7 @@ chmod +x start.sh
 
 ## 配置说明
 
-编辑 `config.json` 文件：
+编辑 `node_config.json` 文件：
 
 ```json
 {{
@@ -915,7 +898,7 @@ cargo build
 
 ### 自定义过滤器
 
-在 `config.json` 中设置过滤规则：
+在 `node_config.json` 中设置过滤规则：
 
 ```json
 {{
@@ -1020,8 +1003,7 @@ def generate_node(node_name: str, output_dir: str = None):
         "src/main.rs": create_main_rs(node_name),
         "src/listener.rs": create_listener_rs(node_name),
         "src/packet.rs": create_packet_rs(),
-        "config.json": create_config_json(node_name),  # 向后兼容
-        "node_config.json": create_unified_config_json(node_name),  # 新格式
+        "node_config.json": create_node_config_json(node_name),
         "start.bat": create_start_bat(node_name),
         "start.sh": create_start_sh(node_name),
         ".gitignore": create_gitignore(),

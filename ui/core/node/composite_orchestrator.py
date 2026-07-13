@@ -4,7 +4,7 @@ ui/core/composite_orchestrator.py
 
 生成独立的 Python 脚本（orchestrator.py），采用 listener.py 相同的轮询+防重模式：
 - while True 轮询 _port_routing.input 上游文件
-- 通过 input_filter_rules 做数据类型过滤（等同入口节点 config.json 规则）
+- 通过 input_filter_rules 做数据类型过滤（等同入口节点 node_config.json 规则）
 - _processed_{comp_id} 防重标记写入上游文件
 - 从 pipeline.json 读取 DAG 拓扑，拓扑顺序下串联执行子节点
 """

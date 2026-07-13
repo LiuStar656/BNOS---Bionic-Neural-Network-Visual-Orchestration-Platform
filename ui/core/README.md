@@ -22,7 +22,7 @@ ui/core/
 ├── node_creation_worker.py # 节点创建工作线程（不阻塞 GUI）
 ├── external_node_manager.py # 外部节点管理（挂载/卸载）
 ├── node_registry.py       # 节点注册表（已挂载节点索引）
-├── connection_inferrer.py # 连接推断器（从 config.json 自动推断连线）
+├── connection_inferrer.py # 连接推断器（从 node_config.json 自动推断连线）
 ├── node_config_parser.py  # 节点配置解析器（ParameterDef/InputPortDef）
 ├── json_node_starter.py   # JSON 节点启动器（支持 venv）
 ├── packager.py            # 项目打包/导出
@@ -361,7 +361,7 @@ recent = project_manager.get_recent_projects()
 
 ## 🔄 ConnectionInferrer（连接推断）
 
-根据节点 config.json 中的 `listen_upper_file` 和 `port_mappings`，自动推断节点之间的连线。
+根据节点 node_config.json 中的 `listen_upper_file` 和 `port_mappings`，自动推断节点之间的连线。
 
 ```python
 inferrer = ConnectionInferrer(project_path, parent_window.nodes_data)
@@ -410,8 +410,8 @@ packager.import_project(bnos_path, target_dir)
 
 1. **所有 UI 操作必须在主线程**：后台线程（如 PollingManager）需要更新 UI 时，使用信号/槽或 `QMetaObject.invokeMethod`
 2. **节点进程不阻塞 GUI**：`node_process.py` 使用 QProcess，start/stop 均为异步
-3. **config.json 是权威数据源**：所有配置修改必须写回 `nodes/<name>/config.json`，画布和面板都是"视图"
-4. **canvas_layout.json 是布局快照**：只记录节点位置、连线关系，不包含业务数据（业务数据在 config.json）
+3. **node_config.json 是权威数据源**：所有配置修改必须写回 `nodes/<name>/node_config.json`，画布和面板都是"视图"
+4. **canvas_layout.json 是布局快照**：只记录节点位置、连线关系，不包含业务数据（业务数据在 node_config.json）
 5. **Action 系统是单向数据流**：菜单 → Action.execute(context) → 事件总线 → 各模块响应，禁止在 Action 中直接修改其他模块的内部状态
 
 ---

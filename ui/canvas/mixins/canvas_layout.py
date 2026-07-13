@@ -390,7 +390,7 @@ class CanvasLayout:
             # ---- 双向绑定校验 ----
             self._validate_edge_anchor_binding()
 
-            # ---- config.json 兜底校验 ----
+            # ---- node_config.json 兜底校验 ----
             if self.canvas.parent_window and self.canvas.parent_window.nodes_data:
                 try:
                     inferrer = ConnectionInferrer(project_path, self.canvas.parent_window.nodes_data)

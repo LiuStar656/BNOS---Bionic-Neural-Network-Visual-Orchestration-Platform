@@ -175,7 +175,7 @@ class NodeManager:
 
     def clear_canvas(self):
         """清空画布"""
-        # 移除所有连线（走 remove_edge 以清理 config.json 中的 port_mappings / listen_upper_file）
+        # 移除所有连线（走 remove_edge 以清理 node_config.json 中的 port_mappings / listen_upper_file）
         for edge in self.canvas.edges[:]:
             self.canvas.remove_edge(edge)
 

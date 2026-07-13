@@ -1,4 +1,4 @@
-  # BNOS Console — 仿生神经网络可视化编排平台
+﻿  # BNOS Console — 仿生神经网络可视化编排平台
 
   🌍 **语言选择**: [English](README.md) | **中文**
 
@@ -99,7 +99,7 @@
   - **注意力过滤系统**：节点如何使用注意力规则过滤和处理传入数据
   - **虚拟环境隔离**：每节点独立的环境管理和依赖隔离策略
   - **进程生命周期管理**：节点启动、监控、关闭和错误恢复机制
-  - **配置结构详解**：config.json 各字段的详细说明及其作用
+  - **配置结构详解**：node_config.json 各字段的详细说明及其作用
 
   📚 **[查看节点技术文档 →](https://github.com/LiuStar656/Bionic-Neural-Network-Operating-System)**
 
@@ -168,7 +168,7 @@
 
   - **方形节点**（默认）：标准矩形样式，带完整锚点、展开按钮、状态指示灯
   - **圆形节点**：紧凑圆形样式，三层 z 轴架构（指示灯>输入锚点>输出锚点），文字下方左对齐
-  - **详细版节点**（ComfyUI 风格）：在画布上直接渲染参数编辑控件，支持 11 种参数类型（string/text/password/int/float/bool/enum/file/directory/color/range），参数修改即时写回 `config.json`
+  - **详细版节点**（ComfyUI 风格）：在画布上直接渲染参数编辑控件，支持 11 种参数类型（string/text/password/int/float/bool/enum/file/directory/color/range），参数修改即时写回 `node_config.json`
   - **样式持久化**：每个节点的样式自动保存到 `canvas_layout.json`，重启后完整恢复
   - **选中环**：圆形节点选中时显示浮动选中环（z=10），不遮挡节点本体
   - **尺寸精确还原**：详细版 ↔ 方形版 ↔ 圆形版之间任意切换，节点尺寸和状态栏无残留
@@ -202,11 +202,11 @@
 
   ### ⚙️ 配置编辑器
 
-  - **双击编辑**：双击节点或右键"编辑配置"弹出对话框修改 `config.json`
+  - **双击编辑**：双击节点或右键"编辑配置"弹出对话框修改 `node_config.json`
   - **注意力机制规则表**：可视化编辑 Filter 规则，支持增删改查
   - **实时验证**：配置修改立即生效，无需重启节点
   - **终端集成**：一键打开终端并激活独立运行环境进行调试
-  - **详细版编辑**：切换到详细版节点视图，直接在画布上编辑 11 种参数类型，修改即时写回 `config.json`（支持 `parameters` 字段声明）
+  - **详细版编辑**：切换到详细版节点视图，直接在画布上编辑 11 种参数类型，修改即时写回 `node_config.json`（支持 `parameters` 字段声明）
 
   ### 📊 实时监控
 
@@ -227,7 +227,7 @@
 
   **挂载外部节点**
 
-  - **跨项目复用**：选择外部节点文件夹，通过 `config.json` 识别并挂载到当前项目（不复制文件）
+  - **跨项目复用**：选择外部节点文件夹，通过 `node_config.json` 识别并挂载到当前项目（不复制文件）
   - **锁定组保护**：自动创建以绝对路径命名的锁定组（🔒），节点无法移出/移入，源文件不被删除
   - **同源自由分组**：相同根目录的挂载节点可在锁定组内自由二次建子组
   - **安全卸载**：右键卸载功能保留源文件，仅解除项目关联
@@ -275,7 +275,7 @@
   - **完整恢复**：重启后恢复位置、连线、缩放比例、滚动位置
   - **异常容错**：损坏的 JSON 自动备份为 `.bak` 文件
   - **颜色设置**：可自定义节点颜色，按项目持久化
-  - **连线校验兜底**：`canvas_layout.json` 加载时自动读取各节点 `config.json` 的 `listen_upper_file` 反推连线关系，与画布数据做差集校验——config 中有但画布缺失的连线自动补充，确保数据一致性
+  - **连线校验兜底**：`canvas_layout.json` 加载时自动读取各节点 `node_config.json` 的 `listen_upper_file` 反推连线关系，与画布数据做差集校验——config 中有但画布缺失的连线自动补充，确保数据一致性
   - **绘图工具栏状态**：绘图工具栏显示状态持久化到 `app_config.json`，重启后自动恢复，一次点击切换即可生效
 
   ***
@@ -294,7 +294,7 @@
       
       GUI --> Panel
       GUI --> Canvas
-      Panel -->|config.json| FS
+      Panel -->|node_config.json| FS
       Canvas -->|read/write| FS
       FS --> N1
       FS --> N2
@@ -328,7 +328,7 @@
   | **终端** | `ui/core/terminal/` | 嵌入式终端 Dock（PowerShell/CMD/Bash） |
   | **日志模块** | `ui/core/logger.py` | 全局 logger（带轮转功能） |
   | **IDE 扫描器** | `ui/core/ide_scanner.py` | 自动检测 VSCode / Trae IDE，四层检测链路 |
-  | **参数解析器** | `ui/core/node_config_parser.py` | 解析节点 config.json 的 parameters、input/output_ports 字段 |
+  | **参数解析器** | `ui/core/node_config_parser.py` | 解析节点 node_config.json 的 parameters、input/output_ports 字段 |
   | **Toast 队列** | `ui/core/toast/toast_queue_manager.py` | Toast 通知队列管理 |
   | **动作系统** | `ui/core/actions/` | 统一动作注册表和工厂（~80 个动作） |
   | **EventBus** | `ui/core/event_bus.py` | 全局事件发布/订阅系统 |
@@ -415,7 +415,7 @@
     ```
     工具栏 → 新建节点 → 输入名称 → 选择语言 → 确定
     ```
-    自动生成完整结构：`config.json`、`main.py`、`listener.py`、`start.bat`、`venv/`
+    自动生成完整结构：`node_config.json`、`main.py`、`listener.py`、`start.bat`、`venv/`
   3. **添加到画布**
     ```
     右键节点列表中的节点 → 添加到画布
@@ -788,7 +788,7 @@
   │
   └── nodes/                         # 运行时节点目录（由用户项目创建）
       └── [node_name]/               # 单个节点文件夹
-          ├── config.json            # 节点配置
+          ├── node_config.json            # 节点配置
           ├── output.json            # 输出数据
           ├── logs/listener.log      # 监听日志
           ├── venv/                  # 独立虚拟环境
@@ -992,7 +992,7 @@
   **A**:
 
   - 确认上游节点已启动并正常运行
-  - 检查 `config.json` 中 `listen_upper_file` 路径是否正确
+  - 检查 `node_config.json` 中 `listen_upper_file` 路径是否正确
   - 查看下游节点日志确认是否被注意力机制规则过滤
   - 验证上游节点的 `output.json` 是否有内容
 

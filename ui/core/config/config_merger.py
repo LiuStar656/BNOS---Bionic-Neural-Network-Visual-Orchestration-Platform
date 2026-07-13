@@ -1,7 +1,7 @@
 """
-配置文件合并工具 — 将 config.json 和 start.json 合并为 node_config.json
+配置文件合并工具 — 已统一为 node_config.json 单文件格式
 
-支持向后兼容，提供配置迁移和验证功能。
+提供配置迁移和验证功能，保留备份恢复能力处理历史迁移数据。
 """
 
 from __future__ import annotations
@@ -14,44 +14,31 @@ from ui.core.logger import logger
 
 
 class ConfigMerger:
-    """配置文件合并工具"""
+    """配置文件合并工具（迁移后仅保留备份恢复能力）"""
 
     def __init__(self):
         self.backup_dir = ".config_backup"
 
     def merge_configs(self, node_path: str) -> dict:
-        """合并 config.json 和 start.json 为 node_config.json
+        """读取 node_config.json（统一配置，无需合并）
 
         Args:
             node_path: 节点目录路径
 
         Returns:
-            合并后的配置字典
+            配置字典
         """
-        config_path = os.path.join(node_path, "config.json")
-        start_path = os.path.join(node_path, "start.json")
-        unified_path = os.path.join(node_path, "node_config.json")
+        config_path = os.path.join(node_path, "node_config.json")
 
-        # 加载基础配置
         config = self._load_config_json(config_path)
         if not config:
-            raise ValueError("无法加载 config.json")
+            raise ValueError("无法加载 node_config.json")
 
-        # 合并启动配置
-        start_config = self._load_start_json(start_path)
-        merged = self._merge_configs(config, start_config)
-
-        # 保存统一配置
-        self._save_unified_config(unified_path, merged)
-
-        # 备份旧配置
-        self._backup_legacy_configs(node_path)
-
-        logger.info("配置合并完成: %s", node_path)
-        return merged
+        logger.info("配置加载完成: %s", node_path)
+        return config
 
     def _load_config_json(self, config_path: str) -> dict:
-        """加载 config.json"""
+        """加载 node_config.json"""
         if not os.path.exists(config_path):
             return {}
 
@@ -59,54 +46,8 @@ class ConfigMerger:
             with open(config_path, encoding="utf-8") as f:
                 return json.load(f)
         except (ValueError, OSError) as e:
-            logger.warning("加载 config.json 失败: %s", e)
+            logger.warning("加载 node_config.json 失败: %s", e)
             return {}
-
-    def _load_start_json(self, start_path: str) -> dict:
-        """加载 start.json"""
-        if not os.path.exists(start_path):
-            return {}
-
-        try:
-            with open(start_path, encoding="utf-8") as f:
-                return json.load(f)
-        except (ValueError, OSError) as e:
-            logger.warning("加载 start.json 失败: %s", e)
-            return {}
-
-    def _merge_configs(self, config: dict, start_config: dict) -> dict:
-        """合并两个配置文件
-
-        Args:
-            config: config.json 内容
-            start_config: start.json 内容
-
-        Returns:
-            合并后的配置
-        """
-        merged = config.copy()
-
-        # 处理 start.json 的多节点格式
-        if "nodes" in start_config and isinstance(start_config["nodes"], list):
-            for node in start_config["nodes"]:
-                if node.get("name") == config.get("node_name"):
-                    # 合并启动配置
-                    merged.update({"entry": node.get("entry", "listener.py"), "python_exe": node.get("python_exe", "")})
-
-                    # 合并运行时配置
-                    if "config" in node:
-                        merged.update(node["config"])
-                    break
-
-        # 处理单节点格式
-        elif start_config.get("name") == config.get("node_name"):
-            merged.update(
-                {"entry": start_config.get("entry", "listener.py"), "python_exe": start_config.get("python_exe", "")}
-            )
-            if "config" in start_config:
-                merged.update(start_config["config"])
-
-        return merged
 
     def _save_unified_config(self, unified_path: str, config: dict):
         """保存统一配置文件"""
@@ -272,27 +213,20 @@ class ConfigDetector:
             node_path: 节点目录路径
 
         Returns:
-            配置类型: "unified" | "legacy" | "config_only" | "none"
+            配置类型: "unified" | "none"
         """
-        config_exists = os.path.exists(os.path.join(node_path, "config.json"))
-        start_exists = os.path.exists(os.path.join(node_path, "start.json"))
         unified_exists = os.path.exists(os.path.join(node_path, "node_config.json"))
 
         if unified_exists:
             return "unified"
-        elif config_exists and start_exists:
-            return "legacy"
-        elif config_exists:
-            return "config_only"
-        else:
-            return "none"
+        return "none"
 
     @staticmethod
     def get_config_files(node_path: str) -> list:
         """获取节点目录中的配置文件列表"""
         files = []
 
-        for filename in ["config.json", "start.json", "node_config.json"]:
+        for filename in ["node_config.json", "start.json"]:
             filepath = os.path.join(node_path, filename)
             if os.path.exists(filepath):
                 files.append(filename)
@@ -312,19 +246,16 @@ class ConfigDetector:
 
 
 def get_config_path(node_path: str) -> str:
-    """获取节点的主配置文件路径（优先 node_config.json，回退 config.json）
+    """获取节点的主配置文件路径（始终返回 node_config.json）
 
     所有读写节点配置的代码应通过此函数获取路径，
-    而非硬编码 "config.json"。
+    而非硬编码文件名。
     """
-    node_config = os.path.join(node_path, "node_config.json")
-    if os.path.exists(node_config):
-        return node_config
-    return os.path.join(node_path, "config.json")
+    return os.path.join(node_path, "node_config.json")
 
 
 def load_node_config(node_path: str) -> dict:
-    """加载节点主配置文件（优先 node_config.json，回退 config.json）"""
+    """加载节点主配置文件（node_config.json）"""
     config_path = get_config_path(node_path)
     if not os.path.exists(config_path):
         return {}
@@ -336,7 +267,7 @@ def load_node_config(node_path: str) -> dict:
 
 
 def save_node_config_file(node_path: str, config: dict):
-    """保存节点配置到主配置文件（node_config.json 或 config.json）"""
+    """保存节点配置到 node_config.json"""
     config_path = get_config_path(node_path)
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)

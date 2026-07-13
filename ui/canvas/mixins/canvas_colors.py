@@ -87,9 +87,9 @@ class CanvasColors:
 
     @staticmethod
     def _save_node_config(node_info):
-        """保存单个节点的 config.json（静态工具方法）"""
+        """保存单个节点的 node_config.json（静态工具方法）"""
         try:
-            path = os.path.join(node_info["path"], "config.json")
+            path = os.path.join(node_info["path"], "node_config.json")
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(node_info["config"], f, indent=2, ensure_ascii=False)
         except Exception as e:

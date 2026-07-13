@@ -305,7 +305,7 @@ class CanvasBatchOps:
                     cleared_count += 1
 
                 if need_save:
-                    config_path = os.path.join(node_info["path"], "config.json")
+                    config_path = os.path.join(node_info["path"], "node_config.json")
                     try:
                         with open(config_path, "w", encoding="utf-8") as f:
                             json.dump(config, f, indent=2, ensure_ascii=False)

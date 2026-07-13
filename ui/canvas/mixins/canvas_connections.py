@@ -100,9 +100,11 @@ class CanvasConnections:
     def create_edge(self, source_node, target_node, target_anchor=None, source_anchor=None):
         """创建连线并配置上下游关系（支持指定源锚点 + 目标锚点）"""
         # ── 输入锚点独占检测：一个输入锚点只能连接一个输出锚点 ──
+        # 只计算可见边：复合节点展开/折叠时隐藏的原边仍残留在锚点引用中，
+        # 统计时必须排除它们，否则展开后断开→重连会被误判为"已连接"。
         if target_anchor and hasattr(target_anchor, "port_name"):
-            # 检查该目标输入锚点是否已有连线
-            if target_anchor.edges:
+            visible_edge_count = sum(1 for e in target_anchor.edges if e.isVisible())
+            if visible_edge_count > 0:
                 port_label = getattr(target_anchor, "port_label", "") or getattr(target_anchor, "port_name", "")
                 themed_message(
                     self.canvas,
@@ -112,16 +114,17 @@ class CanvasConnections:
                 )
                 return
         else:
-            # 无指定锚点时，检查目标节点默认输入锚点是否已有连线
             default_input = getattr(target_node, "input_anchor", None)
-            if default_input and default_input.edges:
-                themed_message(
-                    self.canvas,
-                    "连线被拒绝",
-                    "该节点的输入端已连接，一个输入端口只能接入一条连线。",
-                    "warning",
-                )
-                return
+            if default_input:
+                visible_edge_count = sum(1 for e in default_input.edges if e.isVisible())
+                if visible_edge_count > 0:
+                    themed_message(
+                        self.canvas,
+                        "连线被拒绝",
+                        "该节点的输入端已连接，一个输入端口只能接入一条连线。",
+                        "warning",
+                    )
+                    return
 
         if target_anchor and hasattr(target_anchor, "port_name"):
             for edge in self.canvas.edges:
@@ -147,7 +150,7 @@ class CanvasConnections:
         if not source_name or not target_name:
             return
 
-        # Update config.json for real nodes (skip composite nodes which have comp_id as name)
+        # Update node_config.json for real nodes (skip composite nodes which have comp_id as name)
         is_composite_source = source_name.startswith("composite_") if source_name else False
         is_composite_target = target_name.startswith("composite_") if target_name else False
 
@@ -190,7 +193,7 @@ class CanvasConnections:
         self.canvas._record_create_edge(source_name, target_name)
 
     def _update_node_config_edge(self, source_name, target_name, source_anchor, target_anchor):
-        """Write config.json for a regular node→node edge."""
+        """Write node_config.json for a regular node→node edge."""
         if not (self.canvas.parent_window and target_name in self.canvas.parent_window.nodes_data):
             return
         target_info = self.canvas.parent_window.nodes_data[target_name]
@@ -330,7 +333,7 @@ class CanvasConnections:
                 logger.error("save composite edge config failed for %s: %s", target_name, e)
                 return
 
-            # Record output routing in _port_routing (not internal node's config.json)
+            # Record output routing in _port_routing (not internal node's node_config.json)
             tgt_port = target_anchor.port_name if (target_anchor and hasattr(target_anchor, "port_name")) else "default"
             manager.set_output_routing(source_name, port_name, None, target_name, tgt_port)
             logger.info("composite→external: _port_routing output[%s] → %s|%s", port_name, target_name, tgt_port)
@@ -381,7 +384,7 @@ class CanvasConnections:
 
         elif is_composite_source and is_composite_target:
             # Composite output port → composite input port
-            # Use _port_routing exclusively — no internal node config.json writes
+            # Use _port_routing exclusively — no internal node node_config.json writes
             src_port_name = getattr(source_anchor, "port_name", "") or "default"
             tgt_port_name = getattr(target_anchor, "port_name", "") or "default"
 
@@ -440,7 +443,7 @@ class CanvasConnections:
             if edge not in self.canvas.edges:
                 return
 
-            # ── Clean config.json for composite-involved edges ──
+            # ── Clean node_config.json for composite-involved edges ──
             is_comp_src = source_name.startswith("composite_") if source_name else False
             is_comp_tgt = target_name.startswith("composite_") if target_name else False
             manager = getattr(self.canvas, "_composite_manager", None)

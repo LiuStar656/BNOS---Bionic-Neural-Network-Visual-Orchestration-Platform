@@ -1,4 +1,4 @@
-  # BNOS - 仿生神经网络节点操作系统
+﻿  # BNOS - 仿生神经网络节点操作系统
 
   🌍 Language | 语言选择：[中文](README_CN.md) | [English](README.md)
 
@@ -6,8 +6,8 @@
 
   | 文档 | 用途 |
   |------|------|
-  | [节点开发规范](节点开发规范.md) | **节点开发者必读** — 目录结构、config.json、监听器、main 处理逻辑、启动脚本、通信协议 |
-  | [config_json 开发规范](config_json_开发规范.md) | config.json 参数控件与输入输出端口详细配置（11 种控件类型） |
+  | [节点开发规范](节点开发规范.md) | **节点开发者必读** — 目录结构、node_config.json、监听器、main 处理逻辑、启动脚本、通信协议 |
+  | [config_json 开发规范](config_json_开发规范.md) | node_config.json 参数控件与输入输出端口详细配置（11 种控件类型） |
   | [节点生成器开发准则](节点生成器开发准则.md) | 开发新语言节点生成器的规范（Go/Java/C++ 等） |
   | [Node_Generator_Guidelines_EN.md](Node_Generator_Guidelines_EN.md) | 节点生成器准则英文版 |
 
@@ -22,7 +22,7 @@
   - ✅ **智能编译**: 仅在任一可执行文件缺失时自动触发 `cargo build --release`
   - ✅ **直接运行**: 当两个可执行文件都存在时跳过编译，直接启动监听器
   - ✅ **延迟扩展支持**: Windows 批处理脚本现在使用 `setlocal enabledelayedexpansion` 确保变量正确处理
-  - ✅ **多级配置查找**: `main.rs` 和 `listener.rs` 都在三个位置搜索 `config.json`（target/release → target → 项目根目录）
+  - ✅ **多级配置查找**: `main.rs` 和 `listener.rs` 都在三个位置搜索 `node_config.json`（target/release → target → 项目根目录）
   - ✅ **完整路径调用**: 监听器使用完整路径调用主程序，避免工作目录问题
   - ✅ **自动生成 output.json**: 新节点现在包含初始的 `output.json` 文件，内容为 `{"code":0,"data":null}`
 
@@ -95,7 +95,7 @@
 
   - **listener.py / listener.rs**: 节点监听器，负责监听上层任务、执行注意力过滤、调用节点处理逻辑
   - **main.py / main.rs**: 节点处理逻辑，实现智能体内部特定功能单元的执行逻辑
-  - **config.json**: 节点配置文件，定义节点名称、监听路径、注意力规则等
+  - **node_config.json**: 节点配置文件，定义节点名称、监听路径、注意力规则等
   - **packet.py / packet.rs**: 数据包结构定义文件（节点间通信格式）
   - **python_create_node.py / rust_create_node.py**: 节点创建工具，自动生成新节点的完整结构（Python/Rust）
   - **多语言支持**: 支持 Python、Rust 等多种语言实现，所有节点使用统一的 JSON 通信协议
@@ -121,7 +121,7 @@
   │   ├── venv/                     # 独立虚拟环境
   │   ├── logs/                     # 日志目录
   │   │   └── listener.log         # 节点活动日志
-  │   ├── config.json              # 节点配置（注意力参数）
+  │   ├── node_config.json              # 节点配置（注意力参数）
   │   ├── listener.py              # 监听器程序（任务接收器）
   │   ├── main.py                  # 节点处理逻辑（功能单元执行）
   │   ├── packet.py                # 数据包定义（通信格式）
@@ -135,7 +135,7 @@
   │   ├── Cargo.toml               # Rust 项目配置
   │   ├── logs/                     # 日志目录
   │   │   └── listener.log         # 节点活动日志
-  │   ├── config.json              # 节点配置（注意力参数）
+  │   ├── node_config.json              # 节点配置（注意力参数）
   │   ├── output.json              # 输出数据文件（节点输出）
   │   ├── start.bat                # Windows 启动脚本
   │   └── start.sh                 # Linux/macOS 启动脚本
@@ -188,7 +188,7 @@
 
   ### 配置节点注意力
 
-  编辑 `config.json` 文件：
+  编辑 `node_config.json` 文件：
 
   ```json
   {
@@ -263,7 +263,7 @@
 
   ## 📋 配置说明
 
-  ### config.json 配置项
+  ### node_config.json 配置项
 
   | 字段 | 类型 | 说明 | 示例 |
   |------|------|------|------|
@@ -343,7 +343,7 @@
 
   1. **查看日志**: 检查 `logs/listener.log` 文件了解节点运行状态（智能体内部活动监测）
   2. **监控数据**: 观察 `upper_data.json` 和 `output.json` 的变化（智能体内部信号流追踪）
-  3. **测试注意力**: 修改 `config.json` 中的 `filter` 规则验证任务筛选（注意力调整）
+  3. **测试注意力**: 修改 `node_config.json` 中的 `filter` 规则验证任务筛选（注意力调整）
 
   ### 日志格式
 
@@ -356,7 +356,7 @@
   ## 🔄 工作流程（节点协同处理）
 
   1. **任务接收**: `listener.py` 持续监控 `upper_data.json` 文件（节点接收来自上游节点的任务）
-  2. **注意力过滤**: 根据 `config.json` 中的 `filter` 规则判断是否处理该任务（节点注意力聚焦）
+  2. **注意力过滤**: 根据 `node_config.json` 中的 `filter` 规则判断是否处理该任务（节点注意力聚焦）
   3. **防重复检查**: 检查任务是否已被当前节点处理过（通过 `_processed_<node_name>` 标记，避免重复执行）
   4. **节点处理**: 调用 `main.py` 执行节点功能逻辑，传入 JSON 任务作为命令行参数（功能单元执行）
   5. **输出结果**: 将处理结果写入 `output.json`（节点输出，传递给下游节点）
@@ -421,7 +421,7 @@
   - ✅ **智能编译**: 仅在任一可执行文件缺失时自动触发 `cargo build --release`
   - ✅ **直接运行**: 当两个可执行文件都存在时跳过编译，直接启动监听器
   - ✅ **延迟扩展支持**: Windows 批处理脚本现在使用 `setlocal enabledelayedexpansion` 确保变量正确处理
-  - ✅ **多级配置查找**: `main.rs` 和 `listener.rs` 都在三个位置搜索 `config.json`（target/release → target → 项目根目录）
+  - ✅ **多级配置查找**: `main.rs` 和 `listener.rs` 都在三个位置搜索 `node_config.json`（target/release → target → 项目根目录）
   - ✅ **完整路径调用**: 监听器使用完整路径调用主程序，避免工作目录问题
   - ✅ **自动生成 output.json**: 新节点现在包含初始的 `output.json` 文件，内容为 `{"code":0,"data":null}`
 

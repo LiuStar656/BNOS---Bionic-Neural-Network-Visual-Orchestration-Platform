@@ -3,7 +3,7 @@
 
 记录每一个节点的名称和路径，在GUI重启时作为辅助数据源。
 工作流程：
-  1. GUI 启动/打开项目时，先扫描项目 nodes/ 目录下的 config.json（主要数据源）
+  1. GUI 启动/打开项目时，先扫描项目 nodes/ 目录下的 node_config.json（主要数据源）
   2. 再读取 node_registry.json 注册表文件（辅助数据源）
   3. 以扫描结果为最高优先，注册表为辅助参考
   4. 每次扫描结束后自动同步注册表，保持数据一致性
@@ -104,7 +104,7 @@ class NodeRegistry:
         """注册或更新单个节点
 
         Args:
-            node_name: 节点名称（来自 config.json 的 node_name 字段）
+            node_name: 节点名称（来自 node_config.json 的 node_name 字段）
             node_path: 节点目录的绝对路径
             mount_root: 挂载根目录路径（外部挂载节点），None 表示本地节点
         """

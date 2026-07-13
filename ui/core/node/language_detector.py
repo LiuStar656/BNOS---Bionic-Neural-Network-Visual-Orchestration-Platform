@@ -17,9 +17,8 @@ class LanguageDetector:
 
     Detection priority (high to low):
       1. node_config.json 'entry' field extension（统一配置）
-      2. start.json 'entry' field extension（旧格式兼容）
-      3. Signature files (requirements.txt, Cargo.toml, package.json, etc.)
-      4. Main source file existence check
+      2. Signature files (requirements.txt, Cargo.toml, package.json, etc.)
+      3. Main source file existence check
     """
 
     # Language signature files: filename -> language
@@ -81,23 +80,6 @@ class LanguageDetector:
                     lang = LanguageDetector.ENTRY_EXT_MAP.get(ext.lower())
                     if lang:
                         return lang
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        # 2. Check start.json entry field (legacy format)
-        start_json = Path(node_path) / "start.json"
-        if start_json.is_file():
-            try:
-                with start_json.open(encoding="utf-8") as f:
-                    data = json.load(f)
-                nodes_list = data.get("nodes", [])
-                if isinstance(nodes_list, list) and nodes_list:
-                    entry = nodes_list[0].get("entry", "")
-                    if entry:
-                        ext = Path(entry).suffix
-                        lang = LanguageDetector.ENTRY_EXT_MAP.get(ext.lower())
-                        if lang:
-                            return lang
             except (json.JSONDecodeError, OSError):
                 pass
 

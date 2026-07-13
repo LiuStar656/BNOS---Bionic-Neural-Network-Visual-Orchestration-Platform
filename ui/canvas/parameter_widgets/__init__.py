@@ -1,5 +1,5 @@
 """
-参数控件库 — 将 config.json 中的参数定义渲染为 QWidget，通过 QGraphicsProxyWidget 嵌入画布
+参数控件库 — 将 node_config.json 中的参数定义渲染为 QWidget，通过 QGraphicsProxyWidget 嵌入画布
 
 设计原则：
   - 统一行高（24px）、统一控件高度（22px）、统一标签宽度（56px）

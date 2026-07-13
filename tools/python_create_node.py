@@ -90,7 +90,7 @@ def create_node() -> None:
     except (OSError, subprocess.TimeoutExpired) as e:
         print(f"[警告] 环境创建异常: {e}", file=sys.stderr)
 
-    # 生成统一的 node_config.json（新格式）
+    # 生成统一的 node_config.json
     unified_config = {
         "node_name": f"node_python_{node_name}",
         "entry": entry_script,
@@ -106,41 +106,9 @@ def create_node() -> None:
         "resource_limit": {"memory_mb": 1024, "cpu_percent": 100},
     }
 
-    # 生成向后兼容的 config.json 和 start.json
-    config_content = {
-        "node_name": f"node_python_{node_name}",
-        "listen_upper_file": "",
-        "output_file": "./output.json",
-        "filter": {},
-        "output_type": "",
-        "parameters": [],
-        "input_ports": [],
-        "output_ports": [],
-        "port_mappings": {},
-        "resource_limit": {"memory_mb": 1024, "cpu_percent": 100},
-    }
-
-    start_content = {
-        "nodes": [
-            {
-                "name": f"node_python_{node_name}",
-                "entry": entry_script,
-                "python_exe": "",
-                "config": {"listen_upper_file": "", "output_file": "./output.json"},
-            }
-        ]
-    }
-
-    # 写入统一配置文件（新格式）
+    # 写入配置文件
     unified_path = full_node_dir / "node_config.json"
     unified_path.write_text(json.dumps(unified_config, indent=2, ensure_ascii=False), encoding="utf-8")
-
-    # 写入向后兼容的配置文件
-    config_path = full_node_dir / "config.json"
-    config_path.write_text(json.dumps(config_content, indent=2, ensure_ascii=False), encoding="utf-8")
-
-    start_path = full_node_dir / "start.json"
-    start_path.write_text(json.dumps(start_content, indent=2, ensure_ascii=False), encoding="utf-8")
 
     extract_node_pack(full_node_dir)
 

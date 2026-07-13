@@ -152,8 +152,8 @@ class JsonNodeStarter:
         if not listener_py.exists():
             return False, f"listener.py 不存在: {listener_py}"
 
-        # 检查配置文件（node_config.json 或 config.json）
-        has_config = (node_path / "node_config.json").exists() or (node_path / "config.json").exists()
+        # 检查配置文件
+        has_config = (node_path / "node_config.json").exists()
         if not has_config:
             logger.warning(f"节点 {node['name']} 缺少配置文件")
 

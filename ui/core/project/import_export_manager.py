@@ -23,7 +23,6 @@ def _repair_portable_venv(node_dir):
 
     修复内容：
     1. pyvenv.cfg 的 home 指向当前机器的 Python 安装目录
-    2. start.json 去除绝对 path / python_exe 字段，由运行时动态推断
     """
     node_dir = Path(node_dir)
     venv_dir = node_dir / "venv"
@@ -69,31 +68,6 @@ def _repair_portable_venv(node_dir):
                 logger.info("[portable-venv] 已清理 node_config.json 中的绝对路径")
         except Exception as e:
             logger.warning(f"[portable-venv] 清理 node_config.json 失败: {e}")
-
-    # 4. 清理 start.json：删除写入时带入的绝对路径（老版本节点兼容处理）
-    start_json_path = node_dir / "start.json"
-    if start_json_path.is_file():
-        try:
-            with start_json_path.open(encoding="utf-8") as f:
-                start_cfg = json.load(f)
-
-            modified = False
-            if "nodes" in start_cfg and isinstance(start_cfg["nodes"], list):
-                for node in start_cfg["nodes"]:
-                    if isinstance(node, dict):
-                        if "python_exe" in node:
-                            del node["python_exe"]
-                            modified = True
-                        if "path" in node and Path(str(node["path"])).is_absolute():
-                            del node["path"]
-                            modified = True
-
-            if modified:
-                with start_json_path.open("w", encoding="utf-8") as f:
-                    json.dump(start_cfg, f, indent=2, ensure_ascii=False)
-                logger.info("[portable-venv] 已清理 start.json 中的绝对路径")
-        except Exception as e:
-            logger.warning(f"[portable-venv] 清理 start.json 失败: {e}")
 
 
 class ImportExportManager:

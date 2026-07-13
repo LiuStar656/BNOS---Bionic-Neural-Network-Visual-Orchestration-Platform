@@ -134,7 +134,7 @@ class DeleteNodeCommand(Command):
                 upstream_info = self._parent_window.nodes_data[upstream_name]
                 upstream_config = upstream_info["config"]
                 upstream_config["listen_upper_file"] = ""
-                config_path = os.path.join(upstream_info["path"], "config.json")
+                config_path = os.path.join(upstream_info["path"], "node_config.json")
                 try:
                     with open(config_path, "w", encoding="utf-8") as f:
                         json.dump(upstream_config, f, indent=2, ensure_ascii=False)
@@ -153,7 +153,7 @@ class DeleteNodeCommand(Command):
                 downstream_info = self._parent_window.nodes_data[downstream_name]
                 downstream_config = downstream_info["config"]
                 downstream_config["listen_upper_file"] = ""
-                config_path = os.path.join(downstream_info["path"], "config.json")
+                config_path = os.path.join(downstream_info["path"], "node_config.json")
                 try:
                     with open(config_path, "w", encoding="utf-8") as f:
                         json.dump(downstream_config, f, indent=2, ensure_ascii=False)

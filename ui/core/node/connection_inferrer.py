@@ -1,8 +1,8 @@
 """
-连接关系反推器 - 通过节点的 config.json 反推连线关系
+连接关系反推器 - 通过节点的 node_config.json 反推连线关系
 
 核心功能：
-1. 扫描所有节点的 config.json，解析 listen_upper_file 字段
+1. 扫描所有节点的 node_config.json，解析 listen_upper_file 字段
 2. 从上游路径中提取节点名称，重建 source → target 连线关系
 3. 与现有 canvas_layout.json 对比，返回新增/冲突/孤立信息
 4. 支持多种路径格式（绝对路径、相对路径、跨平台路径）
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectionInferrer:
-    """通过 config.json 反推节点间连线关系"""
+    """通过 node_config.json 反推节点间连线关系"""
 
     def __init__(self, project_path: str, nodes_data: dict[str, dict]):
         """
@@ -34,7 +34,7 @@ class ConnectionInferrer:
 
     def infer_all_edges(self) -> list[dict]:
         """
-        扫描所有节点 config.json，反推全部连线关系。
+        扫描所有节点 node_config.json，反推全部连线关系。
 
         扫描来源：
           - listen_upper_file → target_port=None（默认大锚点）
@@ -165,7 +165,7 @@ class ConnectionInferrer:
 
     def _get_upstream_node_name(self, node_name: str, node_info: dict) -> str | None:
         """
-        从节点的 config.json 的 listen_upper_file 中提取上游节点名称。
+        从节点的 node_config.json 的 listen_upper_file 中提取上游节点名称。
 
         支持的路径格式：
           - 绝对路径: F:/project/nodes/node_A/output.json

@@ -70,7 +70,7 @@ class PollingManager(QObject):
     global_log_changed = Signal(str, str)  # (log_file, content)
 
     # 配置文件相关
-    config_file_changed = Signal(str)  # (node_path) — config.json 变更
+    config_file_changed = Signal(str)  # (node_path) — node_config.json 变更
     global_config_changed = Signal(str)  # (config_file)
     output_json_changed = Signal(str, str)  # (node_path, content)
 
@@ -141,7 +141,7 @@ class PollingManager(QObject):
         # ---- 节点级监控 ----
         # 日志文件监听器 {(node_path, log_filename): last_mtime}
         self._log_watchers = {}
-        # config.json 监听器 {node_path: (last_mtime, last_content)}
+        # node_config.json 监听器 {node_path: (last_mtime, last_content)}
         self._config_watchers = {}
         # output.json 监听器 {node_path: (last_mtime, last_content)}
         self._output_watchers = {}
@@ -418,13 +418,13 @@ class PollingManager(QObject):
                 self.log_file_changed.emit(node_path, log_filename)
 
     def _poll_node_config(self):
-        """检查已订阅的节点 config.json（worker thread 执行）"""
+        """检查已订阅的节点 node_config.json（worker thread 执行）"""
         with self._lock:
             watchers_snapshot = list(self._config_watchers.items())
 
         changed = []  # [(node_path, new_mtime, new_content, should_notify)]
         for node_path, (last_mtime, last_content) in watchers_snapshot:
-            # 优先监视 node_config.json，回退 config.json
+            # 监视 node_config.json
             from ui.core.config.config_merger import get_config_path as _gcp
 
             config_path = Path(_gcp(node_path))
@@ -600,7 +600,7 @@ class PollingManager(QObject):
             self._log_watchers.pop(key, None)
 
     def watch_config(self, node_path: str):
-        """订阅节点配置文件（优先 node_config.json，回退 config.json）"""
+        """订阅节点配置文件（node_config.json）"""
         from ui.core.config.config_merger import get_config_path as _gcp
 
         config_path = Path(_gcp(node_path))
@@ -619,7 +619,7 @@ class PollingManager(QObject):
                 self._config_watchers[node_path] = (mtime, content)
 
     def unwatch_config(self, node_path: str):
-        """取消订阅节点 config.json"""
+        """取消订阅节点 node_config.json"""
         with self._lock:
             self._config_watchers.pop(node_path, None)
 

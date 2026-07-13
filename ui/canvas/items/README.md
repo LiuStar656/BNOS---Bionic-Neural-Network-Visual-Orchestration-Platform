@@ -37,7 +37,7 @@ ui/canvas/items/
 **生命周期**：
 1. `__init__` → 初始化基础属性，应用默认样式
 2. `_style.apply(self)` → 根据样式创建具体图形元素
-3. （面板模式）`_build_detailed_view()` → 解析 config.json，创建参数控件和小锚点
+3. （面板模式）`_build_detailed_view()` → 解析 node_config.json，创建参数控件和小锚点
 4. （面板模式）`build_anchors_from_config()` → 根据 config 创建多锚点系统
 5. `setPos(x, y)` → 放置到画布
 6. `on_expand_requested` 回调 → 响应展开/折叠请求
@@ -54,7 +54,7 @@ ui/canvas/items/
 **关键方法**：
 - `get_input(port_name)` → 按端口名查找输入锚点；`None`/`"default"` 返回主锚点
 - `get_output(port_name)` → 按端口名查找输出锚点
-- `build_from_config(config, positions, node_w, node_h)` → 根据 config.json 和行位置重建锚点系统
+- `build_from_config(config, positions, node_w, node_h)` → 根据 node_config.json 和行位置重建锚点系统
   - **关键**：重建前收集旧锚点上的 edges，销毁旧锚点，创建新锚点，然后按期望端口名迁移 edges
 
 **Edge 迁移机制**（见 `anchor_manager.py` 110-175 行）：
@@ -111,7 +111,7 @@ ui/canvas/items/
 
 ### → parameter_widgets.py（参数控件）
 - Panel 模式下在节点内嵌入 QGraphicsProxyWidget
-- 参数修改即时写回 `config.json`
+- 参数修改即时写回 `node_config.json`
 
 ---
 
@@ -136,7 +136,7 @@ ui/canvas/items/
 
 迁移的**关键依据**是 `edge._desired_target_port_name`（V2.0.11+）。如果没有这个字段，会使用 `edge.end_anchor.port_name`，但这可能在旧锚点销毁前已经被错误设置。
 
-### 3. config.json 的 `input_ports.source` 字段
+### 3. node_config.json 的 `input_ports.source` 字段
 
 只有 `source: "node"` 的端口才会在画布上生成锚点（`_build_detailed_view` 中的过滤逻辑）：
 

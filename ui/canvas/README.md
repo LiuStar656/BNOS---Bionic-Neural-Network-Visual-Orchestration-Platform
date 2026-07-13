@@ -93,15 +93,15 @@ ui/canvas/
 1. 检查是否已存在相同锚点的连线
 2. 创建 EdgeItem 并传入 target_port_name / source_port_name
    （从 target_anchor.port_name 提取）
-3. 更新 target_node 的 config.json：
+3. 更新 target_node 的 node_config.json：
    - port_name == "default" 或 None → listen_upper_file = source_path
    - port_name == "prompt"/"context"... → port_mappings[port_name] = source_path
-4. 更新 source_node 的 config.json：
+4. 更新 source_node 的 node_config.json：
    - out_connections[source_port_name] = target_name|target_port
 5. _save_timer.start(500) → 触发布局保存
 ```
 
-**删除连线**：`remove_edge(edge)` → 从 config.json 中清除对应端口映射
+**删除连线**：`remove_edge(edge)` → 从 node_config.json 中清除对应端口映射
 
 ### 4. 菜单系统（canvas_menus.py）
 
@@ -158,7 +158,7 @@ batch_clear_listen_config() # 清除所有节点的 listen_upper_file 和 port_m
 }
 ```
 
-### nodes/<node_name>/config.json（节点级）
+### nodes/<node_name>/node_config.json（节点级）
 
 ```json
 {
@@ -209,7 +209,7 @@ edge.end_anchor = target_anchor    edge._desired_target_port_name = "prompt"
     ↓                                   ↓
 target_anchor.add_edge(edge)      （用于锚点重建后的重绑定）
                     ↓
-    更新 target_node.config.json（port_mappings）
+    更新 target_node.node_config.json（port_mappings）
                     ↓
     _save_timer.start(500) → save_layout
 

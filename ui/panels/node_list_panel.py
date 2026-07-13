@@ -322,7 +322,7 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
 
             os.rename(old_path, new_path)
 
-            # 读取主配置文件（优先 node_config.json，回退 config.json）
+            # 读取主配置文件 node_config.json
             from ui.core.config.config_merger import get_config_path
 
             config_path = get_config_path(new_path)
@@ -331,44 +331,6 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
             config["node_name"] = new_name
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
-
-            # 同步更新旧格式 config.json（如果主配置是 node_config.json，双写）
-            if os.path.basename(config_path) == "node_config.json":
-                legacy_config_path = os.path.join(new_path, "config.json")
-                if os.path.exists(legacy_config_path):
-                    with open(legacy_config_path, encoding="utf-8") as f:
-                        legacy = json.load(f)
-                    legacy["node_name"] = new_name
-                    with open(legacy_config_path, "w", encoding="utf-8") as f:
-                        json.dump(legacy, f, indent=2, ensure_ascii=False)
-
-            # 更新 node_config.json（统一配置）中的节点名称
-            unified_config_path = os.path.join(new_path, "node_config.json")
-            if os.path.exists(unified_config_path):
-                with open(unified_config_path, encoding="utf-8") as f:
-                    unified = json.load(f)
-                if unified.get("node_name") == old_name:
-                    unified["node_name"] = new_name
-                    with open(unified_config_path, "w", encoding="utf-8") as f:
-                        json.dump(unified, f, indent=2, ensure_ascii=False)
-
-            # 更新 start.json 中的节点名称引用（旧格式兼容）
-            start_json_path = os.path.join(new_path, "start.json")
-            if os.path.exists(start_json_path):
-                with open(start_json_path, encoding="utf-8") as f:
-                    start_config = json.load(f)
-
-                # 支持两种格式：{"name": "node_name"} 或 {"nodes": [{"name": "node_name"}]}
-                if "nodes" in start_config and isinstance(start_config["nodes"], list):
-                    for node in start_config["nodes"]:
-                        if node.get("name") == old_name:
-                            node["name"] = new_name
-                            break
-                elif start_config.get("name") == old_name:
-                    start_config["name"] = new_name
-
-                with open(start_json_path, "w", encoding="utf-8") as f:
-                    json.dump(start_config, f, indent=2, ensure_ascii=False)
 
             node_info["path"] = new_path
             node_info["config"] = config

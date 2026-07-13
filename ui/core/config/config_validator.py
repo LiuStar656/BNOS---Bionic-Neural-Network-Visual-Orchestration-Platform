@@ -131,7 +131,7 @@ class ConfigValidator:
                 results[node_name] = (is_valid, errors)
 
             # 检查旧格式配置
-            config_path = os.path.join(node_path, "config.json")
+            config_path = os.path.join(node_path, "node_config.json")
             if os.path.exists(config_path):
                 is_valid, errors = ConfigValidator.validate_config_file(config_path)
                 if node_name not in results:

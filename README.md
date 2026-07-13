@@ -107,7 +107,7 @@ For developers who want to understand the detailed technical implementation of B
 - **Attention Filtering System**: How nodes filter and process incoming data using attention rules
 - **Virtual Environment Isolation**: Per-node environment management and dependency isolation strategies
 - **Process Lifecycle Management**: Node startup, monitoring, shutdown, and error recovery mechanisms
-- **Configuration Structure**: Detailed explanation of config.json fields and their effects
+- **Configuration Structure**: Detailed explanation of node_config.json fields and their effects
 
 📚 **[View Node Technical Documentation →](https://github.com/LiuStar656/Bionic-Neural-Network-Operating-System)**
 
@@ -177,7 +177,7 @@ This documentation provides deep technical insights beyond what's covered in thi
 
 - **Rect Nodes** (default): Standard rectangular style with full anchors, expand button, status indicators
 - **Dot Nodes**: Compact circular style with three-layer z-architecture (indicator > input > output), text below left-aligned
-- **Detailed Nodes** (ComfyUI-style): Renders parameter editing controls directly on the canvas, supports 11 parameter types (string/text/password/int/float/bool/enum/file/directory/color/range), parameter changes written back to `config.json` in real time
+- **Detailed Nodes** (ComfyUI-style): Renders parameter editing controls directly on the canvas, supports 11 parameter types (string/text/password/int/float/bool/enum/file/directory/color/range), parameter changes written back to `node_config.json` in real time
 - **Style Persistence**: Each node's style auto-saved to `canvas_layout.json`, fully restored on restart
 - **Selection Ring**: Dot nodes display a floating selection ring (z=10) on selection
 - **Precise Size Restoration**: Switch freely between Detailed ↔ Rect ↔ Dot modes with no widget residues or size drift
@@ -211,11 +211,11 @@ This documentation provides deep technical insights beyond what's covered in thi
 
 ### ⚙️ Configuration Editor
 
-- **Double-click Edit**: Quick access to `config.json` via double-click or right-click menu
+- **Double-click Edit**: Quick access to `node_config.json` via double-click or right-click menu
 - **Attention Mechanism Rules**: Visual table editor for filter rules (add/delete/modify/query)
 - **Real-time Validation**: Changes take effect immediately without neuron restart
 - **Terminal Integration**: One-click terminal launch with activated venv for debugging
-- **Detailed Mode Editing**: Switch nodes to detailed view to edit 11 parameter types directly on the canvas — changes instantly written back to `config.json` (supports `parameters` field declarations)
+- **Detailed Mode Editing**: Switch nodes to detailed view to edit 11 parameter types directly on the canvas — changes instantly written back to `node_config.json` (supports `parameters` field declarations)
 
 ### 📊 Real-time Monitoring
 
@@ -234,7 +234,7 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 - **Missing Detection**: Registered nodes with missing directories auto-marked as `missing`, preserving history
 
 **External Node Mounting**
-- **Cross-Project Reuse**: Select an external node folder; identified via `config.json` and mounted into current project (no file copy)
+- **Cross-Project Reuse**: Select an external node folder; identified via `node_config.json` and mounted into current project (no file copy)
 - **Locked Group Protection**: Auto-creates locked groups (🔒) named by absolute path; nodes cannot be moved in/out; source files preserved
 - **Same-Source Sub-grouping**: Mounted nodes from the same root can freely create sub-groups within the locked group
 - **Safe Unmount**: Right-click unmount keeps source files intact, only removes project association
@@ -283,7 +283,7 @@ BNOS's core resource abstraction layer, treating nodes, groups, and mounts as un
 - **Complete Recovery**: Restore positions, connections, zoom level, scroll position
 - **Exception Handling**: Auto-backup corrupted JSON as `.bak` files
 - **Color Settings**: Customizable node colors persisted per project
-- **Config Validation**: `canvas_layout.json` loading cross-validates against each node's `config.json` `listen_upper_file`, auto-repairing missing edges — config is the source of truth
+- **Config Validation**: `canvas_layout.json` loading cross-validates against each node's `node_config.json` `listen_upper_file`, auto-repairing missing edges — config is the source of truth
 - **Drawing Toolbar State**: Drawing toolbar display state persisted to `app_config.json`, auto-restores after restart, one-click toggle works effectively
 
 
@@ -304,7 +304,7 @@ graph TB
     
     GUI --> Panel
     GUI --> Canvas
-    Panel -->|config.json| FS
+    Panel -->|node_config.json| FS
     Canvas -->|read/write| FS
     FS --> N1
     FS --> N2
@@ -338,7 +338,7 @@ graph TB
 | **Terminal** | `ui/core/terminal/` | Embedded terminal dock (PowerShell/CMD/Bash) |
 | **Logger** | `ui/core/logger.py` | Global logger with rotation (console + file) |
 | **IDE Scanner** | `ui/core/ide_scanner.py` | Auto-detects VSCode / Trae IDE, 4-layer detection chain |
-| **Parameter Parser** | `ui/core/node_config_parser.py` | Parses parameters and input/output ports from node config.json |
+| **Parameter Parser** | `ui/core/node_config_parser.py` | Parses parameters and input/output ports from node_config.json |
 | **Toast Queue** | `ui/core/toast/toast_queue_manager.py` | Toast notification queue management |
 | **Action System** | `ui/core/actions/` | Unified action registry and factory (~80 actions) |
 | **EventBus** | `ui/core/event_bus.py` | Global event publishing/subscription system |
@@ -427,7 +427,7 @@ start_bnos_gui.bat
    ```
    Toolbar → New Node → Enter Name → Select Language → OK
    ```
-   Generates complete structure: `config.json`, `main.py`, `listener.py`, `start.bat`, `venv/`
+   Generates complete structure: `node_config.json`, `main.py`, `listener.py`, `start.bat`, `venv/`
 
 3. **Add to Canvas**
    ```
@@ -731,7 +731,7 @@ BNOS/
 │   │   │   │   ├── rendering.py       # Paint, custom colors
 │   │   │   │   ├── subcomponents.py   # Text labels, status lights
 │   │   │   │   ├── status_manager.py  # Resource monitoring, status updates
-│   │   │   │   ├── config_manager.py  # config.json read/write
+│   │   │   │   ├── config_manager.py  # node_config.json read/write
 │   │   │   │   ├── geometry_handler.py # itemChange, position, edge refresh
 │   │   │   │   ├── interaction_handler.py # Mouse events, anchor interaction
 │   │   │   │   ├── style_manager.py   # Style settings, dimensions

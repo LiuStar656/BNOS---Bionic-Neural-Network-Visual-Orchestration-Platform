@@ -150,7 +150,7 @@ class CompositeNode:
 
     # ── 复合节点端口路由（_port_routing）──
     # 路由信息存储在 node_clusters.json 的每个 composite 的 _port_routing 字段中，
-    # 而非内部节点的 config.json。这样 listen_upper_file 保持为空，端口识别不受影响。
+    # 而非内部节点的 node_config.json。这样 listen_upper_file 保持为空，端口识别不受影响。
     #
     # _port_routing 数据结构：
     # {
@@ -639,7 +639,7 @@ class CompositeNode:
         self._refresh_ports_on_collapse(comp_id, comp_item, node_names)
 
         # ── 同步入口节点过滤规则 ──
-        # 用户可能在展开时修改了入口节点的 config.json 过滤规则，
+        # 用户可能在展开时修改了入口节点的 node_config.json 过滤规则，
         # 折叠后重新提取以确保 composite.json 和 pipeline.json 中的规则是最新的。
         new_rules = self._extract_entry_filter_rules(node_names, edges_list, nodes_data)
         if new_rules and comp_cfg:
@@ -688,7 +688,7 @@ class CompositeNode:
 
         nodes_data = self._canvas.parent_window.nodes_data if self._canvas.parent_window else {}
 
-        # ── 刷新 nodes_data：_sync_configs_for_collapse 已清除 config.json，
+        # ── 刷新 nodes_data：_sync_configs_for_collapse 已清除 node_config.json，
         #     但 nodes_data 内存缓存仍保留旧的 listen_upper_file。
         #     不刷新会导致 _identify_ports 跳过入口节点 → 0 端口 → 连线被移除。 ──
         for n in node_names:
@@ -942,7 +942,7 @@ class CompositeNode:
 
         comp["_morphed_edges"] = morphed
 
-        # ── Sync config.json for expanded state ──
+        # ── Sync node_config.json for expanded state ──
         self._sync_configs_for_expand(comp_id, node_names, port_to_internal)
         # 配置快照 — 折叠时用于检测外部修改
         self._snapshot_internal_configs(comp_id, node_names)
@@ -1005,7 +1005,7 @@ class CompositeNode:
 
         comp["_morphed_edges"] = []
 
-        # ── Sync config.json for collapsed state ──
+        # ── Sync node_config.json for collapsed state ──
         conflicts = self._check_config_conflicts(comp_id, node_names)
         if conflicts:
             logger.warning(

@@ -85,7 +85,7 @@ class AnchorManager:
     def ensure_default_anchors(self) -> None:
         """确保一对 'default' 锚点存在。已存在则复用。
 
-        默认隐藏锚点，由 build_from_config() 根据 config.json 中的字段决定是否显示。
+        默认隐藏锚点，由 build_from_config() 根据 node_config.json 中的字段决定是否显示。
         """
         if "default" not in self.input_anchors:
             anchor = self._make_anchor(
@@ -115,7 +115,7 @@ class AnchorManager:
         self._remove_container(self.output_labels)
 
     # =============================================================
-    # 根据 config.json 动态构建（多锚点系统核心）
+    # 根据 node_config.json 动态构建（多锚点系统核心）
     # =============================================================
 
     def build_from_config(
@@ -125,9 +125,9 @@ class AnchorManager:
         node_w: float = 0,
         node_h: float = 0,
     ) -> None:
-        """ComfyUI 风格：从 config.json 动态生成锚点布局。
+        """ComfyUI 风格：从 node_config.json 动态生成锚点布局。
 
-        锚点生成规则（由 config.json 字段驱动，不再硬编码）：
+        锚点生成规则（由 node_config.json 字段驱动，不再硬编码）：
           - 主输入锚点：仅当 config 中存在 listen_upper_file 字段时才生成，16px，
             位置优先取 row_positions["__listen_upper_file__"]，否则节点内部左上角（与状态灯对称）
           - 附加输入锚点：每个 input_ports 中 source=node 的端口，10px，贴在标签右边
@@ -200,7 +200,7 @@ class AnchorManager:
         except (AttributeError, RuntimeError):
             pass
 
-        # —— 5. 生成主输入锚点（根据 config.json 中 listen_upper_file 字段动态决定）——
+        # —— 5. 生成主输入锚点（根据 node_config.json 中 listen_upper_file 字段动态决定）——
         # 仅当 config 中存在 listen_upper_file 字段时才生成，标签使用 config 中的实际值
         # 位置：节点左侧边线中点上（x=0, y=h/2）
         has_listen_upper = config and "listen_upper_file" in config
@@ -261,7 +261,7 @@ class AnchorManager:
             anchor.setVisible(True)
             self.input_anchors[name] = anchor
 
-        # —— 7. 生成主输出锚点（根据 config.json 中 output_file 字段动态决定）——
+        # —— 7. 生成主输出锚点（根据 node_config.json 中 output_file 字段动态决定）——
         # 仅当 config 中存在 output_file 字段时才生成，标签使用 config 中的实际值
         # 位置：节点右侧边线中点上（x=nw, y=nh/2）
         has_output_file = config and "output_file" in config

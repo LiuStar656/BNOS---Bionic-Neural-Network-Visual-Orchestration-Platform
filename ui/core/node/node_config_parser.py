@@ -1,5 +1,5 @@
 """
-节点配置解析器 — 从 config.json 中提取参数定义和输入端口定义
+节点配置解析器 — 从 node_config.json 中提取参数定义和输入端口定义
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ class NodeConfigParser:
 
     @staticmethod
     def parse(config: dict) -> list[ParameterDef]:
-        """从 config.json 字典中提取参数定义列表"""
+        """从 node_config.json 中提取参数定义列表"""
         raw = config.get("parameters", [])
         if not raw or not isinstance(raw, list):
             return []
@@ -85,7 +85,7 @@ class NodeConfigParser:
 
     @staticmethod
     def extract_values(config: dict) -> dict[str, Any]:
-        """从 config.json 中提取参数实际值（参数名 → 当前值）"""
+        """从 node_config.json 中提取参数实际值（参数名 → 当前值）"""
         result = {}
         params = config.get("parameters")
         if not isinstance(params, list):
@@ -106,7 +106,7 @@ class NodeConfigParser:
 
     @staticmethod
     def parse_input_ports(config: dict) -> list[InputPortDef]:
-        """从 config.json 中提取输入端口定义列表"""
+        """从 node_config.json 中提取输入端口定义列表"""
         raw = config.get("input_ports", [])
         if not raw or not isinstance(raw, list):
             return []
@@ -134,7 +134,7 @@ class NodeConfigParser:
     # -- 输出端口 --
     @staticmethod
     def parse_output_ports(config: dict) -> list[OutputPortDef]:
-        """从 config.json 中提取输出端口定义列表"""
+        """从 node_config.json 中提取输出端口定义列表"""
         raw = config.get("output_ports", [])
         if not raw or not isinstance(raw, list):
             return []

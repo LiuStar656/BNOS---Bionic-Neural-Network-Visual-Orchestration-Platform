@@ -68,7 +68,7 @@ class NodeConfigDialog(FloatingPanel):
         left_layout = QVBoxLayout()
         left_layout.setSpacing(10)
 
-        # Upper: config.json editor
+        # Upper: node_config.json editor
         config_group = QGroupBox(t("k_config_edit"))
         config_layout = QVBoxLayout(config_group)
 
@@ -95,7 +95,7 @@ class NodeConfigDialog(FloatingPanel):
         # User edits text -> debounced save
         self.config_text.textChanged.connect(self._on_config_edit)
 
-        # Load and display config.json content
+        # Load and display node_config.json content
         self.load_config_json()
 
         config_layout.addWidget(self.config_text)
@@ -455,7 +455,7 @@ class NodeConfigDialog(FloatingPanel):
             self._rl_affinity.setText(t("k_rl_all_cores"))
 
     def _apply_resource_limits(self) -> None:
-        """Write resource limit configuration back to config.json."""
+        """Write resource limit configuration back to node_config.json."""
         priority = self._rl_priority.currentData()
         cpu = self._rl_cpu.value()
         memory = self._rl_memory.value()
@@ -493,8 +493,8 @@ class NodeConfigDialog(FloatingPanel):
         self._load_resource_limit_from_config()
 
     def _write_config_and_update_editor(self) -> None:
-        """Write current config to config.json and refresh the JSON editor."""
-        config_path = Path(self.node_path) / "config.json"
+        """Write current config to node_config.json and refresh the JSON editor."""
+        config_path = Path(self.node_path) / "node_config.json"
         try:
             formatted = json.dumps(self.config, indent=2, ensure_ascii=False)
             config_path.write_text(formatted, encoding="utf-8")
@@ -514,10 +514,10 @@ class NodeConfigDialog(FloatingPanel):
             self._rl_status.setText(t("k_rl_save_failed") + str(e))
             self._rl_status.setStyleSheet("color: #F44336; font-size: 10px;")
 
-    # ==================== config.json two-way sync ====================
+    # ==================== node_config.json two-way sync ====================
 
     def load_config_json(self):
-        """Load primary config file (node_config.json / config.json) from file into editor."""
+        """Load primary config file (node_config.json) from file into editor."""
         from ui.core.config.config_merger import get_config_path
 
         config_path = Path(get_config_path(self.node_path))
@@ -556,7 +556,7 @@ class NodeConfigDialog(FloatingPanel):
         self._save_timer.start(800)
 
     def _write_config_to_file(self):
-        """Write editor content to primary config file (node_config.json / config.json)."""
+        """Write editor content to node_config.json."""
         if self._ignore_external:
             return
 
@@ -603,13 +603,13 @@ class NodeConfigDialog(FloatingPanel):
         except Exception as e:
             self._config_status.setText(t("k_status_save_failed"))
             self._config_status.setStyleSheet("color: #F44336; font-size: 10px; background: transparent;")
-            logger.error("Failed to save config.json: %s", e)
+            logger.error("Failed to save node_config.json: %s", e)
 
     def _reset_ignore_flag(self):
         self._ignore_external = False
 
     def _on_config_external_change(self, node_path):
-        """polling_manager signal: config.json was modified externally."""
+        """polling_manager signal: node_config.json was modified externally."""
         if node_path != self.node_path or self._ignore_external:
             return
         self.load_config_json()

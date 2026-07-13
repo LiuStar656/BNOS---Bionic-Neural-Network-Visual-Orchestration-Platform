@@ -1,4 +1,4 @@
-# BNOS - Bionic Neural Network Operating System
+﻿# BNOS - Bionic Neural Network Operating System
 
 🌍 Language | 语言选择：[中文](README_CN.md) | [English](README.md)
 
@@ -6,8 +6,8 @@
 
 | Document | Purpose |
 |----------|---------|
-| [节点开发规范](节点开发规范.md) (CN) | **Node Developer Guide** — Directory structure, config.json, listener, main logic, startup scripts, communication protocol |
-| [config_json 开发规范](config_json_开发规范.md) (CN) | config.json parameter widgets & input/output port detailed configuration (11 widget types) |
+| [节点开发规范](节点开发规范.md) (CN) | **Node Developer Guide** — Directory structure, node_config.json, listener, main logic, startup scripts, communication protocol |
+| [config_json 开发规范](config_json_开发规范.md) (CN) | node_config.json parameter widgets & input/output port detailed configuration (11 widget types) |
 | [节点生成器开发准则](节点生成器开发准则.md) (CN) | Node generator development guidelines for new languages (Go/Java/C++ etc.) |
 | [Node_Generator_Guidelines_EN.md](Node_Generator_Guidelines_EN.md) | Same as above, English version |
 
@@ -22,7 +22,7 @@
 - ✅ **Smart Compilation**: Automatically triggers `cargo build --release` only when either executable is missing
 - ✅ **Direct Execution**: Skips compilation when both executables exist, directly launching the listener
 - ✅ **Delayed Expansion Support**: Windows batch scripts now use `setlocal enabledelayedexpansion` for proper variable handling
-- ✅ **Multi-Level Config Search**: Both `main.rs` and `listener.rs` search for `config.json` in three locations (target/release → target → project root)
+- ✅ **Multi-Level Config Search**: Both `main.rs` and `listener.rs` search for `node_config.json` in three locations (target/release → target → project root)
 - ✅ **Full Path Invocation**: Listener calls main program using complete path to avoid working directory issues
 - ✅ **Auto-generated output.json**: New nodes now include an initial `output.json` file with `{"code":0,"data":null}`
 
@@ -95,7 +95,7 @@ Output to Next Node (output.json) ← Inter-Node Communication
 
 - **listener.py / listener.rs**: Node listener responsible for monitoring upper tasks, executing attention filtering, and calling node processing logic
 - **main.py / main.rs**: Node processing logic implementing execution logic for specific functional units within the agent
-- **config.json**: Node configuration file defining node name, listening path, attention rules, etc.
+- **node_config.json**: Node configuration file defining node name, listening path, attention rules, etc.
 - **packet.py / packet.rs**: Data packet structure definition file (inter-node communication format)
 - **create_node.py / rust_create_node.py**: Node creation tools that automatically generate complete node structures (Python/Rust)
 - **Multi-Language Support**: Supports Python, Rust, and other language implementations, all using unified JSON communication protocol
@@ -121,7 +121,7 @@ bnos/
 │   ├── venv/                     # Independent virtual environment
 │   ├── logs/                     # Log directory
 │   │   └── listener.log         # Node activity log
-│   ├── config.json              # Node configuration (attention parameters)
+│   ├── node_config.json              # Node configuration (attention parameters)
 │   ├── listener.py              # Listener program (task receiver)
 │   ├── main.py                  # Node processing logic (functional unit execution)
 │   ├── packet.py                # Data packet definition (communication format)
@@ -135,7 +135,7 @@ bnos/
 │   ├── Cargo.toml               # Rust project configuration
 │   ├── logs/                     # Log directory
 │   │   └── listener.log         # Node activity log
-│   ├── config.json              # Node configuration (attention parameters)
+│   ├── node_config.json              # Node configuration (attention parameters)
 │   ├── output.json              # Output data file (node output)
 │   ├── start.bat                # Windows startup script
 │   └── start.sh                 # Linux/macOS startup script
@@ -188,7 +188,7 @@ python rust_create_node.py
 
 ### Configure Node Attention
 
-Edit the `config.json` file:
+Edit the `node_config.json` file:
 
 ```json
 {
@@ -263,7 +263,7 @@ The Rust node will automatically build the project on first run or when source c
 
 ## 📋 Configuration Guide
 
-### config.json Parameters
+### node_config.json Parameters
 
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
@@ -343,7 +343,7 @@ cargo build --release
 
 1. **View Logs**: Check `logs/listener.log` to understand node operation status (internal agent activity monitoring)
 2. **Monitor Data**: Observe changes in `upper_data.json` and `output.json` (internal agent signal flow tracking)
-3. **Test Attention**: Modify the `filter` rules in `config.json` to verify task filtering (attention adjustment)
+3. **Test Attention**: Modify the `filter` rules in `node_config.json` to verify task filtering (attention adjustment)
 
 ### Log Format
 
@@ -356,7 +356,7 @@ cargo build --release
 ## 🔄 Workflow (Node Collaborative Processing)
 
 1. **Task Reception**: `listener.py` continuously monitors the `upper_data.json` file (node receives tasks from upstream nodes)
-2. **Attention Filtering**: Determines whether to process the task based on `filter` rules in `config.json` (node attention focusing)
+2. **Attention Filtering**: Determines whether to process the task based on `filter` rules in `node_config.json` (node attention focusing)
 3. **Duplicate Check**: Checks if the task has been processed by the current node (via `_processed_<node_name>` marker, avoiding duplicate execution)
 4. **Node Processing**: Calls `main.py` to execute node functional logic, passing JSON task as command-line arguments (functional unit execution)
 5. **Output Results**: Writes processing results to `output.json` (node output, passed to downstream nodes)

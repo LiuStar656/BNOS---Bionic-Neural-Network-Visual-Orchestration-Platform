@@ -182,9 +182,7 @@ class Packager:
                 return False
 
             # 检查必需文件
-            has_config = (Path(extracted_dir) / "node_config.json").exists() or (
-                Path(extracted_dir) / "config.json"
-            ).exists()
+            has_config = (Path(extracted_dir) / "node_config.json").exists()
             if not has_config or not (Path(extracted_dir) / "main.py").exists():
                 shutil.rmtree(temp_dir)
                 return False
