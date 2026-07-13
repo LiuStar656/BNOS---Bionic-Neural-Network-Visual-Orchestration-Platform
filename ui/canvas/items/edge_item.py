@@ -447,9 +447,9 @@ class EdgeItem(QGraphicsPathItem):
         # 动态计算当前缩放倍数下的合适线条宽度（确保放大后仍有清晰平滑的边缘）
         # 通过 painter.transform 的 m11 获取当前 x 方向缩放比例
         transform = painter.transform()
-        max(abs(transform.m11()), abs(transform.m22()), 1.0)
+        zoom_scale = max(abs(transform.m11()), abs(transform.m22()), 1.0)
         # 基础宽度 + 根据缩放调整：1x 显示 3px，放大后保持矢量平滑
-        base_w = max(3.0, self._base_width)
+        base_w = max(3.0 / zoom_scale, self._base_width)
 
         # 抗锯齿 + 平滑变换
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
