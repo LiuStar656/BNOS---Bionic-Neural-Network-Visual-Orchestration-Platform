@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿# node_config.json 多输入面板组件开发规范
+﻿﻿﻿﻿﻿﻿﻿﻿# node_config.json 多输入面板组件开发规范
 
 ## 概述
 

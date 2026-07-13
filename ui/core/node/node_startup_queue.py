@@ -409,11 +409,16 @@ class NodeStartWorker(QThread):
         from ui.core.node.node_process import start_node_process
 
         if node_name not in self._nodes_data:
-            self.finished.emit(False, f"节点不存在: {node_name}")
+            err_msg = f"节点不存在于 nodes_data: {node_name}"
+            logger.error(err_msg)
+            self.finished.emit(False, err_msg)
             return
 
         node_info = self._nodes_data[node_name]
+        logger.info("启动节点: %s, path=%s", node_name, node_info.get("path", "?"))
         success, err = start_node_process(node_info)
+        if not success:
+            logger.error("节点启动失败: %s, error=%s", node_name, err)
         self.finished.emit(success, err)
 
     def _start_composite(self, comp_id: str):

@@ -93,9 +93,14 @@ def _is_my_data(data):
     """检查数据是否匹配 input_filter_rules.filter。
 
     等同入口节点 listener.py 的 is_my_data() 逻辑：
-    如果 filter 为空则不限制；否则所有 key-value 必须完全匹配。
+    - 如果 filter 为空则不限制
+    - 如果 filter 是 JSON Schema 格式（含 "type"/"properties"），则跳过过滤（Schema 用于校验，非类型匹配）
+    - 否则所有 key-value 必须完全匹配（简单过滤模式）
     """
     if not MY_FILTER:
+        return True
+    # JSON Schema 格式：含 "type" 或 "properties"，用于数据校验而非类型过滤
+    if "type" in MY_FILTER or "properties" in MY_FILTER or "required" in MY_FILTER:
         return True
     for k, v in MY_FILTER.items():
         if data.get(k) != v:
@@ -503,6 +508,11 @@ def main():
 
             if not has_input_routes and _has_outputs() and not pipeline_reloaded:
                 # 无外部输入且已有输出 → 仅在 .pipe 信号触发时重跑
+                time.sleep(0.5)
+                continue
+
+            if not has_input_routes and not external_input and not _has_outputs():
+                # 无外部输入路由、无上游数据、无历史输出 → 首次启动，等待数据流入
                 time.sleep(0.5)
                 continue
 

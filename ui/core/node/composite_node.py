@@ -186,6 +186,7 @@ class CompositeNode:
         self._ensure_port_routing(comp_id)
         comp["_port_routing"]["input"][port_name] = {"source_output_path": source_output_path}
         self.save_debounced()
+        self._sync_routing_debounced(comp_id)
 
     def set_output_routing(
         self, comp_id: str, port_name: str, target_composite: str | None, target_node: str, target_port: str
@@ -201,6 +202,7 @@ class CompositeNode:
             "target_port": target_port,
         }
         self.save_debounced()
+        self._sync_routing_debounced(comp_id)
 
     def clear_input_routing(self, comp_id: str, port_name: str):
         """清除输入端口路由记录。"""
@@ -209,6 +211,7 @@ class CompositeNode:
         if port_name in routing:
             del routing[port_name]
             self.save_debounced()
+            self._sync_routing_debounced(comp_id)
 
     def clear_output_routing(self, comp_id: str, port_name: str):
         """清除输出端口路由记录。"""
@@ -217,6 +220,32 @@ class CompositeNode:
         if port_name in routing:
             del routing[port_name]
             self.save_debounced()
+            self._sync_routing_debounced(comp_id)
+
+    def _sync_routing_debounced(self, comp_id: str):
+        """延迟同步 _port_routing 到 composite.json，避免频繁写入。"""
+        from PySide6.QtCore import QTimer
+
+        if not hasattr(self, "_routing_sync_timers"):
+            self._routing_sync_timers: dict[str, QTimer] = {}
+        if comp_id in self._routing_sync_timers:
+            self._routing_sync_timers[comp_id].stop()
+        timer = QTimer()
+        timer.setSingleShot(True)
+        timer.timeout.connect(lambda cid=comp_id: self._sync_routing_to_config(cid))
+        self._routing_sync_timers[comp_id] = timer
+        timer.start(300)
+
+    def _sync_routing_to_config(self, comp_id: str):
+        """将当前 _port_routing 同步写入 composite.json。"""
+        cfg = self._load_composite_config(comp_id)
+        if not cfg:
+            return
+        routing = self._get_port_routing(comp_id)
+        if cfg.get("external_connections") == routing:
+            return
+        cfg["external_connections"] = routing
+        self._write_composite_config(comp_id, cfg)
 
     # ── 持久化（续）──
 
@@ -688,6 +717,8 @@ class CompositeNode:
         # ── 始终写入 composite.json 并同步 pipeline.json ──
         # 即使过滤规则未变，DAG 拓扑（edges）也可能已变化，必须更新。
         if comp_cfg:
+            # 同步外部连接信息到 composite.json（从 _port_routing 提取）
+            comp_cfg["external_connections"] = self._get_port_routing(comp_id)
             self._write_composite_config(comp_id, comp_cfg)
             self._sync_pipeline(comp_id)
             # 写入 .pipe 信号文件，通知运行中的编排器重新加载 pipeline.json
@@ -1240,6 +1271,32 @@ class CompositeNode:
             except Exception as e:
                 logger.error("expand sync %s: %s", internal_name, e)
 
+    def _find_entry_for_collapse(self, node_names: list, comp: dict) -> str:
+        """找出复合节点内 DAG 的入口节点（无内部上游的节点）。"""
+        edges = comp.get("_internal_edges", [])
+        targets = {e.get("tgt", e.get("to", "")) for e in edges}
+        for n in node_names:
+            if n not in targets:
+                return n
+        return node_names[0] if node_names else ""
+
+    def _find_entry_node(self, comp_id: str) -> str:
+        """通过 comp_id 找出 DAG 入口节点（供外部连线时使用）。"""
+        comp = self._composites.get(comp_id, {})
+        node_names = comp.get("nodes", [])
+        return self._find_entry_for_collapse(node_names, comp)
+
+    def _find_exit_node(self, comp_id: str) -> str:
+        """通过 comp_id 找出 DAG 出口节点（无内部下游的节点）。"""
+        comp = self._composites.get(comp_id, {})
+        edges = comp.get("_internal_edges", [])
+        sources = {e.get("src", e.get("from", "")) for e in edges}
+        node_names = comp.get("nodes", [])
+        for n in node_names:
+            if n not in sources:
+                return n
+        return node_names[-1] if node_names else ""
+
     def _sync_configs_for_collapse(self, comp_id: str, node_names: list):
         """On collapse: sync external refs back to _port_routing, then clear internal configs.
 
@@ -1261,6 +1318,9 @@ class CompositeNode:
             internal_to_output_port[p.get("internal_node", "")] = p.get("port_name", "")
 
         # ── Phase 1: sync external refs back to _port_routing ──
+        # 找出入口节点：DAG 中没有内部上游的节点
+        entry_node = self._find_entry_for_collapse(node_names, comp)
+
         for node_name in node_names:
             config_path = Path(get_config_path(str(nodes_dir / node_name)))
             try:
@@ -1275,6 +1335,9 @@ class CompositeNode:
                 upstream = self._extract_node_from_path(listen)
                 if upstream and upstream not in node_set:
                     port_name = internal_to_input_port.get(node_name, "")
+                    if not port_name and entry_node:
+                        # 下游节点有外部监听但无端口映射 → 路由到入口节点的第一个端口
+                        port_name = internal_to_input_port.get(entry_node, "")
                     if port_name:
                         self.set_input_routing(comp_id, port_name, listen)
                         logger.info(
@@ -1915,20 +1978,48 @@ class CompositeNode:
         return True, t(TK._COMPOSITE_STARTED_N).format(n=len(node_names))
 
     def stop_composite(self, comp_id: str) -> tuple[bool, str]:
-        """停止复合节点。"""
+        """停止复合节点。
+
+        先尝试通过内存中的 Popen 对象终止；若已丢失（如 _composite_manager
+        被重建导致 _active_processes 为空），则从 PID 文件读取 PID 后强制 kill。
+        Windows 上使用 taskkill /F /T 确保完整终止进程树。
+        """
         virtual_name = f"__composite_{comp_id}"
         proc = self._active_processes.get(virtual_name)
-        if proc and proc.poll() is None:
-            try:
-                proc.terminate()
-                proc.wait(timeout=5)
-            except Exception:
+        killed = False
+
+        # ── 路径 1: 内存中的 Popen 对象可用 ──
+        if proc is not None:
+            if proc.poll() is None:
                 try:
-                    proc.kill()
-                except (ProcessLookupError, OSError):
-                    pass
+                    proc.terminate()
+                    proc.wait(timeout=5)
+                except Exception:
+                    try:
+                        proc.kill()
+                        proc.wait(timeout=5)
+                    except (ProcessLookupError, OSError):
+                        pass
             del self._active_processes[virtual_name]
-            logger.info("[%s] 复合节点已停止", comp_id)
+            killed = True
+            logger.info("[%s] 复合节点已停止 (via Popen)", comp_id)
+
+        # ── 路径 2: 兜底 — 从 PID 文件读取 PID 并强制终止 ──
+        # 场景: _composite_manager 被重建导致 _active_processes 丢失
+        pid_paths = [
+            Path(self._project_path) / f"__composite_{comp_id}.pid",
+            self._comp_config_dir(self._project_path, comp_id) / ".pid",
+        ]
+        for pid_file in pid_paths:
+            try:
+                if not pid_file.exists():
+                    continue
+                pid = int(pid_file.read_text().strip())
+            except (OSError, ValueError):
+                continue
+            if self._kill_pid_force(pid):
+                killed = True
+                logger.info("[%s] 复合节点已停止 (via PID file, pid=%d)", comp_id, pid)
 
         # 关闭日志文件句柄
         log_files = self._composite_log_files.pop(comp_id, (None, None))
@@ -1939,14 +2030,62 @@ class CompositeNode:
                 except OSError:
                     pass
 
-        # 清理 PID 文件
-        pid_file = Path(self._project_path) / f"__composite_{comp_id}.pid"
-        try:
-            pid_file.unlink()
-        except OSError:
-            pass
+        # 清理 PID 文件 — 确保重启时 check_composite_start 不会误判
+        for pid_file in pid_paths:
+            try:
+                pid_file.unlink(missing_ok=True)
+            except OSError:
+                pass
+        # 清理子节点的 .pid 文件
+        sub_nodes = self.get_nodes(comp_id)
+        for n in sub_nodes:
+            sub_pid = Path(self._project_path) / "nodes" / n / ".pid"
+            try:
+                sub_pid.unlink(missing_ok=True)
+            except OSError:
+                pass
 
+        if not killed:
+            logger.warning("[%s] stop_composite: 未找到运行中的进程", comp_id)
         return True, t(TK.COMPOSITE_STOPPED)
+
+    @staticmethod
+    def _kill_pid_force(pid: int) -> bool:
+        """跨平台强制终止进程。返回 True 表示成功终止。"""
+        try:
+            import psutil
+        except ImportError:
+            psutil = None
+        killed = False
+        if os.name == "nt":
+            # Windows: taskkill /F /T 杀死进程树
+            try:
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
+                    capture_output=True,
+                    timeout=10,
+                )
+                killed = True
+            except (subprocess.TimeoutExpired, OSError) as exc:
+                logger.warning("taskkill failed for pid=%d: %s", pid, exc)
+        else:
+            # Unix: SIGKILL 进程树
+            try:
+                parent = psutil.Process(pid) if psutil else None
+                if parent:
+                    children = parent.children(recursive=True)
+                    for child in children:
+                        child.kill()
+                    _, alive = psutil.wait_procs(children + [parent], timeout=5)
+                    for p in alive:
+                        p.kill()
+                    killed = True
+                else:
+                    os.kill(pid, 9)
+                    killed = True
+            except (ProcessLookupError, PermissionError, OSError) as exc:
+                logger.warning("kill failed for pid=%d: %s", pid, exc)
+        return killed
 
     def execute(self, comp_id: str) -> bool:
         """统一执行入口，根据 comp 配置的 transport 字段路由到本地或远程。"""
@@ -2231,6 +2370,7 @@ class CompositeNode:
             ],
             "edges": cfg.get("edges", []),
             "input_filter_rules": cfg.get("input_filter_rules", {}),
+            "external_connections": self._get_port_routing(comp_id),
         }
         pipeline_path = self._comp_pipeline_path(self._project_path, comp_id)
         with pipeline_path.open("w", encoding="utf-8") as f:

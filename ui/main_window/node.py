@@ -86,6 +86,7 @@ class MainWindowNodeControlMixin:
         is_composite = node_name.startswith("composite_")
 
         if not is_composite and node_name not in self.nodes_data:
+            self.show_toast(f"节点 {node_name} 未在节点注册表中找到", "error")
             return
 
         if not is_composite:
@@ -178,6 +179,7 @@ class MainWindowNodeControlMixin:
     def _on_queue_node_failed(self, node_name, error):
         """队列节点启动失败"""
         logger.error(f"队列节点启动失败: {node_name} - {error}")
+        self.show_toast(t("_k_start_fail").format(err=error), "error", node_name=node_name, operation_type="start")
         if node_name.startswith("composite_"):
             self._update_composite_status(node_name, "stopped")
         else:
@@ -230,6 +232,7 @@ class MainWindowNodeControlMixin:
     def _start_node_async(self, node_name):
         """异步启动节点（使用后台线程执行，不阻塞GUI）"""
         if node_name not in self.nodes_data:
+            self.show_toast(f"节点 {node_name} 未在节点注册表中找到", "error")
             return
 
         class StartNodeWorker(QThread):
@@ -300,6 +303,7 @@ class MainWindowNodeControlMixin:
             return
 
         if node_name not in self.nodes_data:
+            self.show_toast(f"节点 {node_name} 未在节点注册表中找到", "error")
             return
         node_info = self.nodes_data[node_name]
         if node_info["status"] == "stopped":

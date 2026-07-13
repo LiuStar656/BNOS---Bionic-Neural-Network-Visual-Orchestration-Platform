@@ -288,6 +288,9 @@ class CanvasConnections:
             # Composite output port → external target node
             port_name = getattr(source_anchor, "port_name", "") or "default"
             internal_name = manager._find_internal_by_port(source_name, port_name, "output")
+            if not internal_name and port_name == "default":
+                # 用户连接的是复合节点主输出锚点 → 直接找 DAG 出口节点
+                internal_name = manager._find_exit_node(source_name)
             if not internal_name or internal_name not in nodes_data:
                 logger.warning(
                     "create_edge: composite output port %s/%s not mapped to internal node "
@@ -342,6 +345,10 @@ class CanvasConnections:
             # External source node → composite input port
             port_name = getattr(target_anchor, "port_name", "") or "default"
             internal_name = manager._find_internal_by_port(target_name, port_name, "input")
+            if not internal_name and port_name == "default":
+                # 用户连接的是复合节点主锚点 → 直接找 DAG 入口节点
+                internal_name = manager._find_entry_node(target_name)
+                port_name = "data"  # 编排器用 "data" 键传入入口节点的 process()
             if not internal_name or internal_name not in nodes_data:
                 logger.warning(
                     "create_edge: composite input port %s/%s not mapped to internal node "
@@ -390,7 +397,12 @@ class CanvasConnections:
             tgt_port_name = getattr(target_anchor, "port_name", "") or "default"
 
             src_internal = manager._find_internal_by_port(source_name, src_port_name, "output")
+            if not src_internal and src_port_name == "default":
+                src_internal = manager._find_exit_node(source_name)
             tgt_internal = manager._find_internal_by_port(target_name, tgt_port_name, "input")
+            if not tgt_internal and tgt_port_name == "default":
+                tgt_internal = manager._find_entry_node(target_name)
+                tgt_port_name = "data"
 
             if not src_internal or src_internal not in nodes_data:
                 logger.warning(
