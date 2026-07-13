@@ -30,8 +30,17 @@ class SelectionTool(ToolBase):
         modifiers = event.modifiers()
         item = self.canvas.scene.itemAt(scene_pos, self.canvas.transform())
 
+        from ui.canvas.items.composite_node_item import CompositeNodeItem
+        from ui.canvas.items.node_item import NodeItem
+
+        while item:
+            if isinstance(item, NodeItem | CompositeNodeItem):
+                return ToolResult.IGNORED
+            item = item.parentItem()
+
         # 查找点击的图形
         graphic = None
+        item = self.canvas.scene.itemAt(scene_pos, self.canvas.transform())
         while item:
             if isinstance(item, GraphicBase | TextGraphic) and item in self.draw_layer.graphics:
                 graphic = item
@@ -71,6 +80,9 @@ class SelectionTool(ToolBase):
         else:
             # 空白点击：取消所有选择
             self.draw_layer.deselect_all()
+            for item in self.canvas.nodes.values():
+                item._is_custom_selected = False
+                item.update()
 
         self._marquee_start = scene_pos
         self._create_marquee(scene_pos)

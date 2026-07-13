@@ -110,6 +110,9 @@ class NodeManager:
         for edge in edges_to_remove:
             self.canvas.remove_edge(edge)
 
+        # 检查并更新复合节点的内部节点列表
+        self._remove_from_composite_if_inside(node_name)
+
         # 移除节点
         self.canvas.scene.removeItem(node)
         del self.canvas.nodes[node_name]
@@ -120,6 +123,20 @@ class NodeManager:
         if self.canvas.parent_window and self.canvas.parent_window.current_project_path:
             self.canvas._save_timer.stop()
             self.canvas._save_timer.start(500)
+
+    def _remove_from_composite_if_inside(self, node_name: str):
+        """如果节点是复合节点的内部节点，从复合节点中移除它"""
+        mgr = getattr(self.canvas, "_composite_manager", None)
+        if not mgr:
+            return
+
+        for comp_id, comp in mgr._composites.items():
+            if node_name in comp.get("nodes", []):
+                comp["nodes"].remove(node_name)
+                if "original_positions" in comp and node_name in comp["original_positions"]:
+                    del comp["original_positions"][node_name]
+
+                logger.info("节点 %s 已从复合节点 %s 的内部节点列表中移除", node_name, comp_id)
 
     def remove_node_with_cleanup(self, node_name):
         """从画布删除节点并清理上下游配置
@@ -279,41 +296,34 @@ class NodeManager:
 
     def open_node_config(self, node_name):
         """打开节点配置对话框"""
-        if self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
-            node_info = self.canvas.parent_window.nodes_data[node_name]
-            config = node_info["config"]
-            node_path = node_info["path"]
+        from ui.dialogs.node_detail_panel import NodeDetailPanel
 
-            from ui.dialogs.node_config_dialog import NodeConfigDialog
-
-            dialog = NodeConfigDialog(node_name, config, node_path, self.canvas.parent_window)
-            dialog.exec()
+        panel = NodeDetailPanel.create_for_node(node_name, self.canvas.parent_window)
+        panel.exec()
 
     def on_node_expand_requested(self, node_name):
         """节点展开按钮回调 — 以节点中心为基准展开浮动面板"""
-        from ui.panels.node_expand_panel import NodeExpandPanel
+        from ui.dialogs.node_detail_panel import NodeDetailPanel
 
-        # 如果同节点已有展开面板，关闭旧的
         if hasattr(self.canvas, "_expand_panel") and self.canvas._expand_panel is not None:
             try:
-                if self.canvas._expand_panel.isVisible() and self.canvas._expand_panel.node_name == node_name:
-                    self.canvas._expand_panel._close()
+                if self.canvas._expand_panel.isVisible() and self.canvas._expand_panel._node_name == node_name:
+                    self.canvas._expand_panel.close()
             except RuntimeError:
-                pass  # 面板已被销毁
+                pass
 
-        # 窗口中心与节点中心重合
         if node_name in self.canvas.nodes:
             node = self.canvas.nodes[node_name]
             scene_pos = node.pos() + node.rect().center()
             view_pos = self.canvas.mapFromScene(scene_pos)
             global_pos = self.canvas.viewport().mapToGlobal(view_pos)
-            panel_w, panel_h = 620, 380
+            panel_w, panel_h = 950, 600
             x = global_pos.x() - panel_w // 2
             y = global_pos.y() - panel_h // 2
         else:
             x, y = 300, 200
 
-        panel = NodeExpandPanel(node_name, self.canvas.parent_window)
+        panel = NodeDetailPanel.create_for_node(node_name, self.canvas.parent_window)
         panel.move(x, y)
         panel.show()
         self.canvas._expand_panel = panel

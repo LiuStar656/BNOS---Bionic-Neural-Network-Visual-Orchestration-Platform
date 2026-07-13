@@ -50,7 +50,20 @@ class CanvasLayout:
             "drawing_graphics": self.canvas.draw_layer.to_json() if hasattr(self.canvas, "draw_layer") else [],
         }
 
+        comp_internal_nodes = {}
+        if hasattr(self.canvas, "_composite_manager") and self.canvas._composite_manager:
+            mgr = self.canvas._composite_manager
+            for comp_id, comp in mgr._composites.items():
+                if not comp.get("_expanded", False):
+                    comp_internal_nodes[comp_id] = set(comp.get("nodes", []))
+
         for node_name, node in self.canvas.nodes.items():
+            is_internal = False
+            for _comp_id, internal_set in comp_internal_nodes.items():
+                if node_name in internal_set:
+                    is_internal = True
+                    break
+
             pos = node.pos()
             custom_colors = {}
             if self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
@@ -72,6 +85,7 @@ class CanvasLayout:
                 "height": node.rect().height(),
                 "style": style_key,
                 "custom_colors": custom_colors if custom_colors else None,
+                "is_internal": is_internal,
             }
 
         for edge in self.canvas.edges:
@@ -204,12 +218,18 @@ class CanvasLayout:
                         self.canvas.edges.append(e)
                     logger.info("画布尺寸已更新: %dx%d", self.canvas.canvas_width, self.canvas.canvas_height)
 
+            def _is_internal_node(node_name):
+                if node_name in layout_data.get("nodes", {}):
+                    return layout_data["nodes"][node_name].get("is_internal", False)
+                return False
+
             # ---- 节点：单次遍历 — 已存在节点 + 缺失节点 ----
             # 合并了原来的 2 次独立循环（更新已有节点 + 补建缺失节点）
             layout_nodes = layout_data.get("nodes", {})
             missing_nodes = []
 
             for node_name, pos_data in layout_nodes.items():
+                is_internal = _is_internal_node(node_name)
                 if node_name in self.canvas.nodes:
                     node = self.canvas.nodes[node_name]
                     node.setPos(pos_data["x"], pos_data["y"])
@@ -248,18 +268,20 @@ class CanvasLayout:
                                         config[cfg_key] = cc[key]
                                 except RuntimeError:
                                     pass
+                    if is_internal:
+                        node.setVisible(False)
                 elif (
                     self.canvas.parent_window
                     and hasattr(self.canvas.parent_window, "nodes_data")
                     and node_name in self.canvas.parent_window.nodes_data
                 ):
-                    missing_nodes.append((node_name, pos_data))
+                    missing_nodes.append((node_name, pos_data, is_internal))
 
             # =================================================================
             # —— 阶段1: 从 canvas_layout.json 中恢复有位置信息的节点 ——
             # =================================================================
             created_from_layout = 0
-            for node_name, pos_data in missing_nodes:
+            for node_name, pos_data, is_internal in missing_nodes:
                 info = self.canvas.parent_window.nodes_data[node_name]
                 config = info.get("config", {})
                 lang = config.get("language") or self.canvas.detect_language(info["path"])
@@ -298,10 +320,10 @@ class CanvasLayout:
                     child.setParentItem(node)
                     child.setEnabled(True)
                     child.setVisible(True)
-                node.setVisible(True)
+                node.setVisible(not is_internal)
                 node.setZValue(2)
                 created_from_layout += 1
-                logger.info("[load_layout] 从布局恢复: %s (位置: %d, %d)", node_name, x, y)
+                logger.info("[load_layout] 从布局恢复: %s (位置: %d, %d, 内部节点: %s)", node_name, x, y, is_internal)
 
             logger.info(
                 "[load_layout] 节点创建完成: 从布局恢复=%d, 画布现有=%d个节点",

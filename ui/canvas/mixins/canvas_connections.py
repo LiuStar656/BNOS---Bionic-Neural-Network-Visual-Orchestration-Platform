@@ -348,6 +348,7 @@ class CanvasConnections:
                     "(composite=%s, available input_ports=%s)",
                     target_name,
                     port_name,
+                    target_name,
                     manager._composites.get(target_name, {}).get("input_ports", []),
                 )
                 return

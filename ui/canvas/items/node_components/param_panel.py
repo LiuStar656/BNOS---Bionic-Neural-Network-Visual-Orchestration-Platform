@@ -104,21 +104,42 @@ class NodeParamPanel:
                 self._node._param_widgets[p.name] = w
                 row_types.append("param")
 
-            # 3) 输出行
-            output_wrap = QWidget()
-            output_wrap.setStyleSheet("background: transparent;")
-            output_wrap.setMinimumHeight(self._ROW_HEIGHT)
-            output_h_layout = QHBoxLayout(output_wrap)
-            output_h_layout.setContentsMargins(0, 0, 0, 0)
-            output_h_layout.addStretch(1)
-            output_label = QLabel("output")
-            out_font = QFont()
-            out_font.setPointSize(9)
-            output_label.setFont(out_font)
-            output_label.setStyleSheet("color: #88ccff;")
-            output_h_layout.addWidget(output_label)
-            v_layout.addWidget(output_wrap)
-            row_types.append("output")
+            # 3) 输出端口行
+            output_port_defs = []
+            if config:
+                output_port_defs = NodeConfigParser.parse_output_ports(config) or []
+
+            if output_port_defs:
+                for port in output_port_defs:
+                    output_wrap = QWidget()
+                    output_wrap.setStyleSheet("background: transparent;")
+                    output_wrap.setMinimumHeight(self._ROW_HEIGHT)
+                    output_h_layout = QHBoxLayout(output_wrap)
+                    output_h_layout.setContentsMargins(0, 0, 0, 0)
+                    output_h_layout.addStretch(1)
+                    output_label = QLabel(getattr(port, "label", "") or port.name)
+                    out_font = QFont()
+                    out_font.setPointSize(9)
+                    output_label.setFont(out_font)
+                    output_label.setStyleSheet("color: #88ccff;")
+                    output_h_layout.addWidget(output_label)
+                    v_layout.addWidget(output_wrap)
+                    row_types.append("output")
+            else:
+                output_wrap = QWidget()
+                output_wrap.setStyleSheet("background: transparent;")
+                output_wrap.setMinimumHeight(self._ROW_HEIGHT)
+                output_h_layout = QHBoxLayout(output_wrap)
+                output_h_layout.setContentsMargins(0, 0, 0, 0)
+                output_h_layout.addStretch(1)
+                output_label = QLabel("output")
+                out_font = QFont()
+                out_font.setPointSize(9)
+                output_label.setFont(out_font)
+                output_label.setStyleSheet("color: #88ccff;")
+                output_h_layout.addWidget(output_label)
+                v_layout.addWidget(output_wrap)
+                row_types.append("output")
 
             container.setMinimumWidth(min_container_w)
             container.layout().activate()
@@ -174,8 +195,18 @@ class NodeParamPanel:
                         )
                 elif rtype == "output":
                     out_cx = final_w
-                    out_cy = final_h / 2.0
-                    self._node._param_row_positions["__output__"] = (out_cx, out_cy, ANCHOR_SIZE)
+                    if output_port_defs:
+                        out_idx = row_types[:i].count("output")
+                        if out_idx < len(output_port_defs):
+                            port = output_port_defs[out_idx]
+                            self._node._param_row_positions[port.name] = (
+                                out_cx,
+                                center_y,
+                                ANCHOR_SIZE_SMALL,
+                            )
+                    else:
+                        out_cy = final_h / 2.0
+                        self._node._param_row_positions["__output__"] = (out_cx, out_cy, ANCHOR_SIZE)
         else:
             # 无参数：直接用默认尺寸
             self._node.setRect(0, 0, final_w, final_h)

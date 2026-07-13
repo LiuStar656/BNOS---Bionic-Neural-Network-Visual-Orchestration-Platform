@@ -5,14 +5,21 @@
 
 ---
 <details open>
-<summary><strong>【2026-07-13】V2.0.28 - Composite Node Context Menu Optimization, Input Anchor Exclusive Detection & Collapse DAG Topology Fix</strong></summary>
+<summary><strong>【2026-07-13】V2.0.28 - Composite Node System Enhancement: Context Menu, Topology, Coordinate/Edge, Running Protection, UI, Startup Queue, Rename, Multi-Output, DAG Status</strong></summary>
 
-[View Full Update](./2026-07-13/README.md) | [01_Context_Menu](./2026-07-13/01_Composite_Node_Context_Menu_and_Input_Anchor_Detection.md) | [02_DAG_Fix](./2026-07-13/02_Composite_Node_Collapse_DAG_Topology_Fix.md)
+[View Full Update](./2026-07-13/README.md) | [01_Context_Menu](./2026-07-13/01_Composite_Node_Context_Menu_and_Input_Anchor_Detection.md) | [02_DAG_Fix](./2026-07-13/02_Composite_Node_Collapse_DAG_Topology_Fix.md) | [03_Coordinate_Fix](./2026-07-13/03_Composite_Node_Expand_Coordinate_and_Edge_Fix.md)
 
 **Main Updates:**
-- Composite node context menu optimization: start/stop mutual exclusion, decompose moved to bottom (grayed out when running), expand/collapse with running state double-check
-- Input anchor exclusive detection: one input anchor accepts only one connection, rejects multi-source input via `target_anchor.edges` check, protecting data consistency
-- Collapse DAG topology fix: root cause was `composite.json` edges never being updated; after fix, expand→rewire→collapse→new topology takes effect correctly
+- **Context Menu Optimization**: Start/stop mutual exclusion, decompose grayed when running, expand/collapse running state double-check
+- **Input Anchor Exclusive Detection**: One input anchor accepts only one connection, protecting data consistency
+- **Collapse DAG Topology Fix**: `composite.json` edges synchronized in real-time, new topology takes effect correctly
+- **Expand Coordinate & Edge Fix**: Use current position, port name mapping, layout filtering, execution order adjustment
+- **Node Running State Protection**: Running state check before rename/delete, block or confirm dialog
+- **Composite Node UI Refactoring**: Reuse regular node components, hide redundant elements, add green dot marker
+- **Startup Queue Integration**: Composite nodes enter startup queue like regular nodes
+- **Rename Feature**: Context menu option to edit display name
+- **Multi-Output Port Support**: Anchor manager prioritizes `output_ports` configuration
+- **DAG Status Tracking**: Per-node execution status, error info, and duration persisted to `status.json`
 
 </details>
 

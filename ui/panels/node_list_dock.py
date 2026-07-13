@@ -179,7 +179,8 @@ class NodeListDockPanel(QWidget, NodeListOperationsMixin, NodeListDragMixin, Nod
                 if custom_name:
                     display_name = custom_name
                 else:
-                    display_name = f"\u590d\u5408\u8282\u70b9 {short_name[:8]}"
+                    hex_part = short_name.replace("composite_", "")
+                    display_name = f"\u590d\u5408\u8282\u70b9 {hex_part}"
                 color = QColor(CompositeNode.GROUP_COLOR)
                 tooltip = "\u8fd0\u884c\u65f6\u538b\u7f29\u7ec4 \u00b7 \u5df2\u9501\u5b9a"
                 lock_indicator = "\U0001f512 " if is_locked else ""

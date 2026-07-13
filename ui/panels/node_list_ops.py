@@ -193,13 +193,10 @@ class NodeListOperationsMixin:
         """编辑节点配置"""
         if node_name not in self.nodes_data:
             return
-        node_info = self.nodes_data[node_name]
-        config = node_info["config"]
-        node_path = node_info["path"]
-        from ui.dialogs.node_config_dialog import NodeConfigDialog
+        from ui.dialogs.node_detail_panel import NodeDetailPanel
 
-        dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
-        dialog.exec()
+        panel = NodeDetailPanel.create_for_node(node_name, self.parent_window)
+        panel.exec()
 
     # ======================== 节点删除操作 ========================
 
@@ -742,10 +739,7 @@ class NodeListOperationsMixin:
             return
         for node_name in selected_nodes:
             if node_name in self.nodes_data:
-                node_info = self.nodes_data[node_name]
-                config = node_info["config"]
-                node_path = node_info["path"]
-                from ui.dialogs.node_config_dialog import NodeConfigDialog
+                from ui.dialogs.node_detail_panel import NodeDetailPanel
 
-                dialog = NodeConfigDialog(node_name, config, node_path, self.parent_window)
-                dialog.exec()
+                panel = NodeDetailPanel.create_for_node(node_name, self.parent_window)
+                panel.exec()

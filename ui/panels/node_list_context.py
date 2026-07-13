@@ -295,6 +295,12 @@ class NodeListContextMixin:
         )
         menu.addSeparator()
 
+        # 重命名
+        rename_action = menu.addAction("\u91cd\u547d\u540d\u590d\u5408\u8282\u70b9")
+        rename_action.triggered.connect(lambda: self._rename_composite_group(group_name))
+
+        menu.addSeparator()
+
         # 解耦
         decompress_action = menu.addAction("\u89e3\u8026\u4e3a\u72ec\u7acb\u8282\u70b9")
         decompress_action.triggered.connect(lambda: self._decompress_composite_group(group_name))
@@ -314,6 +320,59 @@ class NodeListContextMixin:
         menu.addSeparator()
 
         ActionFactory.create_action(self, "group.toggle_expand", self._make_ctx(group_name=group_name), menu)
+
+    def _rename_composite_group(self, group_name):
+        """重命名复合节点的展示名称。"""
+        parent = self.parent_window
+        if not parent:
+            return
+
+        comp_id = (
+            group_name[len(CompositeNode.GROUP_PREFIX) :]
+            if group_name.startswith(CompositeNode.GROUP_PREFIX)
+            else group_name
+        )
+
+        from ui.core.utils.dialog_utils import themed_input
+
+        canvas = self._get_canvas(parent)
+        if not canvas:
+            return
+        project_path = getattr(parent, "current_project_path", None)
+        if not project_path:
+            return
+        group_mgr = self.group_manager
+
+        mgr = getattr(canvas, "_composite_manager", None)
+        if not mgr:
+            mgr = CompositeNode(project_path, canvas, group_mgr)
+            canvas._composite_manager = mgr
+
+        # 运行态保护
+        if mgr.is_running(comp_id):
+            if parent:
+                parent.show_toast("复合节点正在运行中，请先停止后再重命名", "warning")
+            return
+
+        current_name = mgr._composites.get(comp_id, {}).get("display_name", "")
+        new_name = themed_input(
+            self,
+            "重命名复合节点",
+            "展示名称（留空则恢复 hex ID 显示）：",
+            current_name,
+        )
+        if new_name is None:
+            return
+
+        try:
+            mgr.rename(comp_id, new_name)
+        except ValueError as e:
+            if parent:
+                parent.show_toast(str(e), "error")
+            return
+
+        # 刷新节点列表
+        self.update_node_list(self.nodes_data)
 
     def _decompress_composite_group(self, group_name):
         """从节点列表解耦复合节点。"""
@@ -341,26 +400,20 @@ class NodeListContextMixin:
         mgr.decompress(comp_id)
 
     def _start_composite_group(self, group_name):
-        """从节点列表启动复合节点。"""
+        """从节点列表启动复合节点 - 通过启动队列。"""
         parent = self.parent_window
         if not parent:
-            return
-        canvas = self._get_canvas(parent)
-        if not canvas:
-            return
-        mgr = self._ensure_composite_manager(canvas)
-        if not mgr:
             return
         comp_id = (
             group_name[len(CompositeNode.GROUP_PREFIX) :]
             if group_name.startswith(CompositeNode.GROUP_PREFIX)
             else group_name
         )
-        runtime = mgr.get_runtime(comp_id) or "inprocess"
-        if runtime == "inprocess":
-            mgr.start_inprocess(comp_id)
-        else:
-            mgr.start_process_mode(comp_id)
+        from ui.core.node.node_startup_queue import startup_queue
+
+        startup_queue.enqueue(comp_id)
+        if parent:
+            parent.show_toast(f"复合节点 {comp_id} 已加入启动队列", "info")
 
     def _stop_composite_group(self, group_name):
         """从节点列表停止复合节点。"""

@@ -370,6 +370,20 @@ def _check_directory_permissions(node_path):
     return True, ""
 
 
+def check_node_not_running(node_name: str, nodes_data: dict) -> tuple[bool, str]:
+    """检查节点是否处于运行态，防止在运行时执行破坏性操作。
+
+    Returns:
+        (True, "")   — 安全，可以继续操作
+        (False, msg) — 运行中，msg 为提示信息
+    """
+    node_info = nodes_data.get(node_name, {})
+    status = node_info.get("status", "unknown")
+    if status in ("running", "starting"):
+        return False, f"节点「{node_name}」正在运行中，请先停止后再操作"
+    return True, ""
+
+
 def start_node_process(node_info):
     """启动节点进程并写入 PID 文件（从 node_config.json 读取配置）
 

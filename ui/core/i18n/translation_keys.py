@@ -811,6 +811,22 @@ class TranslationKeys:
     RL_MEMORY_TOOLTIP = "k_rl_memory_tooltip"
     RL_AFFINITY_TOOLTIP = "k_rl_affinity_tooltip"
 
+    # ───── 节点详情面板 (Node Detail Panel) ─────
+    DETAIL_PANEL = "k_detail_panel"
+    DETAIL_PANEL_CONFIG = "k_detail_panel_config"
+    DETAIL_PANEL_OUTPUT = "k_detail_panel_output"
+    DETAIL_PANEL_LOGS = "k_detail_panel_logs"
+    DETAIL_PANEL_COMPOSITE = "k_detail_panel_composite"
+    DETAIL_PANEL_PIPELINE = "k_detail_panel_pipeline"
+    DETAIL_PANEL_DAG_STATUS = "k_detail_panel_dag_status"
+    DETAIL_TYPE_COMPOSITE = "k_detail_type_composite"
+    DETAIL_TYPE_REGULAR = "k_detail_type_regular"
+    DETAIL_SUB_NODES = "k_detail_sub_nodes"
+    DETAIL_PATH = "k_detail_path"
+    DETAIL_REFRESH_STATUS = "k_detail_refresh_status"
+    DETAIL_NO_DAG_STATUS = "k_detail_no_dag_status"
+    _DETAIL_OP_IN_PROGRESS = "_k_detail_op_in_progress"
+
     # ═══════════════════════════════════════════════════════════════
     # 类方法 / 验证
     # ═══════════════════════════════════════════════════════════════

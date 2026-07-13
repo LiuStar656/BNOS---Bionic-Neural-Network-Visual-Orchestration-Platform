@@ -160,6 +160,12 @@ class MainWindowLifecycleMixin:
         # ── Cleanup chain: clean panel threads/timers ──
         self._cleanup_on_shutdown()
 
+        # Flush deferred Qt deletions (e.g. QProcess.deleteLater) before widget tree teardown
+        # This prevents "QProcess: Destroyed while process is still running" warnings
+        from PySide6.QtWidgets import QApplication
+
+        QApplication.processEvents()
+
         logger.info("Window close flow complete, all data safely saved")
         event.accept()
 

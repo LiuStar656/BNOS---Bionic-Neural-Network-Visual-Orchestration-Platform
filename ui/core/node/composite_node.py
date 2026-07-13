@@ -259,12 +259,22 @@ class CompositeNode:
 
         # ── Input ports: main + sub-ports from entry node's input_ports config ──
         input_ports = []
+        node_set_lookup = node_set  # alias for readability
         for n in node_names:
             if in_degree[n] == 0:
                 nd = nodes_data.get(n, {})
                 config = nd.get("config", {})
                 listen = config.get("listen_upper_file", "")
-                if not listen:
+                # 判断该节点是否为真正的入口：
+                # 1. listen 为空 → 肯定入口
+                # 2. listen 指向复合节点内部的节点 → listen 是展开前的陈旧值，仍视为入口
+                is_entry = not listen
+                if not is_entry and listen:
+                    upstream = self._extract_node_from_path(listen)
+                    if upstream and upstream in node_set_lookup:
+                        is_entry = True  # stale listen from previous DAG topology
+
+                if is_entry:
                     entry_node = n
                     # Main input port (always present)
                     input_ports.append(
@@ -278,7 +288,9 @@ class CompositeNode:
                     )
 
                     # Sub-ports from entry node's input_ports config
-                    entry_config = self._read_node_config(entry_node)
+                    # Priority: use nodes_data (already loaded with correct path mapping)
+                    nd_entry = nodes_data.get(entry_node, {})
+                    entry_config = nd_entry.get("config", {}) or self._read_node_config(entry_node)
                     entry_input_ports = entry_config.get("input_ports", [])
                     if isinstance(entry_input_ports, list):
                         for port in entry_input_ports:
@@ -390,7 +402,8 @@ class CompositeNode:
                 config = nd.get("config", {})
                 listen = config.get("listen_upper_file", "")
                 if not listen:
-                    entry_config = self._read_node_config(n)
+                    # Priority: use nodes_data (already loaded with correct path mapping)
+                    entry_config = config or self._read_node_config(n)
                     return {
                         "entry_node": n,
                         "filter": entry_config.get("filter", {}),
@@ -496,18 +509,32 @@ class CompositeNode:
             return
 
         # Guard: check all internal node items still exist on canvas
+        # Remove missing nodes from composite to avoid expansion failure
+        missing_nodes = []
         for n in node_names:
             if n not in self._canvas.nodes:
-                logger.warning("_expand_composite: internal node %s missing from canvas", n)
-                return
+                missing_nodes.append(n)
+                logger.warning("_expand_composite: internal node %s missing from canvas, removing from composite", n)
+
+        # Remove missing nodes from composite data
+        for n in missing_nodes:
+            node_names.remove(n)
+            if "original_positions" in comp and n in comp["original_positions"]:
+                del comp["original_positions"][n]
+
+        if not node_names:
+            logger.warning("_expand_composite: no internal nodes remaining for %s", comp_id)
+            return
+
         positions = comp.get("original_positions", {})
-        comp_pos = comp.get("canvas_position", {"x": 0, "y": 0})
+        comp_pos = {
+            "x": comp_item.pos().x(),
+            "y": comp_item.pos().y(),
+        }
+        comp["canvas_position"] = comp_pos
 
         comp_item.setVisible(False)
         comp_item.is_expanded = True
-
-        # Morph composite-connected edges into internal-node edges
-        self._morph_composite_to_internal_edges(comp_id, comp_item, node_names)
 
         # 批量定位内部节点（抑制逐节点连线刷新，避免抖动）
         self._canvas._batch_updating = True
@@ -522,6 +549,9 @@ class CompositeNode:
                     child_items.append(item)
         finally:
             self._canvas._batch_updating = False
+
+        # Morph composite-connected edges into internal-node edges (must happen after node repositioning)
+        self._morph_composite_to_internal_edges(comp_id, comp_item, node_names)
 
         # 批量更新所有内部节点的连线路径（一次到位，无抖动）
         self._batch_update_edges_for_nodes(node_names)
@@ -638,6 +668,15 @@ class CompositeNode:
         # Refresh ports (in case connections changed while expanded)
         self._refresh_ports_on_collapse(comp_id, comp_item, node_names)
 
+        # ── 同步端口定义到 composite.json ──
+        # _refresh_ports_on_collapse 从入口节点 node_config.json（磁盘）重新识别端口，
+        # 但只更新了内存 comp，未同步到 comp_cfg。此处将新端口写入 composite.json 持久化。
+        if comp_cfg:
+            comp_cfg["ports"] = {
+                "input": comp.get("input_ports", []),
+                "output": comp.get("output_ports", []),
+            }
+
         # ── 同步入口节点过滤规则 ──
         # 用户可能在展开时修改了入口节点的 node_config.json 过滤规则，
         # 折叠后重新提取以确保 composite.json 和 pipeline.json 中的规则是最新的。
@@ -688,18 +727,20 @@ class CompositeNode:
 
         nodes_data = self._canvas.parent_window.nodes_data if self._canvas.parent_window else {}
 
-        # ── 刷新 nodes_data：_sync_configs_for_collapse 已清除 node_config.json，
-        #     但 nodes_data 内存缓存仍保留旧的 listen_upper_file。
-        #     不刷新会导致 _identify_ports 跳过入口节点 → 0 端口 → 连线被移除。 ──
+        # ── 刷新 nodes_data 中的 listen_upper_file ──
+        # 折叠时，内部节点之间的监听关系由 DAG 编排器管理，不再需要 listen_upper_file。
+        # 清除两种陈旧值：
+        # 1. 指向复合节点外部节点的 listen（原逻辑）
+        # 2. 指向复合节点内部节点的 listen（展开后重新连线导致入口变更）
         for n in node_names:
             nd = nodes_data.get(n, {})
             cfg = nd.get("config", {})
             if cfg:
                 listen = cfg.get("listen_upper_file", "")
                 if listen:
-                    # 检查 listen 是否指向外部节点（非本 composite 内部）
                     upstream = self._extract_node_from_path(listen)
-                    if upstream and upstream not in node_names:
+                    if upstream:
+                        # 不管是外部还是内部，折叠后统一清除
                         cfg["listen_upper_file"] = ""
 
         new_ports = self._identify_ports(node_names, edges_list, nodes_data)
@@ -883,9 +924,13 @@ class CompositeNode:
         comp = self._composites.get(comp_id, {})
         port_to_internal = {}
         for p in comp.get("input_ports", []):
-            port_to_internal[p["port_name"]] = p["internal_node"]
+            port_name = p["port_name"]
+            port_to_internal[port_name] = p["internal_node"]
+            if port_name == "data":
+                port_to_internal["default"] = p["internal_node"]
         for p in comp.get("output_ports", []):
-            port_to_internal[p["port_name"]] = p["internal_node"]
+            port_name = p["port_name"]
+            port_to_internal[port_name] = p["internal_node"]
 
         morphed = []
 
@@ -894,26 +939,49 @@ class CompositeNode:
             if edge.end_node is comp_item:
                 tgt_anchor = getattr(edge, "_target_anchor", None)
                 port_name = getattr(tgt_anchor, "port_name", "")
+                logger.info(
+                    "_morph_composite: edge to composite, port_name=%s, port_to_internal=%s",
+                    port_name,
+                    port_to_internal,
+                )
                 internal_name = port_to_internal.get(port_name)
                 if internal_name:
                     internal_item = self._canvas.nodes.get(internal_name)
                     if internal_item:
                         edge.setVisible(False)
                         edge.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+
+                        target_anchor = internal_item.input_anchor
+                        if hasattr(internal_item, "anchor_manager"):
+                            entry_port = None
+                            for p in comp.get("input_ports", []):
+                                if p.get("port_name") == port_name or (
+                                    port_name == "default" and p.get("port_name") == "data"
+                                ):
+                                    entry_port = p.get("entry_port")
+                                    break
+                            if entry_port and entry_port in internal_item.anchor_manager.input_anchors:
+                                target_anchor = internal_item.anchor_manager.input_anchors[entry_port]
+
                         temp = EdgeItem(
                             edge.start_node,
                             internal_item,
                             self._canvas,
-                            target_anchor=internal_item.input_anchor,
+                            target_anchor=target_anchor,
                             source_anchor=getattr(edge, "_source_anchor", None),
                         )
-                        # Preserve waypoints from original edge
                         if hasattr(edge, "_waypoints") and edge._waypoints:
                             temp._waypoints = list(edge._waypoints)
                         self._canvas.scene.addItem(temp)
                         self._canvas.edges.append(temp)
                         temp.update_path()
                         morphed.append({"original": edge, "temp": temp})
+                        logger.info(
+                            "_morph_composite: created edge from %s to %s, target_anchor=%s",
+                            edge.start_node.node_name if hasattr(edge.start_node, "node_name") else "unknown",
+                            internal_name,
+                            target_anchor,
+                        )
 
             # Composite output anchor → external node
             elif edge.start_node is comp_item:
@@ -925,14 +993,19 @@ class CompositeNode:
                     if internal_item:
                         edge.setVisible(False)
                         edge.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+
+                        source_anchor = internal_item.output_anchor
+                        if hasattr(internal_item, "anchor_manager"):
+                            if port_name in internal_item.anchor_manager.output_anchors:
+                                source_anchor = internal_item.anchor_manager.output_anchors[port_name]
+
                         temp = EdgeItem(
                             internal_item,
                             edge.end_node,
                             self._canvas,
                             target_anchor=getattr(edge, "_target_anchor", None),
-                            source_anchor=internal_item.output_anchor,
+                            source_anchor=source_anchor,
                         )
-                        # Preserve waypoints from original edge
                         if hasattr(edge, "_waypoints") and edge._waypoints:
                             temp._waypoints = list(edge._waypoints)
                         self._canvas.scene.addItem(temp)
@@ -1408,6 +1481,10 @@ class CompositeNode:
             cy = sum(p["y"] for p in original_positions.values()) / len(original_positions)
         else:
             cx, cy = 0, 0
+
+        for n in original_positions:
+            original_positions[n]["x"] -= cx
+            original_positions[n]["y"] -= cy
 
         ports = self._identify_ports(node_names, edges_list, nodes_data)
 
@@ -1925,6 +2002,34 @@ class CompositeNode:
         virtual_name = f"__composite_{comp_id}"
         proc = self._active_processes.get(virtual_name)
         return proc is not None and proc.poll() is None
+
+    def get_health(self, comp_id: str) -> dict | None:
+        """读取复合节点编排器写入的 status.json，返回子节点健康状态。
+
+        Returns:
+            None   — status.json 不存在（尚未执行过 DAG）
+            dict   — {"comp_id": str, "updated_at": str, "last_run_id": str,
+                      "nodes": {name: {"status": "ok"|"fail"|"pending", ...}}}
+        """
+        status_path = self._comp_config_dir(self._project_path, comp_id) / "status.json"
+        if not status_path.exists():
+            return None
+        try:
+            import json as _json
+
+            return _json.loads(status_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning("[%s] 读取 status.json 失败: %s", comp_id, e)
+            return None
+
+    def rename(self, comp_id: str, new_name: str):
+        """重命名复合节点的展示名称（仅改动 display_name 字段，不影响 comp_id 或 venv）。
+        若 new_name 为空，清除 display_name（回退到 hex ID 显示）。"""
+        comp = self._composites.get(comp_id)
+        if not comp:
+            raise ValueError(f"Composite not found: {comp_id}")
+        comp["display_name"] = new_name.strip() if new_name and new_name.strip() else ""
+        self.save()
 
     # ── 辅助 ──
 

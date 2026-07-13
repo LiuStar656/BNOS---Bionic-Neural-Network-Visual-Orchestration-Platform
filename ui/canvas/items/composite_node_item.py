@@ -1,7 +1,6 @@
 """
 ui/canvas/items/composite_node_item.py
-Composite node canvas element.
-Appearance: dashed border + teal color + node count + ⊞ icon + anchor ports.
+Composite node canvas element - reuses regular node components for consistent appearance.
 """
 
 from __future__ import annotations
@@ -10,34 +9,31 @@ from pathlib import Path
 
 import psutil
 from PySide6.QtCore import QRectF, Qt, QTimer
-from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
+from PySide6.QtGui import QColor, QFont, QPainter
 from PySide6.QtWidgets import (
     QGraphicsItem,
     QGraphicsRectItem,
     QGraphicsTextItem,
+    QHBoxLayout,
+    QLabel,
     QMenu,
+    QSizePolicy,
     QStyleOptionGraphicsItem,
+    QVBoxLayout,
     QWidget,
 )
 
-from ui.canvas.items.anchor_item import ANCHOR_SIZE, ANCHOR_SIZE_SMALL, AnchorItem
+from ui.canvas.items.anchor_manager import AnchorManager
+from ui.canvas.items.node_components.param_panel import NodeParamPanel
+from ui.canvas.items.node_components.rendering import NodeRendering
+from ui.canvas.items.node_components.subcomponents import NodeSubComponents
+from ui.canvas.items.styles import DetailedNodeStyle
 from ui.core.i18n import t
 from ui.core.utils.dialog_utils import themed_message
 
-ANCHOR_SPACING = 22
-PADDING_TOP = 35
-PADDING_BOTTOM = 12
-BASE_WIDTH = 180
-
 
 class CompositeNodeItem(QGraphicsRectItem):
-    """Composite node canvas element with input/output anchors."""
-
-    BORDER_COLOR = QColor("#4ec9b0")
-    FILL_COLOR = QColor("#1e3a3a")
-    SELECTED_BORDER = QColor("#6ee9d0")
-    INPUT_ANCHOR_COLOR = QColor("#4fc34f")
-    OUTPUT_ANCHOR_COLOR = QColor("#f06060")
+    """Composite node canvas element - reuses regular node components."""
 
     def __init__(
         self,
@@ -55,28 +51,41 @@ class CompositeNodeItem(QGraphicsRectItem):
         self.node_count = node_count
         self.node_names = node_names
         self.display_name = display_name
-        self._canvas = canvas
+        self.canvas = canvas
         self._input_ports = input_ports or []
         self._output_ports = output_ports or []
-        self._anchors = []
         self._is_expanded = False
 
-        self._calc_geometry()
+        self.node_name = comp_id
+        self.language = "Composite"
+        self.status = "stopped"
+
+        self._style = DetailedNodeStyle()
+        self._style.node_width = 340
+        self._style.node_height = 80
+
+        self._rendering = NodeRendering(self)
+        self._subcomponents = NodeSubComponents(self)
+        self._subcomponents.build_status_indicator()
+        self._subcomponents.build_selection_ring()
+        self._subcomponents.build_text_labels()
+
+        self._proxy_widgets: list = []
+        self._param_widgets: dict = {}
+        self._param_row_positions: dict = {}
+
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
         self.setZValue(10)
         self.setAcceptHoverEvents(True)
 
-        self._pen = QPen(self.BORDER_COLOR, 2, Qt.PenStyle.DashLine)
-        self._brush = QBrush(self.FILL_COLOR)
-        self._font_bold = QFont("Segoe UI", 11, QFont.Weight.Bold)
-        self._font_small = QFont("Segoe UI", 9)
+        self.anchor_manager = AnchorManager(self)
+        self._create_anchors_from_ports()
 
-        # 资源监控 — 画布上小型 CPU/MEM 文本
-        self._status_indicator = QGraphicsTextItem(self)
-        self._status_indicator.setZValue(4)
-        self._status_indicator.setVisible(False)
+        self._status_indicator_widget = QGraphicsTextItem(self)
+        self._status_indicator_widget.setZValue(4)
+        self._status_indicator_widget.setVisible(False)
         self._status_cpu_text = QGraphicsTextItem(self)
         self._status_cpu_text.setZValue(4)
         self._status_cpu_text.setDefaultTextColor(QColor("#4ecdc4"))
@@ -88,138 +97,325 @@ class CompositeNodeItem(QGraphicsRectItem):
         self._monitoring_timer = QTimer()
         self._monitoring_timer.timeout.connect(self._poll_composite_status)
 
-        self._create_anchors()
+        self._param_panel = NodeParamPanel(self)
+        self._build_detailed_view_with_ports()
 
-    def _calc_geometry(self):
-        # Main input row + sub-input rows + output rows
-        sub_in = max(len(self._input_ports) - 1, 0)  # sub-ports beyond main "data"
-        port_rows = max(1 + sub_in, len(self._output_ports), 1)
-        self._height = max(60, PADDING_TOP + port_rows * ANCHOR_SPACING + PADDING_BOTTOM)
-        self.setRect(0, 0, BASE_WIDTH, self._height)
+    def update_status(self, status):
+        """更新复合节点状态"""
+        self.status = status
+        if hasattr(self, "_style"):
+            self._style.apply_status(self, status)
 
-    def _create_anchors(self):
-        for a in self._anchors:
-            if a.scene():
-                a.scene().removeItem(a)
-        self._anchors.clear()
+    def _create_anchors_from_ports(self):
+        input_ports_normalized = []
+        for p in self._input_ports:
+            if isinstance(p, dict):
+                port_name = p.get("name") or p.get("port_name")
+                if not port_name:
+                    continue
+                entry_port = p.get("entry_port")
+                if entry_port is None or entry_port == "" or entry_port == "data":
+                    continue
+                label = p.get("label") or p.get("display_name") or port_name
+                input_ports_normalized.append(
+                    {
+                        "name": port_name,
+                        "label": label,
+                        "type": p.get("type", "default"),
+                        "required": p.get("required", False),
+                        "description": p.get("description", ""),
+                        "source": p.get("source", "node"),
+                    }
+                )
 
-        in_count = len(self._input_ports)
-        out_count = len(self._output_ports)
+        output_ports_normalized = []
+        for p in self._output_ports:
+            if isinstance(p, dict):
+                port_name = p.get("name") or p.get("port_name")
+                if not port_name:
+                    continue
+                if port_name.endswith("_out") or port_name.startswith("node_"):
+                    continue
+                label = p.get("label") or p.get("display_name") or port_name
+                output_ports_normalized.append(
+                    {
+                        "name": port_name,
+                        "label": label,
+                        "type": p.get("type", "default"),
+                        "description": p.get("description", ""),
+                    }
+                )
 
-        # ── Input anchors (left side) ──
-        # Main input anchor: 16px, positioned first
-        if in_count > 0:
-            main_port = self._input_ports[0]
-            y = PADDING_TOP
-            anchor = AnchorItem(
-                0,
-                y,
-                anchor_type="input",
-                port_name=main_port.get("port_name", "data"),
-                port_type="input",
-                size=ANCHOR_SIZE,
-                parent=self,
-            )
-            anchor.setBrush(QBrush(self.INPUT_ANCHOR_COLOR))
-            anchor.setPen(QPen(QColor("#3a7a3a"), 1.5))
-            self._anchors.append(anchor)
+        config = {
+            "listen_upper_file": "",
+            "output_file": "./output.json",
+            "input_ports": input_ports_normalized,
+            "output_ports": output_ports_normalized,
+        }
+        self.anchor_manager.build_from_config(config, self._param_row_positions)
 
-        # Sub-port input anchors (10px), from index 1 onwards
-        for i in range(1, in_count):
-            y = PADDING_TOP + i * ANCHOR_SPACING
-            port = self._input_ports[i]
-            anchor = AnchorItem(
-                0,
-                y,
-                anchor_type="input",
-                port_name=port.get("port_name", ""),
-                port_type="input",
-                size=ANCHOR_SIZE_SMALL,
-                parent=self,
-            )
-            anchor.setBrush(QBrush(self.INPUT_ANCHOR_COLOR))
-            anchor.setPen(QPen(QColor("#3a7a3a"), 1))
-            self._anchors.append(anchor)
+    def _build_detailed_view_with_ports(self):
+        self._param_row_positions.clear()
 
-        # ── Output anchors (right side) ──
-        for i in range(out_count):
-            y = PADDING_TOP + i * ANCHOR_SPACING
-            port = self._output_ports[i]
-            anchor = AnchorItem(
-                BASE_WIDTH,
-                y,
-                anchor_type="output",
-                port_name=port.get("port_name", ""),
-                port_type="output",
-                size=ANCHOR_SIZE_SMALL,
-                parent=self,
-            )
-            anchor.setBrush(QBrush(self.OUTPUT_ANCHOR_COLOR))
-            anchor.setPen(QPen(QColor("#8a3a3a"), 1))
-            self._anchors.append(anchor)
+        input_port_defs = []
+        output_port_defs = []
+
+        from ui.core.node.node_config_parser import NodeConfigParser
+
+        input_ports_normalized = []
+        for p in self._input_ports:
+            if isinstance(p, dict):
+                port_name = p.get("name") or p.get("port_name")
+                if not port_name:
+                    continue
+                entry_port = p.get("entry_port")
+                if entry_port is None or entry_port == "" or entry_port == "data":
+                    continue
+                label = p.get("label") or p.get("display_name") or port_name
+                input_ports_normalized.append(
+                    {
+                        "name": port_name,
+                        "label": label,
+                        "type": p.get("type", "default"),
+                        "required": p.get("required", False),
+                        "description": p.get("description", ""),
+                        "source": p.get("source", "node"),
+                    }
+                )
+
+        output_ports_normalized = []
+        for p in self._output_ports:
+            if isinstance(p, dict):
+                port_name = p.get("name") or p.get("port_name")
+                if not port_name:
+                    continue
+                if port_name.endswith("_out") or port_name.startswith("node_"):
+                    continue
+                label = p.get("label") or p.get("display_name") or port_name
+                output_ports_normalized.append(
+                    {
+                        "name": port_name,
+                        "label": label,
+                        "type": p.get("type", "default"),
+                        "description": p.get("description", ""),
+                    }
+                )
+
+        config = {
+            "input_ports": input_ports_normalized,
+            "output_ports": output_ports_normalized,
+            "parameters": [],
+        }
+
+        input_port_defs = NodeConfigParser.parse_input_ports(config) or []
+        input_port_defs = [p for p in input_port_defs if getattr(p, "source", "") == "node"]
+        output_port_defs = NodeConfigParser.parse_output_ports(config) or []
+
+        has_content = bool(input_port_defs or output_port_defs)
+
+        min_container_w = 340
+        default_height = 80
+        final_w = max(
+            self._style.node_width if hasattr(self._style, "node_width") else min_container_w,
+            min_container_w,
+        )
+        final_h = default_height
+
+        if has_content:
+            from ui.canvas.items.anchor_item import ANCHOR_SIZE, ANCHOR_SIZE_SMALL
+            from ui.canvas.parameter_widgets import ParameterWidget
+            from ui.core.node.node_config_parser import ParameterDef
+
+            container = QWidget()
+            container.setStyleSheet("background: transparent;")
+
+            v_layout = QVBoxLayout(container)
+            v_layout.setContentsMargins(38 + 8, 6, 8, 6)
+            v_layout.setSpacing(6)
+
+            row_types = []
+
+            for port in input_port_defs:
+                p_name = port.name
+                label_text = getattr(port, "label", "") or port.name
+                p_default = ""
+                param_obj = ParameterDef(name=p_name, type="string", label=label_text, default=p_default)
+                w = ParameterWidget.create(param_obj, p_default)
+                w.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+                v_layout.addWidget(w)
+                self._param_widgets[p_name] = w
+                row_types.append("input_port")
+
+            for port in output_port_defs:
+                output_wrap = QWidget()
+                output_wrap.setStyleSheet("background: transparent;")
+                output_wrap.setMinimumHeight(32)
+                output_h_layout = QHBoxLayout(output_wrap)
+                output_h_layout.setContentsMargins(0, 0, 0, 0)
+                output_h_layout.addStretch(1)
+                output_label = QLabel(getattr(port, "label", "") or port.name)
+                out_font = QFont()
+                out_font.setPointSize(9)
+                output_label.setFont(out_font)
+                output_label.setStyleSheet("color: #88ccff;")
+                output_h_layout.addWidget(output_label)
+                v_layout.addWidget(output_wrap)
+                row_types.append("output")
+            else:
+                output_wrap = QWidget()
+                output_wrap.setStyleSheet("background: transparent;")
+                output_wrap.setMinimumHeight(32)
+                output_h_layout = QHBoxLayout(output_wrap)
+                output_h_layout.setContentsMargins(0, 0, 0, 0)
+                output_h_layout.addStretch(1)
+                output_label = QLabel("output")
+                out_font = QFont()
+                out_font.setPointSize(9)
+                output_label.setFont(out_font)
+                output_label.setStyleSheet("color: #88ccff;")
+                output_h_layout.addWidget(output_label)
+                v_layout.addWidget(output_wrap)
+                row_types.append("output")
+
+            container.setMinimumWidth(min_container_w)
+            container.layout().activate()
+            sh = container.sizeHint()
+            content_w = sh.width() if sh.isValid() else min_container_w
+            content_h = sh.height() if sh.isValid() else (len(row_types) * 36 + 20)
+
+            self._style.set_sizes(content_w, content_h)
+            final_w = max(self._style.node_width, content_w)
+            final_h = self._style.node_height
+            self.setRect(0, 0, final_w, final_h)
+            container.setFixedWidth(final_w)
+
+            from PySide6.QtWidgets import QGraphicsProxyWidget
+
+            proxy = QGraphicsProxyWidget(self)
+            proxy.setWidget(container)
+            proxy.setPos(0, 0)
+            proxy.setZValue(5)
+            proxy.setFlag(proxy.GraphicsItemFlag.ItemClipsChildrenToShape, False)
+            proxy.setFlag(proxy.GraphicsItemFlag.ItemClipsToShape, False)
+            proxy.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            self._proxy_widgets.append(proxy)
+
+            small_center_x = 38 + 8 - ANCHOR_SIZE_SMALL / 2 - 2
+            margins_top = v_layout.contentsMargins().top() if v_layout.contentsMargins() else 0
+            running_y = 0
+            est_ys = []
+            for _j in range(len(row_types)):
+                est_ys.append(running_y + 32 / 2)
+                running_y += 32 + 6
+
+            for i, rtype in enumerate(row_types):
+                item = v_layout.itemAt(i) if v_layout else None
+                geom = item.geometry() if item and item.widget() else None
+                if geom is None or geom.width() <= 0 or geom.height() <= 0:
+                    center_y = margins_top + est_ys[i] if i < len(est_ys) else (margins_top + i * (32 + 6) + 32 / 2)
+                else:
+                    row_top = geom.y()
+                    center_y = row_top + geom.height() / 2.0
+
+                if rtype == "input_port":
+                    port_idx = row_types[:i].count("input_port")
+                    if port_idx < len(input_port_defs):
+                        port = input_port_defs[port_idx]
+                        self._param_row_positions[port.name] = (
+                            small_center_x,
+                            center_y,
+                            ANCHOR_SIZE_SMALL,
+                        )
+                elif rtype == "output":
+                    out_cx = final_w
+                    if output_port_defs:
+                        out_idx = row_types[:i].count("output")
+                        if out_idx < len(output_port_defs):
+                            port = output_port_defs[out_idx]
+                            self._param_row_positions[port.name] = (
+                                out_cx,
+                                center_y,
+                                ANCHOR_SIZE_SMALL,
+                            )
+                    else:
+                        out_cy = final_h / 2.0
+                        self._param_row_positions["__output__"] = (out_cx, out_cy, ANCHOR_SIZE)
+        else:
+            self.setRect(0, 0, final_w, final_h)
+
+        if hasattr(self, "_in_label") and self._in_label:
+            self._in_label.setVisible(False)
+        if hasattr(self, "_out_label") and self._out_label:
+            self._out_label.setVisible(False)
+
+        title_font = QFont()
+        title_font.setPointSize(10)
+        title_font.setBold(True)
+        self.name_text.setFont(title_font)
+        self.name_text.setDefaultTextColor(QColor(self._style.header_text_color))
+        self.name_text.setZValue(6)
+        display_name = self.display_name or f"Composite {self.comp_id.replace('composite_', '')[:6]}"
+        self.name_text.setPlainText(display_name)
+        text_rect = self.name_text.boundingRect()
+        title_x = max(4.0, (final_w - text_rect.width()) / 2)
+        title_y = -text_rect.height()
+        self.name_text.setPos(title_x, title_y)
+        self.name_text.setVisible(True)
+
+        indicator_size = 10
+        indicator_x = final_w - indicator_size - 8
+        indicator_y = 4
+        self.status_indicator.setRect(indicator_x, indicator_y, indicator_size, indicator_size)
+        self.status_indicator.setZValue(7)
+        self.status_indicator.setVisible(True)
+
+        lang_font = QFont()
+        lang_font.setPointSize(8)
+        self.lang_text.setFont(lang_font)
+        self.lang_text.setDefaultTextColor(QColor("#888888"))
+        self.lang_text.setZValue(6)
+        self.lang_text.setPlainText(f"{self.node_count} nodes")
+        lr = self.lang_text.boundingRect()
+        lang_x = (final_w - lr.width()) / 2
+        lang_y = final_h + 2
+        self.lang_text.setPos(lang_x, lang_y)
+        self.lang_text.setVisible(True)
+
+        self._create_anchors_from_ports()
 
     def update_ports(self, input_ports: list, output_ports: list):
         self._input_ports = input_ports
         self._output_ports = output_ports
-        self._calc_geometry()
-        self._create_anchors()
-        self.update()
+        for p in self._proxy_widgets:
+            w = p.widget()
+            if w:
+                w.deleteLater()
+            p.setWidget(None)
+            if self.scene():
+                self.scene().removeItem(p)
+        self._proxy_widgets.clear()
+        self._param_widgets.clear()
+        self._build_detailed_view_with_ports()
 
     def find_anchor_by_port(self, port_name: str, port_type: str):
-        """Find an anchor by port_name and type ('input' or 'output')."""
-        for a in self._anchors:
-            if getattr(a, "port_name", "") == port_name and getattr(a, "port_type", "") == port_type:
-                return a
-        return None
-
-    # ── Compatibility with connection system ──
-
-    @property
-    def node_name(self) -> str:
-        """Compatibility: connection system expects node_name."""
-        return self.comp_id
+        if port_type == "input":
+            return self.anchor_manager.get_input(port_name)
+        else:
+            return self.anchor_manager.get_output(port_name)
 
     @property
     def input_anchor(self):
-        """Return first visible input anchor (for connection system)."""
-        for a in self._anchors:
-            if getattr(a, "port_type", "") == "input" and a.isVisible():
-                return a
-        return None
+        return self.anchor_manager.get_default_input()
 
     @property
     def output_anchor(self):
-        """Return first visible output anchor (for connection system)."""
-        for a in self._anchors:
-            if getattr(a, "port_type", "") == "output" and a.isVisible():
-                return a
-        return None
+        return self.anchor_manager.get_default_output()
 
     def find_nearest_input_anchor(self, local_pos, max_dist=60):
-        """Compatibility: find nearest input anchor for connection target."""
-        best = None
-        best_dist = max_dist
-        for a in self._anchors:
-            if getattr(a, "port_type", "") == "input":
-                d = (a.pos() - local_pos).manhattanLength()
-                if d < best_dist:
-                    best_dist = d
-                    best = a
-        return best
+        return self.anchor_manager.find_nearest_input(local_pos, max_dist)
 
     def find_nearest_output_anchor(self, local_pos, max_dist=60):
-        """Find nearest output anchor for starting a connection."""
-        best = None
-        best_dist = max_dist
-        for a in self._anchors:
-            if getattr(a, "port_type", "") == "output":
-                d = (a.pos() - local_pos).manhattanLength()
-                if d < best_dist:
-                    best_dist = d
-                    best = a
-        return best
-
-    # ── Expand/collapse state ──
+        return self.anchor_manager.find_nearest_output(local_pos, max_dist)
 
     @property
     def is_expanded(self) -> bool:
@@ -232,13 +428,12 @@ class CompositeNodeItem(QGraphicsRectItem):
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
-            if self._canvas:
-                # Update connected edges so lines follow the composite node
-                for edge in self._canvas.edges:
+            if self.canvas:
+                for edge in self.canvas.edges:
                     if edge.start_node is self or edge.end_node is self:
                         edge.update_path()
-                if hasattr(self._canvas, "_composite_manager"):
-                    mgr = self._canvas._composite_manager
+                if hasattr(self.canvas, "_composite_manager"):
+                    mgr = self.canvas._composite_manager
                     comp = mgr._composites.get(self.comp_id)
                     if comp:
                         comp["canvas_position"] = {"x": value.x(), "y": value.y()}
@@ -246,73 +441,19 @@ class CompositeNodeItem(QGraphicsRectItem):
         return super().itemChange(change, value)
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget = None):
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        self._rendering.paint(painter, option, widget)
+
         rect = self.rect()
 
-        # Background
-        painter.setBrush(self._brush)
-        if self.isSelected():
-            painter.setPen(QPen(self.SELECTED_BORDER, 2.5, Qt.PenStyle.DashLine))
-        else:
-            painter.setPen(self._pen)
-        painter.drawRoundedRect(rect, 8, 8)
-
-        # Icon area (left ⊞)
-        icon_rect = QRectF(rect.x() + 8, rect.y() + 8, 24, 24)
+        dot_rect = QRectF(rect.x() + 8, rect.y() + 10, 6, 6)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor("#4ec9b0"))
-        painter.drawRoundedRect(icon_rect, 4, 4)
-
-        painter.setPen(QColor("#1e1e1e"))
-        painter.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        painter.drawText(icon_rect, Qt.AlignmentFlag.AlignCenter, "\u229e")
-
-        # Name
-        name_rect = QRectF(icon_rect.right() + 6, rect.y() + 7, rect.width() - icon_rect.right() - 16, 20)
-        painter.setPen(QColor("#4ec9b0"))
-        painter.setFont(self._font_bold)
-        if self.display_name:
-            label = self.display_name
-        else:
-            short_id = self.comp_id.replace("composite_", "")[:6]
-            label = f"Composite {short_id}"
-        painter.drawText(name_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, label)
-
-        # Node count
-        sub_rect = QRectF(name_rect.x(), name_rect.bottom(), name_rect.width(), 18)
-        painter.setPen(QColor("#888"))
-        painter.setFont(self._font_small)
-
-        runtime = "inprocess"
-        if self._canvas and hasattr(self._canvas, "_composite_manager"):
-            runtime = self._canvas._composite_manager.get_runtime(self.comp_id) or "inprocess"
-
-        painter.drawText(sub_rect, Qt.AlignmentFlag.AlignLeft, f"{self.node_count} nodes  {runtime}")
-
-        # Port labels
-        painter.setFont(QFont("Segoe UI", 7))
-        len(self._input_ports)
-        len(self._output_ports)
-
-        for i, port in enumerate(self._input_ports):
-            y = PADDING_TOP + i * ANCHOR_SPACING + 4
-            painter.setPen(QColor("#4fc34f"))
-            painter.drawText(QRectF(6, y - 3, 70, 12), Qt.AlignmentFlag.AlignLeft, port.get("display_name", "")[:10])
-
-        for i, port in enumerate(self._output_ports):
-            y = PADDING_TOP + i * ANCHOR_SPACING + 4
-            painter.setPen(QColor("#f06060"))
-            painter.drawText(
-                QRectF(BASE_WIDTH - 76, y - 3, 70, 12), Qt.AlignmentFlag.AlignRight, port.get("display_name", "")[:10]
-            )
-
-    # ── Mouse events ──
+        painter.drawEllipse(dot_rect)
 
     def contextMenuEvent(self, event):
         menu = QMenu()
         menu.setStyleSheet("QMenu { background: #2b2b2b; color: #ccc; }")
 
-        # Read expanded state from manager (authoritative), not self._is_expanded
         mgr = self._get_manager()
         is_expanded = False
         if mgr:
@@ -353,14 +494,14 @@ class CompositeNodeItem(QGraphicsRectItem):
         menu.exec(event.screenPos())
 
     def _toggle_expand(self):
-        if self._canvas and hasattr(self._canvas, "_composite_manager"):
-            mgr = self._canvas._composite_manager
+        if self.canvas and hasattr(self.canvas, "_composite_manager"):
+            mgr = self.canvas._composite_manager
             if hasattr(mgr, "toggle_expand"):
                 mgr.toggle_expand(self.comp_id)
 
     def _get_manager(self):
-        if self._canvas and hasattr(self._canvas, "_composite_manager"):
-            return self._canvas._composite_manager
+        if self.canvas and hasattr(self.canvas, "_composite_manager"):
+            return self.canvas._composite_manager
         return None
 
     def _decompress(self):
@@ -388,15 +529,34 @@ class CompositeNodeItem(QGraphicsRectItem):
         mgr = self._get_manager()
         if not mgr:
             return
-        runtime = mgr.get_runtime(self.comp_id) or "inprocess"
-        if runtime == "inprocess":
-            ok, msg = mgr.start_inprocess(self.comp_id)
+
+        from ui.core.node.node_startup_queue import startup_queue
+
+        if startup_queue.is_queued(self.comp_id):
+            themed_message(None, t("k_title_info"), "复合节点已在启动队列中", "info")
+            return
+
+        if self.canvas and hasattr(self.canvas, "parent_window") and self.canvas.parent_window:
+            startup_queue.set_project_context(
+                self.canvas.parent_window.current_project_path, self.canvas.parent_window.nodes_data, self.canvas
+            )
+
+        dependencies = []
+        if self.canvas:
+            dependencies = self.canvas.get_node_dependencies(self.comp_id)
+
+        success = startup_queue.enqueue(self.comp_id, dependencies=dependencies)
+        if success:
+            if self.canvas:
+                self.canvas.update_node_status(self.comp_id, "queued")
+            if dependencies:
+                themed_message(
+                    None, t("k_title_info"), f"复合节点已加入启动队列（等待: {', '.join(dependencies)}）", "info"
+                )
+            else:
+                themed_message(None, t("k_title_info"), "复合节点已加入启动队列", "info")
         else:
-            ok, msg = mgr.start_process_mode(self.comp_id)
-        if not ok:
-            themed_message(None, t("k_title_error"), msg, "error")
-        else:
-            self._start_monitoring()
+            themed_message(None, t("k_title_error"), "加入队列失败", "error")
 
     def _stop(self):
         mgr = self._get_manager()
@@ -404,10 +564,7 @@ class CompositeNodeItem(QGraphicsRectItem):
             mgr.stop_composite(self.comp_id)
         self._stop_monitoring()
 
-    # ── 资源监控 ──
-
     def _get_composite_pid(self) -> int | None:
-        """读取复合节点 orchestrator 进程 PID。"""
         mgr = self._get_manager()
         if not mgr:
             return None
@@ -420,30 +577,26 @@ class CompositeNodeItem(QGraphicsRectItem):
             return None
 
     def _start_monitoring(self):
-        """启动复合节点资源监控（1 秒轮询）。"""
         if not self._is_expanded:
             self._layout_status_widgets()
         self._monitoring_timer.start(1000)
 
     def _stop_monitoring(self):
-        """停止监控并隐藏状态文本。"""
         self._monitoring_timer.stop()
-        self._status_indicator.setVisible(False)
+        self._status_indicator_widget.setVisible(False)
         self._status_cpu_text.setVisible(False)
         self._status_mem_text.setVisible(False)
 
     def _poll_composite_status(self):
-        """轮询复合节点资源（psutil 进程树聚合）。"""
         pid = self._get_composite_pid()
         if pid is None:
             self._stop_monitoring()
             return
         if not psutil.pid_exists(pid):
-            # 进程已退出 — 显示完成状态而非消失
             self._monitoring_timer.stop()
-            self._status_indicator.setText("\u2713")
-            self._status_indicator.setStyleSheet("color: #4ec9b0; font-weight: bold; font-size: 14px;")
-            self._status_indicator.setVisible(True)
+            self._status_indicator_widget.setText("\u2713")
+            self._status_indicator_widget.setStyleSheet("color: #4ec9b0; font-weight: bold; font-size: 14px;")
+            self._status_indicator_widget.setVisible(True)
             self._status_cpu_text.setVisible(False)
             self._status_mem_text.setVisible(False)
             return
@@ -465,7 +618,7 @@ class CompositeNodeItem(QGraphicsRectItem):
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
 
-            self._status_indicator.setHtml('<span style="color:#4CAF50;font-size:10px;">● running</span>')
+            self._status_indicator_widget.setHtml('<span style="color:#4CAF50;font-size:10px;">● running</span>')
             self._status_cpu_text.setPlainText(f"CPU: {cpu_total:.0f}%")
             mem_mb = mem_total / (1024 * 1024)
             if mem_mb >= 1024:
@@ -474,23 +627,20 @@ class CompositeNodeItem(QGraphicsRectItem):
                 self._status_mem_text.setPlainText(f"MEM: {mem_mb:.0f} MB")
 
             visible = not self._is_expanded
-            self._status_indicator.setVisible(visible)
+            self._status_indicator_widget.setVisible(visible)
             self._status_cpu_text.setVisible(visible)
             self._status_mem_text.setVisible(visible)
         except Exception:
             self._stop_monitoring()
 
     def _layout_status_widgets(self):
-        """布局 CPU/MEM 文本 — 显示在复合节点矩形底部。"""
         font = QFont("Arial", 7)
         font.setBold(True)
-        self._status_indicator.setFont(font)
+        self._status_indicator_widget.setFont(font)
         self._status_cpu_text.setFont(font)
         self._status_mem_text.setFont(font)
 
-        y_base = self._height + 2
-        # 状态指示符
-        self._status_indicator.setPos(8, y_base)
-        # CPU 文本靠左，状态指示符右侧
+        y_base = self.rect().height() + 2
+        self._status_indicator_widget.setPos(8, y_base)
         self._status_cpu_text.setPos(70, y_base)
         self._status_mem_text.setPos(130, y_base)

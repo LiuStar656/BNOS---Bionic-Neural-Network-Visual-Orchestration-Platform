@@ -261,39 +261,93 @@ class AnchorManager:
             anchor.setVisible(True)
             self.input_anchors[name] = anchor
 
-        # —— 7. 生成主输出锚点（根据 node_config.json 中 output_file 字段动态决定）——
-        # 仅当 config 中存在 output_file 字段时才生成，标签使用 config 中的实际值
-        # 位置：节点右侧边线中点上（x=nw, y=nh/2）
-        has_output_file = config and "output_file" in config
-        if has_output_file:
-            if "__output__" in positions:
-                pos_tuple = positions["__output__"]
-                if len(pos_tuple) >= 3:
-                    out_center_x, out_center_y, out_size = pos_tuple
-                elif len(pos_tuple) == 2:
-                    out_center_y, _ = pos_tuple
+        # —— 7. 生成输出锚点 ——
+        # 优先使用 output_ports 配置的多输出端口，否则回退到单个 default 输出锚点
+        config_output_ports = {}
+        try:
+            from ui.core.node.node_config_parser import NodeConfigParser
+
+            if config:
+                for p in NodeConfigParser.parse_output_ports(config):
+                    config_output_ports[p.name] = p
+        except (AttributeError, RuntimeError):
+            pass
+
+        if config_output_ports:
+            # 多输出端口模式：优先使用 row_positions 中的位置（详细视图），否则垂直分布
+            port_list = list(config_output_ports.values())
+
+            for port in port_list:
+                if port.name in positions:
+                    pos_tuple = positions[port.name]
+                    if len(pos_tuple) >= 3:
+                        out_center_x, out_center_y, out_size = pos_tuple
+                    elif len(pos_tuple) == 2:
+                        out_center_y, _ = pos_tuple
+                        out_center_x = nw
+                        out_size = ANCHOR_SIZE_SMALL
+                    else:
+                        out_center_x = nw
+                        out_center_y = nh / 2.0 if nh > 0 else ANCHOR_HALF
+                        out_size = ANCHOR_SIZE_SMALL
+                else:
+                    header_h = 26
+                    divider = 4
+                    top = header_h + divider
+                    available_h = nh - top - 16
+                    n = len(port_list)
+                    idx = port_list.index(port)
+                    if n == 1:
+                        out_center_y = top + available_h / 2
+                    else:
+                        out_center_y = top + (available_h * idx) / (n - 1)
                     out_center_x = nw
-                    out_size = ANCHOR_SIZE
+                    out_size = ANCHOR_SIZE_SMALL
+
+                out_anchor = self._make_anchor(
+                    anchor_type="output",
+                    port_name=port.name,
+                    port_type=getattr(port, "type", "default"),
+                    port_label=getattr(port, "label", "") or port.name,
+                    size=out_size,
+                )
+                out_anchor.setPos(out_center_x, out_center_y)
+                out_anchor.setZValue(10)
+                out_anchor.setVisible(True)
+                self.output_anchors[port.name] = out_anchor
+        else:
+            # 单输出锚点模式（根据 node_config.json 中 output_file 字段动态决定）
+            # 位置：节点右侧边线中点上（x=nw, y=nh/2）
+            has_output_file = config and "output_file" in config
+            if has_output_file:
+                if "__output__" in positions:
+                    pos_tuple = positions["__output__"]
+                    if len(pos_tuple) >= 3:
+                        out_center_x, out_center_y, out_size = pos_tuple
+                    elif len(pos_tuple) == 2:
+                        out_center_y, _ = pos_tuple
+                        out_center_x = nw
+                        out_size = ANCHOR_SIZE
+                    else:
+                        out_center_x = nw
+                        out_center_y = nh / 2.0 if nh > 0 else ANCHOR_HALF
+                        out_size = ANCHOR_SIZE
                 else:
                     out_center_x = nw
                     out_center_y = nh / 2.0 if nh > 0 else ANCHOR_HALF
                     out_size = ANCHOR_SIZE
-            else:
-                out_center_x = nw
-                out_center_y = nh / 2.0 if nh > 0 else ANCHOR_HALF
-                out_size = ANCHOR_SIZE
-            output_label = config.get("output_file", "") or "output_file"
-            out_anchor = self._make_anchor(
-                anchor_type="output",
-                port_name="default",
-                port_type="output",
-                port_label=output_label,
-                size=out_size,
-            )
-            out_anchor.setPos(out_center_x, out_center_y)
-            out_anchor.setZValue(10)
-            out_anchor.setVisible(True)
-            self.output_anchors["default"] = out_anchor
+                output_label = config.get("output_file", "") or "output_file"
+                out_anchor = self._make_anchor(
+                    anchor_type="output",
+                    port_name="default",
+                    port_type="output",
+                    port_label=output_label,
+                    size=out_size,
+                )
+                out_anchor.setPos(out_center_x, out_center_y)
+                out_anchor.setZValue(10)
+                out_anchor.setVisible(True)
+                self.output_anchors["default"] = out_anchor
 
         # —— 8. 迁移 edges（把旧锚点的 edge 绑定到新锚点，保持连线路径）——
         # 规则：优先使用 EdgeItem 自带的 _desired_target_port_name（连接时记录的原始端口名），

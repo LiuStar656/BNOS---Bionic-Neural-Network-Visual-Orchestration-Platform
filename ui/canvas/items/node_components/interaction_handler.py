@@ -74,13 +74,13 @@ class NodeInteractionHandler:
             event.accept()
             return True
 
-        # Ctrl+单击
+        # Ctrl+单击：切换多选状态
         if (event.modifiers() & Qt.KeyboardModifier.ControlModifier) and self._node.canvas:
             self._node.canvas._toggle_node_selection(self._node.node_name)
             event.accept()
             return True
 
-        # 普通单击
+        # 普通单击：清除之前的选择，仅选中当前节点
         if self._node.canvas:
             self._node.canvas.on_node_selected(self._node)
 

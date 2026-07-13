@@ -26,8 +26,6 @@
 
 from __future__ import annotations
 
-from PySide6.QtGui import QColor, QPen
-
 from ui.core.logger import logger
 
 
@@ -48,16 +46,10 @@ class SelectionManager:
         """普通单击选中节点（单选，清除之前的多选）"""
         name = node.node_name
 
-        # 如果点击已选中的节点 → 仅保留它（Qt 已自动选中，对齐即可）
-        if name in self.canvas.box_selected_nodes:
-            self.canvas.scene.clearSelection()
-            node.setSelected(True)
-            return
-
-        # 清除之前所有选中 → 仅选中当前节点
-        self.canvas.scene.clearSelection()
-        node.setSelected(True)
-        node.setPen(QPen(QColor(self.canvas.node_selected_color), 3))
+        for n in self.canvas.nodes.values():
+            n._is_custom_selected = False
+        node._is_custom_selected = True
+        node.update()
         logger.info("选中节点: %s", name)
 
     def _toggle_node_selection(self, node_name):
@@ -67,18 +59,17 @@ class SelectionManager:
 
         node = self.canvas.nodes[node_name]
 
-        if node.isSelected():
-            node.setSelected(False)
-            node.setPen(QPen(QColor(self.canvas.node_border_color), 2))
+        if getattr(node, "_is_custom_selected", False):
+            node._is_custom_selected = False
             logger.debug("取消选中节点: %s", node_name)
         else:
-            node.setSelected(True)
-            node.setPen(QPen(QColor(self.canvas.node_selected_color), 3))
+            node._is_custom_selected = True
             logger.info(
                 "选中节点: %s (共%d个)",
                 node_name,
                 len(self.canvas.box_selected_nodes),
             )
+        node.update()
 
     def get_selected_node(self):
         """获取当前选中的节点名称（单选优先取第一个）"""

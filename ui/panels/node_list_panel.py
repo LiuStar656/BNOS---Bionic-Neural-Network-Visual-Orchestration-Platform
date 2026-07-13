@@ -17,7 +17,7 @@ from ui.core.dock.floating_panel import FloatingPanel
 from ui.core.i18n import t
 from ui.core.logger import logger
 from ui.core.system.polling_manager import polling_manager
-from ui.core.utils.dialog_utils import themed_message
+from ui.core.utils.dialog_utils import MSG_ACCEPT, themed_message
 from ui.panels.node_list_context import NodeListContextMixin
 from ui.panels.node_list_drag import NodeListDragMixin
 from ui.panels.node_list_ops import NodeListOperationsMixin
@@ -215,6 +215,15 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
             print(f"[NodeListPanel.rename_node] {old_name} NOT in nodes_data, aborting")
             return
 
+        # 运行态保护：运行中禁止重命名
+        from ui.core.node.node_process import check_node_not_running
+
+        ok, msg = check_node_not_running(old_name, self.nodes_data)
+        if not ok:
+            if self.parent_window:
+                self.parent_window.show_toast(msg, "warning")
+            return
+
         from PySide6.QtWidgets import (
             QDialog,
             QLineEdit,
@@ -372,6 +381,19 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
             if self.parent_window:
                 self.parent_window.show_toast("请先选中要删除的节点", "warning")
             return
+
+        # 运行态保护：筛查运行中的节点并提示
+        running = [n for n in selected_nodes if self.nodes_data.get(n, {}).get("status") in ("running", "starting")]
+        if running:
+            names = "、".join(running)
+            reply = themed_message(
+                self,
+                "确认删除",
+                f"以下 {len(running)} 个节点正在运行中：\n{names}\n\n删除将同时停止这些节点。是否继续？",
+                "warning2",
+            )
+            if reply != MSG_ACCEPT:
+                return
 
         reply = themed_message(
             self,

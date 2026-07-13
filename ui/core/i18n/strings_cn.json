@@ -662,5 +662,19 @@
   "k_rl_save_failed": "保存失败: ",
   "k_rl_cpu_tooltip": "100 = 1 核, 200 = 2 核。0 = 无限制。macOS 不支持。",
   "k_rl_memory_tooltip": "内存硬限制。0 = 无限制。macOS 不支持。",
-  "k_rl_affinity_tooltip": "绑定到指定 CPU 核心。留空使用全部核心。macOS 不支持。"
+  "k_rl_affinity_tooltip": "绑定到指定 CPU 核心。留空使用全部核心。macOS 不支持。",
+  "k_detail_panel": "节点详情",
+  "k_detail_panel_config": "配置",
+  "k_detail_panel_output": "输出",
+  "k_detail_panel_logs": "日志",
+  "k_detail_panel_composite": "复合配置",
+  "k_detail_panel_pipeline": "流水线",
+  "k_detail_panel_dag_status": "DAG状态",
+  "k_detail_type_composite": "复合节点",
+  "k_detail_type_regular": "普通节点",
+  "k_detail_sub_nodes": "子节点数: ",
+  "k_detail_path": "路径: ",
+  "k_detail_refresh_status": "刷新状态",
+  "k_detail_no_dag_status": "# 暂无 DAG 状态\n# 复合节点运行后状态将显示于此",
+  "_k_detail_op_in_progress": "操作进行中，请稍后..."
 }

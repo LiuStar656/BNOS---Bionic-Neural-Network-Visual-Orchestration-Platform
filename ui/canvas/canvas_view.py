@@ -51,13 +51,17 @@ class SelectedNodesList:
 
     def _sync(self):
         """从 scene 同步选中节点名称"""
+        from ui.canvas.items.composite_node_item import CompositeNodeItem
         from ui.canvas.items.node_item import NodeItem
 
         self._cache = [
             item.node_name
             for item in self._canvas.scene.selectedItems()
-            if isinstance(item, NodeItem) and hasattr(item, "node_name")
+            if isinstance(item, NodeItem | CompositeNodeItem) and hasattr(item, "node_name")
         ]
+        for name, item in self._canvas.nodes.items():
+            if getattr(item, "_is_custom_selected", False) and name not in self._cache:
+                self._cache.append(name)
 
     # ── 读操作 ──
     def __iter__(self):
@@ -87,14 +91,19 @@ class SelectedNodesList:
     # ── 写操作 ──
     def append(self, name):
         if name in self._canvas.nodes:
-            self._canvas.nodes[name].setSelected(True)
+            self._canvas.nodes[name]._is_custom_selected = True
+            self._canvas.nodes[name].update()
 
     def remove(self, name):
         if name in self._canvas.nodes:
-            self._canvas.nodes[name].setSelected(False)
+            self._canvas.nodes[name]._is_custom_selected = False
+            self._canvas.nodes[name].update()
 
     def clear(self):
         self._canvas.scene.clearSelection()
+        for item in self._canvas.nodes.values():
+            item._is_custom_selected = False
+            item.update()
 
     # ── 显示 ──
     def __repr__(self):

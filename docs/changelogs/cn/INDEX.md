@@ -12,6 +12,15 @@
 - **复合节点右键菜单优化**：启动/停止互斥显示（根据 `is_running` 只显示一个）；解耦移至菜单最底层；展开/折叠增加运行状态检测（灰显 + tooltip + 弹窗双重校验）
 - **输入锚点独占检测**：一个输入锚点只能连接一个输出锚点，连线时检测 `target_anchor.edges` 拒绝重复接入，弹窗提示端口名
 - **复合节点折叠 DAG 拓扑更新修复**：根因为 `composite.json` edges 从未更新导致 `pipeline.json` 使用旧拓扑；修复后折叠时立即同步 edges 到 `composite.json`（`src→from` 格式映射），`_sync_pipeline` 改为无条件执行
+- **复合节点展开坐标与连线修复**：使用当前位置 `comp_item.pos()` 而非保存的旧坐标；添加 `"data"` → `"default"` 端口名称映射；布局保存/加载时跳过折叠复合节点的子节点；调整执行顺序先定位子节点再创建连线
+- **节点运行态保护**：重命名前检测节点状态，运行中禁止重命名；删除前筛查选中节点中的运行中节点，弹出确认对话框提示用户
+- **复合节点 UI 重构与自定义接口支持**：复用普通节点组件（NodeRendering、AnchorManager、NodeSubComponents、NodeParamPanel）；隐藏 IN/OUT 标签和展开按钮；过滤系统端口（`_out` 后缀、`node_` 前缀）；左上角添加绿色圆点标记
+- **复合节点启动队列集成**：`NodeStartWorker.run()` 根据 `composite_` 前缀自动选择启动方式；新增 `_start_composite()` 方法；右键菜单和节点列表启动改为通过启动队列；主窗口事件处理支持复合节点状态更新
+- **复合节点重命名功能**：节点列表右键菜单新增「重命名复合节点」选项；运行中的复合节点禁止重命名；可自定义展示名称，留空恢复 hex ID 显示
+- **锚点管理器多输出端口支持**：优先使用 `output_ports` 配置的多输出端口；优先使用 `row_positions` 中的位置，否则垂直分布；无多输出配置时回退到单个 default 输出锚点
+- **DAG 运行状态追踪**：`DagRunner` 记录每个子节点的执行状态（ok/fail/pending）、错误信息、耗时；执行完成后写入 `status.json`；并行节点失败状态也会被记录
+- **节点多选功能修复**：使用自定义选中标志 `_is_custom_selected` 绕过 Qt 的 `SingleSelection` 模式；普通单击清除选择，Ctrl+单击切换选中状态，空白点击取消所有选择
+- **多选右键菜单优化与复合节点支持**：`SelectedNodesList._sync` 包含复合节点；选中包含复合节点时隐藏"批量移除"和"压缩为复合节点"选项；启动/停止动作支持复合节点；新增"清除选择"菜单选项
 
 ### [2026-07-12](./2026-07-12/)
 - **代码规范统一化整改**：全项目 227 文件工具链引入（Ruff + Pre-commit + EditorConfig + Pylance）；消除 8 个真实运行时 Bug；Logger 4 种写法统一；`print()` 迁移 `logger.info()`；219 文件新增 `from __future__ import annotations`；`# type: ignore` 清零；`os.path` → `pathlib.Path` 691→156（-77%）；死代码清理；最终 ruff/pytest/Pylance 全绿

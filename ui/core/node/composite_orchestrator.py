@@ -138,12 +138,14 @@ class DagRunner:
         self._run_id = uuid.uuid4().hex[:12]
         self._run_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ctx = {{}}
+        self._node_status = {{}}
 
         for level in self._topo_sort_levels():
             if len(level) == 1:
                 node_name = level[0]
                 ok, out = self._process_node(node_name, ctx, external_input)
                 if not ok:
+                    self._write_status()
                     return {{"code": -1, "error": f"node {{node_name}} failed"}}
                 ctx[node_name] = out
             else:
@@ -166,19 +168,23 @@ class DagRunner:
                                 log(f"ERR {{n}} (parallel) failed", "ERROR")
                         except Exception as e:
                             log(f"ERR {{n}} (parallel): {{e}}", "ERROR")
+        self._write_status()
         return ctx
 
     def _process_node(self, node_name, ctx, external_input):
         """通过 subprocess 调用 main.py，与 listener.py 完全一致。"""
+        t0 = time.time()
         node_dir = self._node_paths.get(node_name)
         if not node_dir:
             log(f"FAIL_FIND {{node_name}}: path not found", "ERROR")
+            self._node_status[node_name] = {{"status": "fail", "error": "path not found", "duration_ms": int((time.time() - t0) * 1000)}}
             return False, None
 
         py_path = self._get_venv_python(node_dir)
         main_py = node_dir / "main.py"
         if not main_py.exists():
             log(f"FAIL_FIND {{node_name}}: main.py not found", "ERROR")
+            self._node_status[node_name] = {{"status": "fail", "error": "main.py not found", "duration_ms": int((time.time() - t0) * 1000)}}
             return False, None
 
         # ── 构造输入（对齐 listener.py 的 json.dumps(data) 格式）──
@@ -190,6 +196,7 @@ class DagRunner:
             input_json = json.dumps(inp, ensure_ascii=False)
         except (TypeError, ValueError) as e:
             log(f"FAIL_INPUT {{node_name}}: {{e}}", "ERROR")
+            self._node_status[node_name] = {{"status": "fail", "error": f"input: {{e}}", "duration_ms": int((time.time() - t0) * 1000)}}
             return False, None
 
         # ── 调用子进程 ──
@@ -200,32 +207,39 @@ class DagRunner:
             )
         except subprocess.TimeoutExpired:
             log(f"FAIL_TIMEOUT {{node_name}} (60s)", "ERROR")
+            self._node_status[node_name] = {{"status": "fail", "error": "timeout 60s", "duration_ms": int((time.time() - t0) * 1000)}}
             return False, None
         except FileNotFoundError:
             log(f"FAIL_VENV {{node_name}}: python not found at {{py_path}}", "ERROR")
+            self._node_status[node_name] = {{"status": "fail", "error": "venv python not found", "duration_ms": int((time.time() - t0) * 1000)}}
             return False, None
         except Exception as e:
             log(f"FAIL_SUBPROCESS {{node_name}}: {{e}}", "ERROR")
+            self._node_status[node_name] = {{"status": "fail", "error": f"subprocess: {{e}}", "duration_ms": int((time.time() - t0) * 1000)}}
             return False, None
 
         if res.returncode != 0:
             stderr = res.stderr.strip() if res.stderr else "no stderr"
             log(f"FAIL_RUN {{node_name}} (rc={{res.returncode}}): {{stderr}}", "ERROR")
+            self._node_status[node_name] = {{"status": "fail", "error": f"exit code {{res.returncode}}: {{stderr[:200]}}", "duration_ms": int((time.time() - t0) * 1000)}}
             return False, None
 
         output_text = res.stdout.strip()
         if not output_text:
             log(f"WARN_EMPTY {{node_name}}: stdout 为空", "WARNING")
+            self._node_status[node_name] = {{"status": "fail", "error": "stdout empty", "duration_ms": int((time.time() - t0) * 1000)}}
             return False, None
 
         try:
             out = json.loads(output_text)
         except json.JSONDecodeError:
             log(f"FAIL_JSON {{node_name}}: {{output_text[:200]}}", "ERROR")
+            self._node_status[node_name] = {{"status": "fail", "error": "json decode: {{output_text[:100]}}", "duration_ms": int((time.time() - t0) * 1000)}}
             return False, None
 
         # ── 写入 output ──
         self._write_output(node_name, out)
+        self._node_status[node_name] = {{"status": "ok", "duration_ms": int((time.time() - t0) * 1000), "output_lines": len(output_text.splitlines())}}
         return True, out
 
     def _topo_sort_levels(self):
@@ -306,6 +320,27 @@ class DagRunner:
                 log(f"同步子节点 output: {{node_name}}")
             except OSError as e:
                 log(f"WARN 写入子节点 output.json 失败: {{e}}", "WARNING")
+
+    def _write_status(self):
+        """将本次 DAG 执行状态写入 status.json，供 BNOS 监控。"""
+        # 标记未执行到此的节点为 pending
+        for node_name in self._node_paths:
+            if node_name not in self._node_status:
+                self._node_status[node_name] = {{"status": "pending"}}
+
+        status = {{
+            "comp_id": "{comp_id}",
+            "updated_at": datetime.now().isoformat(),
+            "last_run_id": self._run_id,
+            "nodes": self._node_status,
+        }}
+        try:
+            (COMP_DIR / "status.json").write_text(
+                json.dumps(status, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except OSError as e:
+            log(f"WARN 写入 status.json 失败: {{e}}", "WARNING")
 
 # ==================== 外部输入读取 ====================
 

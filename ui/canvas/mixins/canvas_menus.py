@@ -97,50 +97,53 @@ class CanvasMenu:
     # ---- 多节点框选菜单 ----
 
     def _show_multi_node_menu(self, event):
-        count = len(self.canvas.box_selected_nodes)
+        node_list = list(self.canvas.box_selected_nodes)
+        count = len(node_list)
         menu = QMenu(self.canvas)
 
         ActionFactory.add_disabled_label(menu, t("_k_selected_count").format(count=count))
         menu.addSeparator()
 
-        ctx = ActionContext(node_list=self.canvas.box_selected_nodes)
+        ctx = ActionContext(node_list=node_list)
         ActionFactory.create_action(self.canvas, "node.start", ctx, menu)
         ActionFactory.create_action(self.canvas, "node.stop", ctx, menu)
         menu.addSeparator()
 
-        # 批量移除
-        ActionFactory.create_action(
-            self.canvas,
-            "canvas.batch_remove",
-            ctx,
-            menu,
-            label=t("_k_batch_remove_selected").replace("{count}", str(count)),
-        )
+        has_composite = any(n.startswith("composite_") for n in node_list)
 
-        menu.addSeparator()
+        if not has_composite:
+            ActionFactory.create_action(
+                self.canvas,
+                "canvas.batch_remove",
+                ctx,
+                menu,
+                label=t("_k_batch_remove_selected").replace("{count}", str(count)),
+            )
 
-        # ── 复合节点操作 ──
-        compress_ctx = ActionContext(
-            node_list=self.canvas.box_selected_nodes,
-            extra={"canvas": self.canvas},
-        )
-        ActionFactory.create_action(
-            self.canvas,
-            "canvas.compress_to_composite",
-            compress_ctx,
-            menu,
-            label=f"\u229e \u538b\u7f29\u4e3a\u590d\u5408\u8282\u70b9 ({count})",
-        )
+            menu.addSeparator()
 
-        # 如果所有选中节点已在某复合节点中，显示"解耦"
+            compress_ctx = ActionContext(
+                node_list=node_list,
+                extra={"canvas": self.canvas},
+            )
+            ActionFactory.create_action(
+                self.canvas,
+                "canvas.compress_to_composite",
+                compress_ctx,
+                menu,
+                label=f"\u229e \u538b\u7f29\u4e3a\u590d\u5408\u8282\u70b9 ({count})",
+            )
+
         if hasattr(self.canvas, "_composite_manager") and self.canvas._composite_manager:
             mgr = self.canvas._composite_manager
             comp_ids = set()
-            for n in self.canvas.box_selected_nodes:
+            for n in node_list:
                 cid = mgr._find_composite_of_node(n)
                 if cid:
                     comp_ids.add(cid)
             if comp_ids:
+                if not has_composite:
+                    menu.addSeparator()
                 for cid in comp_ids:
                     decomp_ctx = ActionContext(
                         node_name=cid,
@@ -186,9 +189,8 @@ class CanvasMenu:
         ActionFactory.create_action(self.canvas, "canvas.start_connection", self._make_ctx(node_name=node_name), menu)
         menu.addSeparator()
 
-        # 配置 / 展开节点
+        # 配置
         ActionFactory.create_action(self.canvas, "node.config", self._make_ctx(node_name=node_name), menu)
-        ActionFactory.create_action(self.canvas, "canvas.expand_node", self._make_ctx(node_name=node_name), menu)
         menu.addSeparator()
 
         # 样式子菜单（动态从 StyleRegistry 构建，通过 Action 系统分发）
@@ -438,6 +440,11 @@ class CanvasMenu:
 
         menu.addSeparator()
 
+        config_action = menu.addAction(t("k_node_config"))
+        config_action.triggered.connect(lambda: self.canvas.open_node_config(comp_id))
+
+        menu.addSeparator()
+
         # 运行时模式
         runtime_menu = menu.addMenu("\u8fd0\u884c\u65f6\u6a21\u5f0f")
         mgr.get_runtime(comp_id) or "inprocess"
@@ -515,14 +522,23 @@ class CanvasMenu:
         mgr.decompress(comp_id)
 
     def _composite_start(self, mgr, comp_id):
-        """启动复合节点。"""
-        runtime = mgr.get_runtime(comp_id) or "inprocess"
-        if runtime == "inprocess":
-            ok, msg = mgr.start_inprocess(comp_id)
-        else:
-            ok, msg = mgr.start_process_mode(comp_id)
-        if not ok:
-            themed_message(None, t("k_title_error"), msg, "error")
+        """启动复合节点 - 通过启动队列。"""
+        from ui.core.node.node_startup_queue import startup_queue
+
+        startup_queue.enqueue(comp_id)
+        from PySide6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        main_window = None
+        if app:
+            main_window = app.activeWindow()
+            if not main_window:
+                for widget in app.topLevelWidgets():
+                    if hasattr(widget, "show_toast"):
+                        main_window = widget
+                        break
+        if main_window:
+            main_window.show_toast(t("_k_node_starting").format(name=comp_id), "info")
 
     def _on_toggle_expand(self, mgr, comp_id):
         """展开/折叠复合节点，带运行状态检查。"""

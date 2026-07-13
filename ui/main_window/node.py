@@ -10,7 +10,8 @@ BNOS 主窗口节点控制模块
 
 from __future__ import annotations
 
-from PySide6.QtCore import QThread, QTimer, Signal
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QColor
 
 from ui.core.i18n import t
 from ui.core.logger import logger
@@ -82,23 +83,26 @@ class MainWindowNodeControlMixin:
 
     def start_selected_node_by_name(self, node_name):
         """按名称启动节点（使用队列调度，不阻塞 GUI）"""
-        if node_name not in self.nodes_data:
-            return
-        node_info = self.nodes_data[node_name]
-        if node_info["status"] in ("running", "idle"):
-            self.show_toast(t("_k_node_running").format(name=node_name), "info")
+        is_composite = node_name.startswith("composite_")
+
+        if not is_composite and node_name not in self.nodes_data:
             return
 
-        # 启动守卫: 检查是否属于运行中的复合节点
-        comp_mgr = getattr(self.canvas, "_composite_manager", None)
-        if comp_mgr:
-            allowed, msg, owner = comp_mgr.check_subnode_start(node_name)
-            if not allowed:
-                self.show_toast(msg, "warning")
-                from ui.core.utils.dialog_utils import themed_message
-
-                themed_message(self, t("k_title_warning"), msg, "warning")
+        if not is_composite:
+            node_info = self.nodes_data[node_name]
+            if node_info["status"] in ("running", "idle"):
+                self.show_toast(t("_k_node_running").format(name=node_name), "info")
                 return
+
+            comp_mgr = getattr(self.canvas, "_composite_manager", None)
+            if comp_mgr:
+                allowed, msg, owner = comp_mgr.check_subnode_start(node_name)
+                if not allowed:
+                    self.show_toast(msg, "warning")
+                    from ui.core.utils.dialog_utils import themed_message
+
+                    themed_message(self, t("k_title_warning"), msg, "warning")
+                    return
 
         if startup_queue.is_queued(node_name):
             status = startup_queue.get_status(node_name)
@@ -112,7 +116,7 @@ class MainWindowNodeControlMixin:
         startup_queue.set_project_context(self.current_project_path, self.nodes_data, self.canvas)
 
         dependencies = []
-        if self.canvas:
+        if self.canvas and not is_composite:
             dependencies = self.canvas.get_node_dependencies(node_name)
 
         success = startup_queue.enqueue(node_name, dependencies=dependencies)
@@ -145,10 +149,13 @@ class MainWindowNodeControlMixin:
     def _on_queue_node_starting(self, node_name):
         """队列节点开始启动"""
         logger.info(f"队列节点开始启动: {node_name}")
-        if self.node_list_panel:
-            self.node_list_panel.update_node_status(node_name, "starting")
-        if self.canvas:
-            self.canvas.update_node_status(node_name, "starting")
+        if node_name.startswith("composite_"):
+            self._update_composite_status(node_name, "starting")
+        else:
+            if self.node_list_panel:
+                self.node_list_panel.update_node_status(node_name, "starting")
+            if self.canvas:
+                self.canvas.update_node_status(node_name, "starting")
         self.show_toast(
             t("_k_node_starting").format(name=node_name), "info", node_name=node_name, operation_type="start"
         )
@@ -156,10 +163,13 @@ class MainWindowNodeControlMixin:
     def _on_queue_node_started(self, node_name):
         """队列节点启动成功"""
         logger.info(f"队列节点启动成功: {node_name}")
-        if self.node_list_panel:
-            self.node_list_panel.update_node_status(node_name, "idle")
-        if self.canvas:
-            self.canvas.update_node_status(node_name, "idle")
+        if node_name.startswith("composite_"):
+            self._update_composite_status(node_name, "running")
+        else:
+            if self.node_list_panel:
+                self.node_list_panel.update_node_status(node_name, "idle")
+            if self.canvas:
+                self.canvas.update_node_status(node_name, "idle")
         self.show_toast(
             t("_k_node_started").format(name=node_name), "success", node_name=node_name, operation_type="start"
         )
@@ -168,14 +178,35 @@ class MainWindowNodeControlMixin:
     def _on_queue_node_failed(self, node_name, error):
         """队列节点启动失败"""
         logger.error(f"队列节点启动失败: {node_name} - {error}")
-        if self.node_list_panel:
-            self.node_list_panel.update_node_status(node_name, "stopped")
-        if self.canvas:
-            self.canvas.update_node_status(node_name, "stopped")
-        from ui.core.utils.dialog_utils import themed_message
+        if node_name.startswith("composite_"):
+            self._update_composite_status(node_name, "stopped")
+        else:
+            if self.node_list_panel:
+                self.node_list_panel.update_node_status(node_name, "stopped")
+            if self.canvas:
+                self.canvas.update_node_status(node_name, "stopped")
 
-        themed_message(self, t("k_title_error"), t("_k_start_fail").format(err=error), "error")
-        node_control_service._notify(node_name, NodeStatus.ERROR)
+    def _update_composite_status(self, comp_id, status):
+        """更新复合节点状态（节点列表组 + 画布）"""
+        from ui.core.node.composite_node import GROUP_PREFIX
+
+        group_name = f"{GROUP_PREFIX}{comp_id}"
+        if self.node_list_panel:
+            root = self.node_list_panel.node_tree.invisibleRootItem()
+            for i in range(root.childCount()):
+                item = root.child(i)
+                data = item.data(0, Qt.ItemDataRole.UserRole)
+                if data and data.get("type") == "group" and data.get("name") == group_name:
+                    color_map = {
+                        "running": "#4ec9b0",
+                        "starting": "#dcdcaa",
+                        "stopped": "#808080",
+                        "error": "#f44747",
+                    }
+                    item.setForeground(0, QColor(color_map.get(status, "#808080")))
+                    break
+        if self.canvas and comp_id in self.canvas.nodes:
+            self.canvas.nodes[comp_id].update_status(status)
 
     def _on_queue_node_retry(self, node_name, retry_count):
         """队列节点准备重试"""
@@ -254,6 +285,20 @@ class MainWindowNodeControlMixin:
 
     def stop_selected_node_by_name(self, node_name):
         """按名称停止节点（异步执行，不阻塞 GUI）"""
+        is_composite = node_name.startswith("composite_")
+
+        if is_composite:
+            mgr = getattr(self.canvas, "_composite_manager", None)
+            if mgr:
+                success, msg = mgr.stop_composite(node_name)
+                if success:
+                    self.show_toast(f"复合节点 {node_name} 已停止", "info")
+                    if self.canvas:
+                        self.canvas.update_node_status(node_name, "stopped")
+                else:
+                    self.show_toast(f"停止复合节点失败: {msg}", "error")
+            return
+
         if node_name not in self.nodes_data:
             return
         node_info = self.nodes_data[node_name]

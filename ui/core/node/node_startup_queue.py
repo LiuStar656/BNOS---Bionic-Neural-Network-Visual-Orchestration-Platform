@@ -398,15 +398,52 @@ class NodeStartWorker(QThread):
         self._nodes_data = nodes_data
 
     def run(self):
+        node_name = self._item.node_name
+
+        if node_name.startswith("composite_"):
+            self._start_composite(node_name)
+        else:
+            self._start_regular_node(node_name)
+
+    def _start_regular_node(self, node_name: str):
         from ui.core.node.node_process import start_node_process
 
-        node_name = self._item.node_name
         if node_name not in self._nodes_data:
             self.finished.emit(False, f"节点不存在: {node_name}")
             return
 
         node_info = self._nodes_data[node_name]
         success, err = start_node_process(node_info)
+        self.finished.emit(success, err)
+
+    def _start_composite(self, comp_id: str):
+        from PySide6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        main_window = None
+        if app:
+            main_window = app.activeWindow()
+            if not main_window:
+                for widget in app.topLevelWidgets():
+                    if hasattr(widget, "canvas"):
+                        main_window = widget
+                        break
+
+        if not main_window or not hasattr(main_window, "canvas") or not main_window.canvas:
+            self.finished.emit(False, "复合节点管理器未初始化")
+            return
+
+        mgr = getattr(main_window.canvas, "_composite_manager", None)
+        if not mgr:
+            self.finished.emit(False, "复合节点管理器未初始化")
+            return
+
+        runtime = mgr.get_runtime(comp_id) or "inprocess"
+        if runtime == "inprocess":
+            success, err = mgr.start_inprocess(comp_id)
+        else:
+            success, err = mgr.start_process_mode(comp_id)
+
         self.finished.emit(success, err)
 
 

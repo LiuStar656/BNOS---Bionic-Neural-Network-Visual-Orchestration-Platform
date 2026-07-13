@@ -115,6 +115,8 @@ class NodeConfigParser:
         for p in raw:
             if not isinstance(p, dict):
                 continue
+            if "name" not in p or not p["name"]:
+                continue
             result.append(InputPortDef(**{k: v for k, v in p.items() if k in known_fields}))
         return result
 

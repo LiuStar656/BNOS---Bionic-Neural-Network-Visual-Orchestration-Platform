@@ -36,8 +36,9 @@ class NodeRendering:
         painter.drawPath(body_path)
 
         # 2. 边框（选中状态高亮）
-        border_color = QColor("#66b0ff") if self._node.isSelected() else QColor(body_border)
-        border_width = 2 if self._node.isSelected() else 1
+        is_selected = getattr(self._node, "_is_custom_selected", False) or self._node.isSelected()
+        border_color = QColor("#66b0ff") if is_selected else QColor(body_border)
+        border_width = 2 if is_selected else 1
         painter.setPen(QPen(border_color, border_width))
         painter.setBrush(QBrush())
         painter.drawPath(body_path)

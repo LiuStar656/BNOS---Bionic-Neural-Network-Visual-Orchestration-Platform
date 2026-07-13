@@ -656,5 +656,19 @@
   "k_rl_save_failed": "Save failed: ",
   "k_rl_cpu_tooltip": "100 = 1 core, 200 = 2 cores. 0 = unlimited. macOS not supported.",
   "k_rl_memory_tooltip": "Hard memory limit. 0 = unlimited. macOS not supported.",
-  "k_rl_affinity_tooltip": "Bind to specific CPU cores. Leave empty for all cores. macOS not supported."
+  "k_rl_affinity_tooltip": "Bind to specific CPU cores. Leave empty for all cores. macOS not supported.",
+  "k_detail_panel": "Node Detail",
+  "k_detail_panel_config": "Config",
+  "k_detail_panel_output": "Output",
+  "k_detail_panel_logs": "Logs",
+  "k_detail_panel_composite": "Composite",
+  "k_detail_panel_pipeline": "Pipeline",
+  "k_detail_panel_dag_status": "DAG Status",
+  "k_detail_type_composite": "Composite",
+  "k_detail_type_regular": "Regular",
+  "k_detail_sub_nodes": "Sub-nodes: ",
+  "k_detail_path": "Path: ",
+  "k_detail_refresh_status": "Refresh Status",
+  "k_detail_no_dag_status": "# No DAG status available\n# Status will appear after the composite node runs",
+  "_k_detail_op_in_progress": "Operation in progress, please wait..."
 }
