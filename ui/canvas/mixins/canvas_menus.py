@@ -28,10 +28,21 @@ from ui.core.utils.file_utils import get_project_root, open_terminal_in_director
 class CanvasMenu:
     """画布菜单（组合类，通过 self.canvas 访问画布上下文）"""
 
+    _actions_registered = False
+
     def __init__(self, canvas):
         self.canvas = canvas
 
     # ---- helpers ----
+
+    def _register_actions(self):
+        """在首次右键菜单时注册 actions（需要 parent_window 上下文）。"""
+        if CanvasMenu._actions_registered:
+            return
+        if self.canvas.parent_window:
+            register_node_actions(self.canvas.parent_window)
+            register_canvas_actions(self.canvas.parent_window)
+            CanvasMenu._actions_registered = True
 
     def _make_ctx(self, **kwargs):
         """构建 ActionContext，自动注入 canvas 引用"""
@@ -66,9 +77,7 @@ class CanvasMenu:
                 selected_edge = sel
                 break
 
-        if self.canvas.parent_window:
-            register_node_actions(self.canvas.parent_window)
-            register_canvas_actions(self.canvas.parent_window)
+        self._register_actions()
 
         # 多节点框选
         if len(self.canvas.box_selected_nodes) > 1:
@@ -197,7 +206,6 @@ class CanvasMenu:
         style_menu = menu.addMenu(t("k_node_style"))
         for key in StyleRegistry.keys():
             cls = StyleRegistry.get(key)
-            st = cls()
             ActionFactory.create_action(
                 self.canvas,
                 "node.change_style",
@@ -207,7 +215,7 @@ class CanvasMenu:
             # 用样式名覆盖 label（ActionFactory 用的是 i18n key，这里需要动态名称）
             last_action = style_menu.actions()[-1] if style_menu.actions() else None
             if last_action and not last_action.isSeparator():
-                last_action.setText(t(st.style_name))
+                last_action.setText(t(cls.style_name))
 
         menu.addSeparator()
 
@@ -365,11 +373,13 @@ class CanvasMenu:
         """在项目根目录打开终端"""
         try:
             target_dir = None
+            parent_win = getattr(self.canvas, "parent_window", None)
             if (
-                hasattr(self.canvas.parent_window, "current_project_path")
-                and self.canvas.parent_window.current_project_path
+                parent_win is not None
+                and hasattr(parent_win, "current_project_path")
+                and parent_win.current_project_path
             ):
-                target_dir = self.canvas.parent_window.current_project_path
+                target_dir = parent_win.current_project_path
             else:
                 target_dir = get_project_root()
             open_terminal_in_directory(target_dir, terminal_type, self.canvas)
@@ -447,10 +457,14 @@ class CanvasMenu:
 
         # 运行时模式
         runtime_menu = menu.addMenu("\u8fd0\u884c\u65f6\u6a21\u5f0f")
-        mgr.get_runtime(comp_id) or "inprocess"
+        current_runtime = mgr.get_runtime(comp_id) or "inprocess"
 
         proc_action = runtime_menu.addAction("\u72ec\u7acb\u8fdb\u7a0b (process)")
         inproc_action = runtime_menu.addAction("\u5355\u8fdb\u7a0b (inprocess)")
+        proc_action.setCheckable(True)
+        inproc_action.setCheckable(True)
+        proc_action.setChecked(current_runtime == "process")
+        inproc_action.setChecked(current_runtime == "inprocess")
         proc_action.triggered.connect(lambda: mgr.set_runtime(comp_id, "process"))
         inproc_action.triggered.connect(lambda: mgr.set_runtime(comp_id, "inprocess"))
 

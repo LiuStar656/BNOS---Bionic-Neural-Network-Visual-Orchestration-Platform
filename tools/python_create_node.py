@@ -41,8 +41,10 @@ def create_node() -> None:
         sys.exit(1)
 
     entry_script = input("请输入入口脚本名称（默认 listener.py）：").strip()
-    if not entry_script:
+    if not entry_script or entry_script.lower() in ("y", "n"):
         entry_script = "listener.py"
+
+    print(f"入口脚本已设置为: {entry_script}")
 
     node_dir_name = f"python_node_{node_name}"
     full_node_dir = Path.cwd() / node_dir_name
