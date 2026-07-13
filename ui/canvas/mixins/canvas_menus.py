@@ -412,17 +412,29 @@ class CanvasMenu:
             menu.exec(event.globalPos())
             return
 
-        # 解耦
-        decompress_action = menu.addAction("\u89e3\u8026\u4e3a\u72ec\u7acb\u8282\u70b9")
-        decompress_action.triggered.connect(lambda: self._on_decompress_composite(mgr, comp_id, comp_item.node_count))
+        is_running = mgr.is_running(comp_id)
+        comp_data = mgr._composites.get(comp_id, {})
+        is_expanded = comp_data.get("_expanded", False)
+
+        # ── 启动 / 停止（互斥显示）──
+        if is_running:
+            stop_action = menu.addAction("\u505c\u6b62\u590d\u5408\u8282\u70b9")
+            stop_action.triggered.connect(lambda: mgr.stop_composite(comp_id))
+        else:
+            start_action = menu.addAction("\u542f\u52a8\u590d\u5408\u8282\u70b9")
+            start_action.triggered.connect(lambda: self._composite_start(mgr, comp_id))
 
         menu.addSeparator()
 
-        # 展开/折叠
-        comp_data = mgr._composites.get(comp_id, {})
-        is_expanded = comp_data.get("_expanded", False)
-        expand_action = menu.addAction("\u6298\u53e0" if is_expanded else "\u5c55\u5f00")
-        expand_action.triggered.connect(lambda: mgr.toggle_expand(comp_id))
+        # ── 展开 / 折叠（运行时禁止）──
+        if is_expanded:
+            expand_action = menu.addAction("\u6298\u53e0")
+        else:
+            expand_action = menu.addAction("\u5c55\u5f00")
+        if is_running:
+            expand_action.setEnabled(False)
+            expand_action.setToolTip("复合节点运行中，请先停止")
+        expand_action.triggered.connect(lambda: self._on_toggle_expand(mgr, comp_id))
 
         menu.addSeparator()
 
@@ -437,10 +449,12 @@ class CanvasMenu:
 
         menu.addSeparator()
 
-        start_action = menu.addAction("\u542f\u52a8\u590d\u5408\u8282\u70b9")
-        stop_action = menu.addAction("\u505c\u6b62\u590d\u5408\u8282\u70b9")
-        start_action.triggered.connect(lambda: self._composite_start(mgr, comp_id))
-        stop_action.triggered.connect(lambda: mgr.stop_composite(comp_id))
+        # ── 解耦（最底层，运行时禁止）──
+        decompress_action = menu.addAction("\u89e3\u8026\u4e3a\u72ec\u7acb\u8282\u70b9")
+        if is_running:
+            decompress_action.setEnabled(False)
+            decompress_action.setToolTip("复合节点运行中，请先停止")
+        decompress_action.triggered.connect(lambda: self._on_decompress_composite(mgr, comp_id, comp_item.node_count))
 
         menu.exec(event.globalPos())
 
@@ -509,3 +523,15 @@ class CanvasMenu:
             ok, msg = mgr.start_process_mode(comp_id)
         if not ok:
             themed_message(None, t("k_title_error"), msg, "error")
+
+    def _on_toggle_expand(self, mgr, comp_id):
+        """展开/折叠复合节点，带运行状态检查。"""
+        if mgr.is_running(comp_id):
+            themed_message(
+                None,
+                t("k_title_warning"),
+                "复合节点正在运行中，请先停止后再展开/折叠",
+                "warning",
+            )
+            return
+        mgr.toggle_expand(comp_id)

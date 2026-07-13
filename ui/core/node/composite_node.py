@@ -607,6 +607,21 @@ class CompositeNode:
                 edge.setVisible(False)
         comp["_internal_edges"] = internal_edge_info
 
+        # ── 同步 DAG 拓扑到 composite.json ──
+        # 用户在展开时可能重新编排了内部连线（如调整处理顺序），
+        # 折叠时必须将最新的 edges 写入 composite.json，否则 pipeline.json 使用旧拓扑。
+        comp_cfg = self._load_composite_config(comp_id)
+        if comp_cfg:
+            comp_cfg["edges"] = [
+                {
+                    "from": e["src"],
+                    "to": e["tgt"],
+                    "source_port": e.get("src_port", ""),
+                    "target_port": e.get("tgt_port", ""),
+                }
+                for e in internal_edge_info
+            ]
+
         # Remove group frame
         frame_key = f"__frame__{comp_id}"
         frame = self._canvas.nodes.pop(frame_key, None)
@@ -627,15 +642,15 @@ class CompositeNode:
         # 用户可能在展开时修改了入口节点的 config.json 过滤规则，
         # 折叠后重新提取以确保 composite.json 和 pipeline.json 中的规则是最新的。
         new_rules = self._extract_entry_filter_rules(node_names, edges_list, nodes_data)
-        if new_rules:
+        if new_rules and comp_cfg:
             comp["input_filter_rules"] = new_rules
-            # 同步到 composite.json
-            comp_cfg = self._load_composite_config(comp_id)
-            if comp_cfg:
-                comp_cfg["input_filter_rules"] = new_rules
-                self._write_composite_config(comp_id, comp_cfg)
-                # 同步到 pipeline.json
-                self._sync_pipeline(comp_id)
+            comp_cfg["input_filter_rules"] = new_rules
+
+        # ── 始终写入 composite.json 并同步 pipeline.json ──
+        # 即使过滤规则未变，DAG 拓扑（edges）也可能已变化，必须更新。
+        if comp_cfg:
+            self._write_composite_config(comp_id, comp_cfg)
+            self._sync_pipeline(comp_id)
             # 写入 .pipe 信号文件，通知运行中的编排器重新加载 pipeline.json
             self._touch_pipe_signal(comp_id)
 
@@ -2083,13 +2098,28 @@ class CompositeNode:
         cfg = self._load_composite_config(comp_id)
         if not cfg:
             return
+
+        # 从 node_registry.json 获取节点实际路径（处理注册名≠目录名的情况）
+        node_paths = {}
+        registry_path = Path(self._project_path) / "node_registry.json"
+        if registry_path.exists():
+            try:
+                with open(registry_path, encoding="utf-8") as f:
+                    registry = json.load(f)
+                for nid, info in registry.get("nodes", {}).items():
+                    p = info.get("path", "")
+                    if p:
+                        node_paths[nid] = p
+            except Exception:
+                pass
+
         pipeline = {
             "comp_id": comp_id,
             "generated_at": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
             "nodes": [
                 {
                     "name": n["name"],
-                    "path": n.get("path", f"nodes/{n['name']}"),
+                    "path": node_paths.get(n["name"]) or n.get("path", f"nodes/{n['name']}"),
                     "module": f"nodes.{n['name']}.main",
                 }
                 for n in cfg.get("nodes", [])

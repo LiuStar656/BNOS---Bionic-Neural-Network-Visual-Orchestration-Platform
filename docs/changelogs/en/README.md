@@ -5,6 +5,18 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-13】V2.0.28 - Composite Node Context Menu Optimization, Input Anchor Exclusive Detection & Collapse DAG Topology Fix</strong></summary>
+
+[View Full Update](./2026-07-13/README.md) | [01_Context_Menu](./2026-07-13/01_Composite_Node_Context_Menu_and_Input_Anchor_Detection.md) | [02_DAG_Fix](./2026-07-13/02_Composite_Node_Collapse_DAG_Topology_Fix.md)
+
+**Main Updates:**
+- Composite node context menu optimization: start/stop mutual exclusion, decompose moved to bottom (grayed out when running), expand/collapse with running state double-check
+- Input anchor exclusive detection: one input anchor accepts only one connection, rejects multi-source input via `target_anchor.edges` check, protecting data consistency
+- Collapse DAG topology fix: root cause was `composite.json` edges never being updated; after fix, expand→rewire→collapse→new topology takes effect correctly
+
+</details>
+
+<details>
 <summary><strong>【2026-07-12】V2.0.27 - _port_routing Port Routing, Code Standardization Overhaul & Composite Node UI Interaction Round 2 Fixes</strong></summary>
 
 [View Full Update](./2026-07-12/README.md) | [06_Standardization](./2026-07-12/06_Code_Standardization.md)
@@ -428,4 +440,4 @@ This changelog uses a **"Single Index Page + Version-Separate MD Sub-Files"** ar
 2. Click the "View Full Update" link to enter the detailed update page for that date
 3. Each date folder contains all update entries for that date, supporting independent browsing and archiving
 
-**Last Updated**: 2026-07-12
+**Last Updated**：2026-07-13

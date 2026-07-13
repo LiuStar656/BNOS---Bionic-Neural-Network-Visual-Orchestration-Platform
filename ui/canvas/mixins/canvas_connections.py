@@ -99,6 +99,30 @@ class CanvasConnections:
 
     def create_edge(self, source_node, target_node, target_anchor=None, source_anchor=None):
         """创建连线并配置上下游关系（支持指定源锚点 + 目标锚点）"""
+        # ── 输入锚点独占检测：一个输入锚点只能连接一个输出锚点 ──
+        if target_anchor and hasattr(target_anchor, "port_name"):
+            # 检查该目标输入锚点是否已有连线
+            if target_anchor.edges:
+                port_label = getattr(target_anchor, "port_label", "") or getattr(target_anchor, "port_name", "")
+                themed_message(
+                    self.canvas,
+                    "连线被拒绝",
+                    f"输入端口「{port_label}」已连接，一个输入端口只能接入一条连线。",
+                    "warning",
+                )
+                return
+        else:
+            # 无指定锚点时，检查目标节点默认输入锚点是否已有连线
+            default_input = getattr(target_node, "input_anchor", None)
+            if default_input and default_input.edges:
+                themed_message(
+                    self.canvas,
+                    "连线被拒绝",
+                    "该节点的输入端已连接，一个输入端口只能接入一条连线。",
+                    "warning",
+                )
+                return
+
         if target_anchor and hasattr(target_anchor, "port_name"):
             for edge in self.canvas.edges:
                 if edge.start_node == source_node and edge.end_node == target_node:

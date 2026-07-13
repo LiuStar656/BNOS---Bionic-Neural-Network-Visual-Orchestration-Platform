@@ -26,8 +26,9 @@ def _register_compress(main_window):
             return False
 
         from ui.core.i18n import t
+        from ui.core.i18n.translation_keys import TK
         from ui.core.node.composite_node import CompositeNode
-        from ui.core.utils.dialog_utils import themed_message
+        from ui.core.utils.dialog_utils import themed_input, themed_message
 
         canvas = ctx.extra.get("canvas") if ctx.extra else None
         if not canvas:
@@ -41,12 +42,25 @@ def _register_compress(main_window):
         if hasattr(main_window, "node_list_panel") and main_window.node_list_panel:
             group_manager = main_window.node_list_panel.group_manager
 
+        # ── 弹出命名对话框 ──
+        name = themed_input(None, t(TK.COMPOSITE_NAME_DIALOG_TITLE), t(TK.COMPOSITE_NAME_PROMPT), default="")
+        if name is None:
+            return False  # 用户取消
+
+        # ── 确认对话框 ──
+        n = len(node_list)
+        confirm = themed_message(
+            None, t(TK.COMPOSITE_CONFIRM_TITLE), t(TK.COMPOSITE_CONFIRM_TEXT).format(n=n), "question"
+        )
+        if not confirm:
+            return False
+
         mgr = CompositeNode(project_path, canvas, group_manager)
         canvas._composite_manager = mgr
 
-        ok, msg, comp_id = mgr.compress(node_list)
+        ok, msg, comp_id = mgr.compress(node_list, name)
         if not ok:
-            themed_message(None, t("k_title_error"), msg, "error")
+            themed_message(None, t(TK.COMPOSITE_COMPRESS_FAILED), msg, "warning")
             return False
 
         # 刷新节点列表

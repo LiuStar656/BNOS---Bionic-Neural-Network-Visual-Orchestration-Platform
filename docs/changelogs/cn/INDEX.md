@@ -8,6 +8,11 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-07-13](./2026-07-13/)
+- **复合节点右键菜单优化**：启动/停止互斥显示（根据 `is_running` 只显示一个）；解耦移至菜单最底层；展开/折叠增加运行状态检测（灰显 + tooltip + 弹窗双重校验）
+- **输入锚点独占检测**：一个输入锚点只能连接一个输出锚点，连线时检测 `target_anchor.edges` 拒绝重复接入，弹窗提示端口名
+- **复合节点折叠 DAG 拓扑更新修复**：根因为 `composite.json` edges 从未更新导致 `pipeline.json` 使用旧拓扑；修复后折叠时立即同步 edges 到 `composite.json`（`src→from` 格式映射），`_sync_pipeline` 改为无条件执行
+
 ### [2026-07-12](./2026-07-12/)
 - **代码规范统一化整改**：全项目 227 文件工具链引入（Ruff + Pre-commit + EditorConfig + Pylance）；消除 8 个真实运行时 Bug；Logger 4 种写法统一；`print()` 迁移 `logger.info()`；219 文件新增 `from __future__ import annotations`；`# type: ignore` 清零；`os.path` → `pathlib.Path` 691→156（-77%）；死代码清理；最终 ruff/pytest/Pylance 全绿
 - **节点资源限制组件**：全平台 CPU/内存硬限制（Linux cgroups v2 / Windows Job Objects / macOS nice），config.json 新增 `resource_limit` 可选字段，21 个新测试，规范文档更新第八章
@@ -200,4 +205,4 @@
 
 ---
 
-**最后更新**：2026-07-12
+**最后更新**：2026-07-13

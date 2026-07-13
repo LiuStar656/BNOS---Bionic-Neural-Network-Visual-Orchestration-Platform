@@ -8,6 +8,11 @@
 
 Click on dates below to view detailed updates for that date:
 
+### [2026-07-13](./2026-07-13/)
+- **Composite Node Context Menu Optimization**: Start/stop mutual exclusion (based on `is_running`); decompose moved to bottom of menu; expand/collapse with running state detection (grayed out + tooltip + dialog guard)
+- **Input Anchor Exclusive Detection**: One input anchor accepts only one connection; rejects via `target_anchor.edges` check with port-name tooltip
+- **Composite Node Collapse DAG Topology Fix**: Root cause was `composite.json` edges never updated causing stale `pipeline.json`; fixed by immediately syncing edges during collapse (`src→from` format mapping), `_sync_pipeline` now called unconditionally
+
 ### [2026-07-12](./2026-07-12/)
 - **Code Standardization Overhaul**: 227-file toolchain setup (Ruff + Pre-commit + EditorConfig + Pylance); eliminated 8 real runtime bugs; unified 4 Logger styles; migrated `print()` to `logger.info()`; added `from __future__ import annotations` to 219 files; eliminated `# type: ignore` 8→0; `os.path` → `pathlib.Path` 691→156 (-77%); dead code removal; all-green ruff/pytest/Pylance verification
 - **Node Resource Limiting**: Cross-platform CPU/memory hard limits (Linux cgroups v2 / Windows Job Objects / macOS nice), new optional `resource_limit` field in config.json, 22 new tests, docs updated with 7 usage scenarios
@@ -194,4 +199,4 @@ Click on dates below to view detailed updates for that date:
 
 ---
 
-**Last Updated**: 2026-07-12
+**Last Updated**: 2026-07-13

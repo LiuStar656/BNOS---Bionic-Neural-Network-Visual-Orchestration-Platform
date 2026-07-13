@@ -22,7 +22,7 @@ def render_orchestrator_script(comp_id: str) -> str:
 自动生成的复合节点编排器 — {comp_id}
 常驻轮询模式（与 listener.py 业务逻辑一致）
 """
-import sys, os, json, importlib, traceback, time, signal, atexit
+import sys, os, json, subprocess, traceback, time, signal, atexit
 from pathlib import Path
 from datetime import datetime
 
@@ -105,26 +105,36 @@ def _is_my_data(data):
 # ==================== DAG 执行引擎 ====================
 
 class DagRunner:
-    """DAG 拓扑执行器 — 每次轮询命中时运行一次完整的 DAG。"""
+    """DAG 拓扑执行器 — 每次轮询命中时运行一次完整的 DAG。
+
+    通过 subprocess 调用每个子节点的 main.py（与 listener.py 完全一致），
+    数据格式对齐：传入上游 output.json 的完整字典，接收 main.py stdout 输出的 JSON。
+    """
 
     def __init__(self):
-        self._modules = {{}}
-        self._failed = set()
+        self._node_paths = {{}}
         for n in NODES:
-            try:
-                self._modules[n["name"]] = importlib.import_module(n["module"])
-            except Exception as e:
-                log(f"FAIL_IMPORT {{n['name']}}: {{e}}", "ERROR")
-                self._failed.add(n["name"])
-                self._modules[n["name"]] = None
+            path = n["path"]
+            p = Path(path)
+            if p.is_absolute():
+                self._node_paths[n["name"]] = p
+            else:
+                self._node_paths[n["name"]] = PROJECT_ROOT / path
+
+    @staticmethod
+    def _get_venv_python(node_dir):
+        """获取节点 venv 中的 Python 解释器路径。"""
+        candidates = [
+            node_dir / "venv" / "Scripts" / "python.exe",
+            node_dir / "venv" / "bin" / "python",
+        ]
+        for p in candidates:
+            if p.exists():
+                return str(p)
+        return sys.executable
 
     def run(self, external_input=None):
-        if self._failed:
-            failed_list = ", ".join(sorted(self._failed))
-            log(f"以下节点导入失败，中止执行: {{failed_list}}", "ERROR")
-            return {{"code": -1, "error": f"import failed: {{failed_list}}"}}
         import uuid
-        from concurrent.futures import ThreadPoolExecutor, as_completed
         self._run_id = uuid.uuid4().hex[:12]
         self._run_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ctx = {{}}
@@ -132,29 +142,91 @@ class DagRunner:
         for level in self._topo_sort_levels():
             if len(level) == 1:
                 node_name = level[0]
-                self._process_node(node_name, ctx, external_input)
+                ok, out = self._process_node(node_name, ctx, external_input)
+                if not ok:
+                    return {{"code": -1, "error": f"node {{node_name}} failed"}}
+                ctx[node_name] = out
             else:
                 log(f"并行执行 {{len(level)}} 节点: {{', '.join(level)}}")
+                from concurrent.futures import ThreadPoolExecutor, as_completed
                 with ThreadPoolExecutor(max_workers=len(level)) as executor:
-                    futures = {{
-                        executor.submit(self._process_node, n, ctx, external_input): n
-                        for n in level
-                    }}
+                    futures = {{}}
+                    for n in level:
+                        # 每个节点使用独立的 ctx 快照（只读）
+                        futures[executor.submit(
+                            self._process_node, n, dict(ctx), external_input
+                        )] = n
                     for future in as_completed(futures):
                         n = futures[future]
                         try:
-                            future.result()
+                            ok, result = future.result()
+                            if ok:
+                                ctx[n] = result
+                            else:
+                                log(f"ERR {{n}} (parallel) failed", "ERROR")
                         except Exception as e:
                             log(f"ERR {{n}} (parallel): {{e}}", "ERROR")
         return ctx
 
     def _process_node(self, node_name, ctx, external_input):
+        """通过 subprocess 调用 main.py，与 listener.py 完全一致。"""
+        node_dir = self._node_paths.get(node_name)
+        if not node_dir:
+            log(f"FAIL_FIND {{node_name}}: path not found", "ERROR")
+            return False, None
+
+        py_path = self._get_venv_python(node_dir)
+        main_py = node_dir / "main.py"
+        if not main_py.exists():
+            log(f"FAIL_FIND {{node_name}}: main.py not found", "ERROR")
+            return False, None
+
+        # ── 构造输入（对齐 listener.py 的 json.dumps(data) 格式）──
         inp = self._build_input(node_name, ctx)
         if external_input and node_name == self._find_entry_node():
-            inp["data"].update(external_input)
-        out = self._modules[node_name].process(inp)
-        ctx[node_name] = out
+            inp.update(external_input)
+
+        try:
+            input_json = json.dumps(inp, ensure_ascii=False)
+        except (TypeError, ValueError) as e:
+            log(f"FAIL_INPUT {{node_name}}: {{e}}", "ERROR")
+            return False, None
+
+        # ── 调用子进程 ──
+        try:
+            res = subprocess.run(
+                [py_path, str(main_py), input_json],
+                capture_output=True, text=True, encoding="utf-8", timeout=60
+            )
+        except subprocess.TimeoutExpired:
+            log(f"FAIL_TIMEOUT {{node_name}} (60s)", "ERROR")
+            return False, None
+        except FileNotFoundError:
+            log(f"FAIL_VENV {{node_name}}: python not found at {{py_path}}", "ERROR")
+            return False, None
+        except Exception as e:
+            log(f"FAIL_SUBPROCESS {{node_name}}: {{e}}", "ERROR")
+            return False, None
+
+        if res.returncode != 0:
+            stderr = res.stderr.strip() if res.stderr else "no stderr"
+            log(f"FAIL_RUN {{node_name}} (rc={{res.returncode}}): {{stderr}}", "ERROR")
+            return False, None
+
+        output_text = res.stdout.strip()
+        if not output_text:
+            log(f"WARN_EMPTY {{node_name}}: stdout 为空", "WARNING")
+            return False, None
+
+        try:
+            out = json.loads(output_text)
+        except json.JSONDecodeError:
+            log(f"FAIL_JSON {{node_name}}: {{output_text[:200]}}", "ERROR")
+            return False, None
+
+        # ── 写入 output ──
         self._write_output(node_name, out)
+        return True, out
 
     def _topo_sort_levels(self):
         nodes = set()
@@ -180,15 +252,19 @@ class DagRunner:
         return levels
 
     def _build_input(self, node_name, ctx):
-        inp = {{"data": {{}}}}
+        """从 ctx 中提取上游节点的输出，直接作为当前节点的输入。
+
+        与 listener.py 一致：上游 output.json 的完整字典直接传给 main.py。
+        """
+        inp = {{}}
         for e in DAG:
             if e["to"] == node_name:
                 upstream = ctx.get(e["from"], {{}})
                 port = e.get("target_port") or ""
                 if port:
-                    inp["data"][port] = upstream
+                    inp[port] = upstream
                 else:
-                    inp["data"].update(upstream)
+                    inp.update(upstream)
         return inp
 
     def _find_entry_node(self):
@@ -198,18 +274,38 @@ class DagRunner:
                 return e["from"]
         return DAG[0]["from"] if DAG else ""
 
+    def _find_leaf_nodes(self):
+        """找出 DAG 中没有出边的叶子节点。"""
+        sources = set(e["from"] for e in DAG)
+        targets = set(e["to"] for e in DAG)
+        return [n for n in targets if n not in sources] or [DAG[-1]["to"]] if DAG else []
+
     def _write_output(self, node_name, output):
-        path = OUTPUT_DIR / f"{{node_name}}.output.json"
         if not isinstance(output, dict):
             output = {{"data": output}}
         if "code" not in output:
             output["code"] = 0
         output["run_id"] = self._run_id
         output["timestamp"] = self._run_ts
+
+        payload = json.dumps(output, ensure_ascii=False, indent=2)
+
+        # 1. 写到复合节点存档目录
+        archive_path = OUTPUT_DIR / f"{{node_name}}.output.json"
         try:
-            path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
+            archive_path.write_text(payload, encoding="utf-8")
         except OSError as e:
-            log(f"WARN 写入 output.json 失败: {{e}}", "WARNING")
+            log(f"WARN 写入存档 output.json 失败: {{e}}", "WARNING")
+
+        # 2. 同时写到子节点自己的目录（下游节点直接监听）
+        node_dir = self._node_paths.get(node_name)
+        if node_dir:
+            node_output = node_dir / "output.json"
+            try:
+                node_output.write_text(payload, encoding="utf-8")
+                log(f"同步子节点 output: {{node_name}}")
+            except OSError as e:
+                log(f"WARN 写入子节点 output.json 失败: {{e}}", "WARNING")
 
 # ==================== 外部输入读取 ====================
 
@@ -381,8 +477,28 @@ def main():
             result = runner.run(external_input=external_input)
             log("DAG 执行完成")
 
-            # ── 写入防重标记 ──
-            _write_processed_flags()
+            # ── 仅在 DAG 成功执行后写防重标记 ──
+            if isinstance(result, dict) and result.get("code") != -1:
+                _write_processed_flags()
+
+                # ── 写复合节点最终结果 ──
+                for leaf in runner._find_leaf_nodes():
+                    leaf_output = result.get(leaf)
+                    if leaf_output:
+                        final = dict(leaf_output)
+                        final.pop("run_id", None)
+                        final.pop("timestamp", None)
+                        final_path = COMP_DIR / "output.json"
+                        try:
+                            final_path.write_text(
+                                json.dumps(final, ensure_ascii=False, indent=2),
+                                encoding="utf-8"
+                            )
+                            log(f"已写复合节点最终结果: {{final_path}}")
+                        except OSError as e:
+                            log(f"WARN 写入最终结果失败: {{e}}", "WARNING")
+            else:
+                log("DAG 执行异常，未写防重标记，等待重试", "WARNING")
 
         except json.JSONDecodeError:
             log("数据包格式错误", "ERROR")
