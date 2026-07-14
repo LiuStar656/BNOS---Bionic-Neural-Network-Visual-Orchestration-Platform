@@ -20,10 +20,10 @@
   "bnos_dock_2": {
     "docked_area": 4,
     "floating": {
-      "x": 756,
-      "y": 284,
-      "width": 1008,
-      "height": 854
+      "x": 718,
+      "y": 233,
+      "width": 1140,
+      "height": 945
     }
   },
   "bnos_dock_终端": {
