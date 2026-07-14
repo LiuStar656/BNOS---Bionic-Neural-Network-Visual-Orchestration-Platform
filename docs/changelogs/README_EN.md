@@ -66,3 +66,8 @@ changelogs/
 - Link navigation to detailed content
 - Modular independent files
 - Cross-platform rendering compatible
+
+---
+
+📅 **Latest Version**: [2026-07-15 V2.0.29 Composite Dashed Edge Fix / MUTEX-VIOLATION Assertion Fix / Log Noise Reduction / State Machine System Stage Audit](./en/2026-07-15/)  
+**Last Updated**: 2026-07-15

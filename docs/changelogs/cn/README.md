@@ -5,6 +5,23 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-15】V2.0.29 - 复合节点虚线修复、端口别名规范化、MUTEX-VIOLATION断言时序修复、日志降噪与状态机系统阶段盘点（节点线 + 边线条）</strong></summary>
+
+[查看完整更新](./2026-07-15/README.md) | [01_虚线修复与别名规范化](./2026-07-15/01_复合节点虚线修复与端口别名规范化.md) | [02_Mutex断言时序修复](./2026-07-15/02_Mutex断言时序修复.md) | [03_日志降噪](./2026-07-15/03_日志降噪与稳态日志分级.md) | [04_状态机系统阶段盘点](./2026-07-15/04_状态机系统开发阶段盘点.md)
+
+**主要更新：**
+- **复合节点虚线修复**：composite.json 路径拼接（移除冗余 `NODE_DIR_ROOT`，解决权威集为空）+ 端口别名 data↔default / node_output↔default 双版本 EdgeKey 均加入权威集 + NodeStateManager 别名比较 + 画布连线使用内部标准名，连到复合节点的线不再 3 秒后转虚线
+- **端口别名规范化**：`set_input_routing` / `set_output_routing` 入口强制标准化（data、node_output）+ 反删别名脏键；`clear_input_routing` / `clear_output_routing` 别名宽松匹配，彻底解决 composite.json 同时写入 data/default 导致的重复路由
+- **MUTEX-VIOLATION 断言时序修复**：expand/collapse 流程从「ASSERT → FLUSH」改为「RouteCache.flush → _assert_mutex_consistency」，断言读到的就是刚写盘的最新值，不再假阳性；断言失败仅 ERROR 日志不 rollback（已写盘）
+- **日志降噪**：`CANONICAL_SCAN_INTERVAL_MS` 3000→10000ms；render-gate 和 `infer_all_edges` 稳态 idle 时 summary + set dump 统一降 DEBUG（默认 INFO logger 下不输出），仅 ghost/broken/stale 时 INFO 级完整 dump；修复 ScanStats `stale_cleared` → `stale_routes_cleared` AttributeError
+- **状态机系统阶段盘点（节点线 + 边线条）**：
+  - 节点线：NodeRuntimeSM（node_process.py 10 处）/ CompositeLifecycleSM（composite_node.py 4 处）/ Render-Gate API / RouteCache ✅ 100% 生产可用；Phase 2 正交 SM 组合 + TRANSITION_TABLE + Guard ~60% 中期集成（动作层仍走老路径）
+  - 边线条：EdgeInteractionSM / CanvasModeSM 定义+单测 100% 绿，但 edge_item.py 仍用旧 8 个布尔变量操作、canvas_view 仍用裸字符串，业务接入 0%
+  - 交付 P0 路线图：EdgeInteractionSM→edge_item.py 接入（删除旧 8 变量）
+
+</details>
+
+<details>
 <summary><strong>【2026-07-13】V2.0.28 - 复合节点系统完善：右键菜单、拓扑修复、坐标连线、运行态保护、UI重构、启动队列、重命名、多输出端口、DAG状态追踪、README重写、状态机系统、启动队列修复</strong></summary>
 
 [查看完整更新](./2026-07-13/README.md) | [01_右键菜单与锚点检测](./2026-07-13/01_复合节点右键菜单优化与输入锚点独占检测.md) | [02_DAG拓扑修复](./2026-07-13/02_复合节点折叠DAG拓扑更新修复.md) | [03_展开坐标修复](./2026-07-13/03_复合节点展开坐标与连线修复.md) | [15_状态机系统](./2026-07-13/15_状态机系统.md)
@@ -463,4 +480,4 @@
 2. 点击「查看完整更新」链接进入该日期的详细更新页面
 3. 每个日期文件夹包含该日期的所有更新条目，支持单独浏览和归档
 
-**最后更新**：2026-07-13
+**最后更新**：2026-07-15

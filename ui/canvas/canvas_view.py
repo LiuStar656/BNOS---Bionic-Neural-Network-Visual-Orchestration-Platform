@@ -133,6 +133,7 @@ from ui.canvas.mixins.canvas_colors import CanvasColors
 # 6 个原 mixin 已重构为组合类
 # (NodeCanvas.__init__ 中实例化，不再通过继承混入)
 from ui.canvas.mixins.canvas_connections import CanvasConnections
+from ui.canvas.mixins.canvas_edge_render_gate import CanvasEdgeRenderGateMixin
 from ui.canvas.mixins.canvas_event_handlers import EventHandlers
 from ui.canvas.mixins.canvas_layout import CanvasLayout
 from ui.canvas.mixins.canvas_menus import CanvasMenu
@@ -267,6 +268,44 @@ class NodeCanvas(QGraphicsView):
         # 10. 事件处理（最后创建，依赖所有以上）
         self.events = EventHandlers(self)
 
+        # 10b. 线条渲染门（依赖 nodes_data / composite_manager 懒获取）
+        #      挂在 canvas 上供外部：schedule_immediate_scan / action_calibrate_edges
+        try:
+            self.edge_render_gate = CanvasEdgeRenderGateMixin(self)
+            logger.info("[Phase3c-INIT] CanvasEdgeRenderGateMixin initialized (OK)")
+        except Exception as e:  # noqa: BLE001 - 渲染门失败也不影响主流程
+            logger.warning("[Phase3c-INIT-FAIL] CanvasEdgeRenderGateMixin init failed (non-fatal): %s", e)
+            self.edge_render_gate = None
+
+        # 11. 节点统一状态机单例（阶段三灰度接入：并行双写，差异告警，不替换旧逻辑）
+        #     canvas_connections / composite_node_manager 都通过 canvas._node_state_manager 访问
+        #     失败不影响旧流程：_node_state_manager 为 None 时所有灰度调用直接短路
+        self._node_state_manager = None
+        self._node_state_action_svc = None
+        try:
+            from ui.core.state.node_state_action_service import NodeStateActionService
+            from ui.core.state.node_state_manager import NodeStateManager
+
+            self._node_state_manager = NodeStateManager(composite_manager_ref=None)
+            self._node_state_action_svc = NodeStateActionService(self._node_state_manager, composite_manager_ref=None)
+            # 注入 parent_window 引用：ActionService 通过 parent_window.nodes_data + current_project_path
+            # 直接定位到每个节点的 node_config.json 绝对路径，无需等 CompositeManager 懒创建
+            if parent is not None:
+                self._node_state_action_svc._parent_window_ref = parent
+                try:
+                    # 反向注入：NodeStateManager 也保存一份（以防以后 manager 直接访问用）
+                    self._node_state_manager._parent_window_ref = parent
+                except Exception:  # noqa: BLE001
+                    pass
+            self._node_state_manager._action_svc = self._node_state_action_svc
+            logger.info("[Phase3-gray-INIT] NodeStateManager singleton initialized via NodeCanvas (OK)")
+        except Exception as e:  # noqa: BLE001 - 灰度必须不影响主流程
+            logger.warning(
+                "[Phase3-gray-INIT-FAIL] NodeStateManager singleton init via NodeCanvas failed (non-fatal): %s", e
+            )
+            self._node_state_manager = None
+            self._node_state_action_svc = None
+
         # 从 app_config 加载绘图工具栏显示状态
         self.events._load_draw_toolbar_config()
 
@@ -391,17 +430,47 @@ class NodeCanvas(QGraphicsView):
     def complete_connection_to_input(self, target_node, clicked_anchor=None):
         self.connections.complete_connection_to_input(target_node, clicked_anchor)
 
-    def create_edge(self, source_node, target_node, target_anchor=None, source_anchor=None):
-        return self.connections.create_edge(source_node, target_node, target_anchor, source_anchor)
+    def create_edge(self, source_node=None, target_node=None, target_anchor=None, source_anchor=None, **kwargs):
+        return self.connections.create_edge(
+            source_node,
+            target_node,
+            target_anchor=target_anchor,
+            source_anchor=source_anchor,
+            **kwargs,
+        )
 
-    def remove_edge(self, edge):
-        self.connections.remove_edge(edge)
+    def remove_edge(self, edge, **kwargs):
+        self.connections.remove_edge(edge, **kwargs)
 
     def cancel_connection(self):
         self.connections.cancel_connection()
 
     def clear_edges(self):
         self.connections.clear_edges()
+
+    # ── project_path 便捷属性（EdgeRenderGate / save_layout 等模块统一用此属性）──
+
+    @property
+    def project_path(self) -> str | None:
+        """返回当前项目根目录路径（来自 parent_window.current_project_path）。"""
+        if self.parent_window is None:
+            return None
+        return getattr(self.parent_window, "current_project_path", None)
+
+    # 兼容旧调用：某些模块写 project_path = ... 赋值语义
+    @project_path.setter
+    def project_path(self, val: str | None) -> None:
+        if self.parent_window is None:
+            return
+        try:
+            self.parent_window.current_project_path = val
+        except Exception:  # noqa: BLE001
+            pass
+
+    @property
+    def composite_manager(self):
+        """返回 CompositeNode 管理器（懒存在 canvas._composite_manager 上）。渲染门用。"""
+        return getattr(self, "_composite_manager", None)
 
     # ── 批量操作（转发给 CanvasBatchOps） ──
 

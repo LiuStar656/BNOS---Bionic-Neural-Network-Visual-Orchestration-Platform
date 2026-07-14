@@ -8,6 +8,19 @@
 
 点击下方日期查看该日期的详细更新：
 
+### [2026-07-15](./2026-07-15/)
+- **复合节点虚线修复**：composite.json 路径拼接移除冗余的 `NODE_DIR_ROOT`（`nodes/composite_nodes` → `composite_nodes`），COMPOSITE_INPUT/OUTPUT/INTERNAL 权威边正确加载；解析 composite.json 外部连接时输入端口 `{data, default}`、输出端口 `{node_output, default}` 双版本 EdgeKey 均加入 CanonicalEdgeSet
+- **NodeStateManager 别名等价比较**：`is_edge_valid_static` 对复合边增加 data↔default / node_output↔default 端口别名等价判定，兼容历史布局
+- **路由写入/清理规范化**：`set_input_routing` / `set_output_routing` 入口强制标准化到内部标准名（输入 data、输出 node_output）并反删别名脏键；`clear_input_routing` / `clear_output_routing` 别名宽松匹配，彻底消除 composite.json 同时写 data+default 重复条目
+- **MUTEX-VIOLATION 断言时序修复**：expand/collapse 旧时序「ASSERT(读磁盘)→FLUSH(写磁盘)」改为「RouteCache.flush → _assert_mutex_consistency」，断言不再读到 PhaseB CLEAR 与 PhaseC CREATE 之间的磁盘瞬态；断言失败从 raise+rollback 改为仅 ERROR 日志（已写盘 rollback 无效）
+- **日志降噪与稳态分级**：`CANONICAL_SCAN_INTERVAL_MS` 3000ms → 10000ms（expand/collapse/load_layout/calibrate 均会立即 schedule_immediate_scan，不依赖定时器）；render-gate noisy 判定（ghost>0 ∨ broken>0 ∨ 集合变化）+ summary/set dump INFO/DEBUG 分级；`infer_all_edges` need_attention 判定（broken>0 ∨ stale>0）+ summary INFO/DEBUG 分级；修复 ScanStats 字段 `stats.stale_cleared` → `stats.stale_routes_cleared` AttributeError
+- **稳态 idle 日志量**：闲置时几乎为 0（DEBUG 默认不输出）；用户操作后 1 轮完整 dump；异常（ghost/broken/stale）保留完整 INFO dump
+- **状态机系统阶段盘点（节点线 + 边线条）**：
+  - 节点线（Node Track）：Phase 1 NodeRuntimeSM 6 状态 + 14 转换 + **node_process.py 10 处真实调用**（start/start_ok/start_fail/stop/stop_ok/stop_fail/child_resume/child_idle/crash）✅ 生产可用；Phase 3 CompositeLifecycleSM 8 状态 + 15 转换 + **composite_node.py 4 处真实接入**（实例化 + is_active/is_restartable 属性委托 + TOCTOU 守卫 + decompress handle）✅ 生产可用；Phase 2 正交 SM 组合（MembershipSM × VisibilitySM × ConnectionSM）+ TRANSITION_TABLE + Guard（guard_not_running / guard_composite_children_not_running）🟡 中期集成 ~60%（NodeStateManager 在 composite_node/canvas_view/canvas_layout 多处实例化 + 内部分发入口已接 compress/decompress/expand/collapse/connect_upstream/disconnect_upstream 共 8 事件，但 NodeStateActionService 动作层仍走老路径）；Render-Gate 接口 `is_edge_valid_static` + 端口别名 ✅ 100%（canvas_edge_render_gate.py 真实调用）；RouteCache 原子写 ✅ 100%（expand/collapse 全链路）
+  - 边线条（Edge Track）：Phase 4 EdgeInteractionSM 6 状态 + 14 转换 + 8 项测试 🟠 定义/单测 100% 但业务 0% 接入（edge_item.py 仍保留 8 旧变量操作 `_hovered_handle / _hovered_wp / _drag_wp_index / _drag_is_new / _press_pos / _press_on_handle / _long_press_fired / _long_press_timer`，未实例化 EdgeInteractionSM）；CanvasModeSM 6 模式 + 14 转换 🟠 定义/单测 100% 但业务 0% 接入（canvas_view 仍用裸字符串）
+  - 整体代码树：`ui/core/state/` 独立包 15 模块 + 7 测试文件（base ×1、node_runtime ×1、composite_lifecycle ×1、canvas_mode ×1、edge_interaction ×1、phase2_state_manager ×1、正交 3 SM 由 phase2 覆盖）
+  - P0→P3 路线图：P0 EdgeInteractionSM→edge_item.py 接入；P1 CanvasModeSM→canvas_view 接入；P2 NodeStateActionService 挂全；P3 启动自检 validate_all_states
+
 ### [2026-07-13](./2026-07-13/)
 - **复合节点右键菜单优化**：启动/停止互斥显示（根据 `is_running` 只显示一个）；解耦移至菜单最底层；展开/折叠增加运行状态检测（灰显 + tooltip + 弹窗双重校验）
 - **输入锚点独占检测**：一个输入锚点只能连接一个输出锚点，连线时检测 `target_anchor.edges` 拒绝重复接入，弹窗提示端口名

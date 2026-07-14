@@ -5,6 +5,23 @@
 
 ---
 <details open>
+<summary><strong>【2026-07-15】V2.0.29 - Composite Dashed Edge Fix, Port Alias Normalization, MUTEX-VIOLATION Assertion Timing Fix, Log Noise Reduction & State Machine System Stage Audit (Node Track + Edge Track)</strong></summary>
+
+[View Full Update](./2026-07-15/README.md) | [01_Dashed_Fix_Alias](./2026-07-15/01_Composite_Node_Dashed_Line_Fix_and_Port_Alias_Normalization.md) | [02_Mutex_Timing](./2026-07-15/02_Mutex_VIOLATION_Assertion_Timing_Fix.md) | [03_Log_Noise](./2026-07-15/03_Log_Noise_Reduction_and_Steady_State_Log_Tiering.md) | [04_State_Machine_Audit](./2026-07-15/04_State_Machine_System_Development_Stage_Audit.md)
+
+**Main Updates:**
+- **Composite Dashed Edge Fix**: Wrong composite.json path (`NODE_DIR_ROOT` extra layer removed, authority set no longer empty); both EdgeKey variants — data↔default input / node_output↔default output — added to CanonicalEdgeSet; NodeStateManager alias equivalence comparison; edges created under internal standard names. Edges to composite nodes no longer turn dashed after 3s.
+- **Port Alias Normalization**: `set_input_routing` / `set_output_routing` entry-point force standardization (data / node_output) + reverse-delete alias stale keys; `clear_input_routing` / `clear_output_routing` loose alias-aware matching. Eliminates duplicate data+default routing entries in composite.json completely.
+- **MUTEX-VIOLATION Assertion Timing Fix**: Expand/collapse flow reordered from ASSERT(disk read)→FLUSH to RouteCache.flush→ASSERT. Assertion now reads freshly-flushed disk values, no more false positives; on assertion failure only ERROR log is retained (rollback is useless after flush).
+- **Log Noise Reduction**: `CANONICAL_SCAN_INTERVAL_MS` 3000→10000ms; render-gate noisy predicate (ghost>0 ∨ broken>0 ∨ set change) + summary/set dump INFO/DEBUG tiering; `infer_all_edges` need_attention predicate (broken>0 ∨ stale>0) + summary INFO/DEBUG tiering. Fixed ScanStats `stale_cleared` → `stale_routes_cleared` AttributeError.
+- **State Machine System Stage Audit (Node Track + Edge Track)**:
+  - Node Track: NodeRuntimeSM (10 call sites in node_process.py) / CompositeLifecycleSM (4 call sites in composite_node.py) / Render-Gate API / RouteCache ✅ 100% Production Ready; Phase 2 Orthogonal SMs + TRANSITION_TABLE + Guards at ~60% Mid-Integration (action layer still runs legacy paths)
+  - Edge Track: EdgeInteractionSM / CanvasModeSM — definition & tests 100% green, BUT edge_item.py still manipulates the 8 legacy boolean state vars, canvas_view still uses raw strings → 0% business integration
+  - P0 roadmap delivered: Wire EdgeInteractionSM into edge_item.py (delete all 8 legacy vars)
+
+</details>
+
+<details>
 <summary><strong>【2026-07-13】V2.0.28 - Composite Node System Enhancement: Context Menu, DAG, Coordinates, Running Protection, UI, Queue, Rename, Multi-Output, DAG Status, README Rewrite, State Machine System, Startup Queue Fix</strong></summary>
 
 [View Full Update](./2026-07-13/README.md) | [01_Context_Menu](./2026-07-13/01_Composite_Node_Context_Menu_and_Input_Anchor_Detection.md) | [02_DAG_Fix](./2026-07-13/02_Composite_Node_Collapse_DAG_Topology_Fix.md) | [03_Coordinate_Fix](./2026-07-13/03_Composite_Node_Expand_Coordinate_and_Edge_Fix.md) | [15_State_Machine](./2026-07-13/15_State_Machine_System.md)
@@ -451,4 +468,4 @@ This changelog uses a **"Single Index Page + Version-Separate MD Sub-Files"** ar
 2. Click the "View Full Update" link to enter the detailed update page for that date
 3. Each date folder contains all update entries for that date, supporting independent browsing and archiving
 
-**Last Updated**：2026-07-13
+**Last Updated**：2026-07-15

@@ -276,59 +276,120 @@ class CanvasBatchOps:
     # ------------------------------------------------------------------
 
     def batch_clear_listen_config(self):
-        """批量清除选中节点的输入监听配置及画布连线（包括 port_mappings 和 listen_upper_file）"""
+        """批量清除选中节点的输入监听配置及画布连线（跨边界双向清理）。
+
+        跨边界双向清理规则（Bug E 修复）：
+          - 选中 start 节点 → 即使下游节点未被选中，也要清理下游 listen_upper_file / port_mappings
+          - 选中 end   节点 → 即使上游节点未被选中，也要清理上游 out_connections
+          - 复合节点涉及的边 → 同步清理 composite.json._port_routing 路由
+
+        所有边删除统一走 CanvasConnections.remove_edge 权威注册链路，
+        禁止手动写配置文件，杜绝"只清了一端配置另一端残留"的半更新状态。
+        """
         if not self.canvas.box_selected_nodes:
             return
 
-        cleared_count = 0
-        for node_name in self.canvas.box_selected_nodes[:]:
-            if self.canvas.parent_window and node_name in self.canvas.parent_window.nodes_data:
-                node_info = self.canvas.parent_window.nodes_data[node_name]
-                config = node_info["config"]
-                need_save = False
+        selected_set = set(self.canvas.box_selected_nodes)
+        pw = self.canvas.parent_window
+        nodes_data = pw.nodes_data if (pw and pw.nodes_data) else {}
 
-                if config.get("listen_upper_file"):
-                    config["listen_upper_file"] = ""
-                    need_save = True
-                    cleared_count += 1
-
-                # 同时清除所有小锚点（input_port）的连接映射
-                if config.get("port_mappings"):
-                    config["port_mappings"] = {}
-                    need_save = True
-                    cleared_count += 1
-
-                # 同时清除指向其他节点的 out_connections
-                if config.get("out_connections"):
-                    config["out_connections"] = {}
-                    need_save = True
-                    cleared_count += 1
-
-                if need_save:
-                    config_path = os.path.join(node_info["path"], "node_config.json")
-                    try:
-                        with open(config_path, "w", encoding="utf-8") as f:
-                            json.dump(config, f, indent=2, ensure_ascii=False)
-                        logger.info("已清除节点 %s 的监听配置及端口映射", node_name)
-                    except Exception as e:
-                        logger.error("保存配置失败: %s", e)
-
-        edges_to_remove = []
-        for edge in self.canvas.edges:
+        # ========== 阶段一：按 EdgeKey 语义收集所有与选中集相交的边 ==========
+        # 相交条件：edge 的 source OR target 任一节点名在 selected_set 内
+        edges_plan: list = []
+        seen_edge_ids = set()
+        for edge in list(self.canvas.edges):
+            # 先解出 source_name / target_name（与 canvas_connections.remove_edge 同一推导逻辑）
+            source_name = None
             target_name = None
             for name, node_item in self.canvas.nodes.items():
+                if node_item == edge.start_node:
+                    source_name = name
                 if node_item == edge.end_node:
                     target_name = name
-                    break
-            if target_name in self.canvas.box_selected_nodes:
-                edges_to_remove.append(edge)
+            if not (source_name and target_name):
+                continue
 
-        for edge in edges_to_remove:
-            self.canvas.connections.remove_edge(edge)
+            # 命中：任一端在选中集
+            if source_name in selected_set or target_name in selected_set:
+                eid = id(edge)
+                if eid in seen_edge_ids:
+                    continue
+                seen_edge_ids.add(eid)
+                edges_plan.append((edge, source_name, target_name))
 
+        logger.info(
+            "[Phase3.3-batch-clear] 选中节点 %s，命中关联边 %d 条（跨边界双向清理）",
+            sorted(selected_set),
+            len(edges_plan),
+        )
+
+        # ========== 阶段二：对每条命中边，走 remove_edge 权威链路 ==========
+        # remove_edge 会负责：
+        #   - 清理 target listen_upper_file / port_mappings
+        #   - 清理 source out_connections
+        #   - 清理 composite.json._port_routing（涉及复合节点时）
+        #   - 注销 NodeStateManager._edge_keys 条目
+        #   - EdgeConfigWriter 灰度双写 RouteCache
+        removed_count = 0
+        for edge, src, tgt in edges_plan:
+            try:
+                self.canvas.connections.remove_edge(edge)
+                removed_count += 1
+                logger.info(
+                    "[Phase3.3-batch-clear] removed edge %s -> %s (cross-boundary clean OK)",
+                    src,
+                    tgt,
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.error(
+                    "[Phase3.3-batch-clear] remove_edge %s -> %s failed: %s",
+                    src,
+                    tgt,
+                    e,
+                )
+
+        # ========== 阶段三：兜底清选中节点内存配置（防御性，防止 remove_edge 漏网）==========
+        cleared_count = 0
+        for node_name in list(selected_set):
+            if not (pw and node_name in nodes_data):
+                continue
+            node_info = nodes_data[node_name]
+            config = node_info.get("config") or {}
+            need_save = False
+
+            if config.get("listen_upper_file"):
+                config["listen_upper_file"] = ""
+                need_save = True
+                cleared_count += 1
+
+            if isinstance(config.get("port_mappings"), dict) and config["port_mappings"]:
+                config["port_mappings"] = {}
+                need_save = True
+                cleared_count += 1
+
+            if isinstance(config.get("out_connections"), dict) and config["out_connections"]:
+                config["out_connections"] = {}
+                need_save = True
+                cleared_count += 1
+
+            if need_save:
+                config_path = os.path.join(node_info["path"], "node_config.json")
+                try:
+                    with open(config_path, "w", encoding="utf-8") as f:
+                        json.dump(config, f, indent=2, ensure_ascii=False)
+                    logger.info(
+                        "[Phase3.3-batch-clear] fallback cleared node %s config fields",
+                        node_name,
+                    )
+                except Exception as e:
+                    logger.error("[Phase3.3-batch-clear] fallback save config %s failed: %s", node_name, e)
+
+        msg_count = max(removed_count, cleared_count)
         themed_message(
-            self.canvas, t("k_title_clear_complete"), t("_k_config_cleared").format(count=cleared_count), "info"
+            self.canvas,
+            t("k_title_clear_complete"),
+            t("_k_config_cleared").format(count=msg_count),
+            "info",
         )
         self.canvas.selection.clear_selection()
-
         self._trigger_project_save()

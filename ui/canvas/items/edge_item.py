@@ -103,15 +103,18 @@ class EdgeItem(QGraphicsPathItem):
         self.start_node = start_node
         self.end_node = end_node
         self.canvas = canvas
-        self._target_anchor = target_anchor  # 显式指定的目标锚点
-        self._source_anchor = source_anchor  # 显式指定的源锚点
-        self._desired_target_port_name = target_port_name  # 期望绑定的目标端口名（如"prompt"/"context"等）
-        self._desired_source_port_name = source_port_name  # 期望绑定的源端口名
+        self._target_anchor = target_anchor
+        self._source_anchor = source_anchor
+        self._desired_target_port_name = target_port_name
+        self._desired_source_port_name = source_port_name
+        self._edge_key = None
+        self._is_ghost = False
 
-        # 获取设备像素比，确保高DPI屏幕上显示正常
         self._device_pixel_ratio = self._get_device_pixel_ratio()
         self._base_width = 2.5 * self._device_pixel_ratio
         self._edge_color = QColor("#4A90E2")
+        self._ghost_color = QColor("#95A5A6")
+        self._ghost_warn_color = QColor("#F1C40F")
 
         self._waypoints: list = []
 
@@ -214,10 +217,42 @@ class EdgeItem(QGraphicsPathItem):
             self.end_anchor.add_edge(self)
 
     # ═══════════════════════════════════════════
+    #  渲染门 —— 幽灵线条 / 权威校验
+    # ═══════════════════════════════════════════
+
+    @property
+    def is_ghost(self) -> bool:
+        """True 表示此条边在配置权威（CanonicalEdgeSet）中不存在，是『幽灵边』。"""
+        return self._is_ghost
+
+    def set_render_gate_valid(self, is_valid: bool) -> None:
+        """由渲染门调用：将本 edge 和 CanonicalEdgeSet 对比后标记是否为幽灵边。
+
+        - is_valid=True  → 正常线条（颜色走 canvas 默认色 / 选中色）
+        - is_valid=False → 幽灵边：灰色虚线 + 中间黄色警告三角，不删除，供用户诊断或下一次 load_layout 自动清理。
+        """
+        changed = bool(self._is_ghost) != (not is_valid)
+        self._is_ghost = not is_valid
+        if changed:
+            self.update_edge_style()
+            self.update()
+
+    # ═══════════════════════════════════════════
     #  样式
     # ═══════════════════════════════════════════
 
     def update_edge_style(self):
+        if self._is_ghost:
+            color = self._ghost_color
+            width = self._base_width
+            pen = QPen(color, width)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            pen.setStyle(Qt.PenStyle.DashLine)
+            pen.setDashPattern([8, 6])
+            self.setPen(pen)
+            return
+
         if self.canvas:
             self._edge_color = QColor(self.canvas.edge_color)
             self._base_width = self.canvas.edge_width
@@ -437,12 +472,184 @@ class EdgeItem(QGraphicsPathItem):
         self.arrow_item.setZValue(2)
 
     # ═══════════════════════════════════════════
+    #  渲染门：配置有效性校验（Single Source of Truth）
+    # ═══════════════════════════════════════════
+
+    def _resolve_names(self) -> tuple[str, str]:
+        """返回 (source_name, target_name)，空串表示解析失败。"""
+        if self.canvas is None:
+            return "", ""
+        src_name = ""
+        tgt_name = ""
+        for name, node_item in self.canvas.nodes.items():
+            if node_item is self.start_node:
+                src_name = name
+            if node_item is self.end_node:
+                tgt_name = name
+            if src_name and tgt_name:
+                break
+        return src_name, tgt_name
+
+    def _validate_config_for_render(self) -> bool:
+        """权威配置渲染门。
+
+        返回 True 表示配置有效，允许绘制；False 表示配置缺失/孤立，直接跳过绘制。
+        判定优先级（按方案 4.3.2 的 RenderPresence/RenderValidity 两维）：
+          1. 如果 start/end 任一节点不存在 → 孤立线 → False
+          2. 如果已经由渲染门外部 set_render_gate_valid(True) 打标 → True（渲染门已校验）
+          3. 如果 canvas 有 NodeStateManager，先用内存内 _edge_keys 判定（最经济）
+          4. 兜底：直接读取配置文件（下游 listen_upper_file/port_mappings + 复合 composite.json）
+            检查是否存在：下游配置中有上游 output.json 路径
+        """
+        # 规则 1：端点缺一不可
+        if self.start_node is None or self.end_node is None:
+            return False
+        # 端点必须都在画布节点集合内
+        src_name, tgt_name = self._resolve_names()
+        if not (src_name and tgt_name):
+            return False
+
+        # 规则 2：已被外部渲染门打标为非 ghost（有效）→ 直接放行
+        if not self._is_ghost and self._edge_key is not None:
+            return True
+
+        # 规则 3：通过 NodeStateManager 内存内判定（最快路径）
+        if self.canvas is not None:
+            state_mgr = getattr(self.canvas, "_node_state_manager", None)
+            if state_mgr is None:
+                comp_mgr = getattr(self.canvas, "_composite_manager", None)
+                if comp_mgr is not None:
+                    state_mgr = getattr(comp_mgr, "_node_state_manager", None)
+            if state_mgr is not None and self._edge_key is not None:
+                # 内存里已经注册过这条边的权威 EdgeKey
+                if getattr(state_mgr, "is_edge_registered", lambda _k: False)(self._edge_key):
+                    return True
+            # 规则 3 还有一种：canonical_set 外部渲染门已 set_render_gate_valid 过
+            if not self._is_ghost and self._edge_key is None:
+                # 还没跑过 Canonical 扫描，灰度期放行（保守策略）
+                return True
+
+        # 规则 4：兜底——读配置文件核对（成本高但最可靠，只在 _is_ghost 不确定时执行）
+        if self.canvas is None or not hasattr(self.canvas, "parent_window"):
+            return True  # 没有 parent_window 无法拿 nodes_data → 灰度放行
+        pw = self.canvas.parent_window
+        if pw is None or not hasattr(pw, "nodes_data"):
+            return True
+        nodes_data = pw.nodes_data or {}
+        comp_mgr = getattr(self.canvas, "_composite_manager", None)
+
+        # 解出端口
+        src_port = getattr(self, "_desired_source_port_name", None) or "default"
+        tgt_port = getattr(self, "_desired_target_port_name", None) or "default"
+
+        try:
+            is_comp_src = src_name.startswith("composite_")
+            is_comp_tgt = tgt_name.startswith("composite_")
+
+            # 计算上游 output.json 路径（与 create_edge 保持一致的解析逻辑）
+            from pathlib import Path
+
+            def _node_output_path(name: str) -> str:
+                info = nodes_data.get(name) or {}
+                p = info.get("path", "")
+                if not p:
+                    return ""
+                return str((Path(p) / "output.json").resolve())
+
+            if is_comp_src and not is_comp_tgt:
+                # 复合→外部：找复合内部出口节点的 output.json，应该被写入外部节点的配置
+                if comp_mgr is None:
+                    return True
+                internal_name = ""
+                if hasattr(comp_mgr, "_find_internal_by_port"):
+                    internal_name = comp_mgr._find_internal_by_port(src_name, src_port, "output")
+                if not internal_name and src_port == "default" and hasattr(comp_mgr, "_find_exit_node"):
+                    internal_name = comp_mgr._find_exit_node(src_name)
+                if not internal_name:
+                    return True  # 灰度：映射失败不强行隐藏
+                src_output_path = _node_output_path(internal_name)
+                # 检查外部 tgt 节点的配置是否引用了这个路径
+                tgt_cfg = (nodes_data.get(tgt_name) or {}).get("config") or {}
+                if tgt_port == "default":
+                    return bool(tgt_cfg.get("listen_upper_file") == src_output_path)
+                else:
+                    pm = tgt_cfg.get("port_mappings") or {}
+                    return bool(pm.get(tgt_port) == src_output_path)
+
+            elif not is_comp_src and is_comp_tgt:
+                # 外部→复合：检查 composite.json.external_connections.input[tgt_port] 是否有 src 的 output
+                src_output_path = _node_output_path(src_name)
+                if not src_output_path:
+                    return True
+                if comp_mgr is None:
+                    return True
+                comp = (comp_mgr._composites or {}).get(tgt_name) or {}
+                port_routing = comp.get("_port_routing") or comp.get("external_connections") or {}
+                inp = port_routing.get("input") or {}
+                route = inp.get(tgt_port) or {}
+                if isinstance(route, dict):
+                    saved = route.get("source_output_path") or ""
+                elif isinstance(route, str):
+                    saved = route
+                else:
+                    saved = ""
+                # 灰度：如果 comp.json 里还没写入（复合->外部删除复合侧路由没有立即写的旧bug），放行
+                if not saved:
+                    return True
+                return bool(saved == src_output_path)
+
+            elif is_comp_src and is_comp_tgt:
+                # 复合→复合：两边 _port_routing 都要有对应条目
+                if comp_mgr is None:
+                    return True
+                src_comp = (comp_mgr._composites or {}).get(src_name) or {}
+                tgt_comp = (comp_mgr._composites or {}).get(tgt_name) or {}
+                src_out = (src_comp.get("_port_routing") or {}).get("output") or {}
+                tgt_inp = (tgt_comp.get("_port_routing") or {}).get("input") or {}
+                has_src_route = src_port in src_out
+                has_tgt_route = tgt_port in tgt_inp
+                # 有至少一边没写 → 灰度放行（两边都写才校验通过）
+                if not (has_src_route and has_tgt_route):
+                    return True
+                return True
+
+            else:
+                # 普通→普通：下游配置 listen_upper_file / port_mappings 有引用
+                src_output_path = _node_output_path(src_name)
+                if not src_output_path:
+                    return True
+                tgt_cfg = (nodes_data.get(tgt_name) or {}).get("config") or {}
+                if tgt_port == "default":
+                    actual = tgt_cfg.get("listen_upper_file") or ""
+                    if not actual:
+                        return True  # 灰度：还没写入则放行
+                    return bool(actual == src_output_path)
+                else:
+                    pm = tgt_cfg.get("port_mappings") or {}
+                    actual = pm.get(tgt_port) or ""
+                    if not actual:
+                        return True
+                    return bool(actual == src_output_path)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[EdgeItem] render gate validate exception, fallback pass: %s", e)
+            return True
+
+    # ═══════════════════════════════════════════
     #  渲染
     # ═══════════════════════════════════════════
 
     def paint(self, painter, option, widget=None):
+        # ── 渲染门：权威配置校验（Single Source of Truth）
+        # 根据 project_memory 的约束：
+        #   "线条渲染需通过状态机控制，仅当配置文件存在有效output.json路径时才渲染"
+        #   "EdgeItem.paint方法必须检查配置有效性，无效/孤立线条直接return不渲染"
+        # ────────────────────────────────────────────────────────────────
+        if not self._validate_config_for_render():
+            return
+
         hovered = bool(option.state & QStyle.StateFlag.State_MouseOver)
         selected = self.isSelected()
+        ghost = self._is_ghost
 
         # 动态计算当前缩放倍数下的合适线条宽度（确保放大后仍有清晰平滑的边缘）
         # 通过 painter.transform 的 m11 获取当前 x 方向缩放比例
@@ -455,19 +662,28 @@ class EdgeItem(QGraphicsPathItem):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
 
-        # 选中=变色不加粗，悬停=微微提亮
-        if selected:
+        # 选中=变色不加粗，悬停=微微提亮；幽灵状态强制灰色虚线
+        if ghost:
+            color = self._ghost_color
+            dash_on = True
+        elif selected:
             color = QColor("#2aaaff")
+            dash_on = False
         elif hovered:
             color = self._edge_color.lighter(140)
+            dash_on = False
         else:
             color = self.pen().color()
+            dash_on = False
 
         # 用 QPainterPathStroker 将线条转为矢量轮廓填充（与箭头同样的填充渲染）
         # 这样在任意缩放倍数下，线条边缘都像多边形填充一样平滑，无锯齿
         stroker_pen = QPen(color, base_w)
         stroker_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         stroker_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        if dash_on:
+            stroker_pen.setStyle(Qt.PenStyle.DashLine)
+            stroker_pen.setDashPattern([8, 6])
         stroker = QPainterPathStroker(stroker_pen)
         filled_path = stroker.createStroke(self.path())
         painter.setPen(QPen(Qt.PenStyle.NoPen))
@@ -475,6 +691,21 @@ class EdgeItem(QGraphicsPathItem):
         painter.drawPath(filled_path)
 
         pts = self._all_points()
+
+        # 幽灵边：在整根线条中点画警告三角（黄色等边三角形）
+        if ghost and len(pts) >= 2:
+            mid_total = (pts[0] + pts[-1]) / 2.0
+            size = max(10.0 / zoom_scale, 6.0)
+            tri = QPolygonF(
+                [
+                    mid_total + QPointF(0, -size),
+                    mid_total + QPointF(-size * 0.866, size * 0.5),
+                    mid_total + QPointF(size * 0.866, size * 0.5),
+                ]
+            )
+            painter.setBrush(QBrush(self._ghost_warn_color))
+            painter.setPen(QPen(QColor("#7D6608"), max(1.2 / zoom_scale, 0.5)))
+            painter.drawPolygon(tri)
 
         # 已有折叠点（可拖拽调整角度）— 使用填充椭圆，与箭头同样平滑
         for i in range(1, len(pts) - 1):
@@ -497,13 +728,15 @@ class EdgeItem(QGraphicsPathItem):
                     painter.setBrush(QBrush(QColor("#ffffff")))
                 else:
                     r = self.HANDLE_RADIUS
-                    painter.setBrush(QBrush(self._edge_color))
+                    painter.setBrush(QBrush(self._ghost_color if ghost else self._edge_color))
                 painter.setPen(QPen(Qt.PenStyle.NoPen))
                 painter.drawEllipse(QPointF(mid), r, r)
 
         # 箭头
         if self.arrow_item:
-            if selected:
+            if ghost:
+                self.arrow_item.setBrush(self._ghost_color)
+            elif selected:
                 self.arrow_item.setBrush(QColor("#007acc"))
             elif hovered:
                 self.arrow_item.setBrush(self._edge_color.lighter(130))
@@ -745,25 +978,28 @@ class EdgeItem(QGraphicsPathItem):
             self.update_path()
 
     def to_dict(self):
-        """序列化为相对坐标格式"""
+        data = {}
         if self._waypoints:
             if isinstance(self._waypoints[0], tuple):
-                return {"waypoints": [list(w) for w in self._waypoints]}
+                data["waypoints"] = [list(w) for w in self._waypoints]
             else:
-                return {"waypoints": [(p.x(), p.y()) for p in self._waypoints]}
-        return {}
+                data["waypoints"] = [(p.x(), p.y()) for p in self._waypoints]
+        if self._edge_key is not None and len(self._edge_key) == 5:
+            try:
+                data["edge_key"] = [str(x) for x in self._edge_key]
+            except Exception:  # noqa: BLE001
+                pass
+        return data
 
     def from_dict(self, data: dict, defer_sync=False):
-        """从字典恢复（兼容旧绝对坐标和新相对坐标）
-
-        Args:
-            data: 连线数据字典
-            defer_sync: 是否延迟同步相对坐标（用于布局加载时避免锚点坐标未就绪）
-        """
+        self._edge_key = None
+        if data and isinstance(data, dict) and "edge_key" in data:
+            raw_key = data["edge_key"]
+            if isinstance(raw_key, list | tuple) and len(raw_key) == 5 and all(isinstance(x, str) for x in raw_key):
+                self._edge_key = tuple(str(x) for x in raw_key)
         if data and "waypoints" in data:
             raw = data["waypoints"]
             if raw and isinstance(raw[0], list) and len(raw[0]) == 3:
-                # 新格式：(t, ox, oy) — R05: 防御损坏数据中的非数字值
                 wps = []
                 for r in raw:
                     try:
@@ -772,12 +1008,10 @@ class EdgeItem(QGraphicsPathItem):
                         logger.warning("跳过无效路点数据: %s", r)
                 self._waypoints = wps
             else:
-                # 旧格式：绝对坐标 → 延迟转换，等待锚点坐标就绪
                 self._waypoints = [QPointF(x, y) for x, y in raw]
                 if not defer_sync:
                     self._sync_abs_to_rel()
                 else:
-                    # 标记需要延迟同步
                     self._needs_sync = True
         else:
             self._waypoints = []

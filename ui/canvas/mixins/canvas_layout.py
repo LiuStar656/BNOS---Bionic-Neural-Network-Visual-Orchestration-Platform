@@ -14,6 +14,7 @@ from PySide6.QtWidgets import QGraphicsScene
 
 from ui.canvas.items.edge_item import EdgeItem
 from ui.canvas.items.node_item import NodeItem
+from ui.core.edge.canonical_edge_resolver import CanonicalEdgeResolver
 from ui.core.i18n import t
 from ui.core.logger import logger
 from ui.core.node.connection_inferrer import ConnectionInferrer
@@ -491,6 +492,14 @@ class CanvasLayout:
 
             logger.info("加载完成: %d个节点, %d条连线", len(self.canvas.nodes), len(self.canvas.edges))
 
+            # =================================================================
+            # —— Phase3.2：反向裁剪幽灵边（画布有边但配置权威没有的线条）
+            #    基于 CanonicalEdgeResolver 从配置反向推断权威 CanonicalEdgeSet，
+            #    与画布现有的 edges 做 diff，将不在权威集合中的画布边标记为 ghost
+            #    （若为彻底孤立/端口完全不对的边，则直接 remove_edge 移除）
+            # =================================================================
+            self._ghost_trim_on_load(project_path)
+
             # ---- 恢复绘图标注图形 ----
             if hasattr(self.canvas, "draw_layer") and self.canvas.draw_layer:
                 drawing_data = layout_data.get("drawing_graphics", [])
@@ -638,3 +647,134 @@ class CanvasLayout:
 
         if fixed_count > 0:
             logger.info("[绑定校验] 修复了 %d 条连线的锚点绑定", fixed_count)
+
+    # ------------------------------------------------------------------
+    # Phase3.2：load_layout 反向裁剪幽灵边
+    # ------------------------------------------------------------------
+
+    def _ghost_trim_on_load(self, project_path: str) -> None:
+        """load_layout 末尾钩子：用 CanonicalEdgeSet 反向裁剪画布中的幽灵边。
+
+        流程：
+          1. 用 CanonicalEdgeResolver.infer_all_edges 从所有配置文件反推权威边集
+          2. 遍历画布现有 edges：
+             - 若 edge 有 _edge_key 且存在于权威集 → 标记 set_render_gate_valid(True)
+             - 若 edge 有 _edge_key 但不在权威集 → 标记 set_render_gate_valid(False)（灰色虚线警告）
+             - 若 edge 无 _edge_key（旧边）→ 用 NodeStateManager.is_edge_valid_static 兜底
+          3. 将画布 edges 的 _edge_key 注册到 NodeStateManager
+        """
+        try:
+            pw = self.canvas.parent_window
+            nodes_data = pw.nodes_data if (pw and pw.nodes_data) else {}
+            comp_mgr = getattr(self.canvas, "_composite_manager", None)
+
+            resolver = CanonicalEdgeResolver()
+            canonical_set, stats = resolver.infer_all_edges(project_path, nodes_data, comp_mgr)
+            logger.info(
+                "[Phase3.2-ghost-trim] CanonicalEdgeSet 扫描完成: %s",
+                stats.as_log(),
+            )
+
+            # 建立 name → node_ref 的反向映射
+            node_by_ref = {node: name for name, node in self.canvas.nodes.items()}
+
+            state_mgr = getattr(self.canvas, "_node_state_manager", None)
+            if state_mgr is None and comp_mgr is not None:
+                state_mgr = getattr(comp_mgr, "_node_state_manager", None)
+
+            ghost_count = 0
+            valid_count = 0
+            legacy_count = 0
+
+            for edge in list(self.canvas.edges):
+                src_name = node_by_ref.get(edge.start_node)
+                tgt_name = node_by_ref.get(edge.end_node)
+                if not (src_name and tgt_name):
+                    # 孤立边（端点不在 canvas.nodes 里）→ 移除
+                    try:
+                        self.canvas.connections.remove_edge(edge)
+                        ghost_count += 1
+                    except Exception:  # noqa: BLE001
+                        pass
+                    continue
+
+                # 解端口名（与 make_edge_key 一致）
+                src_port = getattr(edge, "_desired_source_port_name", None) or "default"
+                tgt_port = getattr(edge, "_desired_target_port_name", None) or "default"
+
+                # 判定 routing_type（与 canvas_connections.create_edge 保持一致）
+                is_comp_src = src_name.startswith("composite_")
+                is_comp_tgt = tgt_name.startswith("composite_")
+                if not is_comp_src and not is_comp_tgt:
+                    if tgt_port and tgt_port != "default":
+                        from ui.core.edge.edge_key import ROUTING_STANDALONE_PORT_MAP as _RSPM
+
+                        routing = _RSPM
+                    else:
+                        from ui.core.edge.edge_key import ROUTING_STANDALONE as _RS
+
+                        routing = _RS
+                elif is_comp_src and not is_comp_tgt:
+                    from ui.core.edge.edge_key import ROUTING_COMPOSITE_OUTPUT as _RCO
+
+                    routing = _RCO
+                elif not is_comp_src and is_comp_tgt:
+                    from ui.core.edge.edge_key import ROUTING_COMPOSITE_INPUT as _RCI
+
+                    routing = _RCI
+                else:
+                    from ui.core.edge.edge_key import ROUTING_COMPOSITE_OUTPUT as _RCO2
+
+                    routing = _RCO2
+
+                from ui.core.edge.edge_key import make_edge_key
+
+                calc_key = make_edge_key(routing, src_name, tgt_name, src_port, tgt_port)
+                # 如果 edge 自己还没 _edge_key（老边），把计算出来的补上
+                if getattr(edge, "_edge_key", None) is None:
+                    try:
+                        edge._edge_key = calc_key
+                    except Exception:  # noqa: BLE001
+                        pass
+
+                existing_key = getattr(edge, "_edge_key", None)
+                if existing_key is not None:
+                    valid = False
+                    # 在权威集中查找（归一化5元组比较）
+                    from ui.core.state.node_state_manager import NodeStateManager
+
+                    valid = NodeStateManager.is_edge_valid_static(existing_key, canonical_set)
+                    if valid:
+                        edge.set_render_gate_valid(True)
+                        valid_count += 1
+                        if state_mgr is not None and hasattr(state_mgr, "register_edge"):
+                            state_mgr.register_edge(existing_key)
+                    else:
+                        # 不在权威集 → 标记幽灵（灰色虚线），不直接删除，供用户诊断
+                        edge.set_render_gate_valid(False)
+                        ghost_count += 1
+                        logger.warning(
+                            "[Phase3.2-ghost-trim] 检测到幽灵边: %s[%s] -> %s[%s] (key=%s)",
+                            src_name,
+                            src_port,
+                            tgt_name,
+                            tgt_port,
+                            existing_key,
+                        )
+                else:
+                    legacy_count += 1
+                    # 完全旧的边（连 calc_key 都算不出来）→ 灰度放行，但打日志
+                    logger.warning(
+                        "[Phase3.2-ghost-trim] legacy边（无EdgeKey）: %s -> %s, 放行不隐藏",
+                        src_name,
+                        tgt_name,
+                    )
+
+            logger.info(
+                "[Phase3.2-ghost-trim] 结果: valid=%d, ghost(标记)=%d, legacy(放行)=%d",
+                valid_count,
+                ghost_count,
+                legacy_count,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[Phase3.2-ghost-trim] 反向裁剪失败，跳过（不影响加载）: %s", e)
