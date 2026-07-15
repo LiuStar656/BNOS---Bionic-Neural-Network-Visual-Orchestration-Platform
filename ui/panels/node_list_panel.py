@@ -207,8 +207,40 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
 
     # ==================== 独有方法（实现与 Mixin 不同）====================
 
+    @staticmethod
+    def _split_protected_prefix(node_name: str) -> tuple[str, str, bool]:
+        """拆分受保护的前缀和可编辑后缀
+
+        受保护前缀列表（按长度从长到短排序，避免误匹配）：
+          - node_python / node_rust / node_go / node_cpp / node_java / node_nodejs / node_shell
+          - composite_
+
+        Args:
+            node_name: 完整节点名
+
+        Returns:
+            (prefix, suffix, is_protected)
+              - prefix: 受保护前缀（含下划线分隔符）
+              - suffix: 用户可编辑部分
+              - is_protected: 是否命中了受保护前缀
+        """
+        PROTECTED_PREFIXES = [
+            "node_python_",
+            "node_nodejs_",
+            "node_rust_",
+            "node_shell_",
+            "node_java_",
+            "node_cpp_",
+            "node_go_",
+            "composite_",
+        ]
+        for p in PROTECTED_PREFIXES:
+            if node_name.startswith(p):
+                return p, node_name[len(p) :], True
+        return "", node_name, False
+
     def rename_node(self, old_name):
-        """重命名节点 — 仅允许修改最后一个下划线后面的后缀"""
+        """重命名节点 — 保护语言前缀（node_python/node_go等）和复合节点前缀composite_"""
         print(f"[NodeListPanel.rename_node] called: old_name={old_name}")
 
         if old_name not in self.nodes_data:
@@ -236,16 +268,7 @@ class NodeListPanel(FloatingPanel, NodeListOperationsMixin, NodeListDragMixin, N
         )
         from PySide6.QtCore import Qt
 
-        # 拆分前缀和后缀：最后一个下划线之前为固定前缀，之后为可编辑后缀
-        last_underscore = old_name.rfind("_")
-        if last_underscore >= 0:
-            prefix = old_name[: last_underscore + 1]  # 含末尾下划线
-            suffix = old_name[last_underscore + 1 :]
-            read_only_prefix = True
-        else:
-            prefix = ""
-            suffix = old_name
-            read_only_prefix = False
+        prefix, suffix, read_only_prefix = NodeListPanel._split_protected_prefix(old_name)
 
         print("[NodeListPanel.rename_node] showing rename dialog...")
         dlg = QDialog(self)

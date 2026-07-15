@@ -440,6 +440,56 @@ class CompositeNodeItem(QGraphicsRectItem):
                         mgr.save_debounced()
         return super().itemChange(change, value)
 
+    def mousePressEvent(self, event):
+        """复合节点单击处理：右键菜单 / Ctrl+多选 / 单击单选（清除旧选择）"""
+        if event.button() == Qt.MouseButton.RightButton:
+            self.contextMenuEvent(event)
+            event.accept()
+            return
+
+        if event.button() != Qt.MouseButton.LeftButton:
+            super().mousePressEvent(event)
+            return
+
+        # 锚点命中检测（连接模式）
+        if self.canvas and self.canvas.is_connecting:
+            input_anchor = self.find_nearest_input_anchor(event.pos(), 60)
+            if input_anchor:
+                self.canvas.complete_connection_to_input(self, input_anchor)
+                event.accept()
+                return
+
+        # Ctrl+单击：切换多选状态
+        if (event.modifiers() & Qt.KeyboardModifier.ControlModifier) and self.canvas:
+            self.canvas._toggle_node_selection(self.node_name)
+            event.accept()
+            return
+
+        # 普通单击：清除之前的选择，仅选中当前节点
+        if self.canvas:
+            self.canvas.on_node_selected(self)
+
+        super().mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        """复合节点双击：打开配置详情面板"""
+        if event.button() != Qt.MouseButton.LeftButton:
+            super().mouseDoubleClickEvent(event)
+            return
+        if not self.canvas:
+            super().mouseDoubleClickEvent(event)
+            return
+        try:
+            self.canvas.open_node_config(self.comp_id)
+            from ui.core.logger import logger
+
+            logger.info("[%s] 双击打开复合节点配置页面", self.comp_id)
+        except Exception as e:
+            from ui.core.logger import logger
+
+            logger.warning("[%s] 双击打开配置失败: %s", self.comp_id, e)
+        event.accept()
+
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget = None):
         self._rendering.paint(painter, option, widget)
 

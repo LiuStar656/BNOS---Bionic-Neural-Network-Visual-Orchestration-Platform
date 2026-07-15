@@ -105,9 +105,6 @@ class NodeDetailPanel(FloatingPanel):
             self._tab_widget.addTab(self._log_viewer, t("k_detail_panel_logs"))
 
             if self._is_composite:
-                self._comp_config_editor = JsonSyncEditor(str(self._provider.get_composite_config_path()))
-                self._tab_widget.addTab(self._comp_config_editor, t("k_detail_panel_composite"))
-
                 pipeline_path = self._provider.get_pipeline_path()
                 if pipeline_path:
                     self._pipeline_editor = JsonSyncEditor(str(pipeline_path))

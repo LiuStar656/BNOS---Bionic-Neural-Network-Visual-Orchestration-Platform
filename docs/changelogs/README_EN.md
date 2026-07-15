@@ -69,5 +69,5 @@ changelogs/
 
 ---
 
-📅 **Latest Version**: [2026-07-15 V2.0.29 Composite Dashed Edge Fix / MUTEX-VIOLATION Assertion Fix / Log Noise Reduction / State Machine System Stage Audit](./en/2026-07-15/)  
+📅 **Latest Version**: [2026-07-15 V2.0.30 Selection Dual-Source Sync / Composite Double-Click Config / Composite Dashed Edge Fix / MUTEX-VIOLATION Assertion Fix / Log Noise Reduction / State Machine System Stage Audit](./en/2026-07-15/)  
 **Last Updated**: 2026-07-15

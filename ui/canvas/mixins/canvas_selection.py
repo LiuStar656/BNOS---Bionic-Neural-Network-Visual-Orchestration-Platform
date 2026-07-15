@@ -47,8 +47,13 @@ class SelectionManager:
         name = node.node_name
 
         for n in self.canvas.nodes.values():
-            n._is_custom_selected = False
+            if getattr(n, "_is_custom_selected", False) or n.isSelected():
+                n._is_custom_selected = False
+                n.setSelected(False)
+                n.update()
+        self.canvas.scene.clearSelection()
         node._is_custom_selected = True
+        node.setSelected(True)
         node.update()
         logger.info("选中节点: %s", name)
 
@@ -59,11 +64,13 @@ class SelectionManager:
 
         node = self.canvas.nodes[node_name]
 
-        if getattr(node, "_is_custom_selected", False):
+        if getattr(node, "_is_custom_selected", False) or node.isSelected():
             node._is_custom_selected = False
+            node.setSelected(False)
             logger.debug("取消选中节点: %s", node_name)
         else:
             node._is_custom_selected = True
+            node.setSelected(True)
             logger.info(
                 "选中节点: %s (共%d个)",
                 node_name,

@@ -23,7 +23,9 @@ class CanvasBoxSelect:
 
         for _node_name, node in self.canvas.nodes.items():
             node.setPen(QPen(QColor(self.canvas.node_border_color), 2))
+            node._is_custom_selected = False
             node.setSelected(False)
+            node.update()
 
         # 同时清除绘图图形的选中状态
         if hasattr(self.canvas, "draw_layer") and hasattr(self.canvas.draw_layer, "graphics"):

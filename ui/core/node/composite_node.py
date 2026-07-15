@@ -3790,12 +3790,57 @@ class CompositeNode:
 
     def rename(self, comp_id: str, new_name: str):
         """重命名复合节点的展示名称（仅改动 display_name 字段，不影响 comp_id 或 venv）。
-        若 new_name 为空，清除 display_name（回退到 hex ID 显示）。"""
+        若 new_name 为空，清除 display_name（回退到 hex ID 显示）。
+
+        同步动作：
+          1. 更新 node_clusters.json 中的 display_name 字段
+          2. 若画布上存在该 CompositeNodeItem，同步刷新 name_text 显示
+        """
         comp = self._composites.get(comp_id)
         if not comp:
             raise ValueError(f"Composite not found: {comp_id}")
-        comp["display_name"] = new_name.strip() if new_name and new_name.strip() else ""
+        cleaned_name = new_name.strip() if new_name and new_name.strip() else ""
+        comp["display_name"] = cleaned_name
         self.save()
+
+        if self._canvas is not None:
+            try:
+                self._sync_canvas_comp_display(comp_id, cleaned_name)
+            except Exception as e:
+                logger.warning("[%s] 同步画布显示名称失败: %s", comp_id, e)
+
+    def _sync_canvas_comp_display(self, comp_id: str, display_name: str):
+        """将 display_name 变更同步到画布上已渲染的 CompositeNodeItem。"""
+        canvas = self._canvas
+        if not canvas or not hasattr(canvas, "nodes"):
+            return
+        comp_item = canvas.nodes.get(comp_id)
+        if comp_item is None:
+            return
+        if not hasattr(comp_item, "name_text"):
+            return
+
+        from PySide6.QtGui import QColor, QFont
+
+        comp_item.display_name = display_name
+        shown_text = display_name or f"Composite {comp_id.replace('composite_', '')[:6]}"
+        title_font = QFont()
+        title_font.setPointSize(10)
+        title_font.setBold(True)
+        comp_item.name_text.setFont(title_font)
+        if hasattr(comp_item, "_style"):
+            comp_item.name_text.setDefaultTextColor(QColor(comp_item._style.header_text_color))
+        comp_item.name_text.setPlainText(shown_text)
+        final_w = comp_item.rect().width()
+        text_rect = comp_item.name_text.boundingRect()
+        title_x = max(4.0, (final_w - text_rect.width()) / 2)
+        title_y = -text_rect.height()
+        comp_item.name_text.setPos(title_x, title_y)
+        try:
+            comp_item.update()
+        except Exception:
+            pass
+        logger.info("[%s] 画布复合节点显示名称已同步为: %s", comp_id, shown_text)
 
     # ── 辅助 ──
 

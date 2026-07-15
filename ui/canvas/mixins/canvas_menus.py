@@ -113,18 +113,23 @@ class CanvasMenu:
         ActionFactory.add_disabled_label(menu, t("_k_selected_count").format(count=count))
         menu.addSeparator()
 
-        ctx = ActionContext(node_list=node_list)
-        ActionFactory.create_action(self.canvas, "node.start", ctx, menu)
-        ActionFactory.create_action(self.canvas, "node.stop", ctx, menu)
+        start_action = menu.addAction(t("k_node_start"))
+        start_action.triggered.connect(lambda _=False: self.canvas.batch_start_selected_nodes())
+        stop_action = menu.addAction(t("k_node_stop"))
+        stop_action.triggered.connect(lambda _=False: self.canvas.batch_stop_selected_nodes())
         menu.addSeparator()
 
         has_composite = any(n.startswith("composite_") for n in node_list)
 
         if not has_composite:
+            batch_remove_ctx = ActionContext(
+                node_list=node_list,
+                extra={"canvas": self.canvas},
+            )
             ActionFactory.create_action(
                 self.canvas,
                 "canvas.batch_remove",
-                ctx,
+                batch_remove_ctx,
                 menu,
                 label=t("_k_batch_remove_selected").replace("{count}", str(count)),
             )
@@ -272,6 +277,128 @@ class CanvasMenu:
         parent_win = getattr(self.canvas, "parent_window", None)
         if parent_win and hasattr(parent_win, "rename_node"):
             parent_win.rename_node(old_name)
+
+    def rename_composite_node(self, comp_item):
+        """复合节点重命名 — 保护 composite_ 前缀，修改 display_name"""
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import (
+            QDialog,
+            QHBoxLayout,
+            QLabel,
+            QLineEdit,
+            QPushButton,
+            QSizePolicy,
+            QSpacerItem,
+            QVBoxLayout,
+        )
+
+        from ui.panels.node_list_panel import NodeListPanel
+
+        mgr = self._ensure_composite_manager()
+        if not mgr:
+            return
+        comp_id = comp_item.comp_id
+
+        comp = mgr._composites.get(comp_id, {})
+        old_display = comp.get("display_name", "") or comp_id
+        prefix, suffix, read_only_prefix = NodeListPanel._split_protected_prefix(old_display)
+
+        # 如果 display_name 为空，使用 comp_id 的后半部分作为可编辑内容
+        if not comp.get("display_name"):
+            if comp_id.startswith("composite_"):
+                prefix = "composite_"
+                suffix = comp_id[len("composite_") :]
+                read_only_prefix = True
+            else:
+                prefix = ""
+                suffix = old_display
+                read_only_prefix = False
+
+        dlg = QDialog(self.canvas)
+        dlg.setWindowTitle(t("k_node_rename"))
+        dlg.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        dlg.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        dlg.setMinimumWidth(380)
+        if self.canvas.styleSheet():
+            dlg.setStyleSheet(self.canvas.styleSheet())
+
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(16, 14, 16, 10)
+        layout.setSpacing(8)
+
+        title_label = QLabel(t("k_node_rename"))
+        title_label.setStyleSheet("font-size: 13px; font-weight: bold; color: #ccc;")
+        layout.addWidget(title_label)
+
+        layout.addWidget(QLabel(t("k_node_input_new_name")))
+
+        row = QHBoxLayout()
+        row.setSpacing(4)
+        if read_only_prefix:
+            prefix_label = QLabel(prefix)
+            prefix_label.setStyleSheet(
+                "color: #888; background: #2a2a2a; border: 1px solid #444; "
+                "border-right: none; border-radius: 3px 0 0 3px; padding: 4px 8px;"
+            )
+            row.addWidget(prefix_label)
+
+        line_edit = QLineEdit(suffix)
+        line_edit.selectAll()
+        if read_only_prefix:
+            line_edit.setStyleSheet("border: 1px solid #444; border-radius: 0 3px 3px 0; padding: 4px 8px;")
+        else:
+            line_edit.setStyleSheet("border: 1px solid #444; border-radius: 3px; padding: 4px 8px;")
+        row.addWidget(line_edit, 1)
+        layout.addLayout(row)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addItem(QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+
+        cancel_btn = QPushButton(t("k_cancel"))
+        cancel_btn.setFixedWidth(70)
+        cancel_btn.clicked.connect(dlg.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        ok_btn = QPushButton(t("k_ok"))
+        ok_btn.setFixedWidth(70)
+        ok_btn.setDefault(True)
+        ok_btn.clicked.connect(dlg.accept)
+        btn_layout.addWidget(ok_btn)
+
+        layout.addLayout(btn_layout)
+
+        ok = dlg.exec() == QDialog.DialogCode.Accepted
+        if not ok:
+            return
+
+        suffix_input = line_edit.text().strip()
+        import re
+
+        if suffix_input and not re.match(r"^[a-zA-Z0-9_-]+$", suffix_input):
+            from ui.core.utils.dialog_utils import themed_message
+
+            themed_message(self.canvas, t("k_title_warning"), t("k_node_name_invalid"), "warning")
+            return
+
+        new_name = (prefix + suffix_input) if read_only_prefix else suffix_input
+        if not new_name:
+            return
+
+        try:
+            mgr.rename(comp_id, new_name)
+            parent_win = getattr(self.canvas, "parent_window", None)
+            if parent_win and hasattr(parent_win, "refresh_nodes"):
+                parent_win.refresh_nodes()
+            from ui.core.utils.dialog_utils import themed_message
+
+            themed_message(self.canvas, t("k_title_success"), t("_k_node_renamed").format(name=new_name), "info")
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            from ui.core.utils.dialog_utils import themed_message
+
+            themed_message(self.canvas, t("k_title_error"), t("_k_rename_failed").format(err=str(e)), "error")
 
     def _show_canvas_menu(self, event):
         menu = QMenu(self.canvas)
@@ -449,6 +576,13 @@ class CanvasMenu:
         expand_action.triggered.connect(lambda: self._on_toggle_expand(mgr, comp_id))
 
         menu.addSeparator()
+
+        # ── 重命名（运行时禁止）──
+        rename_action = menu.addAction(t("k_node_rename"))
+        if is_running:
+            rename_action.setEnabled(False)
+            rename_action.setToolTip("复合节点运行中，请先停止")
+        rename_action.triggered.connect(lambda: self.rename_composite_node(comp_item))
 
         config_action = menu.addAction(t("k_node_config"))
         config_action.triggered.connect(lambda: self.canvas.open_node_config(comp_id))

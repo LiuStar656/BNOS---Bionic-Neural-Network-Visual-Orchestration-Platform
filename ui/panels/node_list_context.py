@@ -322,7 +322,7 @@ class NodeListContextMixin:
         ActionFactory.create_action(self, "group.toggle_expand", self._make_ctx(group_name=group_name), menu)
 
     def _rename_composite_group(self, group_name):
-        """重命名复合节点的展示名称。"""
+        """重命名复合节点的展示名称（保护 composite_ 前缀）。"""
         parent = self.parent_window
         if not parent:
             return
@@ -333,7 +333,20 @@ class NodeListContextMixin:
             else group_name
         )
 
-        from ui.core.utils.dialog_utils import themed_input
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import (
+            QDialog,
+            QHBoxLayout,
+            QLabel,
+            QLineEdit,
+            QPushButton,
+            QSizePolicy,
+            QSpacerItem,
+            QVBoxLayout,
+        )
+
+        from ui.core.utils.dialog_utils import themed_message
+        from ui.panels.node_list_panel import NodeListPanel
 
         canvas = self._get_canvas(parent)
         if not canvas:
@@ -354,15 +367,85 @@ class NodeListContextMixin:
                 parent.show_toast("复合节点正在运行中，请先停止后再重命名", "warning")
             return
 
-        current_name = mgr._composites.get(comp_id, {}).get("display_name", "")
-        new_name = themed_input(
-            self,
-            "重命名复合节点",
-            "展示名称（留空则恢复 hex ID 显示）：",
-            current_name,
-        )
-        if new_name is None:
+        current_display = mgr._composites.get(comp_id, {}).get("display_name", "")
+        old_name = current_display or comp_id
+        prefix, suffix, read_only_prefix = NodeListPanel._split_protected_prefix(old_name)
+
+        if not current_display:
+            if comp_id.startswith("composite_"):
+                prefix = "composite_"
+                suffix = comp_id[len("composite_") :]
+                read_only_prefix = True
+            else:
+                prefix = ""
+                suffix = old_name
+                read_only_prefix = False
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("重命名复合节点")
+        dlg.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        dlg.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        dlg.setMinimumWidth(380)
+        if self.styleSheet():
+            dlg.setStyleSheet(self.styleSheet())
+
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(16, 14, 16, 10)
+        layout.setSpacing(8)
+
+        title_label = QLabel("重命名复合节点")
+        title_label.setStyleSheet("font-size: 13px; font-weight: bold; color: #ccc;")
+        layout.addWidget(title_label)
+
+        layout.addWidget(QLabel("请输入新的展示名称（留空则恢复 hex ID 显示）："))
+
+        row = QHBoxLayout()
+        row.setSpacing(4)
+        if read_only_prefix:
+            prefix_label = QLabel(prefix)
+            prefix_label.setStyleSheet(
+                "color: #888; background: #2a2a2a; border: 1px solid #444; "
+                "border-right: none; border-radius: 3px 0 0 3px; padding: 4px 8px;"
+            )
+            row.addWidget(prefix_label)
+
+        line_edit = QLineEdit(suffix)
+        line_edit.selectAll()
+        if read_only_prefix:
+            line_edit.setStyleSheet("border: 1px solid #444; border-radius: 0 3px 3px 0; padding: 4px 8px;")
+        else:
+            line_edit.setStyleSheet("border: 1px solid #444; border-radius: 3px; padding: 4px 8px;")
+        row.addWidget(line_edit, 1)
+        layout.addLayout(row)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addItem(QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+
+        cancel_btn = QPushButton("取消")
+        cancel_btn.setFixedWidth(70)
+        cancel_btn.clicked.connect(dlg.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        ok_btn = QPushButton("确定")
+        ok_btn.setFixedWidth(70)
+        ok_btn.setDefault(True)
+        ok_btn.clicked.connect(dlg.accept)
+        btn_layout.addWidget(ok_btn)
+
+        layout.addLayout(btn_layout)
+
+        ok = dlg.exec() == QDialog.DialogCode.Accepted
+        if not ok:
             return
+
+        suffix_input = line_edit.text().strip()
+        import re
+
+        if suffix_input and not re.match(r"^[a-zA-Z0-9_-]+$", suffix_input):
+            themed_message(self, "警告", "名称只能包含字母、数字、下划线和短横线", "warning")
+            return
+
+        new_name = (prefix + suffix_input) if read_only_prefix else suffix_input
 
         try:
             mgr.rename(comp_id, new_name)
@@ -373,6 +456,8 @@ class NodeListContextMixin:
 
         # 刷新节点列表
         self.update_node_list(self.nodes_data)
+
+        themed_message(self, "成功", f"复合节点已重命名为：{new_name}", "info")
 
     def _decompress_composite_group(self, group_name):
         """从节点列表解耦复合节点。"""

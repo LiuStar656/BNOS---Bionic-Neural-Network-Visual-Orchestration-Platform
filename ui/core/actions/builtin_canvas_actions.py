@@ -143,7 +143,7 @@ def register_canvas_actions(main_window):
     # ======================== 节点画布操作（通过 extra.canvas 桥接）========================
 
     def execute_canvas_remove_node(ctx: ActionContext) -> bool:
-        canvas = (ctx.extra or {}).get("canvas") if ctx.extra else None
+        canvas = _get_canvas(ctx)
         if canvas and ctx.node_name:
             canvas.remove_node_with_cleanup(ctx.node_name)
             return True
@@ -160,7 +160,7 @@ def register_canvas_actions(main_window):
     )
 
     def execute_canvas_batch_remove(ctx: ActionContext) -> bool:
-        canvas = (ctx.extra or {}).get("canvas") if ctx.extra else None
+        canvas = _get_canvas(ctx)
         if canvas:
             canvas.batch_remove_nodes_from_canvas()
             return True
@@ -176,7 +176,7 @@ def register_canvas_actions(main_window):
     )
 
     def execute_canvas_expand_node(ctx: ActionContext) -> bool:
-        canvas = (ctx.extra or {}).get("canvas") if ctx.extra else None
+        canvas = _get_canvas(ctx)
         if canvas and ctx.node_name:
             canvas.on_node_expand_requested(ctx.node_name)
             return True

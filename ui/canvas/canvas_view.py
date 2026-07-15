@@ -91,18 +91,23 @@ class SelectedNodesList:
     # ── 写操作 ──
     def append(self, name):
         if name in self._canvas.nodes:
-            self._canvas.nodes[name]._is_custom_selected = True
-            self._canvas.nodes[name].update()
+            node = self._canvas.nodes[name]
+            node._is_custom_selected = True
+            node.setSelected(True)
+            node.update()
 
     def remove(self, name):
         if name in self._canvas.nodes:
-            self._canvas.nodes[name]._is_custom_selected = False
-            self._canvas.nodes[name].update()
+            node = self._canvas.nodes[name]
+            node._is_custom_selected = False
+            node.setSelected(False)
+            node.update()
 
     def clear(self):
         self._canvas.scene.clearSelection()
         for item in self._canvas.nodes.values():
             item._is_custom_selected = False
+            item.setSelected(False)
             item.update()
 
     # ── 显示 ──

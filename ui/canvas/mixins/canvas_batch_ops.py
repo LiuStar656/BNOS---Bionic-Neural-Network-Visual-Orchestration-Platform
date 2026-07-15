@@ -199,7 +199,12 @@ class CanvasBatchOps:
                     logger.warning("停止节点 %s 失败: %s", node_name, e)
 
     def _remove_nodes_from_canvas(self, node_names):
-        """从画布移除节点
+        """从画布移除节点（通过权威的 remove_node_from_canvas 链路）
+
+        对每个节点走 canvas.remove_node_from_canvas 权威方法，确保：
+        - 相关连线通过 canvas.remove_edge 完整清理上下游配置
+        - 复合节点内部节点列表正确更新
+        - 先录制 undo/redo 命令再执行删除
 
         Args:
             node_names: 要移除的节点名称列表
@@ -209,31 +214,16 @@ class CanvasBatchOps:
         """
         removed_count = 0
         for node_name in node_names[:]:
-            if node_name in self.canvas.nodes:
-                node = self.canvas.nodes[node_name]
-                self.canvas.scene.removeItem(node)
-                del self.canvas.nodes[node_name]
-                removed_count += 1
-                logger.info("已从画布移除节点: %s", node_name)
+            if node_name not in self.canvas.nodes:
+                continue
+            try:
+                self.canvas.selection._record_delete_node(node_name)
+            except Exception as e:
+                logger.warning("录制删除节点 %s 的 undo 命令失败: %s", node_name, e)
+            self.canvas.remove_node_from_canvas(node_name)
+            removed_count += 1
+            logger.info("已从画布移除节点: %s", node_name)
         return removed_count
-
-    def _clean_orphan_edges(self):
-        """清理孤立的连线（端点节点已被移除的连线）"""
-        edges_to_remove = []
-        for edge in self.canvas.edges:
-            source_name = None
-            target_name = None
-            for name, node_item in self.canvas.nodes.items():
-                if node_item == edge.start_node:
-                    source_name = name
-                if node_item == edge.end_node:
-                    target_name = name
-
-            if source_name not in self.canvas.nodes or target_name not in self.canvas.nodes:
-                edges_to_remove.append(edge)
-
-        for edge in edges_to_remove:
-            self.canvas.connections.remove_edge(edge)
 
     def _trigger_project_save(self):
         """触发项目保存定时器"""
@@ -259,11 +249,8 @@ class CanvasBatchOps:
         # 停止运行中的节点
         self._stop_running_nodes(running_nodes)
 
-        # 移除节点
+        # 移除节点（内部已通过权威链路删除关联连线）
         removed_count = self._remove_nodes_from_canvas(node_names)
-
-        # 清理孤立连线
-        self._clean_orphan_edges()
 
         # 清理选择状态并触发保存
         self.canvas.selection.clear_selection()

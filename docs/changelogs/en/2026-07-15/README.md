@@ -10,6 +10,7 @@
 - [02 MUTEX-VIOLATION Assertion Timing Fix](#02-mutex-violation-assertion-timing-fix)
 - [03 Log Noise Reduction & Steady-State Log Tiering](#03-log-noise-reduction--steady-state-log-tiering)
 - [04 State Machine System Development Stage Audit (Node Track + Edge Track)](#04-state-machine-system-development-stage-audit-node-track--edge-track)
+- [05 Selection Dual-Source Sync Fix & Composite Node Double-Click Config](#05-selection-dual-source-sync-fix--composite-node-double-click-config)
 
 ---
 
@@ -67,6 +68,22 @@ See [04_State_Machine_System_Development_Stage_Audit.md](./04_State_Machine_Syst
 
 ---
 
+---
+
+## 05 Selection Dual-Source Sync Fix & Composite Node Double-Click Config
+
+See [05_Selection_DualSource_Sync_and_Composite_DoubleClick_Config.md](./05_Selection_DualSource_Sync_and_Composite_DoubleClick_Config.md).
+
+### Summary
+
+- **Dual-Source Root Cause**: Render-layer `is_selected = _is_custom_selected OR isSelected()` depends on "custom flag OR Qt-native selection", but 5 write entry points (SelectionManager ×2 + SelectedNodesList ×3 + CanvasBoxSelect) only manipulated one of the two sources, leaving stale `False OR True ≡ True` → old node highlight persisted
+- **End-to-End Dual-Write Fix**: `SelectionManager.on_node_selected` dual-writes `_is_custom_selected=False + setSelected(False)` on clear, plus `scene.clearSelection()` as safety net; `_toggle_node_selection` dual-source predicate + identical dual-write
+- **API Write Consistency**: `SelectedNodesList.append/remove/clear` gained `setSelected()` sync; `CanvasBoxSelect.clear_box_selection` now also syncs `_is_custom_selected=False + update()` repaint
+- **CompositeNodeItem Interaction Completion**: Added `mousePressEvent` (4 full semantic paths: plain-click single-select / Ctrl-click multi-select / right-click context menu / connection anchor hit); Added `mouseDoubleClickEvent` (calls `canvas.open_node_config(comp_id)` to open composite config panel, with try/except + success/warning logs)
+- **Panel Compatibility Verified**: `NodeDetailPanel.create_for_node` dual-provider architecture already auto-routes `composite_` prefix to `CompositeNodeProvider` (3 tabs: Overview / Cluster Config / Composite Structure); previous session already removed duplicate "Composite Config" tab to prevent double-opening same composite.json
+
+---
+
 ## Files Changed
 
 | File | Changes |
@@ -77,6 +94,10 @@ See [04_State_Machine_System_Development_Stage_Audit.md](./04_State_Machine_Syst
 | `ui/core/node/composite_node.py` | `set_input_routing` / `set_output_routing` entry normalization + alias stale-key cleanup; `clear_input_routing` / `clear_output_routing` loose alias matching; expand/collapse flows flush RouteCache BEFORE assertion; assertion failure no longer rolls back (ERROR log only) |
 | `ui/canvas/mixins/canvas_edge_render_gate.py` | `CANONICAL_SCAN_INTERVAL_MS` 3_000 → 10_000; `_run_scan` gained noisy predicate + summary/set dump tiered logging |
 | `ui/core/state/` (15 modules + 7 tests) + 6 integration call sites (node_process / composite_node / canvas_view / canvas_layout / canvas_edge_render_gate) | State machine system audit: Node Track Phases 1-3 production-ready, Phase 2 mid-integration; Edge Track Phase 4 defined & tests green, edge_item.py / canvas_view not yet wired |
+| `ui/canvas/mixins/canvas_selection.py` | `on_node_selected` dual-writes `_is_custom_selected=False + setSelected(False)` on clear + `scene.clearSelection()` safety net; new node gains `setSelected(True)`; `_toggle_node_selection` dual-source predicate + dual-write |
+| `ui/canvas/canvas_view.py` | `SelectedNodesList.append/remove/clear` three write APIs now sync `setSelected()` |
+| `ui/canvas/mixins/canvas_box_select.py` | `clear_box_selection` syncs `_is_custom_selected=False + update()` repaint |
+| `ui/canvas/items/composite_node_item.py` | Added `mousePressEvent` (4 full semantic paths: single-select / Ctrl multi-select / right-click menu / anchor hit); Added `mouseDoubleClickEvent` (calls `canvas.open_node_config(comp_id)` to open panel, exception-caught + success/warning logs) |
 
 
 ---
